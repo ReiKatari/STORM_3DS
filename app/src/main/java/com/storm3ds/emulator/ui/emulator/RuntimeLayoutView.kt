@@ -1,0 +1,362 @@
+package com.storm3ds.emulator.ui.emulator
+
+import android.content.Context
+import android.util.AttributeSet
+import android.view.View
+import android.widget.FrameLayout
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
+import dagger.hilt.android.AndroidEntryPoint
+import com.storm3ds.emulator.common.vibration.TouchVibrator
+import com.storm3ds.emulator.domain.model.Input
+import com.storm3ds.emulator.domain.model.input.SoftInputBehaviour
+import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.ui.common.LayoutView
+import com.storm3ds.emulator.ui.emulator.input.ButtonsInputHandler
+import com.storm3ds.emulator.ui.emulator.input.DpadInputHandler
+import com.storm3ds.emulator.ui.emulator.input.FrontendInputHandler
+import com.storm3ds.emulator.ui.emulator.input.HybridScreenTouchscreenInputHandler
+import com.storm3ds.emulator.ui.emulator.input.IInputListener
+import com.storm3ds.emulator.ui.emulator.input.SingleButtonInputHandler
+import com.storm3ds.emulator.ui.emulator.input.TouchscreenInputHandler
+import com.storm3ds.emulator.ui.emulator.input.view.ToggleableImageView
+import com.storm3ds.emulator.ui.emulator.model.ConnectedControllersState
+import com.storm3ds.emulator.ui.emulator.model.RuntimeInputLayoutConfiguration
+import com.storm3ds.emulator.ui.layouteditor.model.LayoutTarget
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutView(context, attrs) {
+
+    @Inject
+    lateinit var touchVibrator: TouchVibrator
+
+    var onQuickSlotCarouselRequested: (() -> Unit)? = null
+
+    private var currentRuntimeLayout: RuntimeInputLayoutConfiguration? = null
+    private var frontendInputHandler: IInputListener? = null
+    private var systemInputHandler: IInputListener? = null
+    private var isSoftInputVisible = true
+    private var areScreensSwapped = false
+    private var connectedControllersState: ConnectedControllersState = ConnectedControllersState.NoControllers
+
+    init {
+        isMotionEventSplittingEnabled = true
+    }
+
+    fun setFrontendInputHandler(frontendInputHandler: FrontendInputHandler) {
+        this.frontendInputHandler = frontendInputHandler
+        updateInputs()
+    }
+
+    fun setSystemInputHandler(systemInputHandler: IInputListener) {
+        this.systemInputHandler = systemInputHandler
+        updateInputs()
+    }
+
+    fun setConnectedControllersState(state: ConnectedControllersState) {
+        connectedControllersState = state
+        updateVisibility()
+    }
+
+    fun toggleSoftInputVisibility() {
+        isSoftInputVisible = !isSoftInputVisible
+        setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT, isSoftInputVisible)
+        updateVisibility()
+    }
+
+    fun swapScreens() {
+        areScreensSwapped = !areScreensSwapped
+        updateScreenInputs()
+    }
+
+    fun areScreensSwapped(): Boolean {
+        return areScreensSwapped
+    }
+
+    fun setLayoutComponentToggleState(layoutComponent: LayoutComponent, isEnabled: Boolean) {
+        val view = getLayoutComponentView(layoutComponent)?.view
+        (view as? com.storm3ds.emulator.ui.common.views.ModernSingleButtonView)?.setToggleState(isEnabled)
+        (view as? ToggleableImageView)?.setToggleState(isEnabled)
+    }
+
+    fun instantiateLayout(runtimeLayout: RuntimeInputLayoutConfiguration, layoutTarget: LayoutTarget) {
+        currentRuntimeLayout = runtimeLayout
+        instantiateLayout(runtimeLayout.layout, layoutTarget)
+        updateInputs()
+        updateVisibility()
+        setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT, isSoftInputVisible)
+    }
+
+    private fun updateInputs() {
+        val currentRuntimeLayout = currentRuntimeLayout
+        if (currentRuntimeLayout == null) {
+            isGone = true
+            return
+        }
+
+        isVisible = true
+        val inputAlpha = currentRuntimeLayout.softInputOpacity / 100f
+
+        val enableHapticFeedback = currentRuntimeLayout.isHapticFeedbackEnabled
+        systemInputHandler?.let {
+            getLayoutComponentView(LayoutComponent.DPAD)?.view?.setOnTouchListener(DpadInputHandler(it, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTONS)?.view?.setOnTouchListener(ButtonsInputHandler(it, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_L)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.L, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_R)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.R, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_SELECT)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.SELECT, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_START)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.START, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_HOME)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.HOME, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_ZL)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.ZL, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_ZR)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.ZR, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_HINGE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.HINGE, enableHapticFeedback, touchVibrator))
+            (getLayoutComponentView(LayoutComponent.CIRCLE_PAD)?.view as? com.storm3ds.emulator.ui.common.views.ModernCirclePadView)?.onAxisChanged = { x, y ->
+                com.storm3ds.emulator.MelonEmulator.setCirclePadAxis(x, y)
+            }
+            (getLayoutComponentView(LayoutComponent.C_STICK)?.view as? com.storm3ds.emulator.ui.common.views.ModernCStickView)?.onAxisChanged = { x, y ->
+                com.storm3ds.emulator.MelonEmulator.setCStickAxis(x, y)
+            }
+            (getLayoutComponentView(LayoutComponent.SLIDER_3D_DEPTH)?.view as? com.storm3ds.emulator.ui.common.views.Modern3dDepthSliderView)?.onDepthChanged = { depth ->
+                com.storm3ds.emulator.MelonEmulator.setVulkanDepth3DStrength(depth)
+            }
+            wireComboComponent(LayoutComponent.BUTTON_COMBO_1, 1, it, enableHapticFeedback)
+            wireComboComponent(LayoutComponent.BUTTON_COMBO_2, 2, it, enableHapticFeedback)
+        }
+        frontendInputHandler?.let {
+            getLayoutComponentView(LayoutComponent.BUTTON_RESET)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.RESET, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_PAUSE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.PAUSE, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.FAST_FORWARD, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_MICROPHONE_TOGGLE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.MICROPHONE, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TOGGLE_SOFT_INPUT, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_SWAP_SCREENS)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.SWAP_SCREENS, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_QUICK_SAVE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.QUICK_SAVE, enableHapticFeedback, touchVibrator, onLongPress = { onQuickSlotCarouselRequested?.invoke() }))
+            getLayoutComponentView(LayoutComponent.BUTTON_QUICK_LOAD)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.QUICK_LOAD, enableHapticFeedback, touchVibrator, onLongPress = { onQuickSlotCarouselRequested?.invoke() }))
+            getLayoutComponentView(LayoutComponent.BUTTON_REWIND)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.REWIND, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_TRANSLATE)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TRANSLATE, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TOGGLE_EXTRA_BUTTONS, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_LOCK_ROTATION)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.LOCK_ROTATION, enableHapticFeedback, touchVibrator))
+            getLayoutComponentView(LayoutComponent.BUTTON_TOGGLE_ANALOG_STICK)?.view?.setOnTouchListener(SingleButtonInputHandler(it, Input.TOGGLE_ANALOG_STICK, enableHapticFeedback, touchVibrator))
+        }
+
+        getLayoutComponentViews().forEach {
+            if (it.component == LayoutComponent.BUTTON_TRANSLATE) {
+                it.view.visibility = View.GONE
+            } else if (!it.component.isScreen()) {
+                it.view.apply {
+                    alpha = inputAlpha
+                }
+            }
+        }
+
+        updateScreenInputs()
+    }
+
+    private var areExtraButtonsVisible = true
+
+    fun toggleExtraButtonsVisibility() {
+        areExtraButtonsVisible = !areExtraButtonsVisible
+        getLayoutComponentViews().forEach { compView ->
+            val c = compView.component
+            if (c == LayoutComponent.BUTTON_TRANSLATE) {
+                compView.view.visibility = View.GONE
+                return@forEach
+            }
+            val isCore = c == LayoutComponent.DPAD || c == LayoutComponent.BUTTONS ||
+                    c == LayoutComponent.BUTTON_L || c == LayoutComponent.BUTTON_R ||
+                    c == LayoutComponent.BUTTON_START || c == LayoutComponent.BUTTON_SELECT ||
+                    c == LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS ||
+                    c.isScreen()
+            if (!isCore) {
+                compView.view.isVisible = areExtraButtonsVisible
+            }
+        }
+        setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS, areExtraButtonsVisible)
+    }
+
+    private fun updateScreenInputs() {
+        val (touchScreenComponent, nonTouchScreenComponent) = if (areScreensSwapped) {
+            LayoutComponent.TOP_SCREEN to LayoutComponent.BOTTOM_SCREEN
+        } else {
+            LayoutComponent.BOTTOM_SCREEN to LayoutComponent.TOP_SCREEN
+        }
+        systemInputHandler?.let { handler ->
+            val touchView = getLayoutComponentView(touchScreenComponent)?.view
+            if (touchView != null) {
+                touchView.setOnTouchListener(TouchscreenInputHandler(handler))
+            } else {
+                // Fallback for single-screen layouts where only one screen is rendered on this display
+                getLayoutComponentView(nonTouchScreenComponent)?.view?.setOnTouchListener(TouchscreenInputHandler(handler))
+            }
+            getLayoutComponentView(LayoutComponent.HYBRID_SCREEN)?.view?.setOnTouchListener(HybridScreenTouchscreenInputHandler(handler))
+        }
+        if (getLayoutComponentView(touchScreenComponent)?.view != null) {
+            getLayoutComponentView(nonTouchScreenComponent)?.view?.setOnTouchListener(null)
+        }
+    }
+
+    private fun updateVisibility() {
+        val currentConnectedControllersState = connectedControllersState
+        var hiddenComponents = when(currentRuntimeLayout?.softInputBehaviour) {
+            SoftInputBehaviour.ALWAYS_VISIBLE -> emptyList()
+            SoftInputBehaviour.HIDE_SYSTEM_BUTTONS_WHEN_CONTROLLERS_CONNECTED, null -> {
+                when(currentConnectedControllersState) {
+                    ConnectedControllersState.NoControllers -> emptyList()
+                    is ConnectedControllersState.ControllersConnected -> listOf(
+                        LayoutComponent.BUTTONS,
+                        LayoutComponent.DPAD,
+                        LayoutComponent.BUTTON_L,
+                        LayoutComponent.BUTTON_R,
+                        LayoutComponent.BUTTON_START,
+                        LayoutComponent.BUTTON_SELECT
+                    )
+                }
+            }
+            SoftInputBehaviour.HIDE_ALL_BUTTONS_ASSIGNED_TO_CONNECTED_CONTROLLERS -> when(currentConnectedControllersState) {
+                ConnectedControllersState.NoControllers -> emptyList()
+                is ConnectedControllersState.ControllersConnected -> {
+                    LayoutComponent.entries.filter {
+                        // The component can be hidden if all matching inputs are assigned to connected controllers
+                        it.matchingInputs.all {
+                            currentConnectedControllersState.assignedInputs.contains(it)
+                        }
+                    }
+                }
+            }
+            SoftInputBehaviour.ALWAYS_INVISIBLE -> LayoutComponent.entries.toList()
+        }
+
+        if (!isSoftInputVisible) {
+            // Hide everything except the soft input toggle button if it was not already hidden by the soft input behaviour logic
+            hiddenComponents = if (hiddenComponents.contains(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT)) {
+                LayoutComponent.entries.toList()
+            } else {
+                LayoutComponent.entries.toList().filter { it != LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT}
+            }
+        }
+
+        val visibleComponents = LayoutComponent.entries.filter { !hiddenComponents.contains(it) }
+
+        hiddenComponents.forEach { component ->
+            if (!component.isScreen()) {
+                getLayoutComponentView(component)?.view?.isVisible = false
+            }
+        }
+        visibleComponents.forEach { component ->
+            if (!component.isScreen()) {
+                getLayoutComponentView(component)?.view?.isVisible = true
+            }
+        }
+    }
+
+    fun applyConsoleSkinButtonShift(isConsoleSkinEnabled: Boolean, shiftPx: Int) {
+        val w = width
+        val h = height
+        val density = resources.displayMetrics.density
+        val isLandscape = w > h && h > 0
+
+        val bottomLipLiftPx = (24f * density).toInt()
+        val mainPadLiftPx = (20f * density).toInt()
+        val shoulderDropPx = (6f * density).toInt()
+
+        getLayoutComponentViews().forEach { compView ->
+            if (!compView.component.isScreen()) {
+                val v = compView.view
+                val lp = v.layoutParams as? FrameLayout.LayoutParams
+                if (lp != null) {
+                    val baseTop = compView.initialRect?.y ?: lp.topMargin
+                    val baseLeft = compView.initialRect?.x ?: lp.leftMargin
+
+                    val deltaY: Int
+                    val deltaX: Int
+
+                    if (!isConsoleSkinEnabled) {
+                        deltaY = 0
+                        deltaX = 0
+                    } else if (isLandscape) {
+                        deltaY = when (compView.component) {
+                            LayoutComponent.BUTTON_L,
+                            LayoutComponent.BUTTON_R -> (4f * density).toInt()
+                            LayoutComponent.BUTTON_SELECT,
+                            LayoutComponent.BUTTON_START -> -(4f * density).toInt()
+                            else -> 0
+                        }
+                        deltaX = 0
+                    } else {
+                        deltaY = when (compView.component) {
+                            LayoutComponent.BUTTON_SELECT,
+                            LayoutComponent.BUTTON_START -> -bottomLipLiftPx
+                            LayoutComponent.DPAD,
+                            LayoutComponent.BUTTONS -> -mainPadLiftPx
+                            else -> shoulderDropPx
+                        }
+                        deltaX = 0
+                    }
+
+                    val maxTop = if (h > 0 && lp.height > 0) (h - lp.height - 4).coerceAtLeast(0) else Int.MAX_VALUE
+                    val newTop = (baseTop + deltaY).coerceIn(0, maxTop)
+
+                    val maxLeft = if (w > 0 && lp.width > 0) (w - lp.width - 4).coerceAtLeast(0) else Int.MAX_VALUE
+                    val newLeft = (baseLeft + deltaX).coerceIn(0, maxLeft)
+
+                    var changed = false
+                    if (newTop != lp.topMargin) {
+                        lp.topMargin = newTop
+                        changed = true
+                    }
+                    if (newLeft != lp.leftMargin) {
+                        lp.leftMargin = newLeft
+                        changed = true
+                    }
+                    if (changed) {
+                        v.layoutParams = lp
+                    }
+                }
+            }
+        }
+    }
+
+    fun invalidateInputControlViews() {
+        getLayoutComponentViews().forEach { compView ->
+            if (!compView.component.isScreen()) {
+                compView.view.invalidate()
+            }
+        }
+    }
+
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun wireComboComponent(
+        component: LayoutComponent,
+        slotIndex: Int,
+        listener: IInputListener,
+        haptic: Boolean,
+    ) {
+        val view = getLayoutComponentView(component)?.view ?: return
+        var activeCombo = emptyList<Input>()
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        var longPressed = false
+        val longPressTask = Runnable {
+            longPressed = true
+            val current = com.storm3ds.emulator.ui.common.views.loadComboKeyInputs(context, slotIndex)
+            com.storm3ds.emulator.ui.common.views.showComboKeyConfigDialog(context, slotIndex, current) { }
+        }
+        view.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    longPressed = false
+                    handler.postDelayed(longPressTask, 650L)
+                    activeCombo = com.storm3ds.emulator.ui.common.views.loadComboKeyInputs(context, slotIndex)
+                    if (haptic && touchVibrator.supportsVibration()) touchVibrator.performTouchHapticFeedback()
+                    activeCombo.forEach { listener.onKeyPress(it) }
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPressTask)
+                    activeCombo.forEach { listener.onKeyReleased(it) }
+                    activeCombo = emptyList()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+}

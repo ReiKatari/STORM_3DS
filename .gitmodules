@@ -1,0 +1,108 @@
+[submodule "boost"]
+	path = core/externals/boost
+	url = https://github.com/azahar-emu/ext-boost.git
+[submodule "nihstro"]
+	path = core/externals/nihstro
+	url = https://github.com/neobrain/nihstro.git
+[submodule "soundtouch"]
+	path = core/externals/soundtouch
+	url = https://github.com/azahar-emu/soundtouch.git
+[submodule "catch2"]
+	path = core/externals/catch2
+	url = https://github.com/catchorg/Catch2
+[submodule "dynarmic"]
+	path = core/externals/dynarmic
+	url = https://github.com/azahar-emu/dynarmic.git
+[submodule "xbyak"]
+	path = core/externals/xbyak
+	url = https://github.com/herumi/xbyak.git
+[submodule "fmt"]
+	path = core/externals/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "enet"]
+	path = core/externals/enet
+	url = https://github.com/lsalzman/enet.git
+[submodule "inih"]
+	path = core/externals/inih/inih
+	url = https://github.com/benhoyt/inih.git
+[submodule "libressl"]
+	path = core/externals/libressl
+	url = https://github.com/azahar-emu/ext-libressl-portable.git
+[submodule "libusb"]
+	path = core/externals/libusb/libusb
+	url = https://github.com/libusb/libusb.git
+[submodule "cubeb"]
+	path = core/externals/cubeb
+	url = https://github.com/mozilla/cubeb
+[submodule "discord-rpc"]
+	path = core/externals/discord-rpc
+	url = https://github.com/azahar-emu/discord-rpc.git
+[submodule "cpp-jwt"]
+	path = core/externals/cpp-jwt
+	url = https://github.com/arun11299/cpp-jwt.git
+[submodule "teakra"]
+	path = core/externals/teakra
+	url = https://github.com/wwylele/teakra.git
+[submodule "lodepng"]
+	path = core/externals/lodepng/lodepng
+	url = https://github.com/lvandeve/lodepng.git
+[submodule "zstd"]
+	path = core/externals/zstd
+	url = https://github.com/facebook/zstd.git
+[submodule "libyuv"]
+	path = core/externals/libyuv
+	url = https://github.com/lemenkov/libyuv.git
+[submodule "sdl2"]
+	path = core/externals/sdl2/SDL
+	url = https://github.com/libsdl-org/SDL
+[submodule "dds-ktx"]
+	path = core/externals/dds-ktx
+	url = https://github.com/septag/dds-ktx
+[submodule "openal-soft"]
+	path = core/externals/openal-soft
+	url = https://github.com/azahar-emu/openal-soft
+[submodule "glslang"]
+	path = core/externals/glslang
+	url = https://github.com/KhronosGroup/glslang
+[submodule "vma"]
+	path = core/externals/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "vulkan-headers"]
+	path = core/externals/vulkan-headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers
+[submodule "sirit"]
+	path = core/externals/sirit/sirit
+	url = https://github.com/azahar-emu/sirit
+[submodule "faad2"]
+	path = core/externals/faad2/faad2
+	url = https://github.com/knik0/faad2
+[submodule "libadrenotools"]
+	path = core/externals/libadrenotools
+	url = https://github.com/bylaws/libadrenotools
+[submodule "oaknut"]
+	path = core/externals/oaknut
+	url = https://github.com/merryhime/oaknut.git
+[submodule "compatibility-list"]
+	path = core/dist/compatibility_list
+	url = https://github.com/azahar-emu/compatibility-list
+[submodule "spirv-tools"]
+	path = core/externals/spirv-tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools
+[submodule "spirv-headers"]
+	path = core/externals/spirv-headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers
+[submodule "externals/xxHash"]
+	path = core/externals/xxHash
+	url = https://github.com/Cyan4973/xxHash.git
+[submodule "externals/libretro-common"]
+	path = core/externals/libretro-common/libretro-common
+	url = https://github.com/libretro/libretro-common.git
+[submodule "dllwalker"]
+	path = core/externals/dllwalker
+	url = https://github.com/azahar-emu/dllwalker
+[submodule "externals/cryptopp"]
+	path = core/externals/cryptopp
+	url = https://github.com/cryptopp-modern/cryptopp-modern.git
+[submodule "microtar"]
+	path = core/externals/microtar
+	url = https://github.com/azahar-emu/microtar

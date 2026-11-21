@@ -1,0 +1,77 @@
+package com.storm3ds.emulator.common
+
+import android.content.Context
+import android.content.ContentResolver
+import android.os.ParcelFileDescriptor
+import androidx.core.net.toUri
+import com.storm3ds.emulator.common.uridelegates.UriHandler
+import com.storm3ds.emulator.utils.FileUtils
+import java.io.File
+
+class UriFileHandler(private val context: Context, private val uriHandler: UriHandler) {
+    companion object {
+        private const val FILE_NOT_FOUND = -1
+        private val writeModeChars = listOf("w", "a")
+    }
+
+    fun open(uriString: String, mode: String): Int {
+        val uri = uriString.toUri()
+
+        var isWriteMode = false
+        if (mode.findAnyOf(writeModeChars) != null) {
+            isWriteMode = true
+        }
+
+        if (uri.scheme == ContentResolver.SCHEME_FILE || uri.scheme == null || uriString.startsWith("/")) {
+            val filePath = uri.path ?: uriString.removePrefix("file://")
+            val file = if (filePath.isNotEmpty()) File(filePath) else return FILE_NOT_FOUND
+            return try {
+                if (isWriteMode) {
+                    file.parentFile?.mkdirs()
+                }
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))?.detachFd()
+            } catch (_: Exception) {
+                null
+            } ?: FILE_NOT_FOUND
+        }
+
+        val safFd = if (isWriteMode) {
+            if (uriHandler.fileExists(uri)) {
+                try {
+                    context.contentResolver.openFileDescriptor(uri, mode)?.detachFd()
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                uriHandler.createFileDocument(uri)?.let { document ->
+                    try {
+                        context.contentResolver.openFileDescriptor(document.uri, mode)?.detachFd()
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }
+        } else {
+            try {
+                context.contentResolver.openFileDescriptor(uri, mode)?.detachFd()
+            } catch (_: Exception) {
+                null
+            }
+        }
+        if (safFd != null) return safFd
+
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(uri)
+        if (directFile != null) {
+            return try {
+                if (isWriteMode) {
+                    directFile.parentFile?.mkdirs()
+                }
+                ParcelFileDescriptor.open(directFile, ParcelFileDescriptor.parseMode(mode))?.detachFd()
+            } catch (_: Exception) {
+                null
+            } ?: FILE_NOT_FOUND
+        }
+
+        return FILE_NOT_FOUND
+    }
+}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="18dp"
+    android:height="24dp"
+    android:viewportWidth="18"
+    android:viewportHeight="24">
+
+    <!-- Upper DS Screen (Cyan Gradient) -->
+    <path
+        android:pathData="M2,1 L16,1 A2,2 0 0 1 18,3 L18,10 A2,2 0 0 1 16,12 L2,12 A2,2 0 0 1 0,10 L0,3 A2,2 0 0 1 2,1 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="1"
+                android:endX="18"
+                android:endY="12"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF00E5FF" />
+                <item android:offset="1.0" android:color="#FF0066FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Lower DS Screen (Storm Indigo Gradient) -->
+    <path
+        android:pathData="M2,13 L16,13 A2,2 0 0 1 18,15 L18,22 A2,2 0 0 1 16,24 L2,24 A2,2 0 0 1 0,22 L0,15 A2,2 0 0 1 2,13 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="13"
+                android:endX="18"
+                android:endY="24"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF0066FF" />
+                <item android:offset="1.0" android:color="#FF7B2CBF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- STORM Lightning Bolt Accent -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11,2 L6,12 L10,12 L7,22 L14,11 L10,11 Z" />
+</vector>

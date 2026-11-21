@@ -1,0 +1,348 @@
+package com.storm3ds.emulator.ui.romlist.composables
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.ui.theme.WatermelonColors
+import com.storm3ds.emulator.ui.theme.WatermelonMono
+import com.storm3ds.emulator.ui.theme.watermelon
+import kotlin.time.Duration
+
+fun Modifier.watermelonFocusRing(focused: Boolean, red: Color, shape: RoundedCornerShape): Modifier {
+    return if (focused) {
+        this
+            .padding(0.dp)
+            .border(3.dp, red, shape)
+    } else {
+        this
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RomGridCard(
+    rom: Rom,
+    coverUrl: String?,
+    boxArtUrl: String? = null,
+    boxArtLoading: Boolean = false,
+    showAchievementBadge: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = watermelon
+    val cardStyle = com.storm3ds.emulator.ui.theme.AppThemeManager.cardStyleState.value
+    val cornerRadius = when (cardStyle) {
+        "3d_boxart" -> 5.dp
+        "flat_minimal" -> 2.dp
+        else -> 14.dp
+    }
+    val shadowElevation = when (cardStyle) {
+        "3d_boxart" -> 12.dp
+        "flat_minimal" -> 0.dp
+        else -> 6.dp
+    }
+    val shape = RoundedCornerShape(cornerRadius)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = when {
+            isPressed -> 0.94f
+            isFocused -> 1.03f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "press",
+    )
+    var artLoaded by remember(rom.uri) { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .fillMaxWidth()
+            .aspectRatio(DsBoxArtAspectRatio)
+            .shadow(shadowElevation, shape)
+            .clip(shape)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongPress,
+            ),
+    ) {
+        WatermelonRomArt(
+            rom = rom,
+            boxArtUrl = boxArtUrl,
+            raCoverUrl = coverUrl,
+            initialsFontSize = 44.sp,
+            boxArtLoading = boxArtLoading,
+            modifier = Modifier.aspectRatio(DsBoxArtAspectRatio).fillMaxWidth(),
+            onArtLoadedChanged = { artLoaded = it },
+        )
+
+        val borderColor = when (cardStyle) {
+            "flat_minimal" -> colors.line
+            "3d_boxart" -> Color.White.copy(alpha = 0.40f)
+            else -> Color.White.copy(alpha = 0.20f)
+        }
+        val borderWidth = when (cardStyle) {
+            "3d_boxart" -> 1.5.dp
+            "flat_minimal" -> 1.dp
+            else -> 1.2.dp
+        }
+        Box(Modifier.aspectRatio(DsBoxArtAspectRatio).fillMaxWidth().border(borderWidth, borderColor, shape))
+
+        if (cardStyle == "3d_boxart") {
+            // Authentic 3D Nintendo 3DS plastic box case spine on left edge
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .width(10.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.65f),
+                                Color.Black.copy(alpha = 0.40f),
+                                Color.White.copy(alpha = 0.35f),
+                                Color.Transparent,
+                            )
+                        )
+                    )
+            )
+            // Top gloss reflection
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(32.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.30f),
+                                Color.White.copy(alpha = 0.05f),
+                                Color.Transparent,
+                            )
+                        )
+                    )
+            )
+        } else if (cardStyle == "glassmorphism") {
+            // Frosted glass gloss overlay
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.Transparent,
+                            )
+                        )
+                    )
+            )
+        }
+
+        Row(
+            modifier = Modifier.align(Alignment.TopStart).padding(7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val regionBadge = resolveRomRegionBadge(rom)
+            if (regionBadge != null) {
+                RegionBadge(
+                    flag = regionBadge.first,
+                    code = regionBadge.second,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
+            PlatformBadge(text = romPlatformLabel(rom))
+            if (showAchievementBadge) {
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                        .border(0.7.dp, WatermelonColors.gold.copy(alpha = 0.70f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.EmojiEvents,
+                            contentDescription = "Achievements",
+                            tint = WatermelonColors.gold,
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Spacer(Modifier.width(2.5.dp))
+                        Text(
+                            text = "RA",
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = WatermelonColors.gold
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        if (rom.isFavorite) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                tint = WatermelonColors.favoriteStar,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 7.dp)
+                    .size(13.dp),
+            )
+        }
+
+        if (!artLoaded) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
+                    .padding(start = 8.dp, end = 8.dp, top = 20.dp, bottom = 8.dp),
+            ) {
+                Text(
+                    text = romDisplayName(rom),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val hours = formatHoursLabel(rom.totalPlayTime)
+                if (hours.isNotEmpty()) {
+                    Text(
+                        text = hours,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontFamily = WatermelonMono,
+                        fontSize = 8.5.sp,
+                        lineHeight = 10.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+        } else {
+            RomMiniIcon(
+                rom = rom,
+                raCoverUrl = coverUrl,
+                modifier = Modifier.align(Alignment.BottomStart).padding(7.dp),
+            )
+        }
+
+        if (isFocused) {
+            Box(Modifier.aspectRatio(DsBoxArtAspectRatio).fillMaxWidth().border(3.dp, colors.red, shape))
+        }
+    }
+}
+
+@Composable
+fun FolderGridCard(
+    name: String,
+    relativePath: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    gameCount: Int? = null,
+) {
+    val colors = watermelon
+    val shape = RoundedCornerShape(8.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(colors.surface)
+            .border(1.dp, if (isFocused) colors.red else colors.line, shape)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(start = 11.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Folder,
+            contentDescription = null,
+            tint = colors.green,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.width(9.dp))
+        Column {
+            Text(
+                text = name,
+                color = colors.text,
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val sub = when {
+                gameCount != null -> gameCount.toString()
+                relativePath.isNotEmpty() && relativePath != name -> relativePath
+                else -> null
+            }
+            if (sub != null) {
+                Text(
+                    text = sub,
+                    color = colors.text3,
+                    fontFamily = WatermelonMono,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}

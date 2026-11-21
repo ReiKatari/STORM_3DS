@@ -1,0 +1,2606 @@
+package com.storm3ds.emulator.ui.settings.fragments
+
+import android.app.ActivityManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
+import android.view.KeyEvent
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
+import androidx.core.content.getSystemService
+import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.lifecycleScope
+import androidx.preference.EditTextPreference
+import androidx.preference.ListPreference
+import androidx.preference.Preference
+import androidx.preference.PreferenceCategory
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.preference.SwitchPreference
+import dagger.hilt.android.AndroidEntryPoint
+import com.storm3ds.emulator.domain.repositories.SettingsRepository
+import com.storm3ds.emulator.MelonDSAndroidInterface
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.common.DirectoryAccessValidator
+import com.storm3ds.emulator.common.UriPermissionManager
+import com.storm3ds.emulator.domain.model.VideoRenderer
+import com.storm3ds.emulator.domain.model.VideoFiltering
+import com.storm3ds.emulator.domain.model.DualScreenPreset
+import com.storm3ds.emulator.domain.model.ScreenAlignment
+import com.storm3ds.emulator.domain.model.VulkanDriverInfo
+import com.storm3ds.emulator.domain.model.VulkanDriverMode
+import com.storm3ds.emulator.domain.model.camera.DSiCameraSourceType
+import com.storm3ds.emulator.domain.model.defaultExternalAlignment
+import com.storm3ds.emulator.domain.model.defaultInternalAlignment
+import com.storm3ds.emulator.ui.settings.PreferenceFragmentHelper
+import com.storm3ds.emulator.ui.settings.PreferenceFragmentTitleProvider
+import com.storm3ds.emulator.ui.settings.SettingsActivity
+import com.storm3ds.emulator.ui.settings.preferences.InGameLockedListPreference
+import com.storm3ds.emulator.ui.settings.preferences.InGameLockedSwitchPreference
+import com.storm3ds.emulator.ui.settings.preferences.StoragePickerPreference
+import com.storm3ds.emulator.extensions.addOnPreferenceChangeListener
+import com.storm3ds.emulator.impl.AdrenoVulkanDriverManager
+import com.storm3ds.emulator.utils.enumValueOfIgnoreCase
+import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.text.format.DateFormat
+import android.text.format.Formatter
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.ProgressBar
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.SimpleAdapter
+import android.widget.TextView
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import java.io.File
+import java.util.Date
+import com.storm3ds.emulator.common.retroarch.RetroArchShaderRootResolver
+import com.storm3ds.emulator.common.workers.RetroArchShaderInstallWorker
+import com.storm3ds.emulator.domain.model.RetroArchShaderSource
+import com.storm3ds.emulator.impl.RetroArchShaderLibraryManager
+import com.storm3ds.emulator.impl.ShaderCompatibilityLog
+import android.content.Intent
+import androidx.appcompat.widget.SwitchCompat
+import androidx.core.view.isVisible
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import com.storm3ds.emulator.common.retroarch.RetroArchShaderPreset
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import android.annotation.SuppressLint
+import android.widget.ImageView
+import android.view.View
+
+@AndroidEntryPoint
+class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitleProvider {
+
+    private companion object {
+        const val GLES_3_2 = 0x30002
+        const val VULKAN_SYSTEM_DRIVER_VALUE = "system"
+        const val SHADER_LOG_FILE_NAME = "librashader.log"
+        const val SHADER_SETTINGS_KEY = "video_retroarch_shader_settings"
+        const val HEAVY_PRESET_BADGE_THRESHOLD_MS = 60_000L
+    }
+
+    private val helper by lazy { PreferenceFragmentHelper(this, uriPermissionManager, directoryAccessValidator) }
+    @Inject lateinit var uriPermissionManager: UriPermissionManager
+    @Inject lateinit var directoryAccessValidator: DirectoryAccessValidator
+    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var shaderLibraryManager: RetroArchShaderLibraryManager
+    @Inject lateinit var shaderCompatibilityLog: ShaderCompatibilityLog
+
+    private val threadedRendererPreferences = mutableListOf<Preference>()
+    private val highResRendererPreferences = mutableListOf<Preference>()
+    private val vulkanRendererPreferences = mutableListOf<Preference>()
+    private val rendererDebugPreferences = mutableListOf<Preference>()
+    private val coverageFixPreferences = mutableListOf<Preference>()
+
+    private lateinit var dualScreenPresetsPreference: Preference
+    private lateinit var shaderSourcePreference: Preference
+    private lateinit var shaderManagePreference: Preference
+    private lateinit var shaderReportPreference: Preference
+    private lateinit var shaderRootPreference: StoragePickerPreference
+    private lateinit var shaderPresetPreference: ListPreference
+    private var shaderSettingsPreference: Preference? = null
+    private val shaderWeightCache = mutableMapOf<String, RetroArchShaderPreset.Weight>()
+    private lateinit var adrenoVulkanDriverManager: AdrenoVulkanDriverManager
+    private var retroArchPresetScanJob: Job? = null
+    private var shaderInstallObserverJob: Job? = null
+    private var shaderInstallProgressDialog: AlertDialog? = null
+    private var shaderInstallProgressBar: ProgressBar? = null
+    private var shaderInstallPhaseText: TextView? = null
+    private var shaderInstallDetailText: TextView? = null
+    private val vulkanDriverImportLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@registerForActivityResult
+        handleVulkanDriverImport(uri)
+    }
+
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.pref_video, rootKey)
+
+        if (rootKey == SHADER_SETTINGS_KEY) {
+            setupShaderSettingsSubScreen()
+            return
+        }
+
+        adrenoVulkanDriverManager = AdrenoVulkanDriverManager(requireContext(), settingsRepository)
+
+        val launchedInGame = requireActivity().intent.getBooleanExtra(SettingsActivity.KEY_IN_GAME, false)
+        val rendererPreference = findPreference<InGameLockedListPreference>("video_renderer")!!
+        val internalResolutionPreference = findPreference<InGameLockedListPreference>("video_internal_resolution")!!
+        listOf(rendererPreference, internalResolutionPreference).forEach {
+            it.isInGameLocked = launchedInGame
+            it.inGameLockedMessageRes = R.string.video_setting_cannot_change_ingame
+        }
+        internalResolutionPreference.addOnPreferenceChangeListener { pref, newValue ->
+            val listPref = pref as ListPreference
+            val index = listPref.findIndexOfValue(newValue as? String)
+            val entry = if (index >= 0 && index < listPref.entries.size) listPref.entries[index] else (newValue?.toString() ?: "")
+            val mult = (newValue as? String)?.toIntOrNull() ?: 1
+            if (mult >= 8) {
+                listPref.summary = getString(R.string.v780_internal_resolution_warning_summary, entry)
+            } else {
+                listPref.summary = entry
+            }
+            true
+        }
+        updateInternalResolutionSummary(internalResolutionPreference)
+
+        findPreference<Preference>("video_quick_profile")?.apply {
+            isEnabled = !launchedInGame
+            if (launchedInGame) {
+                summary = "${getString(R.string.v794_video_quick_profile_summary)} (${getString(R.string.video_setting_cannot_change_ingame)})"
+            }
+            setOnPreferenceClickListener {
+                if (launchedInGame) {
+                    Toast.makeText(requireContext(), R.string.video_setting_cannot_change_ingame, Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceClickListener true
+                }
+                showVideoQuickProfileDialog()
+                true
+            }
+        }
+
+        findPreference<Preference>("video_reset_enhancements")?.apply {
+            isEnabled = !launchedInGame
+            if (launchedInGame) {
+                summary = "${getString(R.string.v780_video_reset_enhancements_summary)} (${getString(R.string.video_setting_cannot_change_ingame)})"
+            }
+            setOnPreferenceClickListener {
+                if (launchedInGame) {
+                    Toast.makeText(requireContext(), R.string.video_setting_cannot_change_ingame, Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceClickListener true
+                }
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.v780_video_reset_enhancements_title)
+                    .setMessage(R.string.v780_video_reset_enhancements_confirm_message)
+                    .setPositiveButton(R.string.v780_video_reset_enhancements_action) { _, _ ->
+                        resetVideoEnhancements()
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+                true
+            }
+        }
+        val vulkanFastPathPreference =
+            findPreference<InGameLockedSwitchPreference>("video_vulkan_fastpath_enabled")!!
+        vulkanFastPathPreference.isInGameLocked = launchedInGame
+        vulkanFastPathPreference.inGameLockedMessageRes = R.string.video_setting_cannot_change_ingame
+        vulkanFastPathPreference.setOnPreferenceChangeListener { preference, newValue ->
+            if (newValue != true) {
+                applyVulkanFastPathSelection(
+                    preference as InGameLockedSwitchPreference,
+                    enabled = false,
+                )
+                return@setOnPreferenceChangeListener false
+            }
+
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.video_vulkan_fastpath_warning_title)
+                .setMessage(R.string.video_vulkan_fastpath_warning_message)
+                .setPositiveButton(R.string.video_vulkan_fastpath_enable_action) { _, _ ->
+                    applyVulkanFastPathSelection(
+                        preference as InGameLockedSwitchPreference,
+                        enabled = true,
+                    )
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            false
+        }
+
+        threadedRendererPreferences.apply {
+            add(findPreference("enable_threaded_rendering")!!)
+        }
+
+        highResRendererPreferences.apply {
+            add(internalResolutionPreference)
+            add(findPreference("video_hacks_category")!!)
+            add(findPreference("video_debug_3d_clear_magenta")!!)
+        }
+
+        rendererDebugPreferences.apply {
+            add(findPreference("video_hacks_category")!!)
+            add(findPreference("video_renderer_debug_tools_enabled")!!)
+            add(findPreference("video_renderer_debug_bgobj_enabled")!!)
+            add(findPreference("video_renderer_debug_latch_trace_enabled")!!)
+        }
+
+        vulkanRendererPreferences.apply {
+            add(vulkanFastPathPreference)
+            // Consumed only by Vulkan code (VulkanRuntimeControls -> GPU3D_Vulkan / VulkanOutput / VulkanSurfacePresenter).
+            listOf(
+                "video_vulkan_compositor_mode",
+                "video_vulkan_thick_edges",
+                "video_vulkan_compat_autoselect",
+                "video_vulkan_3d_depth_mode",
+                "video_vulkan_3d_depth_strength",
+                "video_vulkan_ssao",
+                "video_ds_color_profile",
+                "video_ds_lcd_grid",
+            ).forEach { key -> findPreference<Preference>(key)?.let { add(it) } }
+        }
+
+        coverageFixPreferences.apply {
+            add(findPreference("video_conservative_coverage_enabled")!!)
+            add(findPreference("video_conservative_coverage_px")!!)
+            add(findPreference("video_conservative_coverage_apply_repeat")!!)
+            add(findPreference("video_conservative_coverage_apply_clamp")!!)
+            add(findPreference("video_conservative_coverage_depth_bias")!!)
+        }
+
+        findPreference<SwitchPreference>("video_renderer_debug_tools_enabled")?.setOnPreferenceChangeListener { _, newValue ->
+            val on = newValue as Boolean
+            val currentRenderer = runCatching {
+                enumValueOfIgnoreCase<VideoRenderer>(rendererPreference.value)
+            }.getOrDefault(VideoRenderer.SOFTWARE)
+            findPreference<Preference>("video_renderer_debug_bgobj_enabled")?.isVisible = on
+            findPreference<Preference>("video_renderer_debug_latch_trace_enabled")?.isVisible = on
+            findPreference<Preference>("video_debug_3d_clear_magenta")?.isVisible =
+                on && currentRenderer != VideoRenderer.SOFTWARE
+            true
+        }
+        findPreference<ListPreference>("video_vulkan_compositor_mode")?.let { compPref ->
+            if (compPref.value.isNullOrBlank() || compPref.value.equals("hybrid", ignoreCase = true)) {
+                compPref.value = "precise"
+                preferenceManager.sharedPreferences?.edit()?.putString("video_vulkan_compositor_mode", "precise")?.apply()
+            }
+            updateListPreferenceSummary(compPref)
+        }
+        findPreference<ListPreference>("video_vulkan_3d_depth_mode")?.let { depthPref ->
+            if (depthPref.value.equals("anaglyph_depth", ignoreCase = true)) {
+                depthPref.value = "off"
+                preferenceManager.sharedPreferences?.edit()?.putString("video_vulkan_3d_depth_mode", "off")?.apply()
+            }
+            updateListPreferenceSummary(depthPref)
+            depthPref.setOnPreferenceChangeListener { _, newValue ->
+                val modeVal = (newValue as? String)?.lowercase() ?: "off"
+                val isDepthActive = depthPref.isVisible && modeVal != "off"
+                findPreference<Preference>("video_vulkan_3d_depth_strength")?.let { strengthPref ->
+                    strengthPref.isVisible = isDepthActive
+                    strengthPref.isEnabled = isDepthActive
+                }
+                true
+            }
+        }
+        findPreference<SwitchPreference>("video_conservative_coverage_enabled")?.setOnPreferenceChangeListener { _, newValue ->
+            val on = newValue as Boolean
+            listOf(
+                "video_conservative_coverage_px",
+                "video_conservative_coverage_apply_repeat",
+                "video_conservative_coverage_apply_clamp",
+                "video_conservative_coverage_depth_bias",
+            ).forEach { findPreference<Preference>(it)?.isVisible = on }
+            true
+        }
+
+        val videoFilteringPreference = findPreference<InGameLockedListPreference>("video_filtering")!!
+        videoFilteringPreference.isInGameLocked = launchedInGame &&
+            requireActivity().intent.getBooleanExtra(SettingsActivity.KEY_LOCK_VIDEO_FILTERING, false)
+        videoFilteringPreference.inGameLockedMessageRes = R.string.cannot_change_use_rom_settings
+        val dsiCameraSourcePreference = findPreference<ListPreference>("dsi_camera_source")!!
+        val dsiCameraImagePreference = findPreference<StoragePickerPreference>("dsi_camera_static_image")!!
+        val retroArchShaderRootPreference = findPreference<StoragePickerPreference>("video_retroarch_shader_root")!!
+        val retroArchShaderPresetPreference = findPreference<ListPreference>("video_retroarch_shader_preset")!!
+        val retroArchShaderParametersPreference = findPreference<EditTextPreference>("video_retroarch_shader_parameters")
+        val retroArchShaderClearHistoryPreference = findPreference<SwitchPreference>("video_retroarch_shader_clear_history")
+        val vulkanDriverCategory = findPreference<PreferenceCategory>("video_vulkan_driver_category")!!
+        val vulkanDriverManagerPreference = findPreference<Preference>("video_vulkan_driver_manager")
+        val vulkanDriverModePreference = findPreference<ListPreference>("video_vulkan_driver_mode")!!
+        val vulkanDriverImportPreference = findPreference<Preference>("video_vulkan_driver_import")!!
+        val vulkanDriverRemovePreference = findPreference<Preference>("video_vulkan_driver_remove")!!
+        dualScreenPresetsPreference = findPreference("dual_screen_presets")!!
+        val allFilteringValues = resources.getStringArray(R.array.video_filtering_values)
+        val allFilteringEntries = resources.getStringArray(R.array.video_filtering_options)
+
+        val activityManager = requireContext().getSystemService<ActivityManager>()
+        val deviceGlesVersion = activityManager?.deviceConfigurationInfo?.reqGlEsVersion ?: 0
+        val supportsOpenGlRenderer = deviceGlesVersion >= GLES_3_2
+        val supportsComputeRenderer = supportsOpenGlRenderer && Build.HARDWARE.equals("qcom", ignoreCase = true)
+
+        rendererPreference.apply {
+            if (!supportsOpenGlRenderer || !supportsComputeRenderer) {
+                val values = context.resources.getStringArray(R.array.video_renderer_values)
+                val entries = context.resources.getStringArray(R.array.video_renderer_options)
+                val filteredPairs = values.zip(entries).filterNot { (value, _) ->
+                    (!supportsOpenGlRenderer && value == "opengl") ||
+                        (!supportsComputeRenderer && value == "compute")
+                }
+                entryValues = filteredPairs.map { it.first }.toTypedArray()
+                this.entries = filteredPairs.map { it.second }.toTypedArray()
+
+                if (!supportsOpenGlRenderer && value.equals("opengl", ignoreCase = true)) {
+                    value = "software"
+                }
+                if (!supportsComputeRenderer && value.equals("compute", ignoreCase = true)) {
+                    value = "software"
+                }
+            }
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val rendererValue = newValue as String
+                val newRenderer = enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+                if (newRenderer == VideoRenderer.VULKAN) {
+                    com.storm3ds.emulator.impl.compat.GameCompatibilityManager.clearDeviceVulkanUnavailable(requireContext())
+                    MelonDSAndroidInterface.configureVulkanDriver(
+                        settingsRepository.getVulkanDriverConfiguration(requireContext().applicationInfo.nativeLibraryDir)
+                    )
+                    val canUseVulkan = MelonDSAndroidInterface.isVulkanRendererSupported()
+                    if (!canUseVulkan) {
+                        showVulkanUnavailableDialog()
+                        return@setOnPreferenceChangeListener false
+                    }
+                }
+
+                onRendererPreferenceChanged(
+                    rendererValue = rendererValue,
+                    videoFilteringPreference = videoFilteringPreference,
+                    retroArchShaderRootPreference = retroArchShaderRootPreference,
+                    retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+                    retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+                    retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+                    allFilteringValues = allFilteringValues,
+                    allFilteringEntries = allFilteringEntries,
+                )
+                updateVulkanDriverPreferenceState(
+                    renderer = newRenderer,
+                    category = vulkanDriverCategory,
+                    managerPreference = vulkanDriverManagerPreference,
+                    modePreference = vulkanDriverModePreference,
+                    importPreference = vulkanDriverImportPreference,
+                    removePreference = vulkanDriverRemovePreference,
+                    launchedInGame = launchedInGame,
+                )
+                if (newRenderer != VideoRenderer.VULKAN && vulkanFastPathPreference.isChecked) {
+                    applyVulkanFastPathSelection(vulkanFastPathPreference, enabled = false)
+                }
+                true
+            }
+        }
+
+        dsiCameraSourcePreference.setOnPreferenceChangeListener { _, newValue ->
+            updateDsiCameraImagePreference(dsiCameraImagePreference, newValue as String)
+            true
+        }
+
+        val dualScreenCastSwitch = findPreference<SwitchPreference>("video_dual_screen_cast_enabled")
+        val isDualActive = settingsRepository.getDualScreenPreset() != DualScreenPreset.OFF || settingsRepository.isDualScreenCastEnabled()
+        dualScreenCastSwitch?.isChecked = isDualActive
+
+        dualScreenCastSwitch?.setOnPreferenceChangeListener { _, newValue ->
+            val enabled = newValue as Boolean
+            settingsRepository.setDualScreenCastEnabled(enabled)
+            if (enabled) {
+                if (settingsRepository.getDualScreenPreset() == DualScreenPreset.OFF) {
+                    settingsRepository.setDualScreenPreset(DualScreenPreset.INTERNAL_TOP_EXTERNAL_BOTTOM)
+                }
+                showDualScreenPresetsDialog()
+            } else {
+                settingsRepository.setDualScreenPreset(DualScreenPreset.OFF)
+            }
+            updateDualScreenPresetSummary()
+            true
+        }
+
+        dualScreenPresetsPreference.setOnPreferenceClickListener {
+            showDualScreenPresetsDialog()
+            true
+        }
+
+        helper.setupStoragePickerPreference(dsiCameraImagePreference)
+        helper.setupStoragePickerPreference(retroArchShaderRootPreference)
+        helper.bindPreferenceSummaryToValue(retroArchShaderPresetPreference)
+        retroArchShaderParametersPreference?.let { helper.bindPreferenceSummaryToValue(it) }
+        setupVulkanDriverPreferences(
+            renderer = enumValueOfIgnoreCase(rendererPreference.value),
+            category = vulkanDriverCategory,
+            managerPreference = vulkanDriverManagerPreference,
+            modePreference = vulkanDriverModePreference,
+            importPreference = vulkanDriverImportPreference,
+            removePreference = vulkanDriverRemovePreference,
+            launchedInGame = launchedInGame,
+        )
+        retroArchShaderRootPreference.addOnPreferenceChangeListener { _, newValue ->
+            val rootUri = (newValue as? Set<*>)
+                ?.firstOrNull()
+                ?.let { it as? String }
+                ?.toUri()
+            updateRetroArchPresetEntries(retroArchShaderPresetPreference, rootUri)
+            true
+        }
+        updateRetroArchPresetEntries(retroArchShaderPresetPreference)
+
+        shaderRootPreference = retroArchShaderRootPreference
+        shaderPresetPreference = retroArchShaderPresetPreference
+        shaderSourcePreference = findPreference("video_retroarch_shader_source")!!
+        shaderSourcePreference.setOnPreferenceClickListener {
+            showShaderSourceDialog()
+            true
+        }
+        shaderSettingsPreference = findPreference(SHADER_SETTINGS_KEY)
+        observeShaderInstallWork()
+
+        updateFilteringPreferences(
+            renderer = enumValueOfIgnoreCase(rendererPreference.value),
+            videoFilteringPreference = videoFilteringPreference,
+            retroArchShaderRootPreference = retroArchShaderRootPreference,
+            retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+            retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+            retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+            allFilteringValues = allFilteringValues,
+            allFilteringEntries = allFilteringEntries,
+        )
+        val aiUpscaleSwitch = findPreference<SwitchPreference>("video_ai_upscale_enabled")
+        val isInitialAiUpscale = videoFilteringPreference.value.equals("ai_upscale", ignoreCase = true)
+        if (aiUpscaleSwitch != null && aiUpscaleSwitch.isChecked != isInitialAiUpscale) {
+            aiUpscaleSwitch.isChecked = isInitialAiUpscale
+            preferenceManager.sharedPreferences?.edit()?.putBoolean("video_ai_upscale_enabled", isInitialAiUpscale)?.apply()
+        }
+        aiUpscaleSwitch?.setOnPreferenceChangeListener { _, newValue ->
+            val enabled = newValue as? Boolean ?: false
+            if (enabled && !videoFilteringPreference.value.equals("ai_upscale", ignoreCase = true)) {
+                videoFilteringPreference.value = "ai_upscale"
+                updateShaderPickerPreferences(
+                    renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                    filteringValue = "ai_upscale",
+                    retroArchShaderRootPreference = retroArchShaderRootPreference,
+                    retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+                    retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+                    retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+                )
+            } else if (!enabled && videoFilteringPreference.value.equals("ai_upscale", ignoreCase = true)) {
+                videoFilteringPreference.value = "quilez"
+                updateShaderPickerPreferences(
+                    renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                    filteringValue = "quilez",
+                    retroArchShaderRootPreference = retroArchShaderRootPreference,
+                    retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+                    retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+                    retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+                )
+            }
+            findPreference<Preference>("video_ai_upscale_scale")?.let { scalePref ->
+                scalePref.isVisible = enabled
+                scalePref.isEnabled = enabled
+            }
+            view?.post { updateAiUpscaleSummary() }
+            true
+        }
+
+        findPreference<ListPreference>("video_ai_upscale_scale")?.setOnPreferenceChangeListener { _, _ ->
+            view?.post { updateAiUpscaleSummary() }
+            true
+        }
+        updateAiUpscaleSummary()
+
+        videoFilteringPreference.setOnPreferenceChangeListener { _, newValue ->
+            val newFilteringValue = newValue as String
+            val aiSelected = newFilteringValue.equals("ai_upscale", ignoreCase = true)
+            if (aiUpscaleSwitch != null && aiUpscaleSwitch.isChecked != aiSelected) {
+                aiUpscaleSwitch.isChecked = aiSelected
+                preferenceManager.sharedPreferences?.edit()?.putBoolean("video_ai_upscale_enabled", aiSelected)?.apply()
+            }
+            findPreference<Preference>("video_ai_upscale_scale")?.let { scalePref ->
+                scalePref.isVisible = aiSelected
+                scalePref.isEnabled = aiSelected
+            }
+            updateShaderPickerPreferences(
+                renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                filteringValue = newFilteringValue,
+                retroArchShaderRootPreference = retroArchShaderRootPreference,
+                retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+                retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+                retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+            )
+            if (videoFilteringOrNone(newFilteringValue) == VideoFiltering.RETROARCH && resolveShaderSource() == null) {
+                showShaderSourceDialog()
+            }
+            true
+        }
+
+        onRendererPreferenceChanged(
+            rendererValue = rendererPreference.value,
+            videoFilteringPreference = videoFilteringPreference,
+            retroArchShaderRootPreference = retroArchShaderRootPreference,
+            retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+            retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+            retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+            allFilteringValues = allFilteringValues,
+            allFilteringEntries = allFilteringEntries,
+        )
+        updateDsiCameraImagePreference(dsiCameraImagePreference, dsiCameraSourcePreference.value)
+        updateDualScreenPresetSummary()
+
+        val fpsCounterPref = findPreference<ListPreference>("fps_counter_position")
+        val resolutionHudPref = findPreference<ListPreference>("resolution_hud_position")
+        runCatching {
+            val consoleSkinTypePref = findPreference<ListPreference>("video_console_skin_type")
+            if (consoleSkinTypePref != null) {
+                val validValues = resources.getStringArray(R.array.console_skin_values_v792)
+                if (consoleSkinTypePref.value == null || !validValues.contains(consoleSkinTypePref.value)) {
+                    consoleSkinTypePref.value = "aurora_auto_theme"
+                }
+                helper.bindPreferenceSummaryToValue(consoleSkinTypePref)
+            }
+            val skinBrightnessPref = findPreference<androidx.preference.SeekBarPreference>("video_console_skin_brightness")
+            if (skinBrightnessPref != null) {
+                skinBrightnessPref.summary = getString(R.string.video_console_skin_brightness_summary, skinBrightnessPref.value)
+                skinBrightnessPref.setOnPreferenceChangeListener { pref, newValue ->
+                    val pct = (newValue as? Int)?.coerceIn(30, 100) ?: 100
+                    pref.summary = getString(R.string.video_console_skin_brightness_summary, pct)
+                    true
+                }
+            }
+            hideDependentsWhenInactive("video_console_skin_enabled", "video_console_skin_type", "video_console_skin_brightness")
+            val skinSwitch = findPreference<SwitchPreference>("video_console_skin_enabled")
+            val oledSwitch = findPreference<SwitchPreference>("video_oled_battery_saver")
+            if (skinSwitch != null && oledSwitch != null) {
+                val existingSkinListener = skinSwitch.onPreferenceChangeListener
+                skinSwitch.setOnPreferenceChangeListener { pref, newValue ->
+                    val ok = existingSkinListener?.onPreferenceChange(pref, newValue) ?: true
+                    if (ok && (newValue as? Boolean) == true && oledSwitch.isChecked) {
+                        oledSwitch.isChecked = false
+                        preferenceManager.sharedPreferences?.edit()?.putBoolean("video_oled_battery_saver", false)?.apply()
+                    }
+                    ok
+                }
+                val existingOledListener = oledSwitch.onPreferenceChangeListener
+                oledSwitch.setOnPreferenceChangeListener { pref, newValue ->
+                    val ok = existingOledListener?.onPreferenceChange(pref, newValue) ?: true
+                    if (ok && (newValue as? Boolean) == true && skinSwitch.isChecked) {
+                        skinSwitch.isChecked = false
+                        preferenceManager.sharedPreferences?.edit()?.putBoolean("video_console_skin_enabled", false)?.apply()
+                        findPreference<Preference>("video_console_skin_type")?.isVisible = false
+                        findPreference<Preference>("video_console_skin_brightness")?.isVisible = false
+                    }
+                    ok
+                }
+            }
+        }
+        if (fpsCounterPref != null && resolutionHudPref != null) {
+            helper.bindPreferenceSummaryToValue(fpsCounterPref)
+            helper.bindPreferenceSummaryToValue(resolutionHudPref)
+
+            fpsCounterPref.addOnPreferenceChangeListener { _, newValue ->
+                val newPos = newValue as? String ?: return@addOnPreferenceChangeListener true
+                if (newPos != "hidden" && newPos == resolutionHudPref.value) {
+                    val fallback = if (newPos == "top_left") "top_right" else "top_left"
+                    resolutionHudPref.value = fallback
+                    updateListPreferenceSummary(resolutionHudPref)
+                    Toast.makeText(requireContext(), getString(R.string.video_prefs_resolution_position_changed), Toast.LENGTH_SHORT).show()
+                }
+                true
+            }
+
+            resolutionHudPref.addOnPreferenceChangeListener { _, newValue ->
+                val newPos = newValue as? String ?: return@addOnPreferenceChangeListener true
+                if (newPos != "hidden" && newPos == fpsCounterPref.value) {
+                    val fallback = if (newPos == "top_left") "top_right" else "top_left"
+                    fpsCounterPref.value = fallback
+                    updateListPreferenceSummary(fpsCounterPref)
+                    Toast.makeText(requireContext(), getString(R.string.video_prefs_fps_position_changed), Toast.LENGTH_SHORT).show()
+                }
+                true
+            }
+        }
+    }
+
+    private fun getVulkanBlockedSummary(): String {
+        val status = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getSupportStatus(requireContext())
+        return when (status) {
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_LEGACY_BUILD ->
+                getString(R.string.vulkan_driver_prefs_blocked_legacy_summary)
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_ANDROID_OR_ABI ->
+                getString(R.string.vulkan_driver_prefs_blocked_abi_summary)
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_GPU,
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.SUPPORTED,
+            -> getString(
+                R.string.vulkan_driver_prefs_blocked_summary,
+                com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getDeviceGpuDescription(),
+            )
+        }
+    }
+
+    private fun showVulkanDriverBlockedToast() {
+        Toast.makeText(requireContext(), getVulkanBlockedSummary(), Toast.LENGTH_LONG).show()
+    }
+
+    private fun setupVulkanDriverPreferences(
+        renderer: VideoRenderer,
+        category: PreferenceCategory,
+        managerPreference: Preference?,
+        modePreference: ListPreference,
+        importPreference: Preference,
+        removePreference: Preference,
+        launchedInGame: Boolean,
+    ) {
+        managerPreference?.setOnPreferenceClickListener {
+            if (!adrenoVulkanDriverManager.isSupported) {
+                showVulkanDriverBlockedToast()
+                return@setOnPreferenceClickListener true
+            }
+            val intent = android.content.Intent(
+                requireContext(),
+                com.storm3ds.emulator.ui.settings.vulkandriver.VulkanDriverManagerActivity::class.java
+            )
+            startActivity(intent)
+            true
+        }
+
+        modePreference.isPersistent = false
+        modePreference.setOnPreferenceClickListener {
+            if (!adrenoVulkanDriverManager.isSupported) {
+                showVulkanDriverBlockedToast()
+                return@setOnPreferenceClickListener true
+            }
+            showVulkanDriverSelectionDialog(modePreference, removePreference)
+            true
+        }
+
+        importPreference.setOnPreferenceClickListener {
+            if (!adrenoVulkanDriverManager.isSupported) {
+                showVulkanDriverBlockedToast()
+                return@setOnPreferenceClickListener true
+            }
+            vulkanDriverImportLauncher.launch(
+                arrayOf(
+                    "application/zip",
+                    "application/x-zip-compressed",
+                    "application/octet-stream",
+                    "application/x-compressed",
+                )
+            )
+            true
+        }
+
+        removePreference.setOnPreferenceClickListener {
+            if (!adrenoVulkanDriverManager.isSupported) {
+                showVulkanDriverBlockedToast()
+                return@setOnPreferenceClickListener true
+            }
+            showRemoveVulkanDriverDialog(modePreference, removePreference)
+            true
+        }
+
+        updateVulkanDriverPreferenceState(
+            renderer = renderer,
+            category = category,
+            managerPreference = managerPreference,
+            modePreference = modePreference,
+            importPreference = importPreference,
+            removePreference = removePreference,
+            launchedInGame = launchedInGame,
+        )
+    }
+
+    private fun updateVulkanDriverPreferenceState(
+        renderer: VideoRenderer,
+        category: PreferenceCategory,
+        managerPreference: Preference?,
+        modePreference: ListPreference,
+        importPreference: Preference,
+        removePreference: Preference,
+        launchedInGame: Boolean,
+    ) {
+        val visible = renderer == VideoRenderer.VULKAN && !launchedInGame
+        category.isVisible = visible
+        if (!visible) {
+            return
+        }
+
+        val supportStatus = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getSupportStatus(requireContext())
+        if (supportStatus != com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.SUPPORTED) {
+            val blockedSummary = getVulkanBlockedSummary()
+            category.summary = blockedSummary
+            managerPreference?.isEnabled = false
+            managerPreference?.summary = blockedSummary
+            modePreference.isEnabled = false
+            modePreference.value = VULKAN_SYSTEM_DRIVER_VALUE
+            modePreference.summary = blockedSummary
+            importPreference.isEnabled = false
+            removePreference.isEnabled = false
+            removePreference.isVisible = false
+            return
+        }
+
+        category.summary = null
+        managerPreference?.isEnabled = true
+        modePreference.isEnabled = true
+        importPreference.isEnabled = true
+        removePreference.isEnabled = true
+
+        val subFamily = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getSubFamily()
+        val recommendedLabel = com.storm3ds.emulator.impl.vulkandriver.OnlineVulkanDriverRepository
+            .getRecommendedDriverDisplayTitle(subFamily)
+        val hasCustomActive = settingsRepository.getVulkanDriverMode() == VulkanDriverMode.CUSTOM &&
+            !settingsRepository.getCustomVulkanDriverDisplayName().isNullOrBlank()
+
+        if (recommendedLabel != null && !hasCustomActive) {
+            managerPreference?.summary = getString(R.string.video_prefs_recommended_driver_available, recommendedLabel)
+        } else {
+            managerPreference?.summary = getString(R.string.video_vulkan_driver_manager_summary)
+        }
+
+        updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
+    }
+
+    private fun showVulkanDriverSelectionDialog(
+        modePreference: ListPreference,
+        removePreference: Preference,
+    ) {
+        val installedDrivers = settingsRepository.getInstalledVulkanDrivers()
+        val values = listOf(VULKAN_SYSTEM_DRIVER_VALUE) + installedDrivers.map { it.id }
+        val entries = listOf(getString(R.string.video_vulkan_driver_mode_system)) +
+            installedDrivers.map { it.displayName }
+        val selectedValue = modePreference.value ?: VULKAN_SYSTEM_DRIVER_VALUE
+        val checkedIndex = values.indexOf(selectedValue).takeIf { it >= 0 } ?: 0
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.video_vulkan_driver_mode)
+            .setSingleChoiceItems(entries.toTypedArray(), checkedIndex) { dialog, which ->
+                val value = values[which]
+                if (value == VULKAN_SYSTEM_DRIVER_VALUE) {
+                    settingsRepository.setVulkanDriverMode(VulkanDriverMode.SYSTEM)
+                } else {
+                    settingsRepository.setSelectedVulkanDriver(value)
+                }
+                updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun handleVulkanDriverImport(uri: Uri) {
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { adrenoVulkanDriverManager.importDriver(uri) }
+            }
+            if (!isAdded) return@launch
+            val ctx = context ?: return@launch
+            result.onSuccess { importResult ->
+                val modePreference = findPreference<ListPreference>("video_vulkan_driver_mode") ?: return@onSuccess
+                val removePreference = findPreference<Preference>("video_vulkan_driver_remove") ?: return@onSuccess
+                updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
+                Toast.makeText(
+                    ctx,
+                    getString(R.string.video_vulkan_driver_import_success, importResult.displayName),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }.onFailure { throwable ->
+                val importException = throwable as? AdrenoVulkanDriverManager.ImportException
+                val messageText = when (importException?.reason) {
+                    AdrenoVulkanDriverManager.ImportException.Reason.ApiTooLow ->
+                        getString(R.string.vulkan_driver_import_min_api, importException.detailInt)
+                    AdrenoVulkanDriverManager.ImportException.Reason.InvalidArchive ->
+                        getString(R.string.vulkan_driver_import_invalid_archive)
+                    AdrenoVulkanDriverManager.ImportException.Reason.NotZip ->
+                        getString(R.string.video_vulkan_driver_import_not_zip)
+                    AdrenoVulkanDriverManager.ImportException.Reason.NoDriver ->
+                        getString(R.string.video_vulkan_driver_import_no_driver)
+                    AdrenoVulkanDriverManager.ImportException.Reason.AmbiguousDriver ->
+                        getString(R.string.video_vulkan_driver_import_ambiguous)
+                    AdrenoVulkanDriverManager.ImportException.Reason.UnsupportedBuild ->
+                        getString(R.string.video_vulkan_driver_unsupported)
+                    else ->
+                        getString(R.string.video_vulkan_driver_import_failed)
+                }
+                Toast.makeText(ctx, messageText, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun updateVulkanDriverPreferenceSummaries(
+        modePreference: ListPreference,
+        removePreference: Preference,
+    ) {
+        val installedDrivers = settingsRepository.getInstalledVulkanDrivers()
+        val selectedDriverId = settingsRepository.getSelectedVulkanDriverId()
+        val useCustomDriver = settingsRepository.getVulkanDriverMode() == VulkanDriverMode.CUSTOM &&
+            selectedDriverId != null &&
+            installedDrivers.any { it.id == selectedDriverId }
+        modePreference.entryValues = arrayOf(VULKAN_SYSTEM_DRIVER_VALUE) + installedDrivers.map { it.id }.toTypedArray()
+        modePreference.entries = arrayOf(getString(R.string.video_vulkan_driver_mode_system)) +
+            installedDrivers.map { it.displayName }.toTypedArray()
+        modePreference.value = if (useCustomDriver) selectedDriverId else VULKAN_SYSTEM_DRIVER_VALUE
+        modePreference.summary = if (useCustomDriver) {
+            getString(
+                R.string.video_vulkan_driver_active_custom,
+                installedDrivers.first { it.id == selectedDriverId }.displayName,
+            )
+        } else {
+            getString(R.string.video_vulkan_driver_active_system)
+        }
+        removePreference.isVisible = installedDrivers.isNotEmpty()
+    }
+
+    private fun showRemoveVulkanDriverDialog(
+        modePreference: ListPreference,
+        removePreference: Preference,
+    ) {
+        val installedDrivers = settingsRepository.getInstalledVulkanDrivers()
+        if (installedDrivers.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.video_vulkan_driver_no_custom, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.video_vulkan_driver_remove)
+            .setItems(installedDrivers.map { it.displayName }.toTypedArray()) { _, which ->
+                val driver = installedDrivers[which]
+                removeVulkanDriver(driver, modePreference, removePreference)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun removeVulkanDriver(
+        driver: VulkanDriverInfo,
+        modePreference: ListPreference,
+        removePreference: Preference,
+    ) {
+        adrenoVulkanDriverManager.removeDriver(driver.id)
+        updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
+        Toast.makeText(
+            requireContext(),
+            getString(R.string.video_vulkan_driver_removed, driver.displayName),
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
+    override fun onDisplayPreferenceDialog(preference: Preference) {
+        if (preference.key == "video_retroarch_shader_preset") {
+            showRetroArchPresetBrowserDialog(preference as ListPreference)
+            return
+        }
+        if (preference.key == "video_console_skin_type" && preference is ListPreference) {
+            val ctx = context ?: return
+            val brightness = preferenceManager.sharedPreferences?.getInt("video_console_skin_brightness", 100) ?: 100
+            com.storm3ds.emulator.ui.emulator.skin.showConsoleSkinPickerDialog(
+                context = ctx,
+                selectedValue = preference.value,
+                brightnessPercent = brightness,
+            ) { selectedKey ->
+                if (preference.callChangeListener(selectedKey)) {
+                    preference.value = selectedKey
+                    updateListPreferenceSummary(preference)
+                }
+            }
+            return
+        }
+
+        super.onDisplayPreferenceDialog(preference)
+    }
+
+    private fun updateRetroArchPresetEntries(
+        preference: ListPreference,
+        rootUriOverride: Uri? = null,
+        resetSelection: Boolean = rootUriOverride != null,
+    ) {
+        retroArchPresetScanJob?.cancel()
+        if (resetSelection) {
+            preference.value = null
+        }
+
+        val selectedPreset = preference.value
+        preference.entries = selectedPreset?.let { arrayOf(it) } ?: emptyArray()
+        preference.entryValues = selectedPreset?.let { arrayOf(it) } ?: emptyArray()
+        preference.summary = selectedPreset ?: getString(R.string.video_retroarch_shader_preset_summary)
+    }
+
+    private data class ShaderBrowserEntry(val name: String, val isDirectory: Boolean)
+
+    private fun interface ShaderDirectoryLister {
+        fun list(relativePath: String): List<ShaderBrowserEntry>
+    }
+
+    private fun safDirectoryLister(rootUri: Uri): ShaderDirectoryLister {
+        val context = requireContext()
+        return ShaderDirectoryLister { relativePath ->
+            var current = DocumentFile.fromTreeUri(context, rootUri) ?: return@ShaderDirectoryLister emptyList()
+            if (relativePath.isNotBlank()) {
+                relativePath.split('/').forEach { segment ->
+                    if (segment.isBlank()) {
+                        return@ShaderDirectoryLister emptyList()
+                    }
+                    current = current.findFile(segment) ?: return@ShaderDirectoryLister emptyList()
+                }
+            }
+            if (!current.isDirectory) {
+                return@ShaderDirectoryLister emptyList()
+            }
+            current.listFiles().mapNotNull { child ->
+                val name = child.name ?: return@mapNotNull null
+                ShaderBrowserEntry(name, child.isDirectory)
+            }
+        }
+    }
+
+    private fun fileDirectoryLister(rootDir: File): ShaderDirectoryLister {
+        return ShaderDirectoryLister { relativePath ->
+            val rootCanonical = rootDir.canonicalFile
+            val directory = File(rootCanonical, relativePath).canonicalFile
+            if (!directory.path.startsWith(rootCanonical.path) || !directory.isDirectory) {
+                return@ShaderDirectoryLister emptyList()
+            }
+            directory.listFiles()?.map { ShaderBrowserEntry(it.name, it.isDirectory) }.orEmpty()
+        }
+    }
+
+    private fun resolveShaderDirectoryLister(): ShaderDirectoryLister? {
+        return when (resolveShaderSource()) {
+            RetroArchShaderSource.INTERNAL -> shaderLibraryManager.libraryRoot?.let { fileDirectoryLister(it) }
+            RetroArchShaderSource.FOLDER -> preferenceManager.sharedPreferences
+                ?.getStringSet("video_retroarch_shader_root", null)
+                ?.firstOrNull()
+                ?.toUri()
+                ?.let { safDirectoryLister(it) }
+            null -> null
+        }
+    }
+
+    private data class ShaderBrowserItem(
+        val label: String,
+        val path: String,
+        val isDirectory: Boolean,
+        val isParent: Boolean = false,
+    )
+
+    private fun showRetroArchPresetBrowserDialog(preference: ListPreference) {
+        val lister = resolveShaderDirectoryLister()
+        if (lister == null) {
+            preference.summary = getString(R.string.video_retroarch_shader_preset_summary)
+            Toast.makeText(requireContext(), R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val context = requireContext()
+        val view = layoutInflater.inflate(R.layout.dialog_shader_browser, null)
+        val pathText = view.findViewById<TextView>(R.id.textShaderBrowserPath)
+        val emptyText = view.findViewById<TextView>(R.id.textShaderBrowserEmpty)
+        val listView = view.findViewById<RecyclerView>(R.id.listShaderBrowser)
+
+        val listContainer = view.findViewById<View>(R.id.containerShaderBrowserList)
+        listContainer.layoutParams = listContainer.layoutParams.apply {
+            height = minOf(height, (resources.displayMetrics.heightPixels * 0.45f).toInt())
+        }
+        val folderCache = mutableMapOf<String, List<ShaderBrowserItem>>()
+        var currentDirectory = ""
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(preference.title)
+            .setView(view)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+
+        lateinit var adapter: ShaderBrowserAdapter
+        fun openDirectory(relativePath: String) {
+            currentDirectory = relativePath
+            loadShaderBrowserDirectory(lister, folderCache, relativePath, pathText, emptyText, adapter)
+        }
+        adapter = ShaderBrowserAdapter(
+            selectedPath = { preference.value },
+            onClick = { item ->
+                if (item.isDirectory) {
+                    openDirectory(item.path)
+                } else {
+                    applyRetroArchPresetSelection(preference, item.path)
+                    dialog.dismiss()
+                }
+            },
+        )
+        listView.layoutManager = LinearLayoutManager(context)
+        listView.adapter = adapter
+
+
+        fun handleBack(): Boolean {
+            if (currentDirectory.isBlank()) {
+                return false
+            }
+            openDirectory(currentDirectory.substringBeforeLast('/', missingDelimiterValue = ""))
+            return true
+        }
+
+        val backCallback = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            OnBackInvokedCallback {
+                if (!handleBack()) {
+                    dialog.dismiss()
+                }
+            }
+        } else {
+            dialog.setOnKeyListener { _, keyCode, event ->
+                keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP && handleBack()
+            }
+            null
+        }
+
+        dialog.setOnShowListener {
+            if (backCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                dialog.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    backCallback,
+                )
+            }
+            openDirectory("")
+        }
+        dialog.setOnDismissListener {
+            if (backCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                dialog.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
+            }
+            retroArchPresetScanJob?.cancel()
+            retroArchPresetScanJob = null
+        }
+        dialog.show()
+    }
+
+    private fun loadShaderBrowserDirectory(
+        lister: ShaderDirectoryLister,
+        cache: MutableMap<String, List<ShaderBrowserItem>>,
+        relativePath: String,
+        pathText: TextView,
+        emptyText: TextView,
+        adapter: ShaderBrowserAdapter,
+    ) {
+        retroArchPresetScanJob?.cancel()
+        pathText.text = if (relativePath.isBlank()) "/" else "/$relativePath"
+
+        cache[relativePath]?.let {
+            adapter.submit(it)
+            emptyText.setText(R.string.video_retroarch_shader_browser_empty)
+            emptyText.isVisible = it.isEmpty()
+            return
+        }
+
+        adapter.submit(emptyList())
+        emptyText.setText(R.string.info_loading)
+        emptyText.isVisible = true
+
+        retroArchPresetScanJob = lifecycleScope.launch {
+            val items = withContext(Dispatchers.IO) {
+                val directories = mutableListOf<Pair<String, String>>()
+                val presets = mutableListOf<Pair<String, String>>()
+                lister.list(relativePath).forEach { child ->
+                    val childPath = if (relativePath.isBlank()) child.name else "$relativePath/${child.name}"
+                    when {
+                        child.isDirectory -> directories += child.name to childPath
+                        child.name.endsWith(".slangp", ignoreCase = true) -> presets += child.name to childPath
+                    }
+                }
+
+                buildList {
+                    if (relativePath.isNotBlank()) {
+                        add(
+                            ShaderBrowserItem(
+                                label = "..",
+                                path = relativePath.substringBeforeLast('/', missingDelimiterValue = ""),
+                                isDirectory = true,
+                                isParent = true,
+                            ),
+                        )
+                    }
+                    directories.sortedBy { it.first.lowercase() }.forEach { (name, childPath) ->
+                        add(ShaderBrowserItem(name, childPath, isDirectory = true))
+                    }
+                    presets.sortedBy { it.first.lowercase() }.forEach { (name, childPath) ->
+                        add(ShaderBrowserItem(name.removeSuffix(".slangp"), childPath, isDirectory = false))
+                    }
+                }
+            }
+
+            cache[relativePath] = items
+            adapter.submit(items)
+            emptyText.setText(R.string.video_retroarch_shader_browser_empty)
+            emptyText.isVisible = items.isEmpty()
+        }
+    }
+
+    private fun weighPresetAsync(relativePath: String, onResult: (RetroArchShaderPreset.Weight) -> Unit) {
+        val root = shaderLibraryManager.libraryRoot?.takeIf { resolveShaderSource() == RetroArchShaderSource.INTERNAL }
+            ?: return
+        shaderWeightCache[relativePath]?.let {
+            onResult(it)
+            return
+        }
+
+        lifecycleScope.launch {
+            val weight = withContext(Dispatchers.IO) {
+                runCatching {
+                    RetroArchShaderPreset.weigh(relativePath) { shaderPath ->
+                        File(root, shaderPath).takeIf { it.isFile }?.readText()
+                    }
+                }.getOrNull()
+            } ?: return@launch
+            shaderWeightCache[relativePath] = weight
+            onResult(weight)
+        }
+    }
+
+    private inner class ShaderBrowserAdapter(
+        private val selectedPath: () -> String?,
+        private val onClick: (ShaderBrowserItem) -> Unit,
+    ) : RecyclerView.Adapter<ShaderBrowserAdapter.ViewHolder>() {
+
+        private val items = mutableListOf<ShaderBrowserItem>()
+
+        fun itemAt(position: Int): ShaderBrowserItem? = items.getOrNull(position)
+
+        @SuppressLint("NotifyDataSetChanged")
+        fun submit(newItems: List<ShaderBrowserItem>) {
+            items.clear()
+            items += newItems
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            return ViewHolder(layoutInflater.inflate(R.layout.item_shader_browser_entry, parent, false))
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(items[position])
+        }
+
+        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            private val icon: ImageView = view.findViewById(R.id.imageShaderEntryIcon)
+            private val name: TextView = view.findViewById(R.id.textShaderEntryName)
+            private val detail: TextView = view.findViewById(R.id.textShaderEntryDetail)
+            private val badge: TextView = view.findViewById(R.id.textShaderEntryBadge)
+            private val chevron: ImageView = view.findViewById(R.id.imageShaderEntryChevron)
+
+            fun bind(item: ShaderBrowserItem) {
+                name.text = if (item.isParent) {
+                    itemView.context.getString(R.string.video_retroarch_shader_browser_up)
+                } else {
+                    item.label
+                }
+                icon.setImageResource(
+                    when {
+                        item.isParent -> R.drawable.ic_arrow_up
+                        item.isDirectory -> R.drawable.ic_folder
+                        else -> R.drawable.ic_file
+                    },
+                )
+                chevron.isVisible = item.isDirectory && !item.isParent
+                itemView.isSelected = !item.isDirectory && item.path == selectedPath()
+                itemView.setOnClickListener { onClick(item) }
+
+                detail.isVisible = false
+                badge.isVisible = false
+                if (item.isDirectory) {
+                    return
+                }
+
+                val boundPath = item.path
+                weighPresetAsync(boundPath) { weight ->
+                    if (boundPath != itemAt(bindingAdapterPosition)?.path) {
+                        return@weighPresetAsync
+                    }
+                    detail.isVisible = true
+                    detail.text = itemView.context.resources.getQuantityString(
+                        R.plurals.video_retroarch_shader_browser_passes,
+                        weight.passCount,
+                        weight.passCount,
+                    )
+                    val isHeavy = weight.estimatedCompileMillis >= HEAVY_PRESET_BADGE_THRESHOLD_MS
+                    badge.isVisible = isHeavy
+                    if (isHeavy) {
+                        badge.setText(R.string.video_retroarch_shader_browser_slow)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun onRendererPreferenceChanged(
+        rendererValue: String,
+        videoFilteringPreference: ListPreference,
+        retroArchShaderRootPreference: StoragePickerPreference,
+        retroArchShaderPresetPreference: ListPreference,
+        retroArchShaderParametersPreference: EditTextPreference?,
+        retroArchShaderClearHistoryPreference: SwitchPreference?,
+        allFilteringValues: Array<String>,
+        allFilteringEntries: Array<String>,
+    ) {
+        val newRenderer = enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+        when (newRenderer) {
+            VideoRenderer.SOFTWARE -> {
+                threadedRendererPreferences.forEach {
+                    it.isVisible = true
+                }
+                highResRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+                coverageFixPreferences.forEach {
+                    it.isVisible = false
+                }
+                rendererDebugPreferences.forEach {
+                    it.isVisible = true
+                }
+                vulkanRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+            }
+            VideoRenderer.OPENGL -> {
+                threadedRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+                highResRendererPreferences.forEach {
+                    it.isVisible = true
+                }
+                coverageFixPreferences.forEach {
+                    it.isVisible = true
+                }
+                rendererDebugPreferences.forEach {
+                    it.isVisible = true
+                }
+                vulkanRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+            }
+            VideoRenderer.COMPUTE -> {
+                threadedRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+                highResRendererPreferences.forEach {
+                    it.isVisible = true
+                }
+                coverageFixPreferences.forEach {
+                    it.isVisible = false
+                }
+                rendererDebugPreferences.forEach {
+                    it.isVisible = false
+                }
+                vulkanRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+            }
+            VideoRenderer.VULKAN -> {
+                threadedRendererPreferences.forEach {
+                    it.isVisible = false
+                }
+                highResRendererPreferences.forEach {
+                    it.isVisible = true
+                }
+                coverageFixPreferences.forEach {
+                    it.isVisible = true
+                }
+                rendererDebugPreferences.forEach {
+                    it.isVisible = true
+                }
+                vulkanRendererPreferences.forEach {
+                    it.isVisible = true
+                }
+            }
+        }
+
+        refreshConditionalVideoVisibility()
+
+        updateFilteringPreferences(
+            renderer = newRenderer,
+            videoFilteringPreference = videoFilteringPreference,
+            retroArchShaderRootPreference = retroArchShaderRootPreference,
+            retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+            retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+            retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+            allFilteringValues = allFilteringValues,
+            allFilteringEntries = allFilteringEntries,
+        )
+    }
+
+    private fun applyVulkanFastPathSelection(
+        preference: InGameLockedSwitchPreference,
+        enabled: Boolean,
+    ) {
+        preference.isChecked = enabled
+    }
+
+    private fun refreshConditionalVideoVisibility() {
+        val debugSwitch = findPreference<SwitchPreference>("video_renderer_debug_tools_enabled")
+        val debugOn = debugSwitch?.isVisible == true && debugSwitch.isChecked
+        val currentRenderer = runCatching {
+            enumValueOfIgnoreCase<VideoRenderer>(findPreference<ListPreference>("video_renderer")?.value.orEmpty())
+        }.getOrDefault(VideoRenderer.SOFTWARE)
+        findPreference<Preference>("video_renderer_debug_bgobj_enabled")?.isVisible = debugOn
+        findPreference<Preference>("video_renderer_debug_latch_trace_enabled")?.isVisible = debugOn
+        findPreference<Preference>("video_debug_3d_clear_magenta")?.isVisible =
+            debugOn && currentRenderer != VideoRenderer.SOFTWARE
+
+        val coverageSwitch = findPreference<SwitchPreference>("video_conservative_coverage_enabled")
+        val coverageOn = coverageSwitch?.isVisible == true && coverageSwitch.isChecked
+        listOf(
+            "video_conservative_coverage_px",
+            "video_conservative_coverage_apply_repeat",
+            "video_conservative_coverage_apply_clamp",
+            "video_conservative_coverage_depth_bias",
+        ).forEach {
+            findPreference<Preference>(it)?.isVisible = coverageOn
+        }
+
+        val depthModePref = findPreference<ListPreference>("video_vulkan_3d_depth_mode")
+        val depthActive = depthModePref?.isVisible == true && !depthModePref.value.equals("off", ignoreCase = true)
+        findPreference<Preference>("video_vulkan_3d_depth_strength")?.let { strengthPref ->
+            strengthPref.isVisible = depthActive
+            strengthPref.isEnabled = depthActive
+        }
+
+        val aiUpscaleOn = findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked == true
+        findPreference<Preference>("video_ai_upscale_scale")?.let { scalePref ->
+            scalePref.isVisible = aiUpscaleOn
+            scalePref.isEnabled = aiUpscaleOn
+        }
+    }
+
+    private fun updateFilteringPreferences(
+        renderer: VideoRenderer,
+        videoFilteringPreference: ListPreference,
+        retroArchShaderRootPreference: StoragePickerPreference,
+        retroArchShaderPresetPreference: ListPreference,
+        retroArchShaderParametersPreference: EditTextPreference?,
+        retroArchShaderClearHistoryPreference: SwitchPreference?,
+        allFilteringValues: Array<String>,
+        allFilteringEntries: Array<String>,
+    ) {
+        val isSoftware = renderer == VideoRenderer.SOFTWARE
+        val filteredPairs = allFilteringValues.zip(allFilteringEntries).filter { (value, _) ->
+            val filtering = videoFilteringOrNone(value)
+            filtering.isSupportedByRenderer(renderer)
+        }
+
+        videoFilteringPreference.entryValues = filteredPairs.map { it.first }.toTypedArray()
+        videoFilteringPreference.entries = filteredPairs.map { it.second }.toTypedArray()
+
+        videoFilteringPreference.isEnabled = true
+        val currentFiltering = videoFilteringOrNone(videoFilteringPreference.value)
+        if (!currentFiltering.isSupportedByRenderer(renderer)) {
+            videoFilteringPreference.value = VideoFiltering.NONE.name.lowercase()
+        }
+        videoFilteringPreference.summary = "%s"
+
+        // Lock / Unlock 3D Internal Resolution on Software renderer
+        findPreference<ListPreference>("video_internal_resolution")?.let { internalResPref ->
+            if (isSoftware) {
+                internalResPref.isEnabled = false
+                internalResPref.summary = getString(R.string.video_prefs_internal_resolution_software_only)
+            } else {
+                internalResPref.isEnabled = true
+                updateInternalResolutionSummary(internalResPref)
+            }
+        }
+
+        findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.let { aiSwitch ->
+            aiSwitch.isEnabled = true
+            aiSwitch.summary = getString(R.string.video_ai_upscale_summary)
+        }
+
+        findPreference<ListPreference>("video_ai_upscale_scale")?.let { aiUpscalePref ->
+            val aiEnabled = findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked == true
+            aiUpscalePref.isVisible = aiEnabled
+            aiUpscalePref.isEnabled = aiEnabled
+            updateListPreferenceSummary(aiUpscalePref)
+        }
+
+        updateShaderPickerPreferences(
+            renderer = renderer,
+            filteringValue = videoFilteringPreference.value,
+            retroArchShaderRootPreference = retroArchShaderRootPreference,
+            retroArchShaderPresetPreference = retroArchShaderPresetPreference,
+            retroArchShaderParametersPreference = retroArchShaderParametersPreference,
+            retroArchShaderClearHistoryPreference = retroArchShaderClearHistoryPreference,
+        )
+    }
+
+    private fun setupShaderSettingsSubScreen() {
+        findPreference<Preference>("video_retroarch_shader_manage")?.let {
+            shaderManagePreference = it
+            it.setOnPreferenceClickListener {
+                if (shaderLibraryManager.isInstalled()) {
+                    showShaderManageDialog()
+                } else {
+                    startShaderInstall()
+                }
+                true
+            }
+        }
+        findPreference<Preference>("video_retroarch_shader_report")?.let {
+            shaderReportPreference = it
+            it.setOnPreferenceClickListener {
+                showShaderCompatibilityReport()
+                true
+            }
+        }
+        findPreference<EditTextPreference>("video_retroarch_shader_parameters")?.let {
+            helper.bindPreferenceSummaryToValue(it)
+        }
+        val rootPreference = findPreference<StoragePickerPreference>("video_retroarch_shader_root")
+        if (rootPreference != null) {
+            shaderRootPreference = rootPreference
+            helper.setupStoragePickerPreference(rootPreference)
+            rootPreference.addOnPreferenceChangeListener { _, _ ->
+                preferenceManager.sharedPreferences?.edit()?.remove("video_retroarch_shader_preset")?.apply()
+                true
+            }
+        }
+
+        val source = resolveShaderSource()
+        if (::shaderManagePreference.isInitialized) {
+            shaderManagePreference.isVisible = source == RetroArchShaderSource.INTERNAL
+        }
+        rootPreference?.isVisible = source == RetroArchShaderSource.FOLDER
+        updateShaderManageSummary()
+        observeShaderInstallWork()
+    }
+
+    private fun updateShaderPickerPreferences(
+        renderer: VideoRenderer,
+        filteringValue: String,
+        retroArchShaderRootPreference: StoragePickerPreference,
+        retroArchShaderPresetPreference: ListPreference,
+        retroArchShaderParametersPreference: EditTextPreference?,
+        retroArchShaderClearHistoryPreference: SwitchPreference?,
+    ) {
+        val filtering = videoFilteringOrNone(filteringValue)
+        val retroArchEnabled = filtering == VideoFiltering.RETROARCH
+
+        val source = resolveShaderSource()
+        val isFolderSource = source == RetroArchShaderSource.FOLDER
+        val isInternalSource = source == RetroArchShaderSource.INTERNAL
+        val hasLibrary = isFolderSource || (isInternalSource && shaderLibraryManager.isInstalled())
+
+        if (::shaderSourcePreference.isInitialized) {
+            shaderSourcePreference.isVisible = retroArchEnabled
+            shaderSourcePreference.summary = when (source) {
+                RetroArchShaderSource.INTERNAL -> getString(R.string.video_retroarch_shader_source_internal)
+                RetroArchShaderSource.FOLDER -> getString(R.string.video_retroarch_shader_source_folder)
+                null -> getString(R.string.not_set)
+            }
+        }
+        if (::shaderManagePreference.isInitialized) {
+            shaderManagePreference.isVisible = retroArchEnabled && isInternalSource
+            updateShaderManageSummary()
+        }
+        if (::shaderReportPreference.isInitialized) {
+            shaderReportPreference.isVisible = retroArchEnabled
+        }
+
+        retroArchShaderRootPreference.isVisible = retroArchEnabled && isFolderSource
+        retroArchShaderPresetPreference.isVisible = retroArchEnabled && hasLibrary
+        retroArchShaderParametersPreference?.isVisible = retroArchEnabled && hasLibrary
+        retroArchShaderClearHistoryPreference?.isVisible = retroArchEnabled && hasLibrary
+        shaderSettingsPreference?.isVisible = retroArchEnabled
+    }
+
+    private fun resolveShaderSource(): RetroArchShaderSource? {
+        val preferences = preferenceManager.sharedPreferences
+        return RetroArchShaderRootResolver.resolveSource(
+            rawSourcePreference = preferences?.getString("video_retroarch_shader_source", null),
+            hasPickedFolder = !preferences?.getStringSet("video_retroarch_shader_root", null).isNullOrEmpty(),
+            hasInternalInstall = shaderLibraryManager.isInstalled(),
+        )
+    }
+
+    private fun persistShaderSource(source: RetroArchShaderSource) {
+        preferenceManager.sharedPreferences
+            ?.edit()
+            ?.putString("video_retroarch_shader_source", source.preferenceValue)
+            ?.apply()
+    }
+
+    private fun updateShaderManageSummary() {
+        if (!::shaderManagePreference.isInitialized) {
+            return
+        }
+
+        val manifest = shaderLibraryManager.readManifest()
+        if (manifest == null || !shaderLibraryManager.isInstalled()) {
+            shaderManagePreference.setTitle(R.string.video_retroarch_shader_install_title)
+            shaderManagePreference.setSummary(R.string.video_retroarch_shader_install_summary)
+            return
+        }
+
+        val date = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault()).format(Date(manifest.installedAtMillis))
+        val size = Formatter.formatShortFileSize(requireContext(), shaderLibraryManager.installedSizeBytes())
+        shaderManagePreference.setTitle(R.string.video_retroarch_shader_installed_title)
+        shaderManagePreference.summary = getString(R.string.video_retroarch_shader_installed_summary, date, size)
+    }
+
+    private fun refreshShaderPreferenceVisibility() {
+        if (!::shaderPresetPreference.isInitialized) {
+            val source = resolveShaderSource()
+            if (::shaderManagePreference.isInitialized) {
+                shaderManagePreference.isVisible = source == RetroArchShaderSource.INTERNAL
+                updateShaderManageSummary()
+            }
+            if (::shaderRootPreference.isInitialized) {
+                shaderRootPreference.isVisible = source == RetroArchShaderSource.FOLDER
+            }
+            return
+        }
+        val preferences = preferenceManager.sharedPreferences
+        updateShaderPickerPreferences(
+            renderer = enumValueOfIgnoreCase(preferences?.getString("video_renderer", "software") ?: "software"),
+            filteringValue = preferences?.getString("video_filtering", "none") ?: "none",
+            retroArchShaderRootPreference = shaderRootPreference,
+            retroArchShaderPresetPreference = shaderPresetPreference,
+            retroArchShaderParametersPreference = findPreference("video_retroarch_shader_parameters"),
+            retroArchShaderClearHistoryPreference = findPreference("video_retroarch_shader_clear_history"),
+        )
+    }
+
+    private fun showShaderCompatibilityReport() {
+        val lines = shaderCompatibilityLog.read()
+        val message = if (lines.isEmpty()) {
+            getString(R.string.shader_compatibility_report_empty)
+        } else {
+            lines.asReversed().joinToString("\n\n")
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.shader_compatibility_report_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .apply {
+                if (lines.isNotEmpty()) {
+                    setNeutralButton(R.string.shader_compatibility_report_save) { _, _ ->
+                        saveShaderCompatibilityLog(lines)
+                    }
+                    setNegativeButton(R.string.shader_compatibility_report_clear) { _, _ ->
+                        shaderCompatibilityLog.clear()
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun saveShaderCompatibilityLog(lines: List<String>) {
+        val initialCtx = context ?: return
+        val romFolder = settingsRepository.getRomSearchDirectories().firstOrNull()
+        if (romFolder == null) {
+            Toast.makeText(initialCtx, R.string.shader_compatibility_report_no_rom_folder, Toast.LENGTH_LONG).show()
+            return
+        }
+        val appContext = initialCtx.applicationContext
+
+        lifecycleScope.launch {
+            val savedName = withContext(Dispatchers.IO) {
+                runCatching {
+                    val directory = DocumentFile.fromTreeUri(appContext, romFolder)
+                        ?: return@runCatching null
+                    directory.findFile(SHADER_LOG_FILE_NAME)?.delete()
+                    val file = directory.createFile("*/*", SHADER_LOG_FILE_NAME)
+                        ?: return@runCatching null
+                    appContext.contentResolver.openOutputStream(file.uri)?.use { output ->
+                        output.write(lines.joinToString("\n", postfix = "\n").toByteArray())
+                    } ?: return@runCatching null
+                    file.name ?: SHADER_LOG_FILE_NAME
+                }.getOrNull()
+            }
+            if (!isAdded) return@launch
+            val ctx = context ?: return@launch
+
+            if (savedName == null) {
+                Toast.makeText(ctx, R.string.shader_compatibility_report_save_failed, Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(
+                    ctx,
+                    getString(R.string.shader_compatibility_report_saved, savedName),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
+
+    private fun showShaderSourceDialog() {
+        val context = requireContext()
+        val customView = LayoutInflater.from(context).inflate(R.layout.dialog_shader_source, null)
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.video_retroarch_shader_source_title)
+            .setView(customView)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+
+        customView.findViewById<View>(R.id.btn_source_scan)?.setOnClickListener {
+            dialog.dismiss()
+            scanAndImportRetroArchShaders()
+        }
+
+        customView.findViewById<View>(R.id.btn_source_internal)?.setOnClickListener {
+            dialog.dismiss()
+            persistShaderSource(RetroArchShaderSource.INTERNAL)
+            refreshShaderPreferenceVisibility()
+            if (!shaderLibraryManager.isInstalled()) {
+                startShaderInstall()
+            }
+        }
+
+        customView.findViewById<View>(R.id.btn_source_folder)?.setOnClickListener {
+            dialog.dismiss()
+            persistShaderSource(RetroArchShaderSource.FOLDER)
+            refreshShaderPreferenceVisibility()
+            if (::shaderRootPreference.isInitialized) {
+                shaderRootPreference.performClick()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun scanAndImportRetroArchShaders() {
+        lifecycleScope.launch {
+            val candidatePaths = listOf(
+                "/storage/emulated/0/RetroArch/shaders",
+                "/storage/emulated/0/RetroArch/shaders_slang",
+                "/storage/emulated/0/Android/data/com.retroarch/files/shaders",
+                "/storage/emulated/0/Android/data/com.retroarch.aarch64/files/shaders",
+                "/storage/emulated/0/Android/data/com.retroarch.ra32/files/shaders",
+                "/storage/emulated/0/Download/shaders",
+                "/storage/emulated/0/shaders",
+            )
+
+            val foundDir = withContext(Dispatchers.IO) {
+                candidatePaths.map { File(it) }.firstOrNull { dir ->
+                    dir.exists() && dir.isDirectory && (dir.walkTopDown().maxDepth(3).any { it.extension.equals("slangp", ignoreCase = true) })
+                }
+            }
+            if (!isAdded) return@launch
+            val ctx = context ?: return@launch
+
+            if (foundDir == null) {
+                Toast.makeText(ctx, R.string.video_retroarch_shader_scan_not_found, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+
+            AlertDialog.Builder(ctx)
+                .setTitle(R.string.video_retroarch_shader_scan_found_title)
+                .setMessage(getString(R.string.video_retroarch_shader_scan_found_msg, foundDir.absolutePath))
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    lifecycleScope.launch {
+                        val importedCount = withContext(Dispatchers.IO) {
+                            runCatching { shaderLibraryManager.importLocalDirectory(foundDir) }.getOrDefault(0)
+                        }
+                        if (!isAdded) return@launch
+                        val activeCtx = context ?: return@launch
+
+                        persistShaderSource(RetroArchShaderSource.INTERNAL)
+                        refreshShaderPreferenceVisibility()
+                        Toast.makeText(
+                            activeCtx,
+                            getString(R.string.video_retroarch_shader_scan_import_success, importedCount),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        showRetroArchPresetBrowserDialog(shaderPresetPreference)
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun showShaderManageDialog() {
+        val context = requireContext()
+        val entries = arrayOf(
+            getString(R.string.video_retroarch_shader_check_updates),
+            getString(R.string.video_retroarch_shader_reinstall),
+            getString(R.string.video_retroarch_shader_uninstall),
+        )
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.video_retroarch_shader_installed_title)
+            .setItems(entries) { _, which ->
+                when (which) {
+                    0 -> checkShaderUpdates()
+                    1 -> startShaderInstall()
+                    2 -> confirmShaderUninstall()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun checkShaderUpdates() {
+        val initialCtx = context ?: return
+        Toast.makeText(initialCtx, R.string.video_retroarch_shader_checking_updates, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val remote = withContext(Dispatchers.IO) {
+                runCatching { shaderLibraryManager.fetchRemoteInfo() }.getOrNull()
+            }
+            if (!isAdded) return@launch
+            val ctx = context ?: return@launch
+            if (remote == null) {
+                showShaderInstallError(RetroArchShaderLibraryManager.ShaderInstallException.Reason.NoNetwork, 0)
+                return@launch
+            }
+
+            if (shaderLibraryManager.isUpdateAvailable(remote)) {
+                AlertDialog.Builder(ctx)
+                    .setMessage(R.string.video_retroarch_shader_update_available)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> startShaderInstall() }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            } else {
+                Toast.makeText(ctx, R.string.video_retroarch_shader_up_to_date, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun confirmShaderUninstall() {
+        val size = Formatter.formatShortFileSize(requireContext(), shaderLibraryManager.installedSizeBytes())
+        AlertDialog.Builder(requireContext())
+            .setMessage(getString(R.string.video_retroarch_shader_uninstall_confirm, size))
+            .setPositiveButton(R.string.video_retroarch_shader_uninstall) { _, _ ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { shaderLibraryManager.uninstall() }
+                    if (::shaderPresetPreference.isInitialized) {
+                        updateRetroArchPresetEntries(shaderPresetPreference, resetSelection = true)
+                    }
+                    refreshShaderPreferenceVisibility()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private var isShaderInstallBackgrounded = false
+
+    private fun startShaderInstall() {
+        isShaderInstallBackgrounded = false
+        val request = OneTimeWorkRequestBuilder<RetroArchShaderInstallWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build(),
+            )
+            .build()
+
+        WorkManager.getInstance(requireContext()).enqueueUniqueWork(
+            RetroArchShaderInstallWorker.WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+        showShaderInstallProgressDialog()
+    }
+
+    private fun observeShaderInstallWork() {
+        shaderInstallObserverJob?.cancel()
+        shaderInstallObserverJob = lifecycleScope.launch {
+            WorkManager.getInstance(requireContext())
+                .getWorkInfosForUniqueWorkFlow(RetroArchShaderInstallWorker.WORK_NAME)
+                .collect { workInfos ->
+                    val info = workInfos.lastOrNull() ?: return@collect
+                    when (info.state) {
+                        WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> {
+                            showShaderInstallProgressDialog()
+                            shaderInstallPhaseText?.setText(R.string.video_retroarch_shader_waiting_network)
+                            shaderInstallProgressBar?.isIndeterminate = true
+                            shaderInstallDetailText?.text = ""
+                        }
+                        WorkInfo.State.RUNNING -> {
+                            showShaderInstallProgressDialog()
+                            applyShaderInstallProgress(info)
+                        }
+                        WorkInfo.State.SUCCEEDED -> {
+                            dismissShaderInstallProgressDialog()
+                            if (::shaderPresetPreference.isInitialized) {
+                                updateRetroArchPresetEntries(shaderPresetPreference, resetSelection = false)
+                            }
+                            refreshShaderPreferenceVisibility()
+                            updateAiUpscaleSummary()
+                        }
+                        WorkInfo.State.FAILED -> {
+                            dismissShaderInstallProgressDialog()
+                            val reasonName = info.outputData.getString(RetroArchShaderInstallWorker.KEY_FAILURE_REASON)
+                            val reason = runCatching {
+                                RetroArchShaderLibraryManager.ShaderInstallException.Reason.valueOf(reasonName.orEmpty())
+                            }.getOrDefault(RetroArchShaderLibraryManager.ShaderInstallException.Reason.HttpError)
+                            showShaderInstallError(
+                                reason,
+                                info.outputData.getLong(RetroArchShaderInstallWorker.KEY_REQUIRED_BYTES, 0),
+                            )
+                            refreshShaderPreferenceVisibility()
+                        }
+                        WorkInfo.State.CANCELLED -> {
+                            dismissShaderInstallProgressDialog()
+                            refreshShaderPreferenceVisibility()
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun applyShaderInstallProgress(info: WorkInfo) {
+        val progressBar = shaderInstallProgressBar ?: return
+        when (info.progress.getString(RetroArchShaderInstallWorker.KEY_PHASE)) {
+            RetroArchShaderInstallWorker.PHASE_DOWNLOADING -> {
+                val total = info.progress.getLong(RetroArchShaderInstallWorker.KEY_TOTAL_BYTES, 0)
+                val downloaded = info.progress.getLong(RetroArchShaderInstallWorker.KEY_DOWNLOADED_BYTES, 0)
+                shaderInstallPhaseText?.setText(R.string.video_retroarch_shader_downloading)
+                if (total > 0) {
+                    progressBar.isIndeterminate = false
+                    progressBar.progress = ((downloaded * 100) / total).toInt()
+                    shaderInstallDetailText?.text = getString(
+                        R.string.video_retroarch_shader_progress_bytes,
+                        Formatter.formatShortFileSize(requireContext(), downloaded),
+                        Formatter.formatShortFileSize(requireContext(), total),
+                    )
+                } else {
+                    progressBar.isIndeterminate = true
+                }
+            }
+            RetroArchShaderInstallWorker.PHASE_EXTRACTING -> {
+                val total = info.progress.getInt(RetroArchShaderInstallWorker.KEY_ENTRIES_TOTAL, 0)
+                val done = info.progress.getInt(RetroArchShaderInstallWorker.KEY_ENTRIES_DONE, 0)
+                shaderInstallPhaseText?.setText(R.string.video_retroarch_shader_extracting)
+                if (total > 0) {
+                    progressBar.isIndeterminate = false
+                    progressBar.progress = (done * 100) / total
+                    shaderInstallDetailText?.text = "$done / $total"
+                } else {
+                    progressBar.isIndeterminate = true
+                }
+            }
+            RetroArchShaderInstallWorker.PHASE_FINALIZING -> {
+                shaderInstallPhaseText?.setText(R.string.video_retroarch_shader_finalizing)
+                progressBar.isIndeterminate = true
+                shaderInstallDetailText?.text = ""
+            }
+        }
+    }
+
+    private fun showShaderInstallProgressDialog() {
+        if (isShaderInstallBackgrounded || shaderInstallProgressDialog?.isShowing == true) {
+            return
+        }
+
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        val phaseText = TextView(context)
+        val progressBar = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            isIndeterminate = true
+        }
+        val detailText = TextView(context)
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((24 * density).toInt(), (16 * density).toInt(), (24 * density).toInt(), 0)
+            addView(phaseText)
+            addView(progressBar)
+            addView(detailText)
+        }
+
+        shaderInstallPhaseText = phaseText
+        shaderInstallProgressBar = progressBar
+        shaderInstallDetailText = detailText
+        shaderInstallProgressDialog = AlertDialog.Builder(context)
+            .setTitle(R.string.video_retroarch_shader_install_notification_title)
+            .setView(container)
+            .setCancelable(false)
+            .setPositiveButton(R.string.move_to_background) { dialog, _ ->
+                isShaderInstallBackgrounded = true
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ ->
+                WorkManager.getInstance(context).cancelUniqueWork(RetroArchShaderInstallWorker.WORK_NAME)
+                dialog.dismiss()
+            }
+            .create()
+            .also { it.show() }
+    }
+
+    private fun dismissShaderInstallProgressDialog() {
+        isShaderInstallBackgrounded = false
+        shaderInstallProgressDialog?.dismiss()
+        shaderInstallProgressDialog = null
+        shaderInstallProgressBar = null
+        shaderInstallPhaseText = null
+        shaderInstallDetailText = null
+    }
+
+    override fun onDestroyView() {
+        dismissShaderInstallProgressDialog()
+        super.onDestroyView()
+    }
+
+    private fun showShaderInstallError(
+        reason: RetroArchShaderLibraryManager.ShaderInstallException.Reason,
+        requiredBytes: Long,
+    ) {
+        val message = when (reason) {
+            RetroArchShaderLibraryManager.ShaderInstallException.Reason.NotEnoughSpace -> getString(
+                R.string.video_retroarch_shader_error_space,
+                Formatter.formatShortFileSize(requireContext(), requiredBytes),
+            )
+            RetroArchShaderLibraryManager.ShaderInstallException.Reason.Truncated,
+            RetroArchShaderLibraryManager.ShaderInstallException.Reason.CorruptArchive,
+            -> getString(R.string.video_retroarch_shader_error_corrupt)
+            else -> getString(R.string.video_retroarch_shader_error_network)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setMessage(message)
+            .setPositiveButton(R.string.video_retroarch_shader_retry) { _, _ -> startShaderInstall() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun videoFilteringOrNone(value: String?): VideoFiltering {
+        return runCatching { enumValueOfIgnoreCase<VideoFiltering>(value.orEmpty()) }
+            .getOrDefault(VideoFiltering.NONE)
+    }
+
+    private fun applyRetroArchPresetSelection(preference: ListPreference, selectedPreset: String) {
+        preference.value = selectedPreset
+        preference.entries = arrayOf(selectedPreset)
+        preference.entryValues = arrayOf(selectedPreset)
+        preference.summary = selectedPreset
+    }
+
+    private fun showVulkanUnavailableDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.renderer_init_failed_title)
+            .setMessage(getString(R.string.renderer_init_failed_message, "Vulkan"))
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun updateDsiCameraImagePreference(preference: StoragePickerPreference, dsiCameraSourceValue: String) {
+        val newSource = enumValueOfIgnoreCase<DSiCameraSourceType>(dsiCameraSourceValue)
+        preference.isVisible = newSource == DSiCameraSourceType.STATIC_IMAGE
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateDualScreenPresetSummary()
+        if (::shaderPresetPreference.isInitialized) {
+            updateRetroArchPresetEntries(shaderPresetPreference, resetSelection = false)
+            refreshShaderPreferenceVisibility()
+        }
+        val vulkanCategory = findPreference<PreferenceCategory>("video_vulkan_driver_category")
+        val modePreference = findPreference<ListPreference>("video_vulkan_driver_mode")
+        val importPreference = findPreference<Preference>("video_vulkan_driver_import")
+        val removePreference = findPreference<Preference>("video_vulkan_driver_remove")
+        val managerPreference = findPreference<Preference>("video_vulkan_driver_manager")
+        if (vulkanCategory != null && modePreference != null && importPreference != null && removePreference != null) {
+            val rendererValue = findPreference<ListPreference>("video_renderer")?.value
+            val currentRenderer = if (!rendererValue.isNullOrBlank()) {
+                enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+            } else {
+                settingsRepository.getCurrentVideoRenderer()
+            }
+            val launchedInGame = requireActivity().intent.getBooleanExtra(SettingsActivity.KEY_IN_GAME, false)
+            updateVulkanDriverPreferenceState(
+                renderer = currentRenderer,
+                category = vulkanCategory,
+                managerPreference = managerPreference,
+                modePreference = modePreference,
+                importPreference = importPreference,
+                removePreference = removePreference,
+                launchedInGame = launchedInGame,
+            )
+        }
+    }
+
+    private fun updateDualScreenPresetSummary() {
+        if (!this::dualScreenPresetsPreference.isInitialized) {
+            return
+        }
+        val preset = settingsRepository.getDualScreenPreset()
+        val keepAspect = settingsRepository.isExternalDisplayKeepAspectRationEnabled()
+        val integerScale = settingsRepository.isDualScreenIntegerScaleEnabled() && preset != DualScreenPreset.OFF
+        val fillModesActive = preset != DualScreenPreset.OFF && (integerScale || keepAspect)
+        val internalFillHeight = settingsRepository.isDualScreenInternalFillHeightEnabled() && fillModesActive
+        val internalFillWidth = settingsRepository.isDualScreenInternalFillWidthEnabled() && fillModesActive
+        val externalFillHeight = settingsRepository.isDualScreenExternalFillHeightEnabled() && fillModesActive
+        val externalFillWidth = settingsRepository.isDualScreenExternalFillWidthEnabled() && fillModesActive
+
+        val presetTextRes = when (preset) {
+            DualScreenPreset.OFF -> R.string.dual_screen_preset_off
+            DualScreenPreset.INTERNAL_TOP_EXTERNAL_BOTTOM -> R.string.dual_screen_preset_internal_top_external_bottom
+            DualScreenPreset.INTERNAL_BOTTOM_EXTERNAL_TOP -> R.string.dual_screen_preset_internal_bottom_external_top
+        }
+
+        dualScreenPresetsPreference.summary = getString(
+            R.string.dual_screen_presets_summary,
+            getString(presetTextRes),
+            if (preset != DualScreenPreset.OFF && keepAspect) getString(R.string.on) else getString(R.string.off),
+            if (preset != DualScreenPreset.OFF && integerScale) getString(R.string.on) else getString(R.string.off),
+            if (internalFillHeight) getString(R.string.on) else getString(R.string.off),
+            if (internalFillWidth) getString(R.string.on) else getString(R.string.off),
+            if (externalFillHeight) getString(R.string.on) else getString(R.string.off),
+            if (externalFillWidth) getString(R.string.on) else getString(R.string.off),
+        )
+    }
+
+    private fun showDualScreenPresetsDialog() {
+        val dialog = androidx.appcompat.app.AppCompatDialog(requireContext(), R.style.WatermelonAlertDialog)
+        dialog.supportRequestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+
+        val composeView = androidx.compose.ui.platform.ComposeView(requireContext()).apply {
+            setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+            setContent {
+                com.storm3ds.emulator.ui.theme.MelonTheme {
+                    var currentPreset by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.getDualScreenPreset()) }
+                    var keepAspectRatio by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isExternalDisplayKeepAspectRationEnabled()) }
+                    var integerScale by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isDualScreenIntegerScaleEnabled()) }
+                    var internalFillHeight by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isDualScreenInternalFillHeightEnabled()) }
+                    var internalFillWidth by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isDualScreenInternalFillWidthEnabled()) }
+                    var externalFillHeight by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isDualScreenExternalFillHeightEnabled()) }
+                    var externalFillWidth by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.isDualScreenExternalFillWidthEnabled()) }
+                    var internalAlignment by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.getDualScreenInternalVerticalAlignmentOverride()) }
+                    var externalAlignment by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(settingsRepository.getDualScreenExternalVerticalAlignmentOverride()) }
+
+                    com.storm3ds.emulator.ui.emulator.ui.DualScreenPresetsDialog(
+                        dualScreenPreset = currentPreset,
+                        onDualScreenPresetSelected = { preset ->
+                            settingsRepository.setDualScreenPreset(preset)
+                            settingsRepository.setDualScreenCastEnabled(preset != DualScreenPreset.OFF)
+                            findPreference<SwitchPreference>("video_dual_screen_cast_enabled")?.isChecked = (preset != DualScreenPreset.OFF)
+                            currentPreset = preset
+                            updateDualScreenPresetSummary()
+                        },
+                        keepAspectRatio = keepAspectRatio,
+                        onKeepAspectRatioChanged = {
+                            settingsRepository.setExternalDisplayKeepAspectRatioEnabled(it)
+                            keepAspectRatio = it
+                            updateDualScreenPresetSummary()
+                        },
+                        isDualScreenIntegerScaleEnabled = integerScale,
+                        onDualScreenIntegerScaleChanged = {
+                            settingsRepository.setDualScreenIntegerScaleEnabled(it)
+                            integerScale = it
+                            updateDualScreenPresetSummary()
+                        },
+                        internalFillHeight = internalFillHeight,
+                        onInternalFillHeightChanged = {
+                            settingsRepository.setDualScreenInternalFillHeightEnabled(it)
+                            internalFillHeight = it
+                        },
+                        internalFillWidth = internalFillWidth,
+                        onInternalFillWidthChanged = {
+                            settingsRepository.setDualScreenInternalFillWidthEnabled(it)
+                            internalFillWidth = it
+                        },
+                        externalFillHeight = externalFillHeight,
+                        onExternalFillHeightChanged = {
+                            settingsRepository.setDualScreenExternalFillHeightEnabled(it)
+                            externalFillHeight = it
+                        },
+                        externalFillWidth = externalFillWidth,
+                        onExternalFillWidthChanged = {
+                            settingsRepository.setDualScreenExternalFillWidthEnabled(it)
+                            externalFillWidth = it
+                        },
+                        internalVerticalAlignmentOverride = internalAlignment,
+                        onInternalVerticalAlignmentOverrideChanged = {
+                            settingsRepository.setDualScreenInternalVerticalAlignmentOverride(it)
+                            internalAlignment = it
+                        },
+                        externalVerticalAlignmentOverride = externalAlignment,
+                        onExternalVerticalAlignmentOverrideChanged = {
+                            settingsRepository.setDualScreenExternalVerticalAlignmentOverride(it)
+                            externalAlignment = it
+                        },
+                        onDismiss = {
+                            dialog.dismiss()
+                            updateDualScreenPresetSummary()
+                        }
+                    )
+                }
+            }
+        }
+
+        dialog.setContentView(composeView)
+        dialog.show()
+    }
+
+    private fun showFillAreaOptionsDialog(
+        fillOptionsEnabled: Boolean,
+        initialInternalFillHeight: Boolean,
+        initialInternalFillWidth: Boolean,
+        initialExternalFillHeight: Boolean,
+        initialExternalFillWidth: Boolean,
+        onValuesConfirmed: (Boolean, Boolean, Boolean, Boolean) -> Unit,
+    ) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_dual_screen_fill_area, null)
+        val description = dialogView.findViewById<TextView>(R.id.textFillAreaDescription)
+        val disabledText = dialogView.findViewById<TextView>(R.id.textFillAreaDisabled)
+        val internalEnabledSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchInternalFillEnabled)
+        val internalHeightSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchInternalFillHeight)
+        val internalWidthSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchInternalFillWidth)
+        val externalEnabledSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchExternalFillEnabled)
+        val externalHeightSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchExternalFillHeight)
+        val externalWidthSwitch = dialogView.findViewById<SwitchCompat>(R.id.switchExternalFillWidth)
+
+        description.text = getString(R.string.dual_screen_fill_area_description)
+        internalHeightSwitch.isChecked = initialInternalFillHeight
+        internalWidthSwitch.isChecked = initialInternalFillWidth
+        externalHeightSwitch.isChecked = initialExternalFillHeight
+        externalWidthSwitch.isChecked = initialExternalFillWidth
+        internalEnabledSwitch.isChecked = initialInternalFillHeight || initialInternalFillWidth
+        externalEnabledSwitch.isChecked = initialExternalFillHeight || initialExternalFillWidth
+
+        fun updateInternalSection(enabled: Boolean, mutateValues: Boolean) {
+            val childEnabled = fillOptionsEnabled && enabled
+            internalHeightSwitch.isEnabled = childEnabled
+            internalWidthSwitch.isEnabled = childEnabled
+            if (!mutateValues) {
+                return
+            }
+            if (!enabled) {
+                internalHeightSwitch.isChecked = false
+                internalWidthSwitch.isChecked = false
+            } else if (!internalHeightSwitch.isChecked && !internalWidthSwitch.isChecked) {
+                internalHeightSwitch.isChecked = true
+            }
+        }
+
+        fun updateExternalSection(enabled: Boolean, mutateValues: Boolean) {
+            val childEnabled = fillOptionsEnabled && enabled
+            externalHeightSwitch.isEnabled = childEnabled
+            externalWidthSwitch.isEnabled = childEnabled
+            if (!mutateValues) {
+                return
+            }
+            if (!enabled) {
+                externalHeightSwitch.isChecked = false
+                externalWidthSwitch.isChecked = false
+            } else if (!externalHeightSwitch.isChecked && !externalWidthSwitch.isChecked) {
+                externalHeightSwitch.isChecked = true
+            }
+        }
+
+        internalEnabledSwitch.isEnabled = fillOptionsEnabled
+        externalEnabledSwitch.isEnabled = fillOptionsEnabled
+        updateInternalSection(internalEnabledSwitch.isChecked, mutateValues = false)
+        updateExternalSection(externalEnabledSwitch.isChecked, mutateValues = false)
+        internalEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updateInternalSection(isChecked, mutateValues = true)
+        }
+        externalEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updateExternalSection(isChecked, mutateValues = true)
+        }
+        disabledText.isVisible = !fillOptionsEnabled
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.dual_screen_fill_area_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val internalEnabled = fillOptionsEnabled && internalEnabledSwitch.isChecked
+                val externalEnabled = fillOptionsEnabled && externalEnabledSwitch.isChecked
+                onValuesConfirmed(
+                    if (internalEnabled) internalHeightSwitch.isChecked else false,
+                    if (internalEnabled) internalWidthSwitch.isChecked else false,
+                    if (externalEnabled) externalHeightSwitch.isChecked else false,
+                    if (externalEnabled) externalWidthSwitch.isChecked else false,
+                )
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showVerticalAlignmentOptionsDialog(
+        preset: DualScreenPreset,
+        initialInternalAlignment: ScreenAlignment?,
+        initialExternalAlignment: ScreenAlignment?,
+        onValuesConfirmed: (ScreenAlignment?, ScreenAlignment?) -> Unit,
+    ) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_dual_screen_vertical_alignment, null)
+        val description = dialogView.findViewById<TextView>(R.id.textVerticalAlignmentDescription)
+        val defaults = dialogView.findViewById<TextView>(R.id.textVerticalAlignmentDefaults)
+        description.text = getString(R.string.dual_screen_vertical_alignment_description)
+        defaults.text = getString(
+            R.string.dual_screen_vertical_alignment_default_hint,
+            getAlignmentDisplayName(preset.defaultInternalAlignment()),
+            getAlignmentDisplayName(preset.defaultExternalAlignment()),
+        )
+
+        val internalToggle = dialogView.findViewById<SwitchCompat>(R.id.switchInternalAlignmentOverride)
+        val externalToggle = dialogView.findViewById<SwitchCompat>(R.id.switchExternalAlignmentOverride)
+        val internalRadioGroup = dialogView.findViewById<RadioGroup>(R.id.radioGroupInternalAlignment)
+        val externalRadioGroup = dialogView.findViewById<RadioGroup>(R.id.radioGroupExternalAlignment)
+        val internalRadios = mapOf(
+            ScreenAlignment.TOP to dialogView.findViewById<RadioButton>(R.id.radioInternalAlignmentTop),
+            ScreenAlignment.CENTER to dialogView.findViewById<RadioButton>(R.id.radioInternalAlignmentCenter),
+            ScreenAlignment.BOTTOM to dialogView.findViewById<RadioButton>(R.id.radioInternalAlignmentBottom),
+        )
+        val externalRadios = mapOf(
+            ScreenAlignment.TOP to dialogView.findViewById<RadioButton>(R.id.radioExternalAlignmentTop),
+            ScreenAlignment.CENTER to dialogView.findViewById<RadioButton>(R.id.radioExternalAlignmentCenter),
+            ScreenAlignment.BOTTOM to dialogView.findViewById<RadioButton>(R.id.radioExternalAlignmentBottom),
+        )
+
+        var currentInternalSelection = initialInternalAlignment ?: preset.defaultInternalAlignment()
+        var currentExternalSelection = initialExternalAlignment ?: preset.defaultExternalAlignment()
+        var pendingInternalAlignment = initialInternalAlignment
+        var pendingExternalAlignment = initialExternalAlignment
+        var updatingInternalRadios = false
+        var updatingExternalRadios = false
+
+        fun setRadiosEnabled(radios: Collection<RadioButton>, enabled: Boolean) {
+            radios.forEach { it.isEnabled = enabled }
+        }
+
+        fun applyInternalSelection() {
+            updatingInternalRadios = true
+            val id = internalRadios[currentInternalSelection]?.id ?: R.id.radioInternalAlignmentTop
+            internalRadioGroup.check(id)
+            updatingInternalRadios = false
+        }
+
+        fun applyExternalSelection() {
+            updatingExternalRadios = true
+            val id = externalRadios[currentExternalSelection]?.id ?: R.id.radioExternalAlignmentTop
+            externalRadioGroup.check(id)
+            updatingExternalRadios = false
+        }
+
+        internalToggle.isChecked = pendingInternalAlignment != null
+        externalToggle.isChecked = pendingExternalAlignment != null
+        applyInternalSelection()
+        applyExternalSelection()
+        setRadiosEnabled(internalRadios.values, internalToggle.isChecked)
+        setRadiosEnabled(externalRadios.values, externalToggle.isChecked)
+
+        internalToggle.setOnCheckedChangeListener { _, isChecked ->
+            setRadiosEnabled(internalRadios.values, isChecked)
+            pendingInternalAlignment = if (isChecked) currentInternalSelection else null
+        }
+        externalToggle.setOnCheckedChangeListener { _, isChecked ->
+            setRadiosEnabled(externalRadios.values, isChecked)
+            pendingExternalAlignment = if (isChecked) currentExternalSelection else null
+        }
+
+        internalRadioGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (updatingInternalRadios) {
+                return@setOnCheckedChangeListener
+            }
+            currentInternalSelection = when (checkedId) {
+                R.id.radioInternalAlignmentTop -> ScreenAlignment.TOP
+                R.id.radioInternalAlignmentCenter -> ScreenAlignment.CENTER
+                R.id.radioInternalAlignmentBottom -> ScreenAlignment.BOTTOM
+                else -> ScreenAlignment.TOP
+            }
+            if (internalToggle.isChecked) {
+                pendingInternalAlignment = currentInternalSelection
+            }
+        }
+
+        externalRadioGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (updatingExternalRadios) {
+                return@setOnCheckedChangeListener
+            }
+            currentExternalSelection = when (checkedId) {
+                R.id.radioExternalAlignmentTop -> ScreenAlignment.TOP
+                R.id.radioExternalAlignmentCenter -> ScreenAlignment.CENTER
+                R.id.radioExternalAlignmentBottom -> ScreenAlignment.BOTTOM
+                else -> ScreenAlignment.TOP
+            }
+            if (externalToggle.isChecked) {
+                pendingExternalAlignment = currentExternalSelection
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.dual_screen_vertical_alignment_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                onValuesConfirmed(pendingInternalAlignment, pendingExternalAlignment)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun getVerticalAlignmentSummary(
+        preset: DualScreenPreset,
+        internalOverride: ScreenAlignment?,
+        externalOverride: ScreenAlignment?,
+    ): String {
+        val internalDefault = preset.defaultInternalAlignment()
+        val externalDefault = preset.defaultExternalAlignment()
+        val internalLabel = formatAlignmentLabel(internalOverride, internalDefault)
+        val externalLabel = formatAlignmentLabel(externalOverride, externalDefault)
+        return getString(R.string.dual_screen_vertical_alignment_summary, internalLabel, externalLabel)
+    }
+
+    private fun formatAlignmentLabel(override: ScreenAlignment?, defaultAlignment: ScreenAlignment): String {
+        return if (override == null) {
+            getString(
+                R.string.dual_screen_vertical_alignment_preset_value,
+                getAlignmentDisplayName(defaultAlignment),
+            )
+        } else {
+            getAlignmentDisplayName(override)
+        }
+    }
+
+    private fun getAlignmentDisplayName(alignment: ScreenAlignment): String {
+        return when (alignment) {
+            ScreenAlignment.TOP -> getString(R.string.dual_screen_vertical_alignment_option_top)
+            ScreenAlignment.CENTER -> getString(R.string.dual_screen_vertical_alignment_option_center)
+            ScreenAlignment.BOTTOM -> getString(R.string.dual_screen_vertical_alignment_option_bottom)
+        }
+    }
+
+    override fun getTitle(): String {
+        return if (arguments?.getString(ARG_PREFERENCE_ROOT) == SHADER_SETTINGS_KEY) {
+            getString(R.string.video_retroarch_shader_settings_title)
+        } else {
+            getString(R.string.category_video)
+        }
+    }
+
+    private fun updateInternalResolutionSummary(pref: ListPreference) {
+        val entry = pref.entry ?: pref.value ?: ""
+        val mult = pref.value?.toIntOrNull() ?: 1
+        if (mult >= 8) {
+            pref.summary = getString(R.string.v780_internal_resolution_warning_summary, entry)
+        } else {
+            pref.summary = entry
+        }
+    }
+
+    private fun updateListPreferenceSummary(pref: ListPreference) {
+        pref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+    }
+
+    private fun updateAiUpscaleSummary() {
+        val aiPref = findPreference<SwitchPreference>("video_ai_upscale_enabled") ?: return
+        aiPref.summary = getString(R.string.video_ai_upscale_summary)
+    }
+
+    private fun resetVideoEnhancements() {
+        val defaultFiltering = VideoFiltering.QUILEZ.name.lowercase()
+        preferenceManager.sharedPreferences?.edit()?.apply {
+            putString("video_internal_resolution", "2")
+            putString("video_filtering", defaultFiltering)
+            remove("video_retroarch_shader_preset")
+            remove("video_retroarch_shader_parameters")
+            putBoolean("video_retroarch_shader_clear_history", false)
+            putBoolean("video_ai_upscale_enabled", false)
+            putString("video_ai_upscale_scale", "4x")
+            putBoolean("video_widescreen_3d", false)
+            putBoolean("video_60fps_patch", false)
+            putBoolean("video_drs_enabled", false)
+            putBoolean("video_oled_battery_saver", false)
+            putBoolean("video_low_battery_saver", false)
+            putString("video_vulkan_compositor_mode", "precise")
+            putBoolean("video_vulkan_compat_autoselect", true)
+            putString("video_vulkan_3d_depth_mode", "off")
+            putString("video_vulkan_3d_depth_strength", "50")
+            putBoolean("video_vulkan_ssao", false)
+            putBoolean("video_vulkan_thick_edges", false)
+            putString("video_ds_color_profile", "standard")
+            putString("video_ds_lcd_grid", "off")
+            putString("video_ds_hinge_gap", "0")
+            putBoolean("video_vulkan_fastpath_enabled", false)
+            putBoolean("video_renderer_debug_tools_enabled", false)
+            putBoolean("video_renderer_debug_bgobj_enabled", false)
+            putBoolean("video_renderer_debug_latch_trace_enabled", false)
+            putBoolean("video_conservative_coverage_enabled", false)
+            putInt("video_conservative_coverage_px", 150)
+            putBoolean("video_conservative_coverage_apply_repeat", true)
+            putBoolean("video_conservative_coverage_apply_clamp", false)
+            putInt("video_conservative_coverage_depth_bias", 0)
+            putBoolean("video_debug_3d_clear_magenta", false)
+            apply()
+        }
+
+        findPreference<ListPreference>("video_internal_resolution")?.let {
+            it.value = "2"
+            updateInternalResolutionSummary(it)
+        }
+        findPreference<ListPreference>("video_filtering")?.let {
+            it.value = defaultFiltering
+            updateListPreferenceSummary(it)
+        }
+        findPreference<ListPreference>("video_retroarch_shader_preset")?.let {
+            it.value = null
+            it.summary = getString(R.string.video_retroarch_shader_preset_summary)
+        }
+        findPreference<EditTextPreference>("video_retroarch_shader_parameters")?.text = null
+        findPreference<androidx.preference.TwoStatePreference>("video_retroarch_shader_clear_history")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked = false
+        findPreference<ListPreference>("video_ai_upscale_scale")?.let {
+            it.value = "4x"
+            updateListPreferenceSummary(it)
+        }
+        updateAiUpscaleSummary()
+        findPreference<androidx.preference.TwoStatePreference>("video_widescreen_3d")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_60fps_patch")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_drs_enabled")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_oled_battery_saver")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_low_battery_saver")?.isChecked = false
+        findPreference<ListPreference>("video_vulkan_compositor_mode")?.let {
+            it.value = "precise"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_compat_autoselect")?.isChecked = true
+        findPreference<ListPreference>("video_vulkan_3d_depth_mode")?.let {
+            it.value = "off"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<ListPreference>("video_vulkan_3d_depth_strength")?.let {
+            it.value = "50"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_ssao")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_thick_edges")?.isChecked = false
+        findPreference<ListPreference>("video_ds_color_profile")?.let {
+            it.value = "standard"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<ListPreference>("video_ds_lcd_grid")?.let {
+            it.value = "off"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<ListPreference>("video_ds_hinge_gap")?.let {
+            it.value = "0"
+            updateListPreferenceSummary(it)
+        }
+        findPreference<InGameLockedSwitchPreference>("video_vulkan_fastpath_enabled")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_tools_enabled")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_bgobj_enabled")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_latch_trace_enabled")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_enabled")?.isChecked = false
+        findPreference<androidx.preference.SeekBarPreference>("video_conservative_coverage_px")?.value = 150
+        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_apply_repeat")?.isChecked = true
+        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_apply_clamp")?.isChecked = false
+        findPreference<androidx.preference.SeekBarPreference>("video_conservative_coverage_depth_bias")?.value = 0
+        findPreference<androidx.preference.TwoStatePreference>("video_debug_3d_clear_magenta")?.isChecked = false
+
+        val rendererPref = findPreference<ListPreference>("video_renderer")
+        if (rendererPref != null && ::shaderRootPreference.isInitialized && ::shaderPresetPreference.isInitialized) {
+            updateShaderPickerPreferences(
+                renderer = enumValueOfIgnoreCase(rendererPref.value),
+                filteringValue = defaultFiltering,
+                retroArchShaderRootPreference = shaderRootPreference,
+                retroArchShaderPresetPreference = shaderPresetPreference,
+                retroArchShaderParametersPreference = findPreference("video_retroarch_shader_parameters"),
+                retroArchShaderClearHistoryPreference = findPreference("video_retroarch_shader_clear_history"),
+            )
+        }
+        refreshConditionalVideoVisibility()
+
+        Toast.makeText(requireContext(), R.string.v780_video_reset_enhancements_success, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showVideoQuickProfileDialog() {
+        val ctx = context ?: return
+        val options = listOf<CharSequence>(
+            getString(R.string.v794_video_preset_performance),
+            getString(R.string.v794_video_preset_balanced),
+            getString(R.string.v794_video_preset_ultra)
+        )
+        val values = listOf<CharSequence>("0", "1", "2")
+        val prefs = preferenceManager.sharedPreferences
+        val curRes = prefs?.getString("video_internal_resolution", "2") ?: "2"
+        val curSsao = prefs?.getBoolean("video_vulkan_ssao", false) ?: false
+        val selectedValue = when {
+            curRes == "1" -> "0"
+            curRes == "4" && curSsao -> "2"
+            curRes == "2" && !curSsao -> "1"
+            else -> null
+        }
+        com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog(ctx) { dismiss ->
+            com.storm3ds.emulator.ui.settings.dialogs.SettingsChoiceDialogContent(
+                title = getString(R.string.v794_video_quick_profile_title),
+                subtitle = getString(R.string.v794_video_quick_profile_summary),
+                options = options,
+                values = values,
+                selectedValue = selectedValue,
+                onSelect = { chosen ->
+                    val idx = chosen.toIntOrNull() ?: return@SettingsChoiceDialogContent
+                    if (idx in options.indices) {
+                        applyVideoQuickProfile(idx, options[idx].toString())
+                    }
+                },
+                onDismiss = dismiss,
+            )
+        }
+    }
+
+    private fun applyVideoQuickProfile(presetIndex: Int, presetTitle: String) {
+        val resValue = when (presetIndex) {
+            0 -> "1"
+            1 -> "2"
+            2 -> "4"
+            else -> "2"
+        }
+        val filteringValue = when (presetIndex) {
+            0 -> VideoFiltering.NONE.name.lowercase()
+            1 -> VideoFiltering.QUILEZ.name.lowercase()
+            2 -> VideoFiltering.QUILEZ.name.lowercase()
+            else -> VideoFiltering.QUILEZ.name.lowercase()
+        }
+        val threaded = true
+        val ssao = presetIndex == 2
+        val thickEdges = presetIndex == 2
+
+        preferenceManager.sharedPreferences?.edit()?.apply {
+            putString("video_internal_resolution", resValue)
+            putBoolean("enable_threaded_rendering", threaded)
+            putString("video_filtering", filteringValue)
+            putBoolean("video_ai_upscale_enabled", false)
+            putBoolean("video_vulkan_ssao", ssao)
+            putBoolean("video_vulkan_thick_edges", thickEdges)
+            putString("video_vulkan_3d_depth_mode", "off")
+            apply()
+        }
+
+        findPreference<ListPreference>("video_internal_resolution")?.let {
+            it.value = resValue
+            updateInternalResolutionSummary(it)
+        }
+        findPreference<androidx.preference.TwoStatePreference>("enable_threaded_rendering")?.isChecked = threaded
+        findPreference<ListPreference>("video_filtering")?.let {
+            it.value = filteringValue
+            updateListPreferenceSummary(it)
+        }
+        findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked = false
+        updateAiUpscaleSummary()
+        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_ssao")?.isChecked = ssao
+        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_thick_edges")?.isChecked = thickEdges
+        findPreference<ListPreference>("video_vulkan_3d_depth_mode")?.let {
+            it.value = "off"
+            updateListPreferenceSummary(it)
+        }
+
+        val rendererPref = findPreference<ListPreference>("video_renderer")
+        if (rendererPref != null && ::shaderRootPreference.isInitialized && ::shaderPresetPreference.isInitialized) {
+            updateShaderPickerPreferences(
+                renderer = enumValueOfIgnoreCase(rendererPref.value),
+                filteringValue = filteringValue,
+                retroArchShaderRootPreference = shaderRootPreference,
+                retroArchShaderPresetPreference = shaderPresetPreference,
+                retroArchShaderParametersPreference = findPreference("video_retroarch_shader_parameters"),
+                retroArchShaderClearHistoryPreference = findPreference("video_retroarch_shader_clear_history"),
+            )
+        }
+        refreshConditionalVideoVisibility()
+
+        Toast.makeText(requireContext(), getString(R.string.v794_video_preset_applied, presetTitle), Toast.LENGTH_SHORT).show()
+    }
+}

@@ -1,0 +1,13 @@
+package com.storm3ds.emulator.domain.model.dsinand
+
+enum class DSiWareTitleFileType(val fileName: String) {
+    PUBLIC_SAV("public.sav"),
+    PRIVATE_SAV("private.sav"),
+    BANNER_SAV("banner.sav"),
+}
+
+enum class DSiWareBootMode {
+    AUTOLOAD,
+    DIRECT,
+    SYSTEM_MENU,
+}

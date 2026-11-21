@@ -1,0 +1,39 @@
+package com.storm3ds.emulator.ui
+
+import androidx.appcompat.app.AppCompatDelegate
+
+enum class Theme(val nightMode: Int, val preferenceValue: String) {
+    DARK(AppCompatDelegate.MODE_NIGHT_YES, "dark"),
+    LIGHT(AppCompatDelegate.MODE_NIGHT_NO, "light"),
+    MIDNIGHT(AppCompatDelegate.MODE_NIGHT_YES, "midnight"),
+    CYBERPUNK(AppCompatDelegate.MODE_NIGHT_YES, "cyberpunk"),
+    GOTHIC(AppCompatDelegate.MODE_NIGHT_YES, "gothic"),
+    MATRIX(AppCompatDelegate.MODE_NIGHT_YES, "matrix"),
+    SOLAR(AppCompatDelegate.MODE_NIGHT_YES, "solar"),
+    SAKURA(AppCompatDelegate.MODE_NIGHT_NO, "sakura"),
+    SYSTEM(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM, "system");
+
+    fun getThemeResId(): Int {
+        return when (this) {
+            DARK -> com.storm3ds.emulator.R.style.AppTheme_Dark
+            LIGHT -> com.storm3ds.emulator.R.style.AppTheme_Light
+            MIDNIGHT -> com.storm3ds.emulator.R.style.AppTheme_Midnight
+            CYBERPUNK -> com.storm3ds.emulator.R.style.AppTheme_Cyberpunk
+            GOTHIC -> com.storm3ds.emulator.R.style.AppTheme_Gothic
+            MATRIX -> com.storm3ds.emulator.R.style.AppTheme_Matrix
+            SOLAR -> com.storm3ds.emulator.R.style.AppTheme_Solar
+            SAKURA -> com.storm3ds.emulator.R.style.AppTheme_Sakura
+            SYSTEM -> {
+                val sysDark = (android.content.res.Resources.getSystem().configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                if (sysDark) com.storm3ds.emulator.R.style.AppTheme_Dark else com.storm3ds.emulator.R.style.AppTheme_Light
+            }
+        }
+    }
+
+    companion object {
+        fun fromPreference(value: String?): Theme {
+            return entries.firstOrNull { it.preferenceValue == value } ?: DARK
+        }
+    }
+}

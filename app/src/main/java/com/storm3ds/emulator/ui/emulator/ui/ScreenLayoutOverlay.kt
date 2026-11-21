@@ -1,0 +1,530 @@
+package com.storm3ds.emulator.ui.emulator.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Icon
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DashboardCustomize
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.ui.theme.SpaceGrotesk
+import com.storm3ds.emulator.ui.theme.watermelon
+
+enum class ScreenLayoutMode {
+    EVEN_LANDSCAPE,
+    UNEVEN_LANDSCAPE,
+    EVEN_PORTRAIT_LOCKED,
+    PROPORTIONAL_LANDSCAPE,
+    FULLSCREEN_LANDSCAPE,
+    AUTO_ROTATE,
+    OPEN_LAYOUT_EDITOR,
+}
+
+@Composable
+fun ScreenLayoutOverlay(
+    currentLayoutMode: ScreenLayoutMode?,
+    onLayoutModeSelected: (ScreenLayoutMode) -> Unit,
+    onDismiss: () -> Unit,
+    onResumeGame: (() -> Unit)? = null,
+) {
+    val colors = watermelon
+    val firstOptionFocusRequester = remember { FocusRequester() }
+
+    BackHandler(onBack = onDismiss)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = if (colors.isDark) 0.82f else 0.65f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            )
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && (event.key == Key.ButtonB || event.key == Key.Back || event.key == Key.Escape)) {
+                    onDismiss()
+                    true
+                } else false
+            },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 760.dp)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { /* consume click */ },
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // Main Panel Card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .fillMaxHeight(0.85f)
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.surface)
+                    .border(1.dp, colors.line, RoundedCornerShape(20.dp)),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp, horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(R.drawable.ic_video),
+                            contentDescription = null,
+                            tint = colors.green,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.screen_layout),
+                                fontFamily = SpaceGrotesk,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                color = colors.text,
+                            )
+                            Text(
+                                text = "Быстрая смена раскладки",
+                                fontFamily = SpaceGrotesk,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 10.5.sp,
+                                color = colors.text2,
+                            )
+                        }
+                        if (onResumeGame != null) {
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(colors.surface2)
+                                    .border(1.dp, colors.green.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .clickable(onClick = onResumeGame)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = stringResource(R.string.pause_resume),
+                                        tint = colors.green,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.pause_resume_button),
+                                        color = colors.green,
+                                        fontFamily = SpaceGrotesk,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_even_landscape),
+                        subtitle = "2 экрана в альбомном режиме",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.EVEN_LANDSCAPE,
+                        focusRequester = firstOptionFocusRequester,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.EVEN_LANDSCAPE, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.EVEN_LANDSCAPE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_uneven_landscape),
+                        subtitle = "2 экрана (один большой, второй маленький)",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.UNEVEN_LANDSCAPE,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.UNEVEN_LANDSCAPE, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.UNEVEN_LANDSCAPE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_even_portrait_locked),
+                        subtitle = "2 экрана в портретном режиме",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.EVEN_PORTRAIT_LOCKED,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.EVEN_PORTRAIT_LOCKED, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.EVEN_PORTRAIT_LOCKED)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_proportional_landscape),
+                        subtitle = "Один большой экран 4:3 по центру",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.PROPORTIONAL_LANDSCAPE,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.PROPORTIONAL_LANDSCAPE, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.PROPORTIONAL_LANDSCAPE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_fullscreen_landscape),
+                        subtitle = "1 экран на весь дисплей (альбомно)",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.FULLSCREEN_LANDSCAPE,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.FULLSCREEN_LANDSCAPE, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.FULLSCREEN_LANDSCAPE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(colors.line),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_auto_rotate),
+                        subtitle = "Снять блокировку (поворот по датчику)",
+                        isSelected = currentLayoutMode == ScreenLayoutMode.AUTO_ROTATE,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.AUTO_ROTATE, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.AUTO_ROTATE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_open_editor),
+                        subtitle = stringResource(R.string.layout_open_editor_summary),
+                        isSelected = false,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.OPEN_LAYOUT_EDITOR, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.OPEN_LAYOUT_EDITOR)
+                            onDismiss()
+                        },
+                    )
+                }
+            }
+
+            // Unified Bottom Center Back Arrow
+            com.storm3ds.emulator.ui.common.UnifiedBackButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+
+        com.storm3ds.emulator.ui.common.RequestInitialFocus(firstOptionFocusRequester)
+    }
+}
+
+@Composable
+private fun LayoutOptionItem(
+    title: String,
+    subtitle: String? = null,
+    isSelected: Boolean,
+    focusRequester: FocusRequester? = null,
+    icon: @Composable (Boolean) -> Unit,
+    onClick: () -> Unit,
+) {
+    val colors = watermelon
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused = interactionSource.collectIsFocusedAsState().value
+
+    val bg = when {
+        isSelected -> colors.greenDim
+        isFocused -> colors.surface3
+        else -> colors.surface2
+    }
+    val border = when {
+        isSelected -> colors.green
+        isFocused -> colors.green.copy(alpha = 0.5f)
+        else -> colors.line
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(14.dp))
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(38.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            icon(isSelected)
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontFamily = SpaceGrotesk,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 15.sp,
+                color = if (isSelected) colors.text else colors.text.copy(alpha = 0.9f),
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontFamily = SpaceGrotesk,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.5.sp,
+                    color = if (isSelected) colors.green else colors.text2,
+                )
+            }
+        }
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = colors.green,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LayoutModeIcon(mode: ScreenLayoutMode, isSelected: Boolean, activeColor: Color, inactiveColor: Color) {
+    val strokeColor = if (isSelected) activeColor else inactiveColor
+    val strokeWidth = 2.0f
+
+    when (mode) {
+        ScreenLayoutMode.EVEN_LANDSCAPE -> {
+            Canvas(modifier = Modifier.size(32.dp, 20.dp)) {
+                val w = size.width
+                val h = size.height
+                val pad = 2f
+                val scrW = (w - pad * 3) / 2f
+                val scrH = h - pad * 2
+
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(pad, pad),
+                    size = Size(scrW, scrH),
+                    cornerRadius = CornerRadius(3f, 3f),
+                    style = Stroke(strokeWidth),
+                )
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(pad * 2 + scrW, pad),
+                    size = Size(scrW, scrH),
+                    cornerRadius = CornerRadius(3f, 3f),
+                    style = Stroke(strokeWidth),
+                )
+            }
+        }
+        ScreenLayoutMode.UNEVEN_LANDSCAPE -> {
+            Canvas(modifier = Modifier.size(32.dp, 20.dp)) {
+                val w = size.width
+                val h = size.height
+                val pad = 2f
+
+                val mainW = w * 0.58f
+                val mainH = h - pad * 2
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(pad, pad),
+                    size = Size(mainW, mainH),
+                    cornerRadius = CornerRadius(3f, 3f),
+                    style = Stroke(strokeWidth),
+                )
+
+                val subW = w * 0.32f
+                val subH = h * 0.48f
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(w - subW - pad, pad + (mainH - subH) / 2f),
+                    size = Size(subW, subH),
+                    cornerRadius = CornerRadius(2f, 2f),
+                    style = Stroke(strokeWidth),
+                )
+            }
+        }
+        ScreenLayoutMode.EVEN_PORTRAIT_LOCKED -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Canvas(modifier = Modifier.size(16.dp, 26.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    val pad = 2f
+                    val scrW = w - pad * 2
+                    val scrH = (h - pad * 3) / 2f
+
+                    drawRoundRect(
+                        color = strokeColor,
+                        topLeft = Offset(pad, pad),
+                        size = Size(scrW, scrH),
+                        cornerRadius = CornerRadius(2f, 2f),
+                        style = Stroke(strokeWidth),
+                    )
+                    drawRoundRect(
+                        color = strokeColor,
+                        topLeft = Offset(pad, pad * 2 + scrH),
+                        size = Size(scrW, scrH),
+                        cornerRadius = CornerRadius(2f, 2f),
+                        style = Stroke(strokeWidth),
+                    )
+                }
+                Spacer(modifier = Modifier.width(3.dp))
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = activeColor,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
+        ScreenLayoutMode.PROPORTIONAL_LANDSCAPE -> {
+            Canvas(modifier = Modifier.size(32.dp, 20.dp)) {
+                val w = size.width
+                val h = size.height
+                val pad = 2f
+
+                drawRoundRect(
+                    color = strokeColor.copy(alpha = 0.4f),
+                    topLeft = Offset(pad, pad),
+                    size = Size(w - pad * 2, h - pad * 2),
+                    cornerRadius = CornerRadius(4f, 4f),
+                    style = Stroke(1.2f),
+                )
+
+                val dispW = (h - pad * 4) * (4f / 3f)
+                val dispH = h - pad * 4
+                val dispX = (w - dispW) / 2f
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(dispX, pad * 2),
+                    size = Size(dispW, dispH),
+                    cornerRadius = CornerRadius(2f, 2f),
+                    style = Stroke(strokeWidth),
+                )
+            }
+        }
+        ScreenLayoutMode.FULLSCREEN_LANDSCAPE -> {
+            Canvas(modifier = Modifier.size(32.dp, 20.dp)) {
+                val w = size.width
+                val h = size.height
+                val pad = 2f
+
+                drawRoundRect(
+                    color = strokeColor,
+                    topLeft = Offset(pad, pad),
+                    size = Size(w - pad * 2, h - pad * 2),
+                    cornerRadius = CornerRadius(4f, 4f),
+                    style = Stroke(strokeWidth),
+                )
+            }
+        }
+        ScreenLayoutMode.AUTO_ROTATE -> {
+            Icon(
+                imageVector = Icons.Filled.ScreenRotation,
+                contentDescription = null,
+                tint = strokeColor,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        ScreenLayoutMode.OPEN_LAYOUT_EDITOR -> {
+            Icon(
+                imageVector = Icons.Filled.DashboardCustomize,
+                contentDescription = null,
+                tint = strokeColor,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}

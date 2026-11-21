@@ -1,0 +1,109 @@
+package com.storm3ds.emulator.ui.backgrounds
+
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import dagger.hilt.android.AndroidEntryPoint
+import com.storm3ds.emulator.domain.model.Background
+import com.storm3ds.emulator.parcelables.BackgroundParcelable
+import com.storm3ds.emulator.ui.backgrounds.ui.BackgroundListScreen
+import com.storm3ds.emulator.ui.backgrounds.ui.BackgroundPreviewScreen
+import com.storm3ds.emulator.ui.theme.MelonTheme
+import java.util.UUID
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@AndroidEntryPoint
+class BackgroundsActivity : AppCompatActivity() {
+    companion object {
+        const val KEY_INITIAL_BACKGROUND_ID = "initial_background_id"
+        const val KEY_SELECTED_BACKGROUND_ID = "selected_background_id"
+    }
+
+    private val viewModel: BackgroundsViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        com.storm3ds.emulator.ui.theme.AppThemeManager.applyEdgeToEdgeTheme(this)
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        super.onCreate(savedInstanceState)
+
+        val initialBackgroundId = intent.getStringExtra(KEY_INITIAL_BACKGROUND_ID)?.let {
+            runCatching { UUID.fromString(it) }.getOrNull()
+        }
+
+        setContent {
+            MelonTheme {
+                val navController = rememberNavController()
+                val currentSelectedBackground by viewModel.currentSelectedBackground.collectAsStateWithLifecycle()
+
+                LaunchedEffect(currentSelectedBackground) {
+                    if (initialBackgroundId != null && currentSelectedBackground == null) {
+                        setSelectedBackgroundId(null)
+                    }
+                }
+
+                SharedTransitionLayout {
+                    NavHost(
+                        navController = navController,
+                        startDestination = BackgroundsNavigation.BackgroundList,
+                        popEnterTransition = { EnterTransition.None },
+                        enterTransition = { fadeIn() },
+                        popExitTransition = { fadeOut() },
+                    ) {
+                        composable<BackgroundsNavigation.BackgroundList> {
+                            BackgroundListScreen(
+                                viewModel = viewModel,
+                                onBackgroundSelected = ::onBackgroundSelected,
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                animatedContentScope = this@composable,
+                                onPreviewBackgroundClick = {
+                                    navController.navigate(BackgroundsNavigation.BackgroundPreview(BackgroundParcelable.fromBackground(it)))
+                                },
+                                onBackClick = { finish() },
+                            )
+                        }
+                        composable<BackgroundsNavigation.BackgroundPreview>(typeMap = BackgroundsNavigation.BackgroundPreview.typeMap) {
+                            val route = it.toRoute<BackgroundsNavigation.BackgroundPreview>()
+                            BackgroundPreviewScreen(
+                                background = route.backgroundParcelable.toBackground(),
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                animatedContentScope = this@composable,
+                                onBackClick = { navController.navigateUp() },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun onBackgroundSelected(background: Background?) {
+        setSelectedBackgroundId(background?.id)
+        finish()
+    }
+
+    private fun setSelectedBackgroundId(backgroundId: UUID?) {
+        val intent = Intent().apply {
+            putExtra(KEY_SELECTED_BACKGROUND_ID, backgroundId?.toString())
+        }
+        setResult(Activity.RESULT_OK, intent)
+    }
+}

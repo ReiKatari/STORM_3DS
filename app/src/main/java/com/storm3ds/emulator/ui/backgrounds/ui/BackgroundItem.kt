@@ -1,0 +1,294 @@
+package com.storm3ds.emulator.ui.backgrounds.ui
+
+import android.net.Uri
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.Card
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.domain.model.Background
+import com.storm3ds.emulator.ui.common.MelonPreviewSet
+import com.storm3ds.emulator.ui.theme.MelonTheme
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun BackgroundItem(
+    background: Background,
+    isSelected: Boolean,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedContentScope: AnimatedContentScope,
+    onClick: () -> Unit,
+    onPreviewClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var dimensions by remember(background.uri) { mutableStateOf(BackgroundDimensionCache.get(background.uri)) }
+    androidx.compose.runtime.LaunchedEffect(background.uri) {
+        if (dimensions == null) {
+            dimensions = BackgroundDimensionCache.resolve(context, background.uri)
+        }
+    }
+
+    BackgroundItemBase(
+        backgroundId = background.id?.toString(),
+        backgroundName = background.name,
+        dimensions = dimensions,
+        backgroundImage = rememberAsyncImagePainter(background),
+        isSelected = isSelected,
+        showOptions = true,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedContentScope = animatedContentScope,
+        onClick = onClick,
+        onPreviewClick = onPreviewClick,
+        onDeleteClick = onDeleteClick,
+    )
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun NoneBackgroundItem(
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    BackgroundItemBase(
+        backgroundId = null,
+        backgroundName = stringResource(R.string.none),
+        dimensions = null,
+        backgroundImage = painterResource(R.drawable.ic_block),
+        isSelected = isSelected,
+        showOptions = false,
+        sharedTransitionScope = null,
+        animatedContentScope = null,
+        onClick = onClick,
+        onPreviewClick = { },
+        onDeleteClick = { },
+    )
+}
+
+@OptIn(ExperimentalMaterialApi::class, ExperimentalSharedTransitionApi::class)
+@Composable
+private fun BackgroundItemBase(
+    backgroundId: String?,
+    backgroundName: String,
+    dimensions: Pair<Int, Int>? = null,
+    backgroundImage: Painter,
+    isSelected: Boolean,
+    showOptions: Boolean,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedContentScope: AnimatedContentScope?,
+    onClick: () -> Unit,
+    onPreviewClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
+    var isOptionsPopupVisible by remember { mutableStateOf(false) }
+
+    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+    val colors = com.storm3ds.emulator.ui.theme.LocalWatermelonColors.current
+    val accentColor = colors.green
+
+    Card(
+        modifier = Modifier
+            .border(
+                width = if (isSelected) 2.5.dp else 1.dp,
+                color = if (isSelected) accentColor else colors.line,
+                shape = cardShape,
+            ),
+        shape = cardShape,
+        backgroundColor = if (isSelected) colors.surface3 else colors.surface2,
+        elevation = if (isSelected) 6.dp else 2.dp,
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier.padding(6.dp).width(IntrinsicSize.Min),
+        ) {
+            if (LocalInspectionMode.current) {
+                Box(Modifier.fillMaxWidth().aspectRatio(1.0f).padding(4.dp).background(Color.Gray, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)))
+            } else {
+                val imageModifier = Modifier
+                    .padding(4.dp)
+                    .fillMaxWidth()
+                    .aspectRatio(1.0f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                    .background(colors.bg)
+
+                if (sharedTransitionScope != null && animatedContentScope != null) {
+                    with(sharedTransitionScope) {
+                        Image(
+                            modifier = imageModifier
+                                .sharedElement(
+                                    sharedContentState = sharedTransitionScope.rememberSharedContentState(backgroundId.orEmpty()),
+                                    animatedVisibilityScope = animatedContentScope,
+                                ),
+                            painter = backgroundImage,
+                            contentDescription = null,
+                        )
+                    }
+                } else {
+                    Image(
+                        modifier = imageModifier,
+                        painter = backgroundImage,
+                        contentDescription = null,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = backgroundName,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.subtitle2,
+                        color = if (isSelected) accentColor else colors.text,
+                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium,
+                    )
+                    if (dimensions != null) {
+                        Text(
+                            text = "${dimensions.first}×${dimensions.second}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.caption,
+                            color = colors.text2,
+                        )
+                    }
+                }
+                if (showOptions) {
+                    IconButton(
+                        onClick = { isOptionsPopupVisible = true }
+                    ) {
+                        Icon(
+                            painter = rememberVectorPainter(Icons.Filled.MoreVert),
+                            contentDescription = stringResource(R.string.options),
+                            tint = if (isSelected) accentColor else colors.text2,
+                        )
+
+                        DropdownMenu(
+                            expanded = isOptionsPopupVisible,
+                            onDismissRequest = { isOptionsPopupVisible = false },
+                            modifier = Modifier.background(colors.surface),
+                        ) {
+                            DropdownMenuItem(
+                                onClick = {
+                                    isOptionsPopupVisible = false
+                                    onPreviewClick()
+                                },
+                            ) {
+                                Text(stringResource(R.string.preview), color = colors.text)
+                            }
+                            DropdownMenuItem(
+                                onClick = {
+                                    isOptionsPopupVisible = false
+                                    onDeleteClick()
+                                },
+                            ) {
+                                Text(stringResource(R.string.delete), color = colors.red)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@MelonPreviewSet
+@Composable
+private fun BackgroundItemPreview() {
+    MelonTheme {
+        BackgroundItemBase(
+            backgroundId = "",
+            backgroundName = "Background",
+            backgroundImage = rememberAsyncImagePainter(Uri.EMPTY),
+            isSelected = false,
+            showOptions = true,
+            sharedTransitionScope = null,
+            animatedContentScope = null,
+            onClick = { },
+            onPreviewClick = { },
+            onDeleteClick = { },
+        )
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@MelonPreviewSet
+@Composable
+private fun BackgroundItemSelectedPreview() {
+    MelonTheme {
+        BackgroundItemBase(
+            backgroundId = "",
+            backgroundName = "Background",
+            backgroundImage = rememberAsyncImagePainter(Uri.EMPTY),
+            isSelected = true,
+            showOptions = true,
+            sharedTransitionScope = null,
+            animatedContentScope = null,
+            onClick = { },
+            onPreviewClick = { },
+            onDeleteClick = { },
+        )
+    }
+}
+internal object BackgroundDimensionCache {
+    private val cache = java.util.concurrent.ConcurrentHashMap<android.net.Uri, Pair<Int, Int>>()
+
+    fun get(uri: android.net.Uri): Pair<Int, Int>? = cache[uri]
+
+    suspend fun resolve(context: android.content.Context, uri: android.net.Uri): Pair<Int, Int>? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            cache[uri]?.let { return@withContext it }
+            kotlin.runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val options = android.graphics.BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
+                    android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                    if (options.outWidth > 0 && options.outHeight > 0) {
+                        val dims = options.outWidth to options.outHeight
+                        cache[uri] = dims
+                        dims
+                    } else null
+                }
+            }.getOrNull()
+        }
+}

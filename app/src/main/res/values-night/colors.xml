@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- STORM NIGHT Palette (STORM Suite OLED Cyber Black Theme) -->
+    <color name="colorPrimary">#00E5FF</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="launcherBackground">#000000</color>
+    <color name="colorAccent">#00E5FF</color>
+    <color name="colorSecondary">#7B2CBF</color>
+    <color name="colorOnPrimary">#000000</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="colorSurface">#0D0D10</color>
+    <color name="colorBackground">#000000</color>
+
+    <color name="textColorPrimary">#FFFFFF</color>
+    <color name="textColorSecondary">#A8B2C8</color>
+
+    <color name="toolbarBackground">@color/colorBackground</color>
+    <color name="switchThumbUnselected">#757585</color>
+
+    <color name="romConfigButtonDefault">#757585</color>
+
+    <color name="navigationBarBackground">#000000</color>
+    <color name="prefSwitchRailColor">#8000E5FF</color>
+
+    <color name="buttonContrasted">#FFFFFF</color>
+    <color name="divider">#252530</color>
+    <color name="textLayoutEditor">#F8FAFC</color>
+
+    <color name="romConfigButtonEnabled">#00E5FF</color>
+    <color name="statusOk">#00E676</color>
+    <color name="statusError">#FF1744</color>
+    <color name="statusWarn">#FF9100</color>
+
+    <color name="splashBackground">#000000</color>
+    <color name="splashToolbar">#000000</color>
+    <color name="watermelonGreenDim">#3300E5FF</color>
+    <color name="watermelonSurface2">#16161C</color>
+    <color name="watermelonSurface3">#252530</color>
+    <color name="melonMain">#00E5FF</color>
+</resources>

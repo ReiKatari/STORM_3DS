@@ -1,0 +1,722 @@
+package com.storm3ds.emulator.ui.romlist
+
+import android.app.SearchManager
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
+import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
+import androidx.core.content.getSystemService
+import androidx.compose.runtime.collectAsState
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import android.os.Build
+import android.view.View
+import android.view.WindowManager
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
+import androidx.fragment.app.commit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import dagger.hilt.android.AndroidEntryPoint
+import io.noties.markwon.Markwon
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.databinding.ActivityRomListBinding
+import com.storm3ds.emulator.domain.model.ConsoleType
+import com.storm3ds.emulator.domain.model.DownloadProgress
+import com.storm3ds.emulator.domain.model.RomViewMode
+import com.storm3ds.emulator.domain.model.SortingMode
+import com.storm3ds.emulator.domain.model.Version
+import com.storm3ds.emulator.domain.model.appupdate.AppUpdate
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.ui.common.rom.EmulatorLaunchValidatorDelegate
+import com.storm3ds.emulator.ui.emulator.EmulatorActivity
+import com.storm3ds.emulator.ui.settings.SettingsActivity
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class RomListActivity : AppCompatActivity() {
+    companion object {
+        private const val FRAGMENT_ROM_LIST = "ROM_LIST"
+        private const val FRAGMENT_NO_ROM_DIRECTORIES = "NO_ROM_DIRECTORY"
+    }
+
+    @Inject lateinit var markwon: Markwon
+    @Inject lateinit var settingsBackupManager: com.storm3ds.emulator.impl.SettingsBackupManager
+    private val viewModel: RomListViewModel by viewModels()
+    private val updatesViewModel: UpdatesViewModel by viewModels()
+    private lateinit var emulatorLauncherValidatorDelegate: EmulatorLaunchValidatorDelegate
+
+    private var downloadProgressDialog: AlertDialog? = null
+    private var romBrowserDpadDownGate: (() -> Boolean)? = null
+    private var hasPromptedStoragePermissionThisSession = false
+    private val externalInfoController by lazy { com.storm3ds.emulator.ui.common.ExternalInfoDisplayController(this) }
+    private val highlightedRom = kotlinx.coroutines.flow.MutableStateFlow<Rom?>(null)
+
+    private lateinit var binding: ActivityRomListBinding
+
+    val openSingleRomLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                } catch (_: Throwable) {
+                    try {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (_: Throwable) {}
+                }
+                val rom = viewModel.getRomAtUri(uri)
+                if (rom != null) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        emulatorLauncherValidatorDelegate.validateRom(rom)
+                    }
+                } else {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        android.widget.Toast.makeText(this@RomListActivity, getString(R.string.rom_launch_failed), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    fun openSingleRom() {
+        openSingleRomLauncher.launch(arrayOf("*/*"))
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        com.storm3ds.emulator.ui.theme.AppThemeManager.applyEdgeToEdgeTheme(this)
+        super.onCreate(savedInstanceState)
+        binding = ActivityRomListBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.hide()
+        applyImmersiveMode()
+
+        fun applyLaunchTransition() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, android.R.anim.fade_in, android.R.anim.fade_out)
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            }
+        }
+
+        emulatorLauncherValidatorDelegate = EmulatorLaunchValidatorDelegate(this, object : EmulatorLaunchValidatorDelegate.Callback {
+            override fun onRomValidated(rom: Rom) {
+                viewModel.setRomLastPlayedNow(rom)
+                com.storm3ds.emulator.ui.quickresume.QuickResumeStore.rememberLastRom(this@RomListActivity, rom)
+                com.storm3ds.emulator.ui.stats.PlayStatsStore.recordLaunch(this@RomListActivity, rom)
+                val intent = EmulatorActivity.getRomEmulatorActivityIntent(this@RomListActivity, rom)
+                startActivity(intent)
+                applyLaunchTransition()
+            }
+
+            override fun onFirmwareValidated(consoleType: ConsoleType) {
+                val intent = EmulatorActivity.getFirmwareEmulatorActivityIntent(this@RomListActivity, consoleType)
+                startActivity(intent)
+                applyLaunchTransition()
+            }
+
+            override fun onValidationAborted() {
+                com.storm3ds.emulator.ui.quickresume.QuickResumeRequest.clear()
+            }
+        })
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.hasSearchDirectories.collectLatest { hasDirectories ->
+                    if (hasDirectories) {
+                        addRomListFragment()
+                    } else {
+                        addNoSearchDirectoriesFragment()
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.invalidDirectoryAccessEvent.collectLatest {
+                    showInvalidDirectoryAccessDialog()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                updatesViewModel.appUpdate.collectLatest {
+                    when (it.type) {
+                        AppUpdate.Type.PRODUCTION -> showProdUpdateAvailableDialog(it)
+                        AppUpdate.Type.NIGHTLY -> showNightlyUpdateAvailableDialog(it)
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                updatesViewModel.updateDownloadProgressEvent.collectLatest {
+                    onDownloadProgressUpdated(it)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                updatesViewModel.manualUpdateResult.collectLatest { result ->
+                    when (result) {
+                        is ManualUpdateResult.Checking -> {
+                            Toast.makeText(this@RomListActivity, R.string.v800_checking_updates, Toast.LENGTH_SHORT).show()
+                        }
+                        is ManualUpdateResult.UpdateAvailable -> {
+                            // Handled by appUpdate flow
+                        }
+                        is ManualUpdateResult.UpToDate -> {
+                            val curVer = runCatching {
+                                packageManager.getPackageInfo(packageName, 0).versionName
+                            }.getOrNull() ?: "8.6.0"
+                            AlertDialog.Builder(this@RomListActivity)
+                                .setTitle(R.string.v800_update_up_to_date_title)
+                                .setMessage(getString(R.string.v800_update_up_to_date_msg, curVer))
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show()
+                        }
+                        is ManualUpdateResult.Error -> {
+                            Toast.makeText(this@RomListActivity, R.string.v800_update_error, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.viewMode.collectLatest {
+                    invalidateOptionsMenu()
+                }
+            }
+        }
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val toggleItem = menu.findItem(R.id.action_view_toggle)
+        toggleItem?.setIcon(
+            when (viewModel.viewMode.value) {
+                RomViewMode.GRID -> R.drawable.ic_view_list
+                RomViewMode.LIST -> R.drawable.ic_view_grid
+            }
+        )
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (romBrowserDpadDownGate?.invoke() == true) {
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_PAGE_UP -> {
+                    viewModel.cycleFilter(forward = false)
+                    return true
+                }
+                KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_PAGE_DOWN -> {
+                    viewModel.cycleFilter(forward = true)
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    internal fun setRomBrowserDpadDownGate(gate: (() -> Boolean)?) {
+        romBrowserDpadDownGate = gate
+    }
+
+    internal fun onLibraryRomHighlighted(rom: Rom?) {
+        if (rom != null) {
+            highlightedRom.value = rom
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        externalInfoController.attach()
+        externalInfoController.setContent {
+            val rom = highlightedRom.collectAsState().value
+            if (rom != null) {
+                val boxArtByUri = viewModel.boxArtByUri.collectAsState().value
+                val raCoverByHash = viewModel.raCoverByHash.collectAsState().value
+                com.storm3ds.emulator.ui.common.ExternalLibraryGameInfo(
+                    rom = rom,
+                    boxArtUrl = boxArtByUri[rom.uri.toString()]?.takeIf { it.isNotEmpty() },
+                    raCoverUrl = raCoverByHash[rom.retroAchievementsHash],
+                )
+            } else {
+                com.storm3ds.emulator.ui.common.ExternalIdleInfo()
+            }
+        }
+    }
+
+    override fun onStop() {
+        externalInfoController.detach()
+        super.onStop()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.rom_list_menu, menu)
+
+        val searchItem =  menu.findItem(R.id.action_search_roms)
+        getSystemService<SearchManager>()?.let { searchManager ->
+            val searchView = searchItem.actionView as SearchView
+            searchView.apply {
+                queryHint = getString(R.string.hint_search_roms)
+                setSearchableInfo(searchManager.getSearchableInfo(componentName))
+                setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                    override fun onQueryTextSubmit(query: String?): Boolean {
+                        return true
+                    }
+
+                    override fun onQueryTextChange(newText: String?): Boolean {
+                        viewModel.setRomSearchQuery(newText)
+                        return true
+                    }
+                })
+            }
+        }
+
+        // Fix for action items not appearing after closing the search view
+        searchItem.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+                return true
+            }
+
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+                invalidateMenu()
+                return true
+            }
+        })
+
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_view_toggle -> {
+                viewModel.toggleViewMode()
+                return true
+            }
+            R.id.action_sort_alphabetically -> {
+                viewModel.setRomSorting(SortingMode.ALPHABETICALLY)
+                return true
+            }
+            R.id.action_sort_recent -> {
+                viewModel.setRomSorting(SortingMode.RECENTLY_PLAYED)
+                return true
+            }
+            R.id.action_sort_most_played -> {
+                viewModel.setRomSorting(SortingMode.MOST_PLAYED)
+                return true
+            }
+            R.id.action_boot_firmware_ds -> {
+                launchFirmware(ConsoleType.DS)
+                return true
+            }
+            R.id.action_boot_firmware_dsi -> {
+                launchFirmware(ConsoleType.DSi)
+                return true
+            }
+            R.id.action_random_rom -> {
+                launchRandomRom()
+                return true
+            }
+            R.id.action_rom_list_refresh -> {
+                viewModel.refreshRoms()
+                updatesViewModel.checkForUpdatesManually()
+                return true
+            }
+            R.id.action_player_stats -> {
+                openPlayerStats()
+                return true
+            }
+            R.id.action_report_problem -> {
+                reportProblem(viewModel.browserState.value.continuePlaying.firstOrNull())
+                return true
+            }
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                return true
+            }
+        }
+        return false
+    }
+
+    internal fun launchRandomRom() {
+        val randomRom = viewModel.getRandomRom()
+        if (randomRom != null) {
+            val displayName = com.storm3ds.emulator.ui.romlist.composables.romDisplayName(randomRom)
+            Toast.makeText(
+                this,
+                getString(R.string.toast_random_rom_selected, displayName),
+                Toast.LENGTH_SHORT
+            ).show()
+            launchRom(randomRom)
+        } else {
+            Toast.makeText(
+                this,
+                getString(R.string.toast_no_roms_found),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    fun checkForUpdatesManually() {
+        updatesViewModel.checkForUpdatesManually()
+    }
+
+    internal fun bootFirmware(consoleType: ConsoleType) {
+        launchFirmware(consoleType)
+    }
+
+    internal fun openSettings() {
+        val intent = Intent(this, SettingsActivity::class.java)
+        startActivity(intent)
+    }
+
+    internal fun openPlayerStats() {
+        val intent = Intent(this, com.storm3ds.emulator.ui.stats.PlayerStatsActivity::class.java)
+        startActivity(intent)
+    }
+
+    internal fun reportProblem(lastRom: Rom? = null) {
+        com.storm3ds.emulator.ui.diagnostics.ProblemReportGenerator.showDialogAndShare(this, lastRom)
+    }
+
+    private fun addNoSearchDirectoriesFragment() {
+        supportActionBar?.hide()
+        var noRomDirectoriesFragment = supportFragmentManager.findFragmentByTag(FRAGMENT_NO_ROM_DIRECTORIES) as NoRomSearchDirectoriesFragment?
+        if (noRomDirectoriesFragment == null) {
+            noRomDirectoriesFragment = NoRomSearchDirectoriesFragment.newInstance()
+            supportFragmentManager.commit(allowStateLoss = true) {
+                replace(R.id.layout_main, noRomDirectoriesFragment, FRAGMENT_NO_ROM_DIRECTORIES)
+            }
+        }
+    }
+
+    private fun addRomListFragment() {
+        supportActionBar?.hide()
+        var romListFragment = supportFragmentManager.findFragmentByTag(FRAGMENT_ROM_LIST) as RomListFragment?
+        if (romListFragment == null) {
+            romListFragment = RomListFragment.newInstance(true, RomListFragment.RomEnableCriteria.ENABLE_ALL)
+            supportFragmentManager.commit(allowStateLoss = true) {
+                replace(R.id.layout_main, romListFragment, FRAGMENT_ROM_LIST)
+            }
+        }
+        romListFragment.setRomSelectedListener { rom -> launchRom(rom) }
+    }
+
+    private fun showProdUpdateAvailableDialog(update: AppUpdate) {
+        val currentVersionStr = runCatching {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            pInfo.versionName ?: "1.0.0"
+        }.getOrDefault("1.0.0")
+
+        val newVersionStr = getReadableVersionString(update.newVersion)
+        val message = markwon.toMarkdown(update.description)
+
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_styled_update, null, false)
+        val tvCurrentVersion = dialogView.findViewById<android.widget.TextView>(R.id.tv_current_version)
+        val tvNewVersion = dialogView.findViewById<android.widget.TextView>(R.id.tv_new_version)
+        val tvChangelog = dialogView.findViewById<android.widget.TextView>(R.id.tv_changelog)
+        val btnUpdate = dialogView.findViewById<android.widget.Button>(R.id.btn_update_now)
+        val btnLater = dialogView.findViewById<android.widget.Button>(R.id.btn_update_later)
+        val btnSkip = dialogView.findViewById<android.widget.Button>(R.id.btn_skip_version)
+
+        tvCurrentVersion?.text = currentVersionStr.removePrefix("v").removePrefix("V")
+        tvNewVersion?.text = newVersionStr.removePrefix("v").removePrefix("V")
+        tvChangelog?.text = message
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        btnUpdate?.setOnClickListener {
+            dialog.dismiss()
+            startUpdateDownload(update)
+        }
+        btnLater?.setOnClickListener {
+            dialog.dismiss()
+        }
+        btnSkip?.setOnClickListener {
+            dialog.dismiss()
+            updatesViewModel.skipUpdate(update)
+        }
+
+        dialog.show()
+    }
+
+    private fun showNightlyUpdateAvailableDialog(update: AppUpdate) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.nightly_update_available))
+            .setMessage(getString(R.string.nightly_update_available_message))
+            .setPositiveButton(R.string.update) { _, _ ->
+                startUpdateDownload(update)
+            }
+            .setNegativeButton(R.string.remind_later_update) { _, _ ->
+                updatesViewModel.skipUpdate(update)
+            }
+            .show()
+    }
+
+    private fun startUpdateDownload(update: AppUpdate) {
+        downloadProgressDialog?.dismiss()
+        downloadProgressDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.downloading_update)
+            .setView(R.layout.dialog_layout_update_download_progress)
+            .setPositiveButton(R.string.move_to_background) { _, _ ->
+                downloadProgressDialog = null
+            }
+            .setCancelable(false)
+            .show()
+
+        updatesViewModel.downloadUpdate(update)
+    }
+
+    private fun onDownloadProgressUpdated(downloadProgress: DownloadProgress) {
+        downloadProgressDialog?.let {
+            when (downloadProgress) {
+                is DownloadProgress.DownloadUpdate -> {
+                    val progressBar = it.findViewById<ProgressBar>(R.id.progress_bar_download_progress)!!
+                    val progressText = it.findViewById<TextView>(R.id.text_download_progress)!!
+
+                    val totalSize = downloadProgress.totalSize
+                    if (totalSize > 0) {
+                        val progress = (downloadProgress.downloadedBytes.toDouble() / totalSize) * 100
+                        val downloadedMb = (downloadProgress.downloadedBytes.toDouble() / 1024 / 1024)
+                        val totalMb = (totalSize.toDouble() / 1024 / 1024)
+
+                        progressBar.apply {
+                            isIndeterminate = false
+                            this.progress = progress.toInt()
+                        }
+
+                        progressText.text = getString(R.string.download_progress_sizes, downloadedMb, totalMb)
+                    } else {
+                        progressBar.isIndeterminate = true
+                        progressText.text = ""
+                    }
+                }
+                is DownloadProgress.DownloadComplete -> {
+                    it.dismiss()
+                    downloadProgressDialog = null
+                }
+                is DownloadProgress.DownloadFailed -> {
+                    it.dismiss()
+                    downloadProgressDialog = null
+                    Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun getReadableVersionString(version: Version): String {
+        val typeString = when(version.type) {
+            Version.ReleaseType.ALPHA -> getString(R.string.version_alpha)
+            Version.ReleaseType.BETA -> getString(R.string.version_beta)
+            Version.ReleaseType.RC -> getString(R.string.version_rc)
+            Version.ReleaseType.FINAL -> ""
+            Version.ReleaseType.NIGHTLY -> return getString(R.string.version_nightly)
+        }
+        return "$typeString${if (typeString.isEmpty()) "" else " "}${version.major}.${version.minor}.${version.patch}"
+    }
+
+    private fun launchRom(rom: Rom) {
+        emulatorLauncherValidatorDelegate.validateRom(rom)
+    }
+
+    private fun launchFirmware(consoleType: ConsoleType) {
+        emulatorLauncherValidatorDelegate.validateFirmware(consoleType)
+    }
+
+    private fun showInvalidDirectoryAccessDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.error_invalid_directory)
+            .setMessage(R.string.error_invalid_directory_description)
+            .setPositiveButton(R.string.ok, null)
+            .setCancelable(true)
+            .show()
+    }
+
+    override fun onDestroy() {
+        downloadProgressDialog?.dismiss()
+        downloadProgressDialog = null
+        super.onDestroy()
+    }
+
+    private fun applyImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+        }
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+        )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveMode()
+        enablePhoneGameBoosterIntegration()
+        checkAndRequestStoragePermission()
+        com.storm3ds.emulator.MelonDSApplication.migrateStorageToRoot(this)
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            settingsBackupManager.syncExternalSettingsIfModified(force = false)
+        }
+    }
+
+    private fun enablePhoneGameBoosterIntegration() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display?.supportedModes?.maxByOrNull { it.refreshRate }?.let { maxMode ->
+                    window.attributes = window.attributes.apply {
+                        preferredDisplayModeId = maxMode.modeId
+                    }
+                }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val gameManager = getSystemService(android.app.GameManager::class.java)
+                gameManager?.setGameState(
+                    android.app.GameState(false, android.app.GameState.MODE_GAMEPLAY_UNINTERRUPTIBLE)
+                )
+            }
+        } catch (_: Throwable) {}
+    }
+
+    private fun checkAndRequestStoragePermission() {
+        if (hasPromptedStoragePermissionThisSession) {
+            return
+        }
+        hasPromptedStoragePermissionThisSession = true
+
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                val alreadyPromptedAllFiles = prefs.getBoolean("storage_all_files_prompted", false)
+                if (!alreadyPromptedAllFiles) {
+                    prefs.edit().putBoolean("storage_all_files_prompted", true).apply()
+                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = android.net.Uri.parse("package:$packageName")
+                    }
+                    if (runCatching { startActivity(intent) }.isFailure) {
+                        runCatching {
+                            startActivity(Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                        }
+                    }
+                    return
+                }
+            }
+        } else {
+            val writeGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!writeGranted) {
+                val alreadyPromptedLegacy = prefs.getBoolean("storage_legacy_prompted", false)
+                if (!alreadyPromptedLegacy) {
+                    prefs.edit().putBoolean("storage_legacy_prompted", true).apply()
+                    androidx.core.app.ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        ),
+                        1001
+                    )
+                    return
+                }
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notifGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!notifGranted) {
+                val alreadyPromptedNotif = prefs.getBoolean("notifications_permission_prompted", false)
+                if (!alreadyPromptedNotif) {
+                    prefs.edit().putBoolean("notifications_permission_prompted", true).apply()
+                    androidx.core.app.ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                        1002
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            val granted = grantResults.isNotEmpty() && grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (!granted) {
+                Toast.makeText(this, R.string.rom_search_dir_saf_fallback_hint, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyImmersiveMode()
+        }
+    }
+}

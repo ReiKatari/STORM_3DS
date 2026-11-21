@@ -1,0 +1,3 @@
+package com.storm3ds.emulator.domain.model
+
+data class CheatFolder(val id: Long?, val name: String, val cheats: List<Cheat>)

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- STORM DAY Palette (STORM Suite Clean Light Theme) -->
+    <color name="colorPrimary">#0066FF</color>
+    <color name="colorPrimaryDark">#F3F4F8</color>
+    <color name="launcherBackground">#0B0917</color>
+    <color name="colorAccent">#0066FF</color>
+    <color name="colorSecondary">#00B4D8</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorBackground">#F3F4F8</color>
+
+    <color name="textColorPrimary">#111827</color>
+    <color name="textColorSecondary">#334155</color>
+
+    <color name="toolbarBackground">@color/colorBackground</color>
+    <color name="switchThumbUnselected">#D1D5DB</color>
+
+    <color name="itemSelected">#EAEFF5</color>
+
+    <color name="romConfigButtonDefault">#4B5563</color>
+    <color name="romConfigButtonEnabled">#0066FF</color>
+    <color name="romConfigPrefSeparator">#D1D5DB</color>
+
+    <color name="buttonContrasted">#111827</color>
+    <color name="divider">#D1D5DB</color>
+
+    <color name="textLayoutEditor">#F8FAFC</color>
+
+    <color name="navigationBarBackground">#F3F4F8</color>
+    <color name="prefSwitchRailColor">#800066FF</color>
+    <color name="prefSwitchBackground">#EAEFF5</color>
+
+    <color name="melonMain">#0066FF</color>
+    <color name="melonDark">#0052CC</color>
+
+    <color name="splashBackground">#F3F4F8</color>
+    <color name="splashToolbar">#0066FF</color>
+
+    <color name="statusOk">#10B981</color>
+    <color name="statusWarn">#F59E0B</color>
+    <color name="statusError">#EF4444</color>
+
+    <color name="white">#FFFFFF</color>
+
+    <color name="watermelonGold">#D97706</color>
+    <color name="watermelonFavorite">#F59E0B</color>
+    <color name="watermelonEmulationBg">#111827</color>
+    <color name="watermelonGreenDim">#220066FF</color>
+    <color name="watermelonSurface2">#EAEFF5</color>
+    <color name="watermelonSurface3">#D1D5DB</color>
+</resources>

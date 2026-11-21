@@ -1,0 +1,23 @@
+package com.storm3ds.emulator.database.daos
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import com.storm3ds.emulator.database.entities.CheatDatabaseEntity
+
+@Dao
+interface CheatDatabaseDao {
+    @Query("SELECT * FROM cheat_database")
+    suspend fun getCheatDatabases(): List<CheatDatabaseEntity>
+
+    @Insert
+    suspend fun insertCheatDatabase(database: CheatDatabaseEntity): Long
+
+    @Query("DELETE FROM cheat_database WHERE name = :databaseName")
+    suspend fun deleteCheatDatabase(databaseName: String)
+
+    @Query("DELETE FROM cheat_database WHERE id != :customDatabaseId")
+    suspend fun deleteAllImportedCheatDatabases(
+        customDatabaseId: Long = CheatDatabaseEntity.CUSTOM_CHEATS_DATABASE_ID,
+    )
+}

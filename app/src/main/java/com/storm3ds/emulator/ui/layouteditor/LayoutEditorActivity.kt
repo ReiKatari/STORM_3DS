@@ -1,0 +1,458 @@
+package com.storm3ds.emulator.ui.layouteditor
+
+import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.hardware.display.DisplayManager
+import android.os.Bundle
+import android.os.Handler
+import android.view.Display
+import android.view.KeyEvent
+import android.widget.RelativeLayout
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.storm3ds.emulator.extensions.applyImmersiveFullscreen
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
+import com.squareup.picasso.Picasso
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.domain.model.Rect
+import com.storm3ds.emulator.domain.model.layout.Insets
+import com.storm3ds.emulator.domain.model.layout.LayoutConfiguration
+import com.storm3ds.emulator.domain.model.layout.ScreenFold
+import com.storm3ds.emulator.domain.model.ui.Orientation
+import com.storm3ds.emulator.extensions.insetsControllerCompat
+import com.storm3ds.emulator.extensions.setLayoutOrientation
+import com.storm3ds.emulator.impl.ScreenUnitsConverter
+import com.storm3ds.emulator.impl.layout.DeviceLayoutDisplayMapper
+import com.storm3ds.emulator.impl.layout.SecondaryDisplaySelector
+import com.storm3ds.emulator.ui.backgrounds.BackgroundsActivity
+import com.storm3ds.emulator.ui.layouteditor.model.LayoutTarget
+import com.storm3ds.emulator.ui.layouteditor.model.ScreenEditorState
+import java.util.UUID
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class LayoutEditorActivity : AppCompatActivity() {
+    companion object {
+        const val KEY_LAYOUT_ID = "layout_id"
+        const val KEY_IS_EXTERNAL = "is_external"
+    }
+
+    enum class MenuOption(@field:StringRes val stringRes: Int) {
+        UNDO(R.string.action_layout_undo),
+        MULTI_SELECT(R.string.action_layout_multiselect),
+        LIVE_TEST(R.string.action_layout_live_test),
+        PROPERTIES(R.string.properties),
+        BACKGROUNDS(R.string.background),
+        REVERT(R.string.revert_changes),
+        RESET(R.string.reset_default),
+        SAVE_AS_NEW(R.string.save_as_new),
+        SAVE_AND_EXIT(R.string.save_and_exit),
+        EXIT_WITHOUT_SAVING(R.string.exit_without_saving)
+    }
+
+    @Inject
+    lateinit var screenUnitsConverter: ScreenUnitsConverter
+    @Inject
+    lateinit var secondaryDisplaySelector: SecondaryDisplaySelector
+    @Inject
+    lateinit var deviceLayoutDisplayMapper: DeviceLayoutDisplayMapper
+    @Inject
+    lateinit var picasso: Picasso
+
+    private val viewModel: LayoutEditorViewModel by viewModels()
+    private lateinit var layoutEditorManager: LayoutEditorManagerView
+    private lateinit var handler: Handler
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) {
+            updateDisplays()
+        }
+
+        override fun onDisplayRemoved(displayId: Int) {
+            updateDisplays()
+        }
+
+        override fun onDisplayChanged(displayId: Int) {
+            updateDisplays()
+        }
+    }
+
+    private var externalLayoutEditorPresentation: ExternalLayoutEditorPresentation? = null
+    private var savedExternalEditorState: ScreenEditorState? = null
+
+    private val mainScreenBackgroundPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) {
+            val backgroundId = it.data?.getStringExtra(BackgroundsActivity.KEY_SELECTED_BACKGROUND_ID)?.let { UUID.fromString(it) }
+            viewModel.setBackgroundPropertiesBackgroundId(LayoutTarget.MAIN_SCREEN, backgroundId)
+        }
+    }
+
+    private val secondaryScreenBackgroundPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) {
+            val backgroundId = it.data?.getStringExtra(BackgroundsActivity.KEY_SELECTED_BACKGROUND_ID)?.let { UUID.fromString(it) }
+            viewModel.setBackgroundPropertiesBackgroundId(LayoutTarget.SECONDARY_SCREEN, backgroundId)
+        }
+    }
+
+    private val layoutEditorManagerListener = object : LayoutEditorManagerView.LayoutEditorManagerListener {
+        override fun openBackgroundPicker(layoutTarget: LayoutTarget, selectedBackgroundId: UUID?) {
+            storeLayoutChanges()
+            val intent = Intent(this@LayoutEditorActivity, BackgroundsActivity::class.java).apply {
+                putExtra(BackgroundsActivity.KEY_INITIAL_BACKGROUND_ID, selectedBackgroundId?.toString())
+            }
+            when (layoutTarget) {
+                LayoutTarget.MAIN_SCREEN -> mainScreenBackgroundPickerLauncher.launch(intent)
+                LayoutTarget.SECONDARY_SCREEN -> secondaryScreenBackgroundPickerLauncher.launch(intent)
+            }
+        }
+
+        override fun onStoreLayoutChanges() {
+            storeLayoutChanges()
+        }
+
+        override fun onSaveLayoutAndExit() {
+            saveLayoutAndExit()
+        }
+
+        override fun onSaveLayoutAsNewAndExit() {
+            saveLayoutAsNewAndExit()
+        }
+
+        override fun onExit() {
+            finish()
+        }
+
+        override fun hasUnsavedChanges(): Boolean {
+            val primaryDirty = ::layoutEditorManager.isInitialized &&
+                (layoutEditorManager.layoutEditorView.isModifiedByUser() || layoutEditorManager.layoutEditorView.canUndo())
+            val externalDirty = externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.let {
+                it.isModifiedByUser() || it.canUndo()
+            } == true
+            return primaryDirty || externalDirty || viewModel.hasUnsavedChanges.value
+        }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && ::layoutEditorManager.isInitialized) {
+            if (event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                layoutEditorManager.handleBackNavigation()
+                return true
+            }
+            if (layoutEditorManager.handleControllerKeyDown(event)) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val themeRes = com.storm3ds.emulator.ui.theme.AppThemeManager.currentTheme.getThemeResId()
+        setTheme(themeRes)
+        super.onCreate(savedInstanceState)
+        handler = Handler(mainLooper)
+
+        val typedValue = android.util.TypedValue()
+        theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)
+        val bgColor = if (typedValue.type >= android.util.TypedValue.TYPE_FIRST_COLOR_INT && typedValue.type <= android.util.TypedValue.TYPE_LAST_COLOR_INT) {
+            typedValue.data
+        } else {
+            Color.parseColor("#0B0814")
+        }
+
+        val container = RelativeLayout(this).apply {
+            setBackgroundColor(bgColor)
+        }
+        layoutEditorManager = LayoutEditorManagerView(LayoutTarget.MAIN_SCREEN, picasso, null, this).apply {
+            listener = layoutEditorManagerListener
+        }
+        container.addView(layoutEditorManager, RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
+        setContentView(container)
+        ViewCompat.setOnApplyWindowInsetsListener(container) { _, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val uiInsets = if (viewModel.shouldIgnoreDisplayCutoutInLayouts()) {
+                Insets.Zero
+            } else {
+                Insets(insets.left, insets.top, insets.right, insets.bottom)
+            }
+            storeLayoutChanges()
+            viewModel.setUiInsets(uiInsets)
+
+            // Do not consume insets here
+            windowInsets
+        }
+
+        onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                layoutEditorManager.handleBackNavigation()
+            }
+        })
+
+        layoutEditorManager.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            val oldWith = oldRight - oldLeft
+            val oldHeight = oldBottom - oldTop
+
+            val viewWidth = right - left
+            val viewHeight = bottom - top
+
+            if (viewWidth != oldWith || viewHeight != oldHeight) {
+                storeLayoutChanges()
+                viewModel.setCurrentUiSize(viewWidth, viewHeight)
+            }
+        }
+
+        val displayMetrics = resources.displayMetrics
+        val initialWidth = displayMetrics.widthPixels
+        val initialHeight = displayMetrics.heightPixels
+        if (initialWidth > 0 && initialHeight > 0) {
+            viewModel.setCurrentUiSize(initialWidth, initialHeight)
+        }
+        viewModel.setUiInsets(Insets.Zero)
+        viewModel.setScreenFolds(emptyList())
+        updateDisplays()
+        setupFullscreen()
+        updateOrientation(resources.configuration)
+
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var lastOrientation: LayoutConfiguration.LayoutOrientation? = null
+                var lastSystemOrientation: Orientation? = null
+                var lastResetToken: Long = -1L
+                viewModel.currentLayout.collect {
+                    if (it == null) {
+                        layoutEditorManager.layoutEditorView.destroyLayout()
+                        externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.destroyLayout()
+                        lastOrientation = null
+                        lastSystemOrientation = null
+                        lastResetToken = -1L
+                    } else {
+                        handler.removeCallbacksAndMessages(null)
+                        handler.post {
+                            val orientationChanged = lastOrientation != it.orientation || lastSystemOrientation != it.systemOrientation
+                            val resetChanged = lastResetToken != it.layoutResetToken
+                            val hasAnyEdits = layoutEditorManager.layoutEditorView.isModifiedByUser() ||
+                                layoutEditorManager.layoutEditorView.canUndo() ||
+                                (externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.let { v ->
+                                    v.isModifiedByUser() || v.canUndo()
+                                } == true) ||
+                                viewModel.hasUnsavedChanges.value
+                            if (resetChanged || orientationChanged || !hasAnyEdits) {
+                                val spread = viewModel.pendingButtonSpread.value
+                                val innerScale = viewModel.pendingButtonInnerScale.value
+                                layoutEditorManager.layoutEditorView.applyButtonClusterAppearance(spread, innerScale)
+                                layoutEditorManager.layoutEditorView.instantiateLayout(it.layout)
+                                externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.applyButtonClusterAppearance(spread, innerScale)
+                                externalLayoutEditorPresentation?.instantiateLayout(it.layout)
+                                lastOrientation = it.orientation
+                                lastSystemOrientation = it.systemOrientation
+                                lastResetToken = it.layoutResetToken
+                            }
+                            setLayoutOrientation(it.orientation)
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.mainScreenBackground.collect {
+                    it?.let {
+                        layoutEditorManager.updateBackground(it)
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.secondaryScreenBackground.collect {
+                    it?.let {
+                        externalLayoutEditorPresentation?.layoutEditorManager?.updateBackground(it)
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                WindowInfoTracker.getOrCreate(this@LayoutEditorActivity).windowLayoutInfo(this@LayoutEditorActivity).collect { info ->
+                    val folds = info.displayFeatures.mapNotNull {
+                        if (it is FoldingFeature) {
+                            ScreenFold(
+                                orientation = if (it.orientation == FoldingFeature.Orientation.HORIZONTAL) Orientation.LANDSCAPE else Orientation.PORTRAIT,
+                                type = if (it.isSeparating) ScreenFold.FoldType.SEAMLESS else ScreenFold.FoldType.GAP,
+                                foldBounds = Rect(it.bounds.left, it.bounds.top, it.bounds.width(), it.bounds.height())
+                            )
+                        } else {
+                            null
+                        }
+                    }
+
+                    storeLayoutChanges()
+                    viewModel.setScreenFolds(folds)
+                }
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        getSystemService<DisplayManager>()?.registerDisplayListener(displayListener, null)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateDisplays()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        setupFullscreen()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        storeLayoutChanges()
+        if (::layoutEditorManager.isInitialized) {
+            layoutEditorManager.layoutEditorView.resetModifiedState()
+        }
+        externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.resetModifiedState()
+        updateOrientation(newConfig)
+        handler.post {
+            updateDisplays()
+        }
+    }
+
+    private fun updateOrientation(configuration: Configuration) {
+        val orientation = if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            Orientation.PORTRAIT
+        } else {
+            Orientation.LANDSCAPE
+        }
+        viewModel.setCurrentSystemOrientation(orientation)
+    }
+
+    private fun updateDisplays() {
+        val currentDisplay = ContextCompat.getDisplayOrDefault(this)
+        val secondaryDisplay = secondaryDisplaySelector.getSecondaryDisplay(this)
+
+        val displays = deviceLayoutDisplayMapper.mapDisplaysToLayoutDisplays(currentDisplay, secondaryDisplay)
+        viewModel.setConnectedDisplays(displays)
+
+        showExternalLayoutEditor(secondaryDisplay)
+    }
+
+    private fun showExternalLayoutEditor(secondaryDisplay: Display?) {
+        if (externalLayoutEditorPresentation?.display?.displayId == secondaryDisplay?.displayId) {
+            return
+        }
+
+        externalLayoutEditorPresentation?.dismiss()
+        externalLayoutEditorPresentation = null
+
+        if (secondaryDisplay != null) {
+            externalLayoutEditorPresentation = ExternalLayoutEditorPresentation(picasso, this, secondaryDisplay, layoutEditorManagerListener, savedExternalEditorState).apply {
+                setOnShowListener {
+                    val currentConfiguration = viewModel.currentLayout.value
+                    if (currentConfiguration != null) {
+                        layoutEditorManager.layoutEditorView.applyButtonClusterAppearance(
+                            viewModel.pendingButtonSpread.value,
+                            viewModel.pendingButtonInnerScale.value,
+                        )
+                        instantiateLayout(currentConfiguration.layout)
+                    }
+                }
+                show()
+            }
+        }
+    }
+
+    private fun storeLayoutChanges() {
+        val primaryDisplayLayoutComponents = if (::layoutEditorManager.isInitialized && layoutEditorManager.layoutEditorView.isModifiedByUser()) {
+            layoutEditorManager.layoutEditorView.buildCurrentLayout()
+        } else {
+            null
+        }
+
+        val externalPresentationLayoutView = externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView
+        val secondaryDisplayLayoutComponents = if (externalPresentationLayoutView?.isModifiedByUser() == true) {
+            externalPresentationLayoutView.buildCurrentLayout()
+        } else {
+            null
+        }
+        if (primaryDisplayLayoutComponents != null || secondaryDisplayLayoutComponents != null) {
+            viewModel.saveLayoutToCurrentConfiguration(primaryDisplayLayoutComponents, secondaryDisplayLayoutComponents)
+            if (::layoutEditorManager.isInitialized) {
+                layoutEditorManager.layoutEditorView.resetModifiedState()
+            }
+            externalPresentationLayoutView?.resetModifiedState()
+        }
+    }
+
+    private fun forceStoreLayoutChanges() {
+        val primaryDisplayLayoutComponents = if (::layoutEditorManager.isInitialized) {
+            layoutEditorManager.layoutEditorView.buildCurrentLayout()
+        } else {
+            null
+        }
+
+        val externalPresentationLayoutView = externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView
+        val secondaryDisplayLayoutComponents = externalPresentationLayoutView?.buildCurrentLayout()
+        viewModel.saveLayoutToCurrentConfiguration(primaryDisplayLayoutComponents, secondaryDisplayLayoutComponents)
+    }
+
+    private fun setupFullscreen() {
+        window.applyImmersiveFullscreen()
+    }
+
+    private fun saveLayoutAndExit() {
+        forceStoreLayoutChanges()
+        lifecycleScope.launch {
+            viewModel.saveCurrentLayout()
+            finish()
+        }
+    }
+
+    private fun saveLayoutAsNewAndExit() {
+        forceStoreLayoutChanges()
+        lifecycleScope.launch {
+            viewModel.saveCurrentLayoutAsNew()
+            finish()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        storeLayoutChanges()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        getSystemService<DisplayManager>()?.unregisterDisplayListener(displayListener)
+        storeLayoutChanges()
+        externalLayoutEditorPresentation?.let {
+            savedExternalEditorState = it.saveEditorState()
+            it.dismiss()
+        }
+        externalLayoutEditorPresentation = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        picasso.cancelRequest(layoutEditorManager.imageBackground)
+        externalLayoutEditorPresentation?.layoutEditorManager?.imageBackground?.let {
+            picasso.cancelRequest(it)
+        }
+    }
+}

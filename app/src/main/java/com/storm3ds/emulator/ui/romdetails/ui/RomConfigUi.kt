@@ -1,0 +1,976 @@
+package com.storm3ds.emulator.ui.romdetails.ui
+
+import android.app.Activity
+import android.app.ActivityManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.ui.draw.clip
+import com.storm3ds.emulator.ui.theme.SpaceGrotesk
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import com.storm3ds.emulator.ui.theme.watermelon
+
+import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.common.Permission
+import com.storm3ds.emulator.common.contracts.FilePickerContract
+import com.storm3ds.emulator.domain.model.VideoFiltering
+import com.storm3ds.emulator.domain.model.VideoRenderer
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.domain.model.rom.config.RomConfig
+import com.storm3ds.emulator.domain.model.rom.config.RomInputMode
+import com.storm3ds.emulator.domain.model.rom.config.RuntimeMicSource
+import com.storm3ds.emulator.ui.common.MelonPreviewSet
+import com.storm3ds.emulator.ui.common.component.dialog.SingleChoiceDialog
+import com.storm3ds.emulator.ui.common.component.dialog.TextInputDialog
+import com.storm3ds.emulator.ui.common.component.dialog.rememberSingleChoiceDialogState
+import com.storm3ds.emulator.ui.common.component.dialog.rememberTextInputDialogState
+import com.storm3ds.emulator.ui.inputsetup.InputSetupActivity
+import com.storm3ds.emulator.ui.layouts.LayoutSelectorActivity
+import com.storm3ds.emulator.ui.romdetails.model.RomConfigUiModel
+import com.storm3ds.emulator.ui.romdetails.model.RomConfigUiState
+import com.storm3ds.emulator.ui.romdetails.model.RomConfigUpdateEvent
+import com.storm3ds.emulator.ui.romdetails.model.RomGbaSlotConfigUiModel
+import com.storm3ds.emulator.ui.theme.MelonTheme
+import java.util.Date
+import java.util.UUID
+
+private const val GLES_3_2 = 0x30002
+
+@Composable
+fun RomConfigUi(
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    rom: Rom,
+    romConfigUiState: RomConfigUiState,
+    onConfigUpdate: (RomConfigUpdateEvent) -> Unit,
+    onCustomInputConfigEdited: () -> Unit,
+    onSettingFocused: (String, String?) -> Unit = { _, _ -> },
+) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalConfigFocusReporter provides onSettingFocused) {
+        when (romConfigUiState) {
+            is RomConfigUiState.Loading -> Loading(modifier.padding(contentPadding))
+            is RomConfigUiState.Ready -> Content(
+                modifier = modifier,
+                contentPadding = contentPadding,
+                rom = rom,
+                romConfig = romConfigUiState.romConfigUiModel,
+                onConfigUpdate = onConfigUpdate,
+                onCustomInputConfigEdited = onCustomInputConfigEdited,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Loading(modifier: Modifier) {
+    Box(modifier) {
+        CircularProgressIndicator(
+            modifier = Modifier.align(Alignment.Center),
+            color = MaterialTheme.colors.secondary,
+        )
+    }
+}
+
+
+enum class RomConfigCategory(val titleRu: String, val titleEn: String) {
+    ALL("Все разделы", "All Sections"),
+    SYSTEM_CPU("Система и CPU", "System and CPU"),
+    GRAPHICS_VULKAN("Графика и Vulkan", "Graphics and Vulkan"),
+    SCREENS_LAYOUT("Экраны и корпус", "Screens and Layout"),
+    AUDIO_CONTROLS("Управление и звук", "Controls and Audio"),
+    GBA_SLOT("Слот GBA", "GBA Slot");
+
+    fun title(isRu: Boolean): String = if (isRu) titleRu else titleEn
+}
+
+@Composable
+private fun Content(
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    rom: Rom,
+    romConfig: RomConfigUiModel,
+    onConfigUpdate: (RomConfigUpdateEvent) -> Unit,
+    onCustomInputConfigEdited: () -> Unit,
+) {
+    val context = LocalContext.current
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+    val renameDialogState = rememberTextInputDialogState()
+    val runtimeConsoleDialogState = rememberSingleChoiceDialogState<com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType>()
+    val micDialogState = rememberSingleChoiceDialogState<RuntimeMicSource>()
+    val inputModeDialogState = rememberSingleChoiceDialogState<RomInputMode>()
+    val gbaSlotDialogState = rememberSingleChoiceDialogState<RomGbaSlotConfigUiModel.Type>()
+    val videoRendererDialogState = rememberSingleChoiceDialogState<VideoRenderer?>()
+    val threadedRenderingDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val internalResolutionDialogState = rememberSingleChoiceDialogState<Int?>()
+    val videoFilteringDialogState = rememberSingleChoiceDialogState<VideoFiltering?>()
+    val retroAchievementsDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val dualScreenPresetDialogState = rememberSingleChoiceDialogState<com.storm3ds.emulator.domain.model.DualScreenPreset?>()
+    val translatorSourceLangDialogState = rememberSingleChoiceDialogState<String?>()
+    val arm9OverclockDialogState = rememberSingleChoiceDialogState<Int?>()
+    val fastForwardSpeedDialogState = rememberSingleChoiceDialogState<Float?>()
+    val customVulkanDriverDialogState = rememberSingleChoiceDialogState<String?>()
+    val retroArchPresetPathDialogState = rememberTextInputDialogState()
+    val retroArchParametersDialogState = rememberTextInputDialogState()
+
+    val customInputSetupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        onCustomInputConfigEdited()
+    }
+    val layoutSelectorLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val layoutId = result.data?.getStringExtra(LayoutSelectorActivity.KEY_SELECTED_LAYOUT_ID)?.let { UUID.fromString(it) }
+            onConfigUpdate(RomConfigUpdateEvent.LayoutUpdate(layoutId))
+        }
+    }
+    val gbaRomSelectorLauncher = rememberLauncherForActivityResult(FilePickerContract(Permission.READ)) { result ->
+        if (result != null) onConfigUpdate(RomConfigUpdateEvent.GbaRomPathUpdate(result))
+    }
+    val gbaSaveSelectorLauncher = rememberLauncherForActivityResult(FilePickerContract(Permission.READ_WRITE)) { result ->
+        if (result != null) onConfigUpdate(RomConfigUpdateEvent.GbaSavePathUpdate(result))
+    }
+
+    val runtimeConsoleOptions = stringArrayResource(id = R.array.game_runtime_console_type_options)
+    val micOptions = stringArrayResource(id = R.array.game_runtime_mic_source_options)
+    val inputModeOptions = stringArrayResource(id = R.array.rom_input_mode_options)
+    val gbaSlotOptions = stringArrayResource(id = R.array.gba_slot_options)
+    val rendererOptions = stringArrayResource(id = R.array.video_renderer_options)
+    val internalResolutionOptions = stringArrayResource(id = R.array.video_internal_resolution_options)
+    val internalResolutionValues = stringArrayResource(id = R.array.video_internal_resolution_values).mapNotNull { it.toIntOrNull() }
+    val videoFilteringOptions = stringArrayResource(id = R.array.video_filtering_options)
+    val translatorLangEntries = stringArrayResource(id = R.array.translator_source_lang_options)
+    val translatorLangValues = stringArrayResource(id = R.array.translator_source_lang_values)
+    val useGlobal = stringResource(R.string.use_global_preference)
+    val activityManager = context.getSystemService(ActivityManager::class.java)
+    val supportsOpenGlRenderer = (activityManager?.deviceConfigurationInfo?.reqGlEsVersion ?: 0) >= GLES_3_2
+    val supportsComputeRenderer = supportsOpenGlRenderer && Build.HARDWARE.equals("qcom", ignoreCase = true)
+    fun supportsRenderer(renderer: VideoRenderer): Boolean {
+        return when (renderer) {
+            VideoRenderer.OPENGL -> supportsOpenGlRenderer
+            VideoRenderer.COMPUTE -> supportsComputeRenderer
+            else -> true
+        }
+    }
+    val selectedRenderer = romConfig.videoRenderer?.takeIf { supportsRenderer(it) }
+    val effectiveRenderer = selectedRenderer ?: romConfig.globalVideoRenderer
+    fun supportsFiltering(renderer: VideoRenderer, filtering: VideoFiltering): Boolean {
+        return filtering.isSupportedByRenderer(renderer)
+    }
+    val selectedFiltering = romConfig.videoFiltering?.takeIf { supportsFiltering(effectiveRenderer, it) }
+    val effectiveGlobalFiltering = romConfig.globalVideoFiltering.takeIf { supportsFiltering(effectiveRenderer, it) }
+        ?: VideoFiltering.NONE
+    val effectiveFiltering = selectedFiltering ?: effectiveGlobalFiltering
+    fun useGlobalWithValue(value: String): String {
+        return context.getString(R.string.use_global_preference_with_value, value)
+    }
+    val globalConsoleLabel = runtimeConsoleOptions.getOrNull(romConfig.globalRuntimeConsoleType.ordinal + 1) ?: romConfig.globalRuntimeConsoleType.name
+    val globalMicLabel = micOptions.getOrNull(romConfig.globalRuntimeMicSource.ordinal + 1) ?: micOptions.firstOrNull().orEmpty()
+    val globalInputModeLabel = context.getString(R.string.global_controller_mapping)
+    val globalLayoutLabel = romConfig.globalLayoutName ?: context.getString(R.string.not_set)
+    val globalRendererLabel = rendererOptions.getOrNull(romConfig.globalVideoRenderer.ordinal) ?: romConfig.globalVideoRenderer.name
+    val globalThreadedRenderingLabel = if (romConfig.globalThreadedRendering) {
+        context.getString(R.string.on)
+    } else {
+        context.getString(R.string.off)
+    }
+    val globalResolutionIndex = internalResolutionValues.indexOf(romConfig.globalInternalResolutionScaling).takeIf { it >= 0 }
+    val globalInternalResolutionLabel = globalResolutionIndex?.let { internalResolutionOptions.getOrNull(it) } ?: "1x"
+    val globalVideoFilteringLabel = videoFilteringOptions.getOrNull(effectiveGlobalFiltering.ordinal) ?: effectiveGlobalFiltering.name
+    val globalRetroArchPresetPathLabel = romConfig.globalRetroArchShaderPresetPath ?: context.getString(R.string.not_set)
+    val globalRetroArchParametersLabel = romConfig.globalRetroArchShaderParameters ?: context.getString(R.string.not_set)
+    val rendererItems = buildList<VideoRenderer?> {
+        add(null)
+        add(VideoRenderer.SOFTWARE)
+        if (supportsOpenGlRenderer) {
+            add(VideoRenderer.OPENGL)
+        }
+        add(VideoRenderer.VULKAN)
+        if (supportsComputeRenderer) {
+            add(VideoRenderer.COMPUTE)
+        }
+    }
+    val filteringItems = listOf(null) + VideoFiltering.entries.filter { filtering ->
+        supportsFiltering(effectiveRenderer, filtering)
+    }
+
+    val colors = watermelon
+    val isRu = remember { java.util.Locale.getDefault().language.startsWith("ru") }
+    var selectedFilter by remember { mutableStateOf(RomConfigCategory.ALL) }
+
+    val activeOverridesCount = remember(romConfig) {
+        var count = 0
+        if (romConfig.customName != null) count++
+        if (romConfig.runtimeConsoleType != com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) count++
+        if (romConfig.arm9Overclock != null) count++
+        if (romConfig.fastForwardSpeedMultiplier != null) count++
+        if (romConfig.runtimeMicSource != RuntimeMicSource.DEFAULT) count++
+        if (romConfig.videoRenderer != null) count++
+        if (romConfig.threadedRendering != null) count++
+        if (romConfig.internalResolutionScaling != null) count++
+        if (romConfig.videoFiltering != null) count++
+        if (romConfig.retroArchShaderPresetPath != null) count++
+        if (romConfig.retroArchShaderParameters != null) count++
+        if (romConfig.customVulkanDriverName != null) count++
+        if (romConfig.inputMode != RomInputMode.GLOBAL) count++
+        if (romConfig.retroAchievementsEnabled != null) count++
+        if (romConfig.dualScreenPreset != null) count++
+        if (romConfig.layoutId != null) count++
+        if (romConfig.translatorSourceLang != null) count++
+        if (romConfig.useHgEngineFix) count++
+        if (romConfig.gbaSlotConfig.type != RomGbaSlotConfigUiModel.Type.None) count++
+        count
+    }
+
+    val showSystemCpu = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.SYSTEM_CPU
+    val showGraphics = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.GRAPHICS_VULKAN
+    val showScreens = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.SCREENS_LAYOUT
+    val showAudioControls = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.AUDIO_CONTROLS
+    val showGbaSlot = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.GBA_SLOT
+
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(
+                start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
+                end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
+            ),
+    ) {
+        // Summary Banner Card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (activeOverridesCount > 0) colors.green.copy(alpha = 0.12f) else colors.surface2)
+                .border(
+                    width = 1.dp,
+                    color = if (activeOverridesCount > 0) colors.green.copy(alpha = 0.45f) else colors.line,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (activeOverridesCount > 0) colors.green.copy(alpha = 0.22f) else colors.surface3),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Tune,
+                        contentDescription = null,
+                        tint = if (activeOverridesCount > 0) colors.green else colors.text3,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = if (activeOverridesCount > 0) {
+                            if (isRu) "Активных настроек: $activeOverridesCount" else "Custom Overrides: $activeOverridesCount"
+                        } else {
+                            if (isRu) "Используются глобальные настройки" else "Using Global Defaults"
+                        },
+                        color = colors.text,
+                        fontFamily = SpaceGrotesk,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = if (activeOverridesCount > 0) {
+                            if (isRu) "Параметры переопределены специально для этой игры" else "Settings overridden specifically for this game"
+                        } else {
+                            if (isRu) "Все параметры наследуются из главного меню" else "All settings inherited from main preferences"
+                        },
+                        color = colors.text3,
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                    )
+                }
+            }
+        }
+
+        // Quick Category Filter / Jump Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RomConfigCategory.values().forEach { cat ->
+                val isSelected = (selectedFilter == cat)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) colors.green.copy(alpha = 0.22f) else colors.surface2)
+                        .border(
+                            width = if (isSelected) 1.dp else 0.5.dp,
+                            color = if (isSelected) colors.green else colors.line,
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                        .clickable { selectedFilter = cat }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = cat.title(isRu),
+                        color = if (isSelected) colors.green else colors.text2,
+                        fontSize = 11.5.sp,
+                        fontFamily = SpaceGrotesk,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        if (showSystemCpu) {
+        ConfigSection(title = stringResource(R.string.rom_details_configuration_tab)) {
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_custom_name),
+                value = romConfig.customName ?: rom.name,
+                showDivider = false,
+                onClick = {
+                    renameDialogState.show(
+                        initialText = romConfig.customName ?: rom.name,
+                        onConfirm = { newName -> onConfigUpdate(RomConfigUpdateEvent.CustomNameUpdate(newName.ifBlank { null })) },
+                    )
+                },
+            )
+            if (!rom.isDsiWareTitle) {
+                ConfigRow(
+                    title = stringResource(R.string.console_type),
+                    value = if (romConfig.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
+                        useGlobalWithValue(globalConsoleLabel)
+                    } else {
+                        runtimeConsoleOptions.getOrNull(romConfig.runtimeConsoleType.ordinal) ?: romConfig.runtimeConsoleType.name
+                    },
+                    showDivider = true,
+                    onClick = {
+                        runtimeConsoleDialogState.show(
+                            title = context.getString(R.string.console_type),
+                            items = com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.entries.toList(),
+                            labelOf = { consoleType ->
+                                if (consoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
+                                    useGlobalWithValue(globalConsoleLabel)
+                                } else {
+                                    runtimeConsoleOptions.getOrNull(consoleType.ordinal) ?: consoleType.name
+                                }
+                            },
+                            selected = romConfig.runtimeConsoleType,
+                            onSelect = { onConfigUpdate(RomConfigUpdateEvent.RuntimeConsoleUpdate(it)) },
+                        )
+                    },
+                )
+            }
+        }
+        }
+
+        if (showSystemCpu) {
+        ConfigSection(title = stringResource(R.string.rom_config_overclock_arm9)) {
+            val normalizedArm9 = if (romConfig.arm9Overclock == 3) 2 else romConfig.arm9Overclock
+            val arm9Label = when (normalizedArm9) {
+                null -> useGlobalWithValue("${romConfig.globalArm9Overclock}x")
+                1 -> "1x (67 MHz)"
+                2 -> "2x (133 MHz)"
+                4 -> "4x (268 MHz)"
+                else -> "${normalizedArm9}x"
+            }
+            ConfigRow(
+                title = stringResource(R.string.rom_config_overclock_arm9),
+                value = arm9Label,
+                showDivider = false,
+                onClick = {
+                    arm9OverclockDialogState.show(
+                        title = context.getString(R.string.rom_config_overclock_arm9),
+                        items = listOf(null, 1, 2, 4),
+                        labelOf = {
+                            when (it) {
+                                null -> useGlobalWithValue("${romConfig.globalArm9Overclock}x")
+                                1 -> "1x (67 MHz)"
+                                2 -> "2x (133 MHz)"
+                                4 -> "4x (268 MHz)"
+                                else -> "${it}x"
+                            }
+                        },
+                        selected = normalizedArm9,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.Arm9OverclockUpdate(it)) },
+                    )
+                },
+            )
+
+            val speedLabel = when (romConfig.fastForwardSpeedMultiplier) {
+                null -> useGlobalWithValue(
+                    if (romConfig.globalFastForwardSpeedMultiplier <= 0f) {
+                        stringResource(R.string.rom_config_speed_unlimited)
+                    } else {
+                        "${romConfig.globalFastForwardSpeedMultiplier}x"
+                    }
+                )
+                -1f -> stringResource(R.string.rom_config_speed_unlimited)
+                else -> "${romConfig.fastForwardSpeedMultiplier}x"
+            }
+            ConfigRow(
+                title = stringResource(R.string.rom_config_speed_multiplier),
+                value = speedLabel,
+                showDivider = true,
+                onClick = {
+                    fastForwardSpeedDialogState.show(
+                        title = context.getString(R.string.rom_config_speed_multiplier),
+                        items = listOf(null, -1f, 1.5f, 2f, 3f, 4f, 8f),
+                        labelOf = {
+                            when (it) {
+                                null -> useGlobalWithValue(
+                                    if (romConfig.globalFastForwardSpeedMultiplier <= 0f) {
+                                        context.getString(R.string.rom_config_speed_unlimited)
+                                    } else {
+                                        "${romConfig.globalFastForwardSpeedMultiplier}x"
+                                    }
+                                )
+                                -1f -> context.getString(R.string.rom_config_speed_unlimited)
+                                else -> "${it}x"
+                            }
+                        },
+                        selected = romConfig.fastForwardSpeedMultiplier,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.FastForwardSpeedMultiplierUpdate(it)) },
+                    )
+                },
+            )
+        }
+        }
+
+        if (showAudioControls) {
+        ConfigSection(title = stringResource(R.string.audio)) {
+            ConfigRow(
+                title = stringResource(R.string.microphone_source),
+                value = if (romConfig.runtimeMicSource == RuntimeMicSource.DEFAULT) {
+                    useGlobalWithValue(globalMicLabel)
+                } else {
+                    micOptions[romConfig.runtimeMicSource.ordinal]
+                },
+                showDivider = false,
+                onClick = {
+                    micDialogState.show(
+                        title = context.getString(R.string.microphone_source),
+                        items = RuntimeMicSource.entries.toList(),
+                        labelOf = {
+                            if (it == RuntimeMicSource.DEFAULT) {
+                                useGlobalWithValue(globalMicLabel)
+                            } else {
+                                micOptions[it.ordinal]
+                            }
+                        },
+                        selected = romConfig.runtimeMicSource,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.RuntimeMicSourceUpdate(it)) },
+                    )
+                },
+            )
+            ConfigToggleRow(
+                title = stringResource(R.string.label_rom_config_hg_engine_fix),
+                isOn = romConfig.useHgEngineFix,
+                showDivider = true,
+                onToggle = { onConfigUpdate(RomConfigUpdateEvent.UseHgEngineFixUpdate(it)) },
+            )
+        }
+        }
+
+        if (showGraphics) {
+        ConfigSection(title = stringResource(R.string.label_rom_config_video)) {
+            val vulkanDriverLabel = if (!romConfig.isCustomVulkanDriverSupported) {
+                stringResource(R.string.rom_config_vulkan_driver_blocked_value)
+            } else {
+                when (romConfig.customVulkanDriverName) {
+                    null -> useGlobalWithValue(romConfig.globalVulkanDriverDisplayName)
+                    "__SYSTEM__" -> stringResource(R.string.rom_config_vulkan_driver_system)
+                    else -> romConfig.availableVulkanDrivers.firstOrNull { it.first == romConfig.customVulkanDriverName }?.second
+                        ?: romConfig.customVulkanDriverName.orEmpty()
+                }
+            }
+            ConfigRow(
+                title = stringResource(R.string.rom_config_vulkan_driver),
+                value = vulkanDriverLabel,
+                enabled = romConfig.isCustomVulkanDriverSupported,
+                showDivider = false,
+                onClick = {
+                    if (!romConfig.isCustomVulkanDriverSupported) return@ConfigRow
+                    customVulkanDriverDialogState.show(
+                        title = context.getString(R.string.rom_config_vulkan_driver),
+                        items = romConfig.availableVulkanDrivers.map { it.first },
+                        labelOf = { driverId ->
+                            when (driverId) {
+                                null -> useGlobalWithValue(romConfig.globalVulkanDriverDisplayName)
+                                "__SYSTEM__" -> context.getString(R.string.rom_config_vulkan_driver_system)
+                                else -> romConfig.availableVulkanDrivers.firstOrNull { it.first == driverId }?.second ?: (driverId ?: "")
+                            }
+                        },
+                        selected = romConfig.customVulkanDriverName,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.CustomVulkanDriverUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.renderer),
+                value = selectedRenderer?.let { rendererOptions[it.ordinal] } ?: useGlobalWithValue(globalRendererLabel),
+                showDivider = true,
+                onClick = {
+                    videoRendererDialogState.show(
+                        title = context.getString(R.string.renderer),
+                        items = rendererItems,
+                        labelOf = { renderer -> renderer?.let { rendererOptions[it.ordinal] } ?: useGlobalWithValue(globalRendererLabel) },
+                        selected = selectedRenderer,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.VideoRendererUpdate(it)) },
+                    )
+                },
+            )
+            AnimatedVisibility(visible = effectiveRenderer == VideoRenderer.SOFTWARE) {
+                ConfigRow(
+                    title = stringResource(R.string.threaded_rendering),
+                    value = when (romConfig.threadedRendering) {
+                        true -> stringResource(R.string.on)
+                        false -> stringResource(R.string.off)
+                        null -> useGlobalWithValue(globalThreadedRenderingLabel)
+                    },
+                    showDivider = true,
+                    onClick = {
+                        threadedRenderingDialogState.show(
+                            title = context.getString(R.string.threaded_rendering),
+                            items = listOf(null, true, false),
+                            labelOf = {
+                                when (it) {
+                                    true -> context.getString(R.string.on)
+                                    false -> context.getString(R.string.off)
+                                    null -> useGlobalWithValue(globalThreadedRenderingLabel)
+                                }
+                            },
+                            selected = romConfig.threadedRendering,
+                            onSelect = { onConfigUpdate(RomConfigUpdateEvent.ThreadedRenderingUpdate(it)) },
+                        )
+                    },
+                )
+            }
+            AnimatedVisibility(visible = effectiveRenderer != VideoRenderer.SOFTWARE) {
+                val currentResolutionIndex = romConfig.internalResolutionScaling?.let { internalResolutionValues.indexOf(it).takeIf { idx -> idx >= 0 } }
+                val currentResolutionLabel = currentResolutionIndex?.let { internalResolutionOptions.getOrNull(it) } ?: useGlobalWithValue(globalInternalResolutionLabel)
+                ConfigRow(
+                    title = stringResource(R.string.internal_resolution),
+                    value = currentResolutionLabel,
+                    showDivider = true,
+                    onClick = {
+                        internalResolutionDialogState.show(
+                            title = context.getString(R.string.internal_resolution),
+                            items = listOf(null) + internalResolutionValues,
+                            labelOf = { scaling ->
+                                val idx = scaling?.let { internalResolutionValues.indexOf(it).takeIf { i -> i >= 0 } }
+                                idx?.let { internalResolutionOptions.getOrNull(it) } ?: useGlobalWithValue(globalInternalResolutionLabel)
+                            },
+                            selected = romConfig.internalResolutionScaling,
+                            onSelect = { onConfigUpdate(RomConfigUpdateEvent.InternalResolutionScalingUpdate(it)) },
+                        )
+                    },
+                )
+            }
+            ConfigRow(
+                title = stringResource(R.string.filter),
+                value = selectedFiltering?.let { videoFilteringOptions.getOrNull(it.ordinal) ?: it.name } ?: useGlobalWithValue(globalVideoFilteringLabel),
+                showDivider = true,
+                onClick = {
+                    videoFilteringDialogState.show(
+                        title = context.getString(R.string.filter),
+                        items = filteringItems,
+                        labelOf = { filtering -> filtering?.let { videoFilteringOptions.getOrNull(it.ordinal) ?: it.name } ?: useGlobalWithValue(globalVideoFilteringLabel) },
+                        selected = selectedFiltering,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.VideoFilteringUpdate(it)) },
+                    )
+                },
+            )
+            AnimatedVisibility(visible = effectiveRenderer != VideoRenderer.SOFTWARE && effectiveFiltering == VideoFiltering.RETROARCH) {
+                Column {
+                    ConfigRow(
+                        title = stringResource(R.string.video_retroarch_shader_preset_title),
+                        value = romConfig.retroArchShaderPresetPath ?: useGlobalWithValue(globalRetroArchPresetPathLabel),
+                        showDivider = true,
+                        onClick = {
+                            if (romConfig.hasValidRetroArchShaderRoot) {
+                                retroArchPresetPathDialogState.show(
+                                    initialText = romConfig.retroArchShaderPresetPath.orEmpty(),
+                                    onConfirm = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderPresetPathUpdate(it.ifBlank { null })) },
+                                )
+                            } else {
+                                Toast.makeText(context, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
+                            }
+                        },
+                    )
+                    ConfigRow(
+                        title = stringResource(R.string.video_retroarch_shader_parameters_title),
+                        value = romConfig.retroArchShaderParameters ?: useGlobalWithValue(globalRetroArchParametersLabel),
+                        showDivider = true,
+                        onClick = {
+                            if (romConfig.hasValidRetroArchShaderRoot) {
+                                retroArchParametersDialogState.show(
+                                    initialText = romConfig.retroArchShaderParameters.orEmpty(),
+                                    onConfirm = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderParametersUpdate(it.ifBlank { null })) },
+                                )
+                            } else {
+                                Toast.makeText(context, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
+                            }
+                        },
+                    )
+                }
+            }
+        }
+        }
+
+        if (showAudioControls) {
+        ConfigSection(title = stringResource(R.string.label_rom_config_input_mode)) {
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_input_mode),
+                value = if (romConfig.inputMode == RomInputMode.GLOBAL) {
+                    useGlobalWithValue(globalInputModeLabel)
+                } else {
+                    inputModeOptions[romConfig.inputMode.ordinal]
+                },
+                showDivider = false,
+                onClick = {
+                    inputModeDialogState.show(
+                        title = context.getString(R.string.label_rom_config_input_mode),
+                        items = RomInputMode.entries.toList(),
+                        labelOf = {
+                            if (it == RomInputMode.GLOBAL) {
+                                useGlobalWithValue(globalInputModeLabel)
+                            } else {
+                                inputModeOptions[it.ordinal]
+                            }
+                        },
+                        selected = romConfig.inputMode,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.InputModeUpdate(it)) },
+                    )
+                },
+            )
+            AnimatedVisibility(visible = romConfig.inputMode == RomInputMode.CUSTOM) {
+                ConfigRow(
+                    title = stringResource(R.string.label_rom_config_custom_input_mapping),
+                    value = stringResource(R.string.edit),
+                    showDivider = true,
+                    onClick = {
+                        customInputSetupLauncher.launch(InputSetupActivity.getRomCustomIntent(context, rom))
+                    },
+                )
+            }
+        }
+        }
+
+        if (showSystemCpu) {
+        ConfigSection(title = stringResource(R.string.label_rom_config_retroachievements)) {
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_retroachievements_for_rom),
+                value = retroAchievementsModeLabel(
+                    context = context,
+                    value = romConfig.retroAchievementsEnabled,
+                    globalEnabled = romConfig.globalRetroAchievementsEnabled,
+                ),
+                onClick = {
+                    retroAchievementsDialogState.show(
+                        title = context.getString(R.string.label_rom_config_retroachievements_for_rom),
+                        items = listOf(null, true, false),
+                        labelOf = { value ->
+                            retroAchievementsModeLabel(
+                                context = context,
+                                value = value,
+                                globalEnabled = romConfig.globalRetroAchievementsEnabled,
+                            )
+                        },
+                        selected = romConfig.retroAchievementsEnabled,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.RetroAchievementsEnabledUpdate(it)) },
+                    )
+                },
+            )
+        }
+        }
+
+        if (showScreens) {
+        ConfigSection(title = stringResource(R.string.controller_layout)) {
+            ConfigRow(
+                title = stringResource(R.string.controller_layout),
+                value = romConfig.layoutName ?: useGlobalWithValue(globalLayoutLabel),
+                showDivider = false,
+                onClick = {
+                    val intent = Intent(context, LayoutSelectorActivity::class.java).apply {
+                        putExtra(LayoutSelectorActivity.KEY_SELECTED_LAYOUT_ID, romConfig.layoutId?.toString())
+                    }
+                    layoutSelectorLauncher.launch(intent)
+                },
+            )
+            fun dualScreenPresetLabel(preset: com.storm3ds.emulator.domain.model.DualScreenPreset?): String {
+                return when (preset) {
+                    null -> useGlobal
+                    com.storm3ds.emulator.domain.model.DualScreenPreset.OFF -> context.getString(R.string.dual_screen_preset_off)
+                    com.storm3ds.emulator.domain.model.DualScreenPreset.INTERNAL_TOP_EXTERNAL_BOTTOM -> context.getString(R.string.dual_screen_preset_internal_top_external_bottom)
+                    com.storm3ds.emulator.domain.model.DualScreenPreset.INTERNAL_BOTTOM_EXTERNAL_TOP -> context.getString(R.string.dual_screen_preset_internal_bottom_external_top)
+                }
+            }
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_dual_screen_preset),
+                value = dualScreenPresetLabel(romConfig.dualScreenPreset),
+                showDivider = true,
+                onClick = {
+                    dualScreenPresetDialogState.show(
+                        title = context.getString(R.string.label_rom_config_dual_screen_preset),
+                        items = listOf(null) + com.storm3ds.emulator.domain.model.DualScreenPreset.entries,
+                        labelOf = { dualScreenPresetLabel(it) },
+                        selected = romConfig.dualScreenPreset,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.DualScreenPresetUpdate(it)) },
+                    )
+                },
+            )
+        }
+        }
+
+        if (showScreens) {
+        ConfigSection(title = stringResource(R.string.label_rom_config_translator_section)) {
+            fun translatorLangLabel(langCode: String?): String {
+                if (langCode.isNullOrBlank()) return useGlobal
+                val idx = translatorLangValues.indexOf(langCode)
+                return if (idx in translatorLangEntries.indices) translatorLangEntries[idx] else langCode
+            }
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_translator_source_lang),
+                value = translatorLangLabel(romConfig.translatorSourceLang),
+                onClick = {
+                    translatorSourceLangDialogState.show(
+                        title = context.getString(R.string.label_rom_config_translator_source_lang),
+                        items = listOf(null) + translatorLangValues.toList(),
+                        labelOf = { translatorLangLabel(it) },
+                        selected = romConfig.translatorSourceLang,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.TranslatorSourceLangUpdate(it)) },
+                    )
+                },
+            )
+        }
+        }
+
+        if (showGbaSlot) {
+        ConfigSection(title = stringResource(R.string.label_rom_config_gba_slot)) {
+            val isGbaRom = romConfig.gbaSlotConfig.type == RomGbaSlotConfigUiModel.Type.GbaRom
+            ConfigRow(
+                title = stringResource(R.string.label_rom_config_gba_slot),
+                value = gbaSlotOptions[romConfig.gbaSlotConfig.type.ordinal],
+                showDivider = false,
+                onClick = {
+                    gbaSlotDialogState.show(
+                        title = context.getString(R.string.label_rom_config_gba_slot),
+                        items = RomGbaSlotConfigUiModel.Type.entries.toList(),
+                        labelOf = { gbaSlotOptions[it.ordinal] },
+                        selected = romConfig.gbaSlotConfig.type,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.GbaSlotTypeUpdated(it)) },
+                    )
+                },
+            )
+            AnimatedVisibility(visible = isGbaRom) {
+                Column {
+                    ConfigRow(
+                        title = stringResource(R.string.label_rom_config_gba_rom_path),
+                        value = romConfig.gbaSlotConfig.gbaRomPath ?: stringResource(R.string.not_set),
+                        showDivider = true,
+                        onClick = { gbaRomSelectorLauncher.launch(Pair(null, null)) },
+                    )
+                    ConfigRow(
+                        title = stringResource(R.string.label_rom_config_gba_save_path),
+                        value = romConfig.gbaSlotConfig.gbaSavePath ?: stringResource(R.string.not_set),
+                        showDivider = true,
+                        onClick = { gbaSaveSelectorLauncher.launch(Pair(null, null)) },
+                    )
+                }
+            }
+        }
+        }
+
+        if (showGbaSlot || activeOverridesCount > 0) {
+        ConfigSection(title = stringResource(R.string.reset_rom_config_section)) {
+            ConfigRow(
+                title = stringResource(R.string.reset_rom_config_title),
+                value = stringResource(R.string.action_reset),
+                onClick = { showResetConfirmDialog = true },
+            )
+        }
+        }
+
+        Spacer(Modifier.height(contentPadding.calculateBottomPadding() + 96.dp))
+    }
+
+    if (showResetConfirmDialog) {
+        androidx.compose.material.AlertDialog(
+            onDismissRequest = { showResetConfirmDialog = false },
+            backgroundColor = com.storm3ds.emulator.ui.theme.watermelon.surface,
+            title = {
+                Text(
+                    text = stringResource(R.string.reset_rom_config_title),
+                    color = com.storm3ds.emulator.ui.theme.watermelon.text,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.reset_rom_config_confirm_message),
+                    color = com.storm3ds.emulator.ui.theme.watermelon.text2,
+                    fontSize = 14.sp,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material.TextButton(
+                    onClick = {
+                        showResetConfirmDialog = false
+                        onConfigUpdate(RomConfigUpdateEvent.ResetToDefaults(preserveCustomName = true))
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_reset),
+                        color = com.storm3ds.emulator.ui.theme.watermelon.red,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material.TextButton(
+                    onClick = { showResetConfirmDialog = false }
+                ) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = com.storm3ds.emulator.ui.theme.watermelon.text3,
+                    )
+                }
+            }
+        )
+    }
+
+    TextInputDialog(
+        title = stringResource(R.string.label_rom_config_custom_name),
+        dialogState = renameDialogState,
+        textValidator = { true },
+        onDelete = { onConfigUpdate(RomConfigUpdateEvent.CustomNameUpdate(null)) },
+    )
+    SingleChoiceDialog(runtimeConsoleDialogState)
+    SingleChoiceDialog(micDialogState)
+    SingleChoiceDialog(inputModeDialogState)
+    SingleChoiceDialog(gbaSlotDialogState)
+    SingleChoiceDialog(videoRendererDialogState)
+    SingleChoiceDialog(threadedRenderingDialogState)
+    SingleChoiceDialog(internalResolutionDialogState)
+    SingleChoiceDialog(videoFilteringDialogState)
+    SingleChoiceDialog(retroAchievementsDialogState)
+    SingleChoiceDialog(dualScreenPresetDialogState)
+    SingleChoiceDialog(translatorSourceLangDialogState)
+    SingleChoiceDialog(arm9OverclockDialogState)
+    SingleChoiceDialog(fastForwardSpeedDialogState)
+    SingleChoiceDialog(customVulkanDriverDialogState)
+    TextInputDialog(
+        title = stringResource(R.string.video_retroarch_shader_preset_title),
+        dialogState = retroArchPresetPathDialogState,
+        textValidator = { true },
+        onDelete = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderPresetPathUpdate(null)) },
+    )
+    TextInputDialog(
+        title = stringResource(R.string.video_retroarch_shader_parameters_title),
+        dialogState = retroArchParametersDialogState,
+        textValidator = { true },
+        onDelete = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderParametersUpdate(null)) },
+    )
+}
+
+private fun retroAchievementsModeLabel(context: Context, value: Boolean?, globalEnabled: Boolean): String {
+    return when (value) {
+        null -> context.getString(
+            if (globalEnabled) {
+                R.string.retro_achievements_global_enabled
+            } else {
+                R.string.retro_achievements_global_disabled
+            }
+        )
+        true -> context.getString(
+            if (globalEnabled) {
+                R.string.retro_achievements_enabled
+            } else {
+                R.string.retro_achievements_enabled_global_disabled
+            }
+        )
+        false -> context.getString(R.string.retro_achievements_disabled)
+    }
+}
+
+@MelonPreviewSet
+@Composable
+private fun PreviewRomConfigUi() {
+    MelonTheme {
+        RomConfigUi(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(0.dp),
+            rom = Rom(
+                name = "Professor Layton and the Unwound Future",
+                developerName = "Nontendo",
+                fileName = "layton.nds",
+                uri = Uri.EMPTY,
+                parentTreeUri = Uri.EMPTY,
+                config = RomConfig(),
+                lastPlayed = Date(),
+                isDsiWareTitle = false,
+                retroAchievementsHash = "",
+            ),
+            romConfigUiState = RomConfigUiState.Ready(
+                RomConfigUiModel(
+                    layoutName = "Default",
+                    gbaSlotConfig = RomGbaSlotConfigUiModel(type = RomGbaSlotConfigUiModel.Type.GbaRom)
+                ),
+            ),
+            onConfigUpdate = { },
+            onCustomInputConfigEdited = { },
+        )
+    }
+}

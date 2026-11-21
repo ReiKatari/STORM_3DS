@@ -1,0 +1,41 @@
+package com.storm3ds.emulator.impl.dtos.layout
+
+import com.google.gson.annotations.SerializedName
+import com.storm3ds.emulator.domain.model.layout.PositionedLayoutComponent
+import com.storm3ds.emulator.utils.enumValueOfIgnoreCase
+
+data class PositionedLayoutComponentDto(
+    @SerializedName("rect")
+    val rect: RectDto,
+    @SerializedName("component")
+    val component: String,
+    @SerializedName("alpha")
+    val alpha: Float? = null,
+    @SerializedName("onTop")
+    val onTop: Boolean? = null,
+    @SerializedName("locked")
+    val locked: Boolean? = null,
+) {
+
+    companion object {
+        fun fromModel(positionedLayoutComponent: PositionedLayoutComponent): PositionedLayoutComponentDto {
+            return PositionedLayoutComponentDto(
+                RectDto.fromModel(positionedLayoutComponent.rect),
+                positionedLayoutComponent.component.name,
+                positionedLayoutComponent.alpha,
+                positionedLayoutComponent.onTop,
+                positionedLayoutComponent.locked,
+            )
+        }
+    }
+
+    fun toModel(): PositionedLayoutComponent {
+        return PositionedLayoutComponent(
+            rect.toModel(),
+            enumValueOfIgnoreCase(component),
+            alpha ?: 1f,
+            onTop ?: false,
+            locked ?: false,
+        )
+    }
+}

@@ -1,0 +1,257 @@
+package com.storm3ds.emulator.utils
+
+import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
+import java.io.RandomAccessFile
+import java.nio.charset.StandardCharsets
+
+object FatImageExtractor {
+    private const val TAG = "FatImageExtractor"
+
+    fun extractFatImage(imageFile: File, destDir: File): Boolean {
+        if (!imageFile.isFile || imageFile.length() < 512) return false
+        return runCatching {
+            val destCanonical = destDir.canonicalPath
+            RandomAccessFile(imageFile, "r").use { raf ->
+                val rafLength = raf.length()
+                val bootSector = ByteArray(512)
+                raf.seek(0)
+                raf.readFully(bootSector)
+
+                var vbrOffset = 0L
+                var bytesPerSector = readLE16(bootSector, 11)
+                var sectorsPerCluster = bootSector[13].toInt() and 0xFF
+                var reservedSectors = readLE16(bootSector, 14)
+
+                // If bytesPerSector is not standard, check MBR partition table at 0x1BE
+                if (bytesPerSector !in listOf(512, 1024, 2048, 4096) || sectorsPerCluster == 0) {
+                    val partOffset = 0x1BE
+                    val partType = bootSector[partOffset + 4].toInt() and 0xFF
+                    val startSector = readLE32(bootSector, partOffset + 8)
+                    if (startSector > 0 && partType in listOf(0x01, 0x04, 0x06, 0x0B, 0x0C, 0x0E)) {
+                        val candidateOffset = startSector * 512L
+                        if (candidateOffset + 512L <= rafLength) {
+                            vbrOffset = candidateOffset
+                            raf.seek(vbrOffset)
+                            raf.readFully(bootSector)
+                            bytesPerSector = readLE16(bootSector, 11)
+                            sectorsPerCluster = bootSector[13].toInt() and 0xFF
+                            reservedSectors = readLE16(bootSector, 14)
+                        }
+                    }
+                }
+
+                if (bytesPerSector !in listOf(512, 1024, 2048, 4096) || sectorsPerCluster == 0) {
+                    Log.w(TAG, "Not a valid FAT filesystem in ${imageFile.name}")
+                    return false
+                }
+
+                val numFats = bootSector[16].toInt() and 0xFF
+                val rootEntries = readLE16(bootSector, 17)
+                val fatSize16 = readLE16(bootSector, 22)
+                val fatSize32 = if (fatSize16 == 0) readLE32(bootSector, 36) else 0L
+                val isFat32 = fatSize16 == 0 && fatSize32 > 0
+
+                val fatSize = if (isFat32) fatSize32 else fatSize16.toLong()
+                val rootDirSectors = ((rootEntries * 32) + (bytesPerSector - 1)) / bytesPerSector
+                val fatStartOffset = vbrOffset + (reservedSectors.toLong() * bytesPerSector)
+                val rootDirStartOffset = fatStartOffset + (numFats * fatSize * bytesPerSector)
+                val dataStartOffset = rootDirStartOffset + (rootDirSectors * bytesPerSector)
+                val rootCluster = if (isFat32) readLE32(bootSector, 44) else 2L
+                val bytesPerCluster = bytesPerSector * sectorsPerCluster
+                if (bytesPerCluster <= 0) return false
+
+                fun getClusterOffset(cluster: Long): Long {
+                    return dataStartOffset + ((cluster - 2L) * bytesPerCluster)
+                }
+
+                fun getNextCluster(cluster: Long): Long {
+                    val fatOffset = if (isFat32) {
+                        fatStartOffset + (cluster * 4L)
+                    } else {
+                        fatStartOffset + (cluster * 2L)
+                    }
+                    val entrySize = if (isFat32) 4L else 2L
+                    if (fatOffset < 0L || fatOffset + entrySize > rafLength) {
+                        return if (isFat32) 0x0FFFFFFFL else 0xFFFFL
+                    }
+                    raf.seek(fatOffset)
+                    return if (isFat32) {
+                        val b = ByteArray(4)
+                        raf.readFully(b)
+                        readLE32(b, 0) and 0x0FFFFFFFL
+                    } else {
+                        val b = ByteArray(2)
+                        raf.readFully(b)
+                        readLE16(b, 0).toLong()
+                    }
+                }
+
+                fun isValidCluster(cluster: Long): Boolean {
+                    return if (isFat32) {
+                        cluster in 2L until 0x0FFFFFF7L
+                    } else {
+                        cluster in 2L until 0xFFF7L
+                    }
+                }
+
+                fun streamClusterChainToFile(startCluster: Long, length: Long, targetFile: File) {
+                    val safeLength = length.coerceIn(0L, rafLength)
+                    val buffer = ByteArray(bytesPerCluster.coerceIn(512, 65536))
+                    val visited = HashSet<Long>()
+                    var currCluster = startCluster
+                    var bytesRemaining = safeLength
+
+                    FileOutputStream(targetFile).use { fos ->
+                        while (isValidCluster(currCluster) && bytesRemaining > 0L && visited.add(currCluster)) {
+                            val clusterOff = getClusterOffset(currCluster)
+                            if (clusterOff < dataStartOffset || clusterOff >= rafLength) break
+                            val availableInImage = rafLength - clusterOff
+                            var clusterToRead = minOf(bytesRemaining, bytesPerCluster.toLong(), availableInImage).toInt()
+                            if (clusterToRead <= 0) break
+
+                            raf.seek(clusterOff)
+                            while (clusterToRead > 0) {
+                                val chunk = minOf(clusterToRead, buffer.size)
+                                raf.readFully(buffer, 0, chunk)
+                                fos.write(buffer, 0, chunk)
+                                clusterToRead -= chunk
+                                bytesRemaining -= chunk
+                            }
+                            currCluster = getNextCluster(currCluster)
+                        }
+                    }
+                }
+
+                val visitedDirClusters = HashSet<Long>()
+
+                fun extractDirectory(dirOffset: Long, isCluster: Boolean, currentCluster: Long, currentDestDir: File) {
+                    val dirCanonical = currentDestDir.canonicalPath
+                    if (dirCanonical != destCanonical && !dirCanonical.startsWith(destCanonical + File.separator)) {
+                        Log.w(TAG, "Blocked unsafe FAT directory traversal: $dirCanonical")
+                        return
+                    }
+                    currentDestDir.mkdirs()
+                    val entries = mutableListOf<ByteArray>()
+
+                    if (!isCluster) {
+                        val rootDirByteCount = rootDirSectors.toLong() * bytesPerSector.toLong()
+                        if (dirOffset >= 0L && rootDirByteCount in 1L..minOf(rafLength - dirOffset, 16L * 1024L * 1024L)) {
+                            val rootDirBytes = ByteArray(rootDirByteCount.toInt())
+                            raf.seek(dirOffset)
+                            raf.readFully(rootDirBytes)
+                            for (i in 0 until rootDirBytes.size step 32) {
+                                if (i + 32 <= rootDirBytes.size) {
+                                    entries.add(rootDirBytes.copyOfRange(i, i + 32))
+                                }
+                            }
+                        }
+                    } else {
+                        var c = currentCluster
+                        val visited = HashSet<Long>()
+                        while (isValidCluster(c) && visited.add(c)) {
+                            val cBytes = ByteArray(bytesPerCluster)
+                            val cOff = getClusterOffset(c)
+                            if (cOff < dataStartOffset || cOff + bytesPerCluster > rafLength) break
+                            raf.seek(cOff)
+                            raf.readFully(cBytes)
+                            for (i in 0 until cBytes.size step 32) {
+                                if (i + 32 <= cBytes.size) {
+                                    entries.add(cBytes.copyOfRange(i, i + 32))
+                                }
+                            }
+                            c = getNextCluster(c)
+                        }
+                    }
+
+                    val lfnParts = mutableListOf<String>()
+                    for (entry in entries) {
+                        val firstByte = entry[0].toInt() and 0xFF
+                        if (firstByte == 0x00) break
+                        if (firstByte == 0xE5) {
+                            lfnParts.clear()
+                            continue
+                        }
+
+                        val attr = entry[11].toInt() and 0xFF
+                        if (attr == 0x0F) {
+                            val lfnChars = StringBuilder()
+                            for (offset in intArrayOf(1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30)) {
+                                val ch = (entry[offset].toInt() and 0xFF) or ((entry[offset + 1].toInt() and 0xFF) shl 8)
+                                if (ch != 0 && ch != 0xFFFF) lfnChars.append(ch.toChar())
+                            }
+                            lfnParts.add(0, lfnChars.toString())
+                            continue
+                        }
+
+                        if ((attr and 0x08) != 0) {
+                            lfnParts.clear()
+                            continue
+                        }
+
+                        val isDir = (attr and 0x10) != 0
+                        val fileName = if (lfnParts.isNotEmpty()) {
+                            lfnParts.joinToString("").trim()
+                        } else {
+                            val name = String(entry, 0, 8, StandardCharsets.US_ASCII).trim()
+                            val ext = String(entry, 8, 3, StandardCharsets.US_ASCII).trim()
+                            if (ext.isNotEmpty()) "$name.$ext" else name
+                        }
+                        lfnParts.clear()
+
+                        if (fileName.isBlank() || fileName == "." || fileName == "..") continue
+
+                        val targetFile = File(currentDestDir, fileName)
+                        val targetCanonical = targetFile.canonicalPath
+                        if (!targetCanonical.startsWith(destCanonical + File.separator)) {
+                            Log.w(TAG, "Blocked unsafe FAT entry path traversal: $fileName")
+                            continue
+                        }
+
+                        val highCluster = readLE16(entry, 20).toLong()
+                        val lowCluster = readLE16(entry, 26).toLong()
+                        val fileCluster = (highCluster shl 16) or lowCluster
+                        val fileSize = readLE32(entry, 28)
+
+                        if (isDir) {
+                            if (fileCluster >= 2L && visitedDirClusters.add(fileCluster)) {
+                                extractDirectory(0, true, fileCluster, targetFile)
+                            }
+                        } else {
+                            if (fileSize > 0L && fileCluster >= 2L) {
+                                streamClusterChainToFile(fileCluster, fileSize, targetFile)
+                            } else {
+                                targetFile.createNewFile()
+                            }
+                        }
+                    }
+                }
+
+                if (isFat32) {
+                    visitedDirClusters.add(rootCluster)
+                    extractDirectory(0, true, rootCluster, destDir)
+                } else {
+                    extractDirectory(rootDirStartOffset, false, 0, destDir)
+                }
+
+                Log.i(TAG, "Successfully extracted FAT image ${imageFile.name} to ${destDir.absolutePath}")
+                true
+            }
+        }.getOrElse {
+            Log.w(TAG, "Failed to extract FAT image ${imageFile.name}", it)
+            false
+        }
+    }
+
+    private fun readLE16(b: ByteArray, offset: Int): Int {
+        return (b[offset].toInt() and 0xFF) or ((b[offset + 1].toInt() and 0xFF) shl 8)
+    }
+
+    private fun readLE32(b: ByteArray, offset: Int): Long {
+        return (b[offset].toLong() and 0xFF) or
+            ((b[offset + 1].toLong() and 0xFF) shl 8) or
+            ((b[offset + 2].toLong() and 0xFF) shl 16) or
+            ((b[offset + 3].toLong() and 0xFF) shl 24)
+    }
+}

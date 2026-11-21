@@ -1,0 +1,500 @@
+package com.storm3ds.emulator.utils
+
+import android.graphics.Bitmap
+import android.graphics.Color
+import androidx.core.graphics.createBitmap
+import com.storm3ds.emulator.common.Crc32
+import com.storm3ds.emulator.domain.model.RomInfo
+import com.storm3ds.emulator.domain.model.RomMetadata
+import com.storm3ds.emulator.domain.model.rom.Rom
+import java.io.InputStream
+import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import kotlin.experimental.and
+import kotlin.math.min
+
+object RomProcessor {
+	private val DSIWARE_CATEGORY = 0x00030004.toUInt()
+	private val DSIWARE_SYSTEM_CATEGORY = 0x00030005.toUInt()
+	private const val MAX_ARM_BOOTCODE_SIZE = 0x3BFE00
+
+	fun getRomMetadata(channel: java.nio.channels.FileChannel): RomMetadata? {
+		return runCatching {
+			val headerBuffer = ByteBuffer.allocate(0x280)
+			channel.position(0)
+			channel.read(headerBuffer)
+			val header = headerBuffer.array()
+			val gameCode = String(header, 0x0C, 4)
+
+			val arm9Offset = byteArrayToInt(header, 0x20).toLong()
+			val arm9Size = byteArrayToInt(header, 0x2C)
+			if (arm9Size !in 0..MAX_ARM_BOOTCODE_SIZE) return null
+
+			val arm7Offset = byteArrayToInt(header, 0x30).toLong()
+			val arm7Size = byteArrayToInt(header, 0x3C)
+			if (arm7Size !in 0..MAX_ARM_BOOTCODE_SIZE) return null
+
+			val bannerOffset = byteArrayToInt(header, 0x68).toLong()
+
+			val unitCode = header[0x12].toInt() and 0xFF
+			val gc0 = gameCode.getOrNull(0)
+			val categoryHigh = if (header.size >= 0x238) byteArrayToInt(header, 0x234) else 0
+			val categoryLow = if (header.size >= 0x234) byteArrayToInt(header, 0x230) else 0
+			val isDsiWareTitle = unitCode == 0x03 ||
+				categoryHigh == 0x00030004 || categoryHigh == 0x04000300 || categoryHigh == 0x00030005 ||
+				categoryLow == 0x00030004 ||
+				(unitCode and 0x02 != 0 && (gc0 == 'K' || gc0 == 'H' || gc0 == '4')) ||
+				(gc0 == 'K' || gc0 == 'H' || gc0 == '4')
+			val isDsiEnhanced = !isDsiWareTitle && (unitCode and 0x02 != 0)
+
+			val arm9Buffer = ByteBuffer.allocate(arm9Size)
+			channel.position(arm9Offset)
+			channel.read(arm9Buffer)
+			val arm9Data = arm9Buffer.array()
+
+			val arm7Buffer = ByteBuffer.allocate(arm7Size)
+			channel.position(arm7Offset)
+			channel.read(arm7Buffer)
+			val arm7Data = arm7Buffer.array()
+
+			val bannerBuffer = ByteBuffer.allocate(0xA00)
+			channel.position(bannerOffset)
+			channel.read(bannerBuffer)
+			val bannerData = bannerBuffer.array()
+
+			val bannerText = readBannerTitleAndDeveloper(bannerData)
+			val romName = bannerText?.first.orEmpty()
+			val developerName = bannerText?.second.orEmpty()
+
+			val retroAchievementsMd5Digest = MessageDigest.getInstance("MD5").run {
+				update(header, 0, 0x160)
+				update(arm9Data)
+				update(arm7Data)
+				update(bannerData)
+				digest()
+			}
+
+			val retroAchievementsHash = BigInteger(1, retroAchievementsMd5Digest).toString(16).padStart(32, '0')
+
+			val dsiTitleId = if (header.size >= 0x238) {
+				(byteArrayToInt(header, 0x234).toLong() and 0xFFFFFFFFL).shl(32) or (byteArrayToInt(header, 0x230).toLong() and 0xFFFFFFFFL)
+			} else 0L
+
+			RomMetadata(
+				romName,
+				developerName,
+				isDsiWareTitle,
+				isDsiEnhanced,
+				retroAchievementsHash,
+				gameCode = gameCode,
+				titleId = dsiTitleId,
+			)
+		}.getOrNull()
+	}
+
+	@Suppress("NAME_SHADOWING")
+	fun getRomMetadata(inputStream: InputStream): RomMetadata? {
+		return runCatching {
+			val sectionReader = ForwardRomSectionReader(inputStream)
+			val header = sectionReader.readSection(0, 0x280) ?: return null
+			val gameCode = String(header, 0x0C, 4)
+
+			val arm9Offset = byteArrayToInt(header, 0x20)
+			val arm9Size = byteArrayToInt(header, 0x2C)
+			if (arm9Size !in 0..MAX_ARM_BOOTCODE_SIZE) return null
+
+			val arm7Offset = byteArrayToInt(header, 0x30)
+			val arm7Size = byteArrayToInt(header, 0x3C)
+			if (arm7Size !in 0..MAX_ARM_BOOTCODE_SIZE) return null
+
+			val bannerOffset = byteArrayToInt(header, 0x68)
+
+			val unitCode = header[0x12].toInt() and 0xFF
+			val gc0 = gameCode.getOrNull(0)
+			val categoryHigh = if (header.size >= 0x238) byteArrayToInt(header, 0x234) else 0
+			val categoryLow = if (header.size >= 0x234) byteArrayToInt(header, 0x230) else 0
+			val isDsiWareTitle = unitCode == 0x03 ||
+				categoryHigh == 0x00030004 || categoryHigh == 0x04000300 || categoryHigh == 0x00030005 ||
+				categoryLow == 0x00030004 ||
+				(unitCode and 0x02 != 0 && (gc0 == 'K' || gc0 == 'H' || gc0 == '4')) ||
+				(gc0 == 'K' || gc0 == 'H' || gc0 == '4')
+			val isDsiEnhanced = !isDsiWareTitle && (unitCode and 0x02 != 0)
+
+			var arm9Bootcode: ByteArray? = null
+			var arm7Bootcode: ByteArray? = null
+			var banner: ByteArray? = null
+			val requiredSections = listOf(
+				RequiredRomSection(arm9Offset, arm9Size, RequiredRomSection.Type.ARM9),
+				RequiredRomSection(arm7Offset, arm7Size, RequiredRomSection.Type.ARM7),
+				RequiredRomSection(bannerOffset, 0xA00, RequiredRomSection.Type.BANNER),
+			)
+
+			val sortedSections = requiredSections.sortedBy { it.offset }
+			for (section in sortedSections) {
+				val sectionData = sectionReader.readSection(section.offset, section.size)
+				when (section.type) {
+					RequiredRomSection.Type.ARM9 -> arm9Bootcode = sectionData
+					RequiredRomSection.Type.ARM7 -> arm7Bootcode = sectionData
+					RequiredRomSection.Type.BANNER -> banner = sectionData
+				}
+			}
+
+			val bannerText = banner?.let { readBannerTitleAndDeveloper(it) }
+			val romName = bannerText?.first.orEmpty()
+			val developerName = bannerText?.second.orEmpty()
+
+			val retroAchievementsMd5Digest = MessageDigest.getInstance("MD5").run {
+				update(header, 0, 0x160)
+				update(arm9Bootcode ?: return null)
+				update(arm7Bootcode ?: return null)
+				update(banner ?: return null)
+				digest()
+			}
+
+			val retroAchievementsHash = BigInteger(1, retroAchievementsMd5Digest).toString(16).padStart(32, '0')
+
+			val dsiTitleId = if (header.size >= 0x238) {
+				(byteArrayToInt(header, 0x234).toLong() and 0xFFFFFFFFL).shl(32) or (byteArrayToInt(header, 0x230).toLong() and 0xFFFFFFFFL)
+			} else 0L
+
+			RomMetadata(
+				romName,
+				developerName,
+				isDsiWareTitle,
+				isDsiEnhanced,
+				retroAchievementsHash,
+				gameCode = gameCode,
+				titleId = dsiTitleId,
+			)
+		}.getOrNull()
+	}
+
+	fun readGameCode(context: android.content.Context, uri: android.net.Uri): String {
+		return runCatching {
+			context.contentResolver.openInputStream(uri)?.use { stream ->
+				val buf = ByteArray(16)
+				var totalRead = 0
+				while (totalRead < buf.size) {
+					val r = stream.read(buf, totalRead, buf.size - totalRead)
+					if (r <= 0) break
+					totalRead += r
+				}
+				if (totalRead >= 16) {
+					String(buf, 12, 4, StandardCharsets.US_ASCII).trim()
+				} else ""
+			} ?: ""
+		}.getOrDefault("")
+	}
+
+	private fun readBannerTitleAndDeveloper(banner: ByteArray): Pair<String, String>? {
+		if (banner.size < 0x240 + 256) {
+			return null
+		}
+		val version = byteArrayToShort(banner, 0).toInt()
+		val versionLow = banner[0].toInt() and 0xFF
+		// DS banner version: 1..3, DSi banner version: 0x0101..0x0103
+		if (version !in 1..0x0303 && versionLow !in 1..3) {
+			return null
+		}
+
+		// Language slots in NDS/DSi banner:
+		// 0x240: Japanese, 0x340: English, 0x440: French, 0x540: German, 0x640: Italian, 0x740: Spanish, 0x840: Chinese, 0x940: Korean
+		val offsets = listOf(0x340, 0x240, 0x440, 0x540, 0x640, 0x740, 0x840, 0x940)
+		for (offset in offsets) {
+			if (banner.size >= offset + 256) {
+				val titleData = banner.copyOfRange(offset, offset + 256)
+				val titleString = String(titleData, StandardCharsets.UTF_16LE).trim().replace("\u0000", "")
+				if (titleString.isNotBlank()) {
+					val title = titleString.substringBeforeLast('\n').replace("\n", " ").trim()
+					val developer = titleString.substringAfterLast('\n', "").trim()
+					if (title.isNotBlank()) {
+						return title to developer
+					}
+				}
+			}
+		}
+		return null
+	}
+
+	fun getRomIcon(channel: java.nio.channels.FileChannel): Bitmap? {
+		return runCatching {
+			val offsetBuffer = ByteBuffer.allocate(4)
+			channel.position(0x68)
+			channel.read(offsetBuffer)
+			val bannerOffset = byteArrayToInt(offsetBuffer.array())
+			if (bannerOffset <= 0) return null
+
+			val tileBuffer = ByteBuffer.allocate(512)
+			channel.position(bannerOffset.toLong() + 32)
+			channel.read(tileBuffer)
+			val tileData = tileBuffer.array()
+
+			val paletteBuffer = ByteBuffer.allocate(32)
+			channel.read(paletteBuffer)
+			val paletteData = paletteBuffer.array()
+
+			val palette = UShortArray(16)
+			for (i in 0 until 16) {
+				val lower = paletteData[i * 2]
+				val upper = paletteData[(i * 2) + 1]
+				val value = ((upper.toInt() and 0xFF).shl(8) or (lower.toInt() and 0xFF)).toUShort()
+				palette[i] = value
+			}
+
+			val argbPalette = paletteToArgb(palette)
+			val icon = processTiles(tileData, argbPalette)
+			val bitmapData = iconToBitmapArray(icon)
+
+			val bitmap = createBitmap(32, 32)
+			bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bitmapData))
+			bitmap
+		}.getOrNull()
+	}
+
+	fun getRomIcon(inputStream: InputStream): Bitmap? {
+		return runCatching {
+			// Banner offset is at header offset 0x68
+			inputStream.skipStreamBytes(0x68)
+			// Obtain the banner offset
+			val offsetData = ByteArray(4)
+			if (inputStream.read(offsetData) < 4) return null
+
+			val bannerOffset = byteArrayToInt(offsetData)
+			if (bannerOffset <= 0) return null
+
+			val toSkip = bannerOffset.toLong() + 32 - (0x68 + 4)
+			if (toSkip < 0) return null
+			inputStream.skipStreamBytes(toSkip)
+
+			val tileData = ByteArray(512)
+			if (inputStream.read(tileData) < 512) return null
+
+			val paletteData = ByteArray(16 * 2)
+			if (inputStream.read(paletteData) < 32) return null
+
+			val palette = UShortArray(16)
+			for (i in 0 until 16) {
+				// Each palette color is 16 bits. Join pairs of bytes to create the correct color
+				val lower = paletteData[i * 2]
+				val upper = paletteData[(i * 2) + 1]
+
+				val value = ((upper.toInt() and 0xFF).shl(8) or (lower.toInt() and 0xFF)).toUShort()
+				palette[i] = value
+			}
+
+			val argbPalette = paletteToArgb(palette)
+			val icon = processTiles(tileData, argbPalette)
+			val bitmapData = iconToBitmapArray(icon)
+
+			val bitmap = createBitmap(32, 32)
+			bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bitmapData))
+			bitmap
+		}.getOrNull()
+	}
+
+	fun getRomInfo(rom: Rom, channel: java.nio.channels.FileChannel): RomInfo? {
+		return runCatching {
+			val headerBuffer = ByteBuffer.allocate(0x200)
+			channel.position(0)
+			channel.read(headerBuffer)
+			val romHeader = headerBuffer.array()
+
+			val gameTitle = romHeader.decodeToString(endIndex = 12)
+			val gameCode = romHeader.decodeToString(startIndex = 12, endIndex = 12 + 4)
+			val headerChecksum = Crc32.compute(romHeader)
+			RomInfo(gameCode, headerChecksum, gameTitle, rom.name, rom.isDsiWareTitle)
+		}.getOrNull()
+	}
+
+	fun getRomInfo(rom: Rom, inputStream: InputStream): RomInfo? {
+		return runCatching {
+			val romHeader = ByteArray(0x200)
+			var totalRead = 0
+			while (totalRead < romHeader.size) {
+				val r = inputStream.read(romHeader, totalRead, romHeader.size - totalRead)
+				if (r <= 0) break
+				totalRead += r
+			}
+			if (totalRead < 0x200) {
+				return null
+			}
+
+			val gameTitle = romHeader.decodeToString(endIndex = 12)
+			val gameCode = romHeader.decodeToString(startIndex = 12, endIndex = 12 + 4)
+			val headerChecksum = Crc32.compute(romHeader)
+			RomInfo(gameCode, headerChecksum, gameTitle, rom.name, rom.isDsiWareTitle)
+		}.getOrNull()
+	}
+
+	internal fun byteArrayToInt(intData: ByteArray, offset: Int = 0): Int {
+		// NDS is little endian. Reorder bytes as needed
+		// Also make sure that every byte is treated as an unsigned integer
+		return  (intData[offset + 0].toInt() and 0xFF) or
+				(intData[offset + 1].toInt() and 0xFF).shl(8) or
+				(intData[offset + 2].toInt() and 0xFF).shl(16) or
+				(intData[offset + 3].toInt() and 0xFF).shl(24)
+	}
+
+	private fun byteArrayToShort(shortData: ByteArray, offset: Int = 0): UShort {
+		return ((shortData[offset + 0].toInt() and 0xFF) or
+				(shortData[offset + 1].toInt() and 0xFF).shl(8)).toUShort()
+	}
+
+	private fun paletteToArgb(palette: UShortArray): IntArray {
+		val argbPalette = IntArray(16)
+		for (i in 0 until 16) {
+			val color = palette[i]
+
+			val red =   getColor(color, 0).toInt() and 0xFF
+			val green = getColor(color, 5).toInt() and 0xFF
+			val blue =  getColor(color, 10).toInt() and 0xFF
+
+			val argbColor = Color.argb(if (i == 0) 0 else 255, red, green, blue)
+			argbPalette[i] = argbColor
+		}
+
+		return argbPalette
+	}
+
+	private fun processTiles(tileData: ByteArray, palette: IntArray): IntArray {
+		val image = IntArray(32 * 32)
+
+		for (ty in 0 until 4) {
+			for (tx in 0 until 4) {
+				for (i in 0 until 32) {
+					val data = tileData[(ty * 4 + tx) * 32 + i]
+					val first = ((data and 0xF0.toByte()).toInt() and 0xFF).shr(4)
+					val second = (data.toInt() and 0xF)
+
+					val outputX = tx * 8 + (i % 4) * 2
+					val outputY = ty * 8 + i / 4
+					val finalPos = outputY * 32 + outputX
+
+					if (second == 0)
+						image[finalPos] = 0
+					else
+						image[finalPos] = palette[second]
+
+					if (first == 0)
+						image[finalPos + 1] = 0
+					else
+						image[finalPos + 1] = palette[first]
+				}
+			}
+		}
+
+		return image
+	}
+
+	private fun iconToBitmapArray(icon: IntArray): ByteArray {
+		val bitmapArray = ByteArray(32 * 32 * 4)
+
+		for (i in icon.indices) {
+			val argbColor = icon[i]
+
+			bitmapArray[i * 4] = (argbColor.shr(16) and 0xFF).toByte()
+			bitmapArray[i * 4 + 1] = (argbColor.shr(8) and 0xFF).toByte()
+			bitmapArray[i * 4 + 2] = (argbColor and 0xFF).toByte()
+			bitmapArray[i * 4 + 3] = (argbColor.shr(24) and 0xFF).toByte()
+		}
+
+		return bitmapArray
+	}
+
+	private fun getColor(color: UShort, offset: Int): Byte {
+		val rawColor = (getRawColor(color, offset).toInt() and 0xFF)
+		return ((rawColor.shl(3) + rawColor.shr(2)) and 0xFF).toByte()
+	}
+
+	private fun getRawColor(color: UShort, offset: Int): Byte {
+		// Fetch 5 bits at the given offset
+		return (color.toInt().shr(offset) and 0x1F).toByte()
+	}
+
+	/**
+	 * Custom made way to skip bytes in an input stream. When dealing with zipped files, the internal implementations (ZipInputStream and BufferedInputStream) don't work very
+	 * well. This one seems to work when dealing with a BufferedInputStream
+	 */
+	private fun InputStream.skipStreamBytes(bytes: Long) {
+		val buffer = ByteArray(1024)
+		var remaining = bytes
+		do {
+			val toRead = min(remaining, buffer.size.toLong())
+			val read = this.read(buffer, 0, toRead.toInt())
+			if (read <= 0) {
+				break
+			}
+			remaining -= read
+		} while (remaining > 0)
+	}
+
+	private data class RequiredRomSection(
+		val offset: Int,
+		val size: Int,
+		val type: Type,
+	) {
+		enum class Type {
+			ARM9,
+			ARM7,
+			BANNER,
+		}
+	}
+
+	private class ForwardRomSectionReader(private val stream: InputStream) {
+		private val buffer = ByteArray(65536)
+		private var position = 0L
+
+		fun readSection(offset: Int, size: Int): ByteArray? {
+			if (offset < 0 || size < 0) {
+				return null
+			}
+			val targetOffset = offset.toLong()
+			if (targetOffset < position) {
+				return null
+			}
+			val endOffset = targetOffset + size
+			if (endOffset < targetOffset) {
+				return null
+			}
+
+			if (!skipTo(targetOffset)) {
+				return null
+			}
+
+			val section = ByteArray(size)
+			var totalRead = 0
+			while (totalRead < size) {
+				val read = stream.read(section, totalRead, size - totalRead)
+				if (read <= 0) {
+					return null
+				}
+				totalRead += read
+				position += read
+			}
+
+			return section
+		}
+
+		private fun skipTo(targetOffset: Long): Boolean {
+			var remaining = targetOffset - position
+			while (remaining > 0) {
+				val skipped = stream.skip(remaining)
+				if (skipped > 0) {
+					position += skipped
+					remaining -= skipped
+				} else {
+					val toRead = min(buffer.size.toLong(), remaining).toInt()
+					val read = stream.read(buffer, 0, toRead)
+					if (read <= 0) {
+						return false
+					}
+					position += read
+					remaining -= read
+				}
+			}
+			return true
+		}
+	}
+}

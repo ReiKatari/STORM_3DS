@@ -1,0 +1,344 @@
+package com.storm3ds.emulator.impl.layout
+
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.storm3ds.emulator.domain.model.Point
+import com.storm3ds.emulator.domain.model.Rect
+import com.storm3ds.emulator.domain.model.layout.Insets
+import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.domain.model.layout.LayoutConfiguration
+import com.storm3ds.emulator.domain.model.layout.LayoutDisplayPair
+import com.storm3ds.emulator.domain.model.layout.ScreenFold
+import com.storm3ds.emulator.domain.model.layout.ScreenLayout
+import com.storm3ds.emulator.domain.model.layout.UILayout
+import com.storm3ds.emulator.domain.model.layout.UILayoutVariant
+import com.storm3ds.emulator.domain.model.ui.Orientation
+import kotlin.time.Duration.Companion.milliseconds
+
+@OptIn(FlowPreview::class)
+class UILayoutProvider(private val defaultLayoutProvider: DefaultLayoutProvider) {
+
+    private val currentUiSize = MutableStateFlow<Point?>(null)
+    private val currentUiInsets = MutableStateFlow<Insets>(Insets.Zero)
+    private val currentOrientation = MutableStateFlow<Orientation?>(null)
+    private val currentFolds = MutableStateFlow<List<ScreenFold>>(emptyList())
+    private val currentDisplays = MutableStateFlow<LayoutDisplayPair?>(null)
+
+    private val currentLayoutVariant = combine(currentUiSize, currentUiInsets, currentOrientation, currentFolds, currentDisplays) { size, insets, orientation, folds, displays ->
+        if (size == null || size.x <= 0 || size.y <= 0 || orientation == null) {
+            null
+        } else {
+            val normalizedSize = if (
+                (orientation == Orientation.LANDSCAPE && size.x < size.y) ||
+                (orientation == Orientation.PORTRAIT && size.x > size.y)
+            ) {
+                Point(size.y, size.x)
+            } else {
+                size
+            }
+            val baseDisplays = displays ?: LayoutDisplayPair(
+                mainScreenDisplay = com.storm3ds.emulator.domain.model.layout.LayoutDisplay(
+                    id = 0,
+                    type = com.storm3ds.emulator.domain.model.layout.LayoutDisplay.Type.BUILT_IN,
+                    width = normalizedSize.x,
+                    height = normalizedSize.y,
+                ),
+                secondaryScreenDisplay = null,
+            )
+            val resolvedDisplays = baseDisplays.copy(
+                mainScreenDisplay = baseDisplays.mainScreenDisplay.copy(
+                    width = normalizedSize.x,
+                    height = normalizedSize.y,
+                )
+            )
+            UILayoutVariant(normalizedSize, insets, orientation, folds, resolvedDisplays)
+        }
+    }.distinctUntilChanged().debounce(32.milliseconds)
+
+    private val _currentLayoutConfiguration = MutableStateFlow<LayoutConfiguration?>(null)
+
+    val currentLayout = combine(_currentLayoutConfiguration, currentLayoutVariant) { layoutConfiguration, variant ->
+        if (layoutConfiguration == null || variant == null) {
+            null
+        } else {
+            variant to getOptimalLayoutForVariant(layoutConfiguration, variant)
+        }
+    }
+
+    fun updateCurrentOrientation(orientation: Orientation) {
+        currentOrientation.value = orientation
+    }
+
+    fun updateUiSize(width: Int, height: Int) {
+        currentUiSize.value = Point(width, height)
+    }
+
+    fun updateUiInsets(insets: Insets) {
+        currentUiInsets.value = insets
+    }
+
+    fun updateFolds(folds: List<ScreenFold>) {
+        currentFolds.value = folds
+    }
+
+    fun updateDisplays(displays: LayoutDisplayPair) {
+        currentDisplays.value = displays
+    }
+
+    fun setCurrentLayoutConfiguration(layoutConfiguration: LayoutConfiguration) {
+        _currentLayoutConfiguration.value = layoutConfiguration
+    }
+
+    private fun getOptimalLayoutForVariant(layoutConfiguration: LayoutConfiguration, variant: UILayoutVariant): UILayout {
+        val exactLayoutMatch = layoutConfiguration.layoutVariants[variant]
+        if (exactLayoutMatch != null) {
+            return populateLayoutIfRequired(exactLayoutMatch, variant)
+        }
+
+        val bestLayoutVariant = findSimilarLayoutVariant(layoutConfiguration, variant)
+        if (bestLayoutVariant != null) {
+            return populateLayoutIfRequired(bestLayoutVariant, variant)
+        }
+
+        return defaultLayoutProvider.buildDefaultLayout(variant, layoutConfiguration.id)
+    }
+
+    /**
+     * Populates the given [layout] with default components if they were not placed by the user.
+     */
+    private fun populateLayoutIfRequired(layout: UILayout, variant: UILayoutVariant): UILayout {
+        val mainScreenRequiresDefaultLayout = layout.mainScreenLayout.components.isNullOrEmpty()
+        val secondaryScreenRequiresDefaultLayout = layout.secondaryScreenLayout.components.isNullOrEmpty() && variant.displays.secondaryScreenDisplay != null
+        val requiresDefaultLayout = mainScreenRequiresDefaultLayout || secondaryScreenRequiresDefaultLayout
+
+        val baseLayout = if (requiresDefaultLayout) {
+            val defaultLayout = defaultLayoutProvider.buildDefaultLayout(variant, _currentLayoutConfiguration.value?.id)
+            val mainScreenLayout = if (mainScreenRequiresDefaultLayout) {
+                layout.mainScreenLayout.copy(components = defaultLayout.mainScreenLayout.components)
+            } else {
+                layout.mainScreenLayout
+            }
+            val secondaryScreenLayout = if (secondaryScreenRequiresDefaultLayout) {
+                layout.secondaryScreenLayout.copy(components = defaultLayout.secondaryScreenLayout.components)
+            } else {
+                layout.secondaryScreenLayout
+            }
+            UILayout(mainScreenLayout, secondaryScreenLayout)
+        } else {
+            layout
+        }
+
+        var resultLayout = baseLayout
+
+        if (variant.displays.secondaryScreenDisplay != null) {
+            val mainCleanComponents = resultLayout.mainScreenLayout.components?.filter {
+                it.component != LayoutComponent.BOTTOM_SCREEN
+            }
+            val secondaryCleanComponents = resultLayout.secondaryScreenLayout.components?.filter {
+                it.component != LayoutComponent.TOP_SCREEN
+            }
+            resultLayout = resultLayout.copy(
+                mainScreenLayout = resultLayout.mainScreenLayout.copy(components = mainCleanComponents),
+                secondaryScreenLayout = resultLayout.secondaryScreenLayout.copy(components = secondaryCleanComponents),
+            )
+        } else {
+            // Ensure buttons are populated if a layout profile contains screens but no touch controls on single-screen devices
+            val mainComponents = resultLayout.mainScreenLayout.components
+            val hasScreens = mainComponents?.any { it.isScreen() } == true
+            val hasButtons = mainComponents?.any { !it.isScreen() } == true
+            if (requiresDefaultLayout && hasScreens && !hasButtons) {
+                val defaultLayout = defaultLayoutProvider.buildDefaultLayout(variant, _currentLayoutConfiguration.value?.id)
+                val defaultButtons = defaultLayout.mainScreenLayout.components?.filter { !it.isScreen() } ?: emptyList()
+                val mergedComponents = (mainComponents ?: emptyList()) + defaultButtons
+                resultLayout = resultLayout.copy(
+                    mainScreenLayout = resultLayout.mainScreenLayout.copy(components = mergedComponents)
+                )
+            }
+        }
+
+        return resultLayout
+    }
+
+    /**
+     * Attempts to find a layout variant compatible with the given [variant]. If an exact match isn't available, this method falls back to any variant that shares the same orientation, ignoring size differences.
+     */
+    private fun findSimilarLayoutVariant(
+        layoutConfiguration: LayoutConfiguration,
+        variant: UILayoutVariant,
+    ): UILayout? {
+        if (variant.displays.secondaryScreenDisplay != null) {
+            // The device has 2 displays. Try to find an equal layout with the screens swapped. Strip remaining variant information since it only refers to the main screen
+            val swappedDisplayVariant = variant.copy(
+                uiSize = Point(),
+                orientation = Orientation.PORTRAIT,
+                folds = emptyList(),
+                displays = variant.displays.copy(
+                    mainScreenDisplay = variant.displays.secondaryScreenDisplay,
+                    secondaryScreenDisplay = variant.displays.mainScreenDisplay,
+                ),
+            )
+            val swappedDisplaysLayoutConfigurationVariants = layoutConfiguration.layoutVariants.map {
+                it.key.copy(uiSize = Point(), orientation = Orientation.PORTRAIT, folds = emptyList()) to it.value
+            }.toMap()
+            val swappedDisplayMatch = swappedDisplaysLayoutConfigurationVariants[swappedDisplayVariant]
+            if (swappedDisplayMatch != null) {
+                // Swap the layouts so that they match the original configuration
+                return swappedDisplayMatch.copy(
+                    mainScreenLayout = swappedDisplayMatch.secondaryScreenLayout,
+                    secondaryScreenLayout = swappedDisplayMatch.mainScreenLayout,
+                )
+            }
+
+            // Try to find a similar secondary display configuration (same display type and size). Strip identifying information to compare display specs
+            val strippedDisplayInformation = variant.displays.copy(
+                secondaryScreenDisplay = variant.displays.secondaryScreenDisplay.copy(id = -1),
+            )
+            val strippedLayoutConfigurationVariants = layoutConfiguration.layoutVariants.map {
+                val strippedDisplays = it.key.displays.copy(
+                    secondaryScreenDisplay = it.key.displays.secondaryScreenDisplay?.copy(id = -1),
+                )
+                it.key.copy(displays = strippedDisplays) to it.value
+            }.toMap()
+
+            val simplifiedVariant = variant.copy(displays = strippedDisplayInformation)
+            val equivalentMatch = strippedLayoutConfigurationVariants[simplifiedVariant]
+            if (equivalentMatch != null) {
+                return equivalentMatch
+            }
+
+            // Find a layout without a secondary display but with a comparable main screen configuration. Reuse the main screen config, but adjust screen components to match
+            // the default layout
+            val noSecondaryDisplayVariant = variant.copy(displays = variant.displays.copy(secondaryScreenDisplay = null))
+            val noSecondaryDisplayMatch = layoutConfiguration.layoutVariants[noSecondaryDisplayVariant]
+            if (noSecondaryDisplayMatch != null) {
+                // Copy screen layouts from the default layout
+                val defaultLayout = defaultLayoutProvider.buildDefaultLayout(variant)
+                val mainScreenLayoutComponents = noSecondaryDisplayMatch.mainScreenLayout.components.orEmpty().toMutableList().apply {
+                    removeAll { it.isScreen() }
+                    defaultLayout.mainScreenLayout.components?.filter { it.isScreen() }?.let {
+                        addAll(0, it)
+                    }
+                }
+                val mainScreenLayout = noSecondaryDisplayMatch.mainScreenLayout.copy(components = mainScreenLayoutComponents)
+                return noSecondaryDisplayMatch.copy(
+                    mainScreenLayout = mainScreenLayout,
+                    secondaryScreenLayout = defaultLayout.secondaryScreenLayout,
+                )
+            }
+        }
+
+        val bestVariant = layoutConfiguration.layoutVariants.entries.firstOrNull {
+            it.key.orientation == variant.orientation && it.key.uiSize == variant.uiSize
+        } ?: layoutConfiguration.layoutVariants.entries.firstOrNull {
+            it.key.orientation == variant.orientation
+        }
+        if (bestVariant != null) {
+            val sourceVariant = bestVariant.key
+            val sourceLayout = bestVariant.value
+            val defaultLayout = defaultLayoutProvider.buildDefaultLayout(variant)
+
+            if (sourceVariant.orientation == variant.orientation && sourceVariant.uiSize == variant.uiSize && sourceVariant.uiInsets == variant.uiInsets) {
+                // Ensure screen components are valid and not corrupted
+                var hasCorruptedScreen = false
+                val sanitizedComponents = sourceLayout.mainScreenLayout.components?.map { comp ->
+                    if (comp.isScreen()) {
+                        val defScreen = defaultLayout.mainScreenLayout.components?.firstOrNull { it.component == comp.component }
+                        if (defScreen != null && (
+                                comp.rect.width < defScreen.rect.width * 0.75f ||
+                                comp.rect.height < defScreen.rect.height * 0.75f ||
+                                comp.rect.right > variant.uiSize.x + 4 ||
+                                comp.rect.bottom > variant.uiSize.y + 4
+                            )
+                        ) {
+                            hasCorruptedScreen = true
+                            comp.copy(rect = defScreen.rect)
+                        } else {
+                            comp
+                        }
+                    } else {
+                        comp
+                    }
+                }
+                if (hasCorruptedScreen && sanitizedComponents != null) {
+                    return sourceLayout.copy(mainScreenLayout = sourceLayout.mainScreenLayout.copy(components = sanitizedComponents))
+                }
+                return sourceLayout
+            }
+            if (sourceVariant.orientation == variant.orientation && sourceVariant.uiSize == variant.uiSize) {
+                val rotatedInsets = with(sourceVariant.uiInsets) {
+                    Insets(left = right, top = bottom, right = left, bottom = top)
+                }
+                if (rotatedInsets == variant.uiInsets) {
+                    val offset = -sourceVariant.uiInsets.left + sourceVariant.uiInsets.right
+                    val offsetComponents = sourceLayout.mainScreenLayout.components?.map {
+                        val maxX = (variant.uiSize.x - it.rect.width).coerceAtLeast(0)
+                        it.copy(rect = it.rect.copy(x = (it.rect.x + offset).coerceIn(0, maxX)))
+                    }
+                    return sourceLayout.copy(mainScreenLayout = sourceLayout.mainScreenLayout.copy(components = offsetComponents))
+                }
+                return sourceLayout
+            }
+
+            // Proportional scaling and bounds clamping within the same orientation
+            val scaleX = if (sourceVariant.uiSize.x > 0) variant.uiSize.x.toFloat() / sourceVariant.uiSize.x else 1f
+            val scaleY = if (sourceVariant.uiSize.y > 0) variant.uiSize.y.toFloat() / sourceVariant.uiSize.y else 1f
+            val targetW = variant.uiSize.x.coerceAtLeast(100)
+            val targetH = variant.uiSize.y.coerceAtLeast(100)
+
+            val scaledComponents = sourceLayout.mainScreenLayout.components?.map { comp ->
+                if (comp.isScreen()) {
+                    var scaledWidth = (comp.rect.width * scaleX).toInt().coerceIn(100, targetW)
+                    var scaledHeight = (scaledWidth / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
+                    if (scaledHeight > targetH) {
+                        scaledHeight = targetH.coerceAtLeast(75)
+                        scaledWidth = (scaledHeight * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceIn(100, targetW)
+                    } else if (scaledHeight < 75) {
+                        scaledHeight = 75
+                        scaledWidth = (scaledHeight * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceIn(100, targetW)
+                    }
+                    val maxX = (targetW - scaledWidth).coerceAtLeast(0)
+                    val maxY = (targetH - scaledHeight).coerceAtLeast(0)
+                    val scaledX = (comp.rect.x * scaleX).toInt().coerceIn(0, maxX)
+                    val scaledY = (comp.rect.y * scaleY).toInt().coerceIn(0, maxY)
+                    comp.copy(rect = Rect(scaledX, scaledY, scaledWidth, scaledHeight))
+                } else {
+                    val compW = comp.rect.width.coerceIn(20, targetW)
+                    val compH = comp.rect.height.coerceIn(20, targetH)
+                    val maxX = (targetW - compW).coerceAtLeast(0)
+                    val maxY = (targetH - compH).coerceAtLeast(0)
+                    val scaledX = (comp.rect.x * scaleX).toInt().coerceIn(0, maxX)
+                    val scaledY = (comp.rect.y * scaleY).toInt().coerceIn(0, maxY)
+                    comp.copy(rect = Rect(scaledX, scaledY, compW, compH))
+                }
+            }
+            return sourceLayout.copy(mainScreenLayout = sourceLayout.mainScreenLayout.copy(components = scaledComponents))
+        }
+
+        return null
+    }
+
+    private fun getLayoutBoundingRect(layout: ScreenLayout): Rect? {
+        if (layout.components.isNullOrEmpty()) {
+            return null
+        }
+
+        var minX = Int.MAX_VALUE
+        var minY = Int.MAX_VALUE
+        var maxX = 0
+        var maxY = 0
+
+        layout.components.forEach {
+            minX = minOf(minX, it.rect.x)
+            minY = minOf(minY, it.rect.y)
+            maxX = maxOf(maxX, it.rect.right)
+            maxY = maxOf(maxY, it.rect.bottom)
+        }
+
+        val boundsWidth = maxX - minX
+        val boundsHeight = maxY - minY
+        return Rect(minX, minY, boundsWidth, boundsHeight)
+    }
+}

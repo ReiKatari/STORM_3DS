@@ -1,0 +1,24 @@
+package com.storm3ds.emulator.database.daos
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.Query
+import com.storm3ds.emulator.database.entities.CheatFolderEntity
+
+@Dao
+interface CheatFolderDao {
+    @Insert
+    suspend fun insertCheatFolder(cheatFolder: CheatFolderEntity): Long
+
+    @Insert
+    suspend fun insertCheatFolders(cheatFolders: List<CheatFolderEntity>): List<Long>
+
+    @Query("SELECT * FROM cheat_folder WHERE game_id = :gameId")
+    suspend fun getFoldersForGame(gameId: Long): List<CheatFolderEntity>
+
+    @Query("DELETE FROM cheat_folder WHERE id NOT IN (SELECT DISTINCT cheat_folder_id FROM cheat)")
+    suspend fun deleteEmptyFolders()
+
+    @Query("DELETE FROM cheat_folder")
+    suspend fun deleteAllCheatFolders()
+}

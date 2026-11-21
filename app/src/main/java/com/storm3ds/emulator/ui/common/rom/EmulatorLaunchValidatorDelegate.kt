@@ -1,0 +1,324 @@
+package com.storm3ds.emulator.ui.common.rom
+
+import android.content.Intent
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.domain.model.ConfigurationDirResult
+import com.storm3ds.emulator.domain.model.ConsoleType
+import com.storm3ds.emulator.domain.model.VideoRenderer
+import com.storm3ds.emulator.domain.model.emulator.validation.FirmwareLaunchPreconditionCheckResult
+import com.storm3ds.emulator.domain.model.emulator.validation.RomLaunchPreconditionCheckResult
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.ui.common.rom.model.LaunchValidationResult
+import com.storm3ds.emulator.ui.settings.SettingsActivity
+
+class EmulatorLaunchValidatorDelegate(
+    private val context: ComponentActivity,
+    private val callback: Callback,
+) {
+
+    private val viewModel by context.viewModels<EmulatorLaunchValidationViewModel>()
+
+    private val firmwareSettingsLauncher = context.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        viewModel.onReturnFromFirmwareSettings()
+    }
+
+    init {
+        context.lifecycleScope.launch {
+            context.lifecycle.repeatOnLifecycle(Lifecycle.State.CREATED) {
+                viewModel.romValidationResult.collect {
+                    when (it) {
+                        is LaunchValidationResult.Firmware -> {
+                            when (it.result) {
+                                is FirmwareLaunchPreconditionCheckResult.Success -> callback.onFirmwareValidated(it.result.consoleType)
+                                is FirmwareLaunchPreconditionCheckResult.BiosConfigurationIncorrect -> {
+                                    showIncorrectConfigurationDirectoryDialogForFirmware(it.result.configurationDirectoryResult)
+                                }
+                                is FirmwareLaunchPreconditionCheckResult.RendererUnsupported -> {
+                                    showRendererUnsupportedDialog(it.result.renderer)
+                                }
+                                is FirmwareLaunchPreconditionCheckResult.RendererInitFailed -> {
+                                    showRendererInitFailedDialog(it.result.renderer)
+                                }
+                            }
+                        }
+                        is LaunchValidationResult.Rom -> {
+                            when (it.result) {
+                                is RomLaunchPreconditionCheckResult.Success -> callback.onRomValidated(it.result.rom)
+                                is RomLaunchPreconditionCheckResult.RomEncrypted -> showRomEncryptedDialog(it.result.rom)
+                                is RomLaunchPreconditionCheckResult.DSiWareTitleValidationFailed -> showDsiWareTitleLoadIssueDialog(it.result.reason)
+                                is RomLaunchPreconditionCheckResult.BiosConfigurationIncorrect -> {
+                                    showIncorrectConfigurationDirectoryDialogForRom(it.result.configurationDirectoryResult)
+                                }
+                                is RomLaunchPreconditionCheckResult.RendererUnsupported -> {
+                                    showRendererUnsupportedDialog(it.result.renderer)
+                                }
+                                is RomLaunchPreconditionCheckResult.RendererInitFailed -> {
+                                    showRendererInitFailedDialog(it.result.renderer)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun validateRom(rom: Rom) {
+        viewModel.validateRomForLaunch(rom)
+    }
+
+    fun validateFirmware(consoleType: ConsoleType) {
+        viewModel.validateFirmwareForLaunch(consoleType)
+    }
+
+    private fun showIncorrectConfigurationDirectoryDialogForFirmware(configurationDirResult: ConfigurationDirResult) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.firmware_launch_failed)
+            .setMessage(R.string.firmware_launch_bad_setup)
+            .setPositiveButton(R.string.settings) { _, _ ->
+                val intent = Intent(context, SettingsActivity::class.java).apply {
+                    putExtra(SettingsActivity.KEY_ENTRY_POINT, SettingsActivity.CUSTOM_FIRMWARE_ENTRY_POINT)
+                }
+                firmwareSettingsLauncher.launch(intent)
+            }
+            .setNeutralButton(R.string.delete_bios_paths) { _, _ ->
+                viewModel.clearBiosDirectoriesAndRetry()
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun showIncorrectConfigurationDirectoryDialogForRom(configurationDirResult: ConfigurationDirResult) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rom_launch_failed)
+            .setMessage(R.string.rom_launch_custom_bios_firmware_bad_setup)
+            .setPositiveButton(R.string.settings) { _, _ ->
+                val intent = Intent(context, SettingsActivity::class.java).apply {
+                    putExtra(SettingsActivity.KEY_ENTRY_POINT, SettingsActivity.CUSTOM_FIRMWARE_ENTRY_POINT)
+                }
+                firmwareSettingsLauncher.launch(intent)
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun showDsiWareTitleLoadIssueDialog(reason: RomLaunchPreconditionCheckResult.DSiWareTitleValidationFailed.Reason) {
+        val message = when (reason) {
+            RomLaunchPreconditionCheckResult.DSiWareTitleValidationFailed.Reason.NandError -> context.getString(R.string.failed_launch_dsiware_title_check_failed)
+            RomLaunchPreconditionCheckResult.DSiWareTitleValidationFailed.Reason.RomParseError -> context.getString(R.string.failed_launch_dsiware_title_rom_failed)
+            RomLaunchPreconditionCheckResult.DSiWareTitleValidationFailed.Reason.TitleNotInstalled -> context.getString(R.string.failed_launch_dsiware_title_not_installed)
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.failed_launch_dsiware_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.ok) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener {
+                callback.onValidationAborted()
+            }
+            .show()
+    }
+
+    private fun showInvalidDirectoryAccessDialog() {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.error_invalid_directory)
+            .setMessage(R.string.error_invalid_directory_description)
+            .setPositiveButton(R.string.ok, null)
+            .setOnDismissListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun showRendererUnsupportedDialog(renderer: VideoRenderer) {
+        val rendererLabel = when (renderer) {
+            VideoRenderer.SOFTWARE -> "Software"
+            VideoRenderer.OPENGL -> "OpenGL"
+            VideoRenderer.VULKAN -> "Vulkan"
+            VideoRenderer.COMPUTE -> "Compute"
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.renderer_unsupported_title)
+            .setMessage(context.getString(R.string.renderer_unsupported_message, rendererLabel))
+            .setPositiveButton(R.string.settings) { _, _ ->
+                val intent = Intent(context, SettingsActivity::class.java)
+                firmwareSettingsLauncher.launch(intent)
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun showRendererInitFailedDialog(renderer: VideoRenderer) {
+        val rendererLabel = when (renderer) {
+            VideoRenderer.SOFTWARE -> "Software"
+            VideoRenderer.OPENGL -> "OpenGL"
+            VideoRenderer.VULKAN -> "Vulkan"
+            VideoRenderer.COMPUTE -> "Compute"
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.renderer_init_failed_title)
+            .setMessage(context.getString(R.string.renderer_init_failed_message, rendererLabel))
+            .setPositiveButton(R.string.settings) { _, _ ->
+                val intent = Intent(context, SettingsActivity::class.java)
+                firmwareSettingsLauncher.launch(intent)
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun showRomEncryptedDialog(rom: Rom) {
+        if (context.isFinishing || context.isDestroyed) {
+            return
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.decrypt_rom_title)
+            .setMessage(R.string.decrypt_rom_replace_description)
+            .setPositiveButton(R.string.decrypt_rom_replace_confirm) { _, _ ->
+                startRomDecryptionWithProgressDialog(rom)
+            }
+            .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
+            .setOnCancelListener { callback.onValidationAborted() }
+            .show()
+    }
+
+    private fun startRomDecryptionWithProgressDialog(rom: Rom) {
+        if (context.isFinishing || context.isDestroyed) {
+            return
+        }
+
+        val density = context.resources.displayMetrics.density
+        val padH = (24 * density).toInt()
+        val padV = (16 * density).toInt()
+        val container = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(padH, padV, padH, padV)
+        }
+        val statusText = android.widget.TextView(context).apply {
+            text = context.getString(R.string.decrypt_rom_progress)
+            textSize = 14f
+        }
+        val progressBar = android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = false
+            max = 100
+            progress = 0
+            setPadding(0, (12 * density).toInt(), 0, (4 * density).toInt())
+        }
+        val percentText = android.widget.TextView(context).apply {
+            text = "0%"
+            textSize = 13f
+            gravity = android.view.Gravity.END
+        }
+        container.addView(statusText)
+        container.addView(progressBar)
+        container.addView(percentText)
+
+        val progressDialog = AlertDialog.Builder(context)
+            .setTitle(R.string.decrypt_rom_title)
+            .setView(container)
+            .setCancelable(false)
+            .create()
+
+        if (!context.isFinishing && !context.isDestroyed) {
+            progressDialog.show()
+        }
+
+        context.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = com.storm3ds.emulator.MelonRomDecryptor.decryptRom(
+                context,
+                rom.uri,
+                object : com.storm3ds.emulator.MelonRomDecryptor.DecryptProgressCallback {
+                    override fun onProgress(current: Int, total: Int) {
+                        val percent = if (total > 0) ((current.toLong() * 100L) / total).toInt().coerceIn(0, 100) else 0
+                        context.runOnUiThread {
+                            if (!context.isFinishing && !context.isDestroyed && progressDialog.isShowing) {
+                                progressBar.progress = percent
+                                percentText.text = "$percent%"
+                            }
+                        }
+                    }
+                },
+            )
+
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (!context.isFinishing && !context.isDestroyed && progressDialog.isShowing) {
+                    runCatching { progressDialog.dismiss() }
+                }
+                if (context.isFinishing || context.isDestroyed) {
+                    return@withContext
+                }
+                showRomDecryptionResultDialog(rom, result)
+            }
+        }
+    }
+
+    private fun showRomDecryptionResultDialog(
+        rom: Rom,
+        result: com.storm3ds.emulator.MelonRomDecryptor.DecryptResult,
+    ) {
+        if (context.isFinishing || context.isDestroyed) {
+            return
+        }
+
+        if (
+            result == com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.SUCCESS ||
+            result == com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ALREADY_DECRYPTED
+        ) {
+            AlertDialog.Builder(context)
+                .setTitle(R.string.decrypt_rom_result_success_title)
+                .setMessage(R.string.decrypt_rom_result_success_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.decrypt_rom_launch_now) { _, _ ->
+                    validateRom(rom)
+                }
+                .setNegativeButton(R.string.cancel) { _, _ ->
+                    callback.onValidationAborted()
+                }
+                .setOnCancelListener {
+                    callback.onValidationAborted()
+                }
+                .show()
+        } else {
+            val reasonRes = when (result) {
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_READING_FILE -> R.string.decrypt_rom_err_read
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_WRITING_FILE -> R.string.decrypt_rom_err_write
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_NOT_DSI_ROM -> R.string.decrypt_rom_err_not_dsi
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_FILE_TOO_SMALL -> R.string.decrypt_rom_err_too_small
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_MODCRYPT_AREA_OUT_OF_BOUNDS -> R.string.decrypt_rom_err_bounds
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ERROR_VALIDATION_FAILED -> R.string.decrypt_rom_err_validation
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.SUCCESS,
+                com.storm3ds.emulator.MelonRomDecryptor.DecryptResult.ALREADY_DECRYPTED -> R.string.decrypt_rom_err_read
+            }
+            val reasonText = context.getString(reasonRes)
+            AlertDialog.Builder(context)
+                .setTitle(R.string.decrypt_rom_result_error_title)
+                .setMessage(context.getString(R.string.decrypt_rom_result_error_message, reasonText))
+                .setCancelable(false)
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    callback.onValidationAborted()
+                }
+                .setOnCancelListener {
+                    callback.onValidationAborted()
+                }
+                .show()
+        }
+    }
+
+    interface Callback {
+        fun onRomValidated(rom: Rom)
+        fun onFirmwareValidated(consoleType: ConsoleType)
+        fun onValidationAborted()
+    }
+}

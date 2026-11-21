@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string-array name="theme_options" tools:ignore="InconsistentArrays">
+        <item>STORM NIGHT (Тёмная OLED)</item>
+        <item>STORM DAY (Светлая)</item>
+        <item>STORM MIDNIGHT (Фиолетовый)</item>
+        <item>STORM CYBERPUNK (В стиле Cyberpunk 2077)</item>
+        <item>STORM GOTHIC (Черно-красная)</item>
+        <item>STORM MATRIX (Изумрудный кибер-код)</item>
+        <item>STORM SOLAR (Солнечный янтарь и плазма)</item>
+        <item>STORM SAKURA (Цветущая сакура / Светлая)</item>
+    </string-array>
+</resources>

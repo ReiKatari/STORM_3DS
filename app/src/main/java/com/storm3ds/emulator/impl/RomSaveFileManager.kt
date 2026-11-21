@@ -1,0 +1,214 @@
+package com.storm3ds.emulator.impl
+
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import javax.inject.Inject
+import javax.inject.Singleton
+import com.storm3ds.emulator.common.uridelegates.UriHandler
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.domain.repositories.SettingsRepository
+
+@Singleton
+class RomSaveFileManager @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+    private val settingsRepository: SettingsRepository,
+    private val uriHandler: UriHandler,
+) {
+    companion object {
+        private const val MAX_PLAUSIBLE_SAVE_FILE_SIZE = 64L * 1024L * 1024L
+    }
+
+    data class SharedSaveFile(
+        val uri: Uri,
+        val fileName: String,
+    )
+
+    fun hasSaveFile(rom: Rom): Boolean {
+        return runCatching {
+            val baseName = rom.fileName.substringBeforeLast('.')
+            val extRoot = runCatching { android.os.Environment.getExternalStorageDirectory() }.getOrNull()
+            if (extRoot != null) {
+                val savesDir = File(extRoot, "STORM 3DS/saves")
+                if (File(savesDir, "$baseName.sav").exists() ||
+                    File(savesDir, "$baseName.srm").exists() ||
+                    File(savesDir, "$baseName.dsv").exists()) {
+                    return true
+                }
+            }
+            val saveRootDir = runCatching { settingsRepository.getSaveFileDirectory(rom) }.getOrNull()
+            if (saveRootDir != null) {
+                val directFile = com.storm3ds.emulator.utils.FileUtils.resolveDirectFileFromExternalStorageUri(saveRootDir)
+                if (directFile != null && directFile.isDirectory) {
+                    if (File(directFile, "$baseName.sav").exists() ||
+                        File(directFile, "$baseName.srm").exists() ||
+                        File(directFile, "$baseName.dsv").exists()) {
+                        return true
+                    }
+                }
+            }
+            findExistingSaveFile(rom) != null
+        }.getOrDefault(false)
+    }
+
+    fun prepareShareFile(rom: Rom): SharedSaveFile? {
+        val sourceDocument = findExistingSaveFile(rom) ?: return null
+        val sourceUri = sourceDocument.uri
+        val fileName = sourceDocument.name ?: resolveSaveFileName(rom)
+        val shareDirectory = File(context.cacheDir, "shared_saves").apply {
+            if (!isDirectory) {
+                mkdirs()
+            }
+        }
+        val shareFile = File(shareDirectory, fileName)
+
+        openInputStream(sourceUri).use { input ->
+            FileOutputStream(shareFile, false).use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        val shareUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            shareFile,
+        )
+
+        return SharedSaveFile(shareUri, fileName)
+    }
+
+    fun importSaveFile(rom: Rom, sourceUri: Uri) {
+        require(isPlausibleSaveFile(sourceUri)) {
+            "Selected file is not a plausible DS save file"
+        }
+
+        val targetUri = getOrCreateSaveFile(rom).uri
+        if (sourceUri == targetUri) {
+            return
+        }
+
+        // Fix #209: Staged save import prevents zeroing/truncation if source stream fails or aborts
+        val tempFile = java.io.File(context.cacheDir, "save_import_stage_${System.currentTimeMillis()}.tmp")
+        try {
+            tempFile.outputStream().use { tempOut ->
+                openInputStream(sourceUri).use { input ->
+                    input.copyTo(tempOut)
+                }
+            }
+
+            require(tempFile.length() > 0) {
+                "Imported save data is empty (0 bytes)"
+            }
+
+            // Write verified non-empty staging data to target destination
+            tempFile.inputStream().use { stageIn ->
+                openOutputStream(targetUri).use { output ->
+                    stageIn.copyTo(output)
+                    output.flush()
+                }
+            }
+        } finally {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+        }
+    }
+
+    fun isPlausibleSaveFile(uri: Uri): Boolean {
+        val knownLength = getKnownLength(uri)
+        if (knownLength != null) {
+            return knownLength in 1..MAX_PLAUSIBLE_SAVE_FILE_SIZE
+        }
+
+        var totalBytes = 0L
+        openInputStream(uri).use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) {
+                    break
+                }
+                totalBytes += read
+                if (totalBytes > MAX_PLAUSIBLE_SAVE_FILE_SIZE) {
+                    return false
+                }
+            }
+        }
+
+        return totalBytes > 0
+    }
+
+    private fun findExistingSaveFile(rom: Rom): DocumentFile? {
+        val rootDocument = getSaveRootDocument(rom)
+        val saveFileName = resolveSaveFileName(rom)
+        return rootDocument.findFile(saveFileName) ?: rootDocument.findFile("$saveFileName.bin")
+    }
+
+    private fun getOrCreateSaveFile(rom: Rom): DocumentFile {
+        val rootDocument = getSaveRootDocument(rom)
+        val saveFileName = resolveSaveFileName(rom)
+        rootDocument.findFile(saveFileName)?.let { return it }
+        rootDocument.findFile("$saveFileName.bin")?.let { binDoc ->
+            runCatching { binDoc.renameTo(saveFileName) }
+            return rootDocument.findFile(saveFileName) ?: binDoc
+        }
+
+        val rootUri = rootDocument.uri
+        if (rootUri.scheme == "file" && !rootUri.path.isNullOrBlank()) {
+            val saveFile = File(File(rootUri.path!!).apply { mkdirs() }, saveFileName)
+            runCatching { saveFile.createNewFile() }
+            if (saveFile.exists()) {
+                return DocumentFile.fromFile(saveFile)
+            }
+        }
+
+        val createdFile = rootDocument.createFile("*/*", saveFileName)
+        return createdFile
+            ?: rootDocument.findFile(saveFileName)
+            ?: rootDocument.findFile("$saveFileName.bin")
+            ?: throw IllegalStateException("Could not create save file at ${rootDocument.uri}")
+    }
+
+    private fun getSaveRootDocument(rom: Rom): DocumentFile {
+        val rootDirUri = settingsRepository.getSaveFileDirectory(rom)
+        return uriHandler.getUriTreeDocument(rootDirUri)
+            ?: throw IllegalStateException("Could not open save directory: $rootDirUri")
+    }
+
+    private fun resolveSaveFileName(rom: Rom): String {
+        val romFileName = uriHandler.getUriDocument(rom.uri)?.name
+            ?: throw IllegalStateException("Could not determine ROM file name: ${rom.uri}")
+        val saveExtension = if (settingsRepository.useSrmExtensionForSaveFiles()) "srm" else "sav"
+        return romFileName.replaceAfterLast('.', saveExtension, "$romFileName.$saveExtension")
+    }
+
+    private fun getKnownLength(uri: Uri): Long? {
+        if (uri.scheme == "file") {
+            return uri.path?.let(::File)?.length()
+        }
+
+        return context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+            descriptor.length.takeIf { it >= 0 }
+        }
+    }
+
+    private fun openInputStream(uri: Uri): InputStream = if (uri.scheme == "file") {
+        FileInputStream(uri.path?.let(::File) ?: throw IllegalStateException("Invalid file URI: $uri"))
+    } else {
+        context.contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("Could not open input stream: $uri")
+    }
+
+    private fun openOutputStream(uri: Uri) = if (uri.scheme == "file") {
+        FileOutputStream(uri.path?.let(::File) ?: throw IllegalStateException("Invalid file URI: $uri"), false)
+    } else {
+        context.contentResolver.openOutputStream(uri, "wt")
+            ?: throw IllegalStateException("Could not open output stream: $uri")
+    }
+}

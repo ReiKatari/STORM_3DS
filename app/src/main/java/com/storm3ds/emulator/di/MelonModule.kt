@@ -1,0 +1,309 @@
+package com.storm3ds.emulator.di
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.Build
+import android.os.Vibrator
+import androidx.core.content.getSystemService
+import com.google.gson.Gson
+import com.squareup.picasso.Picasso
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.Json
+import com.storm3ds.emulator.common.romprocessors.RomFileProcessorFactory
+import com.storm3ds.emulator.common.uridelegates.UriHandler
+import com.storm3ds.emulator.common.vibration.Api26VibratorDelegate
+import com.storm3ds.emulator.common.vibration.OldVibratorDelegate
+import com.storm3ds.emulator.common.vibration.TouchVibrator
+import com.storm3ds.emulator.database.MelonDatabase
+import com.storm3ds.emulator.database.daos.RetroAchievementsDao
+import com.storm3ds.emulator.domain.repositories.*
+import com.storm3ds.emulator.domain.services.ConfigurationDirectoryVerifier
+import com.storm3ds.emulator.domain.services.DSiNandManager
+import com.storm3ds.emulator.domain.services.EmulatorLaunchPreconditionChecker
+import com.storm3ds.emulator.impl.AndroidDSiNandManager
+import com.storm3ds.emulator.impl.*
+import com.storm3ds.emulator.impl.input.ControllerConfigurationFactory
+import com.storm3ds.emulator.impl.input.DefaultControllerConfigurationFactory
+import com.storm3ds.emulator.impl.layout.DeviceLayoutDisplayMapper
+import com.storm3ds.emulator.impl.layout.DefaultLayoutProvider
+import com.storm3ds.emulator.impl.layout.UILayoutProvider
+import com.storm3ds.emulator.impl.layout.devicemapper.AynThorLayoutDisplayMapper
+import com.storm3ds.emulator.impl.layout.devicemapper.DefaultLayoutDisplayMapper
+import com.storm3ds.emulator.impl.retroachievements.offline.AndroidKeystoreOfflineLedgerSigner
+import com.storm3ds.emulator.impl.retroachievements.offline.AndroidOfflineLedgerStorage
+import com.storm3ds.emulator.impl.retroachievements.offline.AndroidOfflinePrefetchCacheStorage
+import com.storm3ds.emulator.impl.retroachievements.offline.OfflineLedgerRepository
+import com.storm3ds.emulator.impl.retroachievements.offline.OfflineLedgerSigner
+import com.storm3ds.emulator.impl.retroachievements.offline.OfflineLedgerStorage
+import com.storm3ds.emulator.impl.retroachievements.offline.OfflinePrefetchCacheRepository
+import com.storm3ds.emulator.impl.retroachievements.offline.OfflinePrefetchCacheStorage
+import com.storm3ds.emulator.impl.retroachievements.offline.RAApiSmartSyncRaClient
+import com.storm3ds.emulator.impl.retroachievements.offline.SmartSyncEngine
+import com.storm3ds.emulator.common.retroachievements.RetroAchievementsEndpointProvider
+import com.storm3ds.emulator.impl.romprocessors.Api24RomFileProcessorFactory
+import com.storm3ds.emulator.ui.romdetails.RomDetailsUiMapper
+import me.magnum.rcheevosapi.RAApi
+import me.magnum.rcheevosapi.RAUserAuthStore
+import me.magnum.rcheevosapi.RAUserProfileStore
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object MelonModule {
+
+    @Provides
+    fun provideControllerConfigurationFactory(): ControllerConfigurationFactory {
+        return DefaultControllerConfigurationFactory()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(@ApplicationContext context: Context, sharedPreferences: SharedPreferences, controllerConfigurationFactory: ControllerConfigurationFactory, json: Json, uriHandler: UriHandler, settingsBackupManager: SettingsBackupManager, retroArchShaderLibraryManager: RetroArchShaderLibraryManager): SettingsRepository {
+        return SharedPreferencesSettingsRepository(context, sharedPreferences, controllerConfigurationFactory, json, uriHandler, CoroutineScope(Dispatchers.IO), settingsBackupManager, retroArchShaderLibraryManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSettingsBackupManager(@ApplicationContext context: Context, sharedPreferences: SharedPreferences, database: MelonDatabase): SettingsBackupManager {
+        return SettingsBackupManager(context, sharedPreferences, database)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRomsRepository(@ApplicationContext context: Context, gson: Gson, settingsRepository: SettingsRepository, romFileProcessorFactory: RomFileProcessorFactory, uriHandler: UriHandler, settingsBackupManager: SettingsBackupManager): RomsRepository {
+        return FileSystemRomsRepository(context, gson, settingsRepository, romFileProcessorFactory, uriHandler, settingsBackupManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCheatsRepository(@ApplicationContext context: Context, database: MelonDatabase, settingsBackupManager: SettingsBackupManager): CheatsRepository {
+        return RoomCheatsRepository(context, database, settingsBackupManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNdsRomCache(@ApplicationContext context: Context, settingsRepository: SettingsRepository): NdsRomCache {
+        return NdsRomCache(context, settingsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLayoutsRepository(@ApplicationContext context: Context, gson: Gson, settingsBackupManager: SettingsBackupManager): LayoutsRepository {
+        return InternalLayoutsRepository(context, gson, settingsBackupManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBackgroundsRepository(@ApplicationContext context: Context, gson: Gson, settingsBackupManager: SettingsBackupManager): BackgroundRepository {
+        return InternalBackgroundsRepository(context, gson, settingsBackupManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSaveStatesRepository(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context, settingsRepository: SettingsRepository, saveStateScreenshotProvider: SaveStateScreenshotProvider, uriHandler: UriHandler): SaveStatesRepository {
+        return FileSystemSaveStatesRepository(context, settingsRepository, saveStateScreenshotProvider, uriHandler)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDSiWareMetadataRepository(): DSiWareMetadataRepository {
+        return NusDSiWareMetadataRepository()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetroAchievementsRepository(
+        raApi: RAApi,
+        retroAchievementsDao: RetroAchievementsDao,
+        raUserAuthStore: RAUserAuthStore,
+        raUserProfileStore: RAUserProfileStore,
+        sharedPreferences: SharedPreferences,
+        endpointProvider: RetroAchievementsEndpointProvider,
+        @ApplicationContext context: Context,
+    ): RetroAchievementsRepository {
+        return AndroidRetroAchievementsRepository(
+            raApi,
+            retroAchievementsDao,
+            raUserAuthStore,
+            raUserProfileStore,
+            sharedPreferences,
+            context,
+            endpointProvider,
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideOfflineLedgerSigner(): OfflineLedgerSigner {
+        return AndroidKeystoreOfflineLedgerSigner()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOfflineLedgerStorage(storage: AndroidOfflineLedgerStorage): OfflineLedgerStorage {
+        return storage
+    }
+
+    @Provides
+    @Singleton
+    fun provideOfflinePrefetchCacheStorage(storage: AndroidOfflinePrefetchCacheStorage): OfflinePrefetchCacheStorage {
+        return storage
+    }
+
+    @Provides
+    @Singleton
+    fun provideOfflinePrefetchCacheRepository(storage: OfflinePrefetchCacheStorage): OfflinePrefetchCacheRepository {
+        return OfflinePrefetchCacheRepository(storage)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOfflineLedgerRepository(
+        storage: OfflineLedgerStorage,
+        signer: OfflineLedgerSigner,
+        endpointProvider: RetroAchievementsEndpointProvider,
+    ): OfflineLedgerRepository {
+        return OfflineLedgerRepository(
+            storage = storage,
+            signer = signer,
+            writesEnabled = { endpointProvider.currentSnapshot().builtInLedgerEnabled },
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideSmartSyncEngine(
+        raApi: RAApi,
+        ledgerRepository: OfflineLedgerRepository,
+        prefetchCacheRepository: OfflinePrefetchCacheRepository,
+        endpointProvider: RetroAchievementsEndpointProvider,
+    ): SmartSyncEngine {
+        return SmartSyncEngine(
+            raClient = RAApiSmartSyncRaClient(raApi),
+            ledgerRepository = ledgerRepository,
+            prefetchCacheRepository = prefetchCacheRepository,
+            syncEnabled = { endpointProvider.currentSnapshot().builtInSyncEnabled },
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun provideConfigurationDirectoryVerifier(@ApplicationContext context: Context, settingsRepository: SettingsRepository): ConfigurationDirectoryVerifier {
+        return FileSystemConfigurationDirectoryVerifier(context, settingsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFileRomProcessorFactory(@ApplicationContext context: Context, uriHandler: UriHandler, ndsRomCache: NdsRomCache): RomFileProcessorFactory {
+        return Api24RomFileProcessorFactory(context, uriHandler, ndsRomCache)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRomIconProvider(@ApplicationContext context: Context, romFileProcessorFactory: RomFileProcessorFactory): RomIconProvider {
+        return RomIconProvider(context, romFileProcessorFactory)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSaveStateScreenshotProvider(@ApplicationContext context: Context, picasso: Picasso): SaveStateScreenshotProvider {
+        return SaveStateScreenshotProvider(context, picasso)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBackgroundThumbnailProvider(@ApplicationContext context: Context): BackgroundThumbnailProvider {
+        return BackgroundThumbnailProvider(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTouchVibrator(@ApplicationContext context: Context, settingsRepository: SettingsRepository): TouchVibrator {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+            vibratorManager?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
+        } else {
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        val delegate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Api26VibratorDelegate(vibrator)
+        } else {
+            OldVibratorDelegate(vibrator)
+        }
+        return TouchVibrator(delegate, settingsRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideScreenUnitsConverter(@ApplicationContext context: Context): ScreenUnitsConverter {
+        return ScreenUnitsConverter(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDeviceLayoutDisplayMapper(@ApplicationContext context: Context): DeviceLayoutDisplayMapper {
+        val isAynThor = (Build.MANUFACTURER.equals("AYN", ignoreCase = true) ||
+                Build.BRAND.equals("AYN", ignoreCase = true)) &&
+                (Build.MODEL.contains("Thor", ignoreCase = true) ||
+                        Build.PRODUCT.contains("Thor", ignoreCase = true) ||
+                        Build.DEVICE.contains("Thor", ignoreCase = true) ||
+                        Build.MODEL.contains("Odin", ignoreCase = true))
+        return if (isAynThor || Build.MODEL.contains("Thor", ignoreCase = true)) {
+            AynThorLayoutDisplayMapper(context)
+        } else {
+            DefaultLayoutDisplayMapper(context)
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideDefaultLayoutBuilder(@ApplicationContext context: Context, screenUnitsConverter: ScreenUnitsConverter): DefaultLayoutProvider {
+        return DefaultLayoutProvider(context, screenUnitsConverter)
+    }
+
+    @Provides
+    fun provideUILayoutProvider(defaultLayoutProvider: DefaultLayoutProvider): UILayoutProvider {
+        return UILayoutProvider(defaultLayoutProvider)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDSiNandManager(
+        @ApplicationContext context: Context,
+        settingsRepository: SettingsRepository,
+        dSiWareMetadataRepository: DSiWareMetadataRepository,
+        configurationDirectoryVerifier: ConfigurationDirectoryVerifier,
+        dSiWareTitlesMetadataStore: DSiWareTitlesMetadataStore,
+    ): DSiNandManager {
+        return AndroidDSiNandManager(context, settingsRepository, dSiWareMetadataRepository, configurationDirectoryVerifier, dSiWareTitlesMetadataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRomDetailsUiMapper(@ApplicationContext context: Context, layoutsRepository: LayoutsRepository): RomDetailsUiMapper {
+        return RomDetailsUiMapper(context, layoutsRepository)
+    }
+
+    @Provides
+    fun provideRomLaunchPreconditionChecker(
+        @ApplicationContext context: Context,
+        configurationDirectoryVerifier: ConfigurationDirectoryVerifier,
+        romFileProcessorFactory: RomFileProcessorFactory,
+        dsiNandManager: DSiNandManager,
+        settingsRepository: SettingsRepository,
+    ): EmulatorLaunchPreconditionChecker {
+        return EmulatorLaunchPreconditionChecker(
+            context = context,
+            configurationDirectoryVerifier = configurationDirectoryVerifier,
+            romFileProcessorFactory = romFileProcessorFactory,
+            dsiNandManager = dsiNandManager,
+            settingsRepository = settingsRepository,
+        )
+    }
+}

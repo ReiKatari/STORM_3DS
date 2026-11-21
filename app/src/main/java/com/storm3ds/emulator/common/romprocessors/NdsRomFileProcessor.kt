@@ -1,0 +1,145 @@
+package com.storm3ds.emulator.common.romprocessors
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
+import com.storm3ds.emulator.common.uridelegates.UriHandler
+import com.storm3ds.emulator.domain.model.RomInfo
+import com.storm3ds.emulator.domain.model.RomMetadata
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.domain.model.rom.config.RomConfig
+import com.storm3ds.emulator.extensions.isBlank
+import com.storm3ds.emulator.utils.FileUtils
+import com.storm3ds.emulator.utils.RomProcessor
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
+
+class NdsRomFileProcessor(private val context: Context, private val uriHandler: UriHandler) : RomFileProcessor {
+
+    override fun getRomFromUri(romUri: Uri, parentUri: Uri?): Rom? {
+        return try {
+            val metadata = getRomMetadata(romUri)
+            val uriLastSegment = romUri.lastPathSegment?.substringAfterLast('/')
+            val fallbackName = uriLastSegment?.substringBeforeLast('.')?.takeUnless { it.isBlank() } ?: "NDS Game"
+            val romName = metadata?.romTitle?.takeUnless { it.isBlank() } ?: fallbackName
+            val fileName = uriLastSegment?.takeUnless { it.isBlank() } ?: "$fallbackName.nds"
+            val isDsi = (metadata?.isDSiWareTitle ?: false) ||
+                fileName.endsWith(".dsi", ignoreCase = true) ||
+                romUri.path?.endsWith(".dsi", ignoreCase = true) == true ||
+                uriLastSegment?.endsWith(".dsi", ignoreCase = true) == true
+
+            val isDsiEnhanced = metadata?.isDSiEnhanced ?: false
+
+            val gameCode = metadata?.gameCode ?: RomProcessor.readGameCode(context, romUri)
+            val dsiTitleId = metadata?.titleId?.takeIf { it != 0L }
+
+            Rom(
+                name = romName,
+                developerName = metadata?.developerName ?: "",
+                fileName = fileName,
+                uri = romUri,
+                parentTreeUri = parentUri,
+                config = if (isDsi) RomConfig.forDsiWareTitle() else RomConfig.default(),
+                lastPlayed = null,
+                isDsiWareTitle = isDsi,
+                isDsiEnhanced = isDsiEnhanced,
+                retroAchievementsHash = metadata?.retroAchievementsHash ?: "",
+                gameCode = gameCode,
+                installedDsiWareTitleId = if (isDsi) dsiTitleId else null,
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    override fun getRomIcon(rom: Rom): Bitmap? {
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(rom.uri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            try {
+                FileInputStream(directFile).channel.use { channel ->
+                    val icon = RomProcessor.getRomIcon(channel)
+                    if (icon != null) return icon
+                }
+            } catch (_: Throwable) {}
+        }
+
+        try {
+            context.contentResolver.openFileDescriptor(rom.uri, "r")?.use { pfd ->
+                FileInputStream(pfd.fileDescriptor).channel.use { channel ->
+                    val icon = RomProcessor.getRomIcon(channel)
+                    if (icon != null) return icon
+                }
+            }
+        } catch (_: Throwable) {}
+
+        return try {
+            context.contentResolver.openInputStream(rom.uri)?.let { BufferedInputStream(it, 131072) }?.use { inputStream ->
+                RomProcessor.getRomIcon(inputStream)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    override fun getRomInfo(rom: Rom): RomInfo? {
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(rom.uri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            try {
+                FileInputStream(directFile).channel.use { channel ->
+                    val info = RomProcessor.getRomInfo(rom, channel)
+                    if (info != null) return info
+                }
+            } catch (_: Throwable) {}
+        }
+
+        try {
+            context.contentResolver.openFileDescriptor(rom.uri, "r")?.use { pfd ->
+                FileInputStream(pfd.fileDescriptor).channel.use { channel ->
+                    val info = RomProcessor.getRomInfo(rom, channel)
+                    if (info != null) return info
+                }
+            }
+        } catch (_: Throwable) {}
+
+        return try {
+            context.contentResolver.openInputStream(rom.uri)?.let { BufferedInputStream(it, 131072) }?.use { inputStream ->
+                RomProcessor.getRomInfo(rom, inputStream)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    override suspend fun getRealRomUri(rom: Rom): Uri {
+        return rom.uri
+    }
+
+    private fun getRomMetadata(uri: Uri): RomMetadata? {
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(uri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            try {
+                FileInputStream(directFile).channel.use { channel ->
+                    val metadata = RomProcessor.getRomMetadata(channel)
+                    if (metadata != null) return metadata
+                }
+            } catch (_: Throwable) {}
+        }
+
+        try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                FileInputStream(pfd.fileDescriptor).channel.use { channel ->
+                    val metadata = RomProcessor.getRomMetadata(channel)
+                    if (metadata != null) return metadata
+                }
+            }
+        } catch (_: Throwable) {}
+
+        return context.contentResolver.openInputStream(uri)?.let { BufferedInputStream(it, 131072) }?.use { inputStream ->
+            RomProcessor.getRomMetadata(inputStream)
+        }
+    }
+}

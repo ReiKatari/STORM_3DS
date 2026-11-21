@@ -1,0 +1,50 @@
+package com.storm3ds.emulator.migrations
+
+import android.content.Context
+import com.storm3ds.emulator.migrations.helper.GenericJsonArrayMigrationHelper
+import com.storm3ds.emulator.migrations.legacy.Rom22
+import com.storm3ds.emulator.migrations.legacy.RomConfigDto25
+import com.storm3ds.emulator.migrations.legacy.RomDto25
+import com.storm3ds.emulator.utils.RomProcessor
+
+class Migration24to25(
+    private val romMigrationHelper: GenericJsonArrayMigrationHelper,
+    private val context: Context,
+) : Migration {
+
+    companion object {
+        private const val ROM_DATA_FILE = "rom_data.json"
+    }
+
+    override val from = 24
+    override val to = 25
+
+    override fun migrate() {
+        romMigrationHelper.migrateJsonArrayData<Rom22, RomDto25>(ROM_DATA_FILE) { rom ->
+            runCatching {
+                context.contentResolver.openInputStream(rom.uri)?.use {
+                    RomProcessor.getRomMetadata(it.buffered())
+                }
+            }.getOrNull()?.let {
+                RomDto25(
+                    rom.name,
+                    it.developerName,
+                    rom.fileName,
+                    rom.uri.toString(),
+                    rom.parentTreeUri.toString(),
+                    RomConfigDto25(
+                        rom.config.runtimeConsoleType,
+                        rom.config.runtimeMicSource,
+                        rom.config.layoutId?.toString(),
+                        rom.config.loadGbaCart,
+                        rom.config.gbaCartPath?.toString(),
+                        rom.config.gbaSavePath?.toString(),
+                    ),
+                    rom.lastPlayed,
+                    it.isDSiWareTitle,
+                    it.retroAchievementsHash,
+                )
+            }
+        }
+    }
+}

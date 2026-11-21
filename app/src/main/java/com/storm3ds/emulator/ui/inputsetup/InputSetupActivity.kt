@@ -1,0 +1,214 @@
+package com.storm3ds.emulator.ui.inputsetup
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import com.storm3ds.emulator.R
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.domain.model.InputConfig
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.parcelables.RomParcelable
+import com.storm3ds.emulator.ui.inputsetup.ui.InputSetupScreen
+import com.storm3ds.emulator.ui.theme.MelonTheme
+import kotlin.math.absoluteValue
+
+import com.storm3ds.emulator.extensions.applyImmersiveFullscreen
+
+@AndroidEntryPoint
+class InputSetupActivity : AppCompatActivity() {
+
+    companion object {
+        const val KEY_ROM = "rom"
+
+        fun getGlobalIntent(context: Context): Intent {
+            return Intent(context, InputSetupActivity::class.java)
+        }
+
+        fun getRomCustomIntent(context: Context, rom: Rom): Intent {
+            return Intent(context, InputSetupActivity::class.java).apply {
+                putExtra(KEY_ROM, RomParcelable(rom))
+            }
+        }
+    }
+
+    private val viewModel: InputSetupViewModel by viewModels()
+
+    private val referenceAxisValues = mutableMapOf<Pair<Int, Int>, Float>()
+    private var pendingChordModifierKey: Int? = null
+
+    private fun MotionEvent.isControllerMotionEvent(): Boolean {
+        return isFromSource(InputDevice.SOURCE_CLASS_JOYSTICK)
+            || isFromSource(InputDevice.SOURCE_JOYSTICK)
+            || isFromSource(InputDevice.SOURCE_GAMEPAD)
+    }
+
+    private fun InputDevice.MotionRange.isJoystickOrGamepadRange(): Boolean {
+        return isFromSource(InputDevice.SOURCE_CLASS_JOYSTICK)
+            || isFromSource(InputDevice.SOURCE_JOYSTICK)
+            || isFromSource(InputDevice.SOURCE_GAMEPAD)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        window.applyImmersiveFullscreen()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            window.applyImmersiveFullscreen()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        com.storm3ds.emulator.ui.theme.AppThemeManager.applyEdgeToEdgeTheme(this)
+        super.onCreate(savedInstanceState)
+        window.applyImmersiveFullscreen()
+
+        setContent {
+            MelonTheme {
+                InputSetupScreen(
+                    viewModel = viewModel,
+                    onBackClick = { onBackPressedDispatcher.onBackPressed() },
+                    onAutoMapClick = ::autoMapStandardGamepadWithFeedback,
+                    onClearAllClick = ::showClearAllConfirmDialog,
+                )
+            }
+        }
+
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(viewModel.inputUnderAssignment, viewModel.slot2AxisUnderAssignment) { inputAssignment, slot2Assignment ->
+                    inputAssignment != null || slot2Assignment != null
+                }.collect { hasPendingAssignment ->
+                    if (hasPendingAssignment) {
+                        // A new assignment has started. Capture resting values from the first MotionEvent.
+                        referenceAxisValues.clear()
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        val inputAssignment = viewModel.inputUnderAssignment.value
+        val slot2Assignment = viewModel.slot2AxisUnderAssignment.value
+        if ((inputAssignment != null || slot2Assignment != null) && event.isControllerMotionEvent()) {
+            if (event.action == MotionEvent.ACTION_MOVE) {
+                val joystickAxes = event.device?.motionRanges
+                    ?.asSequence()
+                    ?.filter { it.isJoystickOrGamepadRange() }
+                    ?.map { it.axis }
+                    ?.distinct()
+                    ?.toList()
+                    ?: emptyList()
+                var initializedBaseline = false
+                for (axis in joystickAxes) {
+                    val key = event.deviceId to axis
+                    if (!referenceAxisValues.containsKey(key)) {
+                        referenceAxisValues[key] = event.getAxisValue(axis)
+                        initializedBaseline = true
+                    }
+                }
+                if (initializedBaseline) {
+                    return true
+                }
+                val detectedAxis = joystickAxes.firstOrNull { axis ->
+                    val key = event.deviceId to axis
+                    val baseline = referenceAxisValues[key] ?: 0f
+                    val currentValue = event.getAxisValue(axis)
+                    (currentValue - baseline).absoluteValue >= 0.5f
+                }
+
+                if (detectedAxis != null) {
+                    val initialValue = referenceAxisValues[event.deviceId to detectedAxis] ?: 0f
+                    val currentValue = event.getAxisValue(detectedAxis)
+                    val delta = currentValue - initialValue
+                    if (inputAssignment != null) {
+                        val direction = if (delta > 0f) {
+                            InputConfig.Assignment.Axis.Direction.POSITIVE
+                        } else {
+                            InputConfig.Assignment.Axis.Direction.NEGATIVE
+                        }
+                        viewModel.updateInputAssignedAxis(detectedAxis, direction)
+                    } else {
+                        viewModel.updateSlot2AxisAssignment(
+                            axisCode = detectedAxis,
+                            deviceId = event.deviceId,
+                        )
+                    }
+                }
+                return true
+            }
+        }
+
+        return super.onGenericMotionEvent(event)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (viewModel.inputUnderAssignment.value != null) {
+            @SuppressLint("GestureBackNavigation")
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                pendingChordModifierKey = null
+                return super.dispatchKeyEvent(event)
+            }
+
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (event.repeatCount > 0) return true
+                val heldMod = pendingChordModifierKey
+                if (heldMod == null) {
+                    pendingChordModifierKey = event.keyCode
+                    return true
+                } else if (heldMod != event.keyCode) {
+                    pendingChordModifierKey = null
+                    viewModel.updateInputAssignedChord(heldMod, event.keyCode)
+                    return true
+                }
+            } else if (event.action == KeyEvent.ACTION_UP) {
+                val heldMod = pendingChordModifierKey
+                if (heldMod != null && heldMod == event.keyCode) {
+                    pendingChordModifierKey = null
+                    viewModel.updateInputAssignedKey(heldMod)
+                    return true
+                }
+            }
+        } else {
+            pendingChordModifierKey = null
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    fun autoMapStandardGamepadWithFeedback() {
+        viewModel.autoMapStandardGamepad()
+        Toast.makeText(this, R.string.v780_input_auto_map_success, Toast.LENGTH_SHORT).show()
+    }
+
+    fun showClearAllConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.v780_input_clear_all_title)
+            .setMessage(R.string.v780_input_clear_all_confirm_message)
+            .setPositiveButton(R.string.v780_input_clear_all_action) { _, _ ->
+                viewModel.clearAllAssignments()
+                Toast.makeText(this, R.string.v780_input_clear_all_success, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+}

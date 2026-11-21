@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+            android:title="Nintendo 3DS Hardware &amp; Extensions"
+            app:iconSpaceReserved="false">
+
+        <Preference
+                android:key="system_3ds_setup"
+                android:title="STORM 3DS Setup, Keys, Speedhacks &amp; 3D"
+                android:summary="Manage AES keys, MMJ speedhacks, SPIR-V, 3D modes, Artic Base, Pretendo &amp; Logs"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_system_misc"
+            app:iconSpaceReserved="false">
+
+        <ListPreference
+                android:key="app_language"
+                android:title="@string/app_language"
+                android:summary="@string/app_language_summary"
+                android:entries="@array/app_language_options"
+                android:entryValues="@array/app_language_values"
+                android:defaultValue="default"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+                android:key="system_app_log_file_enabled"
+                android:title="@string/system_app_log_file_enabled"
+                android:summary="@string/system_app_log_file_enabled_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <Preference
+                android:key="system_share_app_log"
+                android:title="@string/system_share_log_title"
+                android:summary="@string/system_share_log_summary"
+                app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+                android:key="save_internal_config_as_file"
+                android:title="@string/save_internal_config_as_file"
+                android:summary="@string/save_internal_config_as_file_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_core_compiler"
+            app:iconSpaceReserved="false">
+
+        <SwitchPreference
+                android:key="enable_storm_compiler"
+                android:title="@string/enable_storm_compiler"
+                android:summary="@string/enable_storm_compiler_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <ListPreference
+                android:key="arm9_overclock"
+                android:title="@string/arm9_overclock_title"
+                android:summary="@string/arm9_overclock_summary"
+                app:iconSpaceReserved="false"
+                app:useSimpleSummaryProvider="true"
+                android:entries="@array/arm9_overclock_options"
+                android:entryValues="@array/arm9_overclock_values"
+                android:defaultValue="1" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_bios_firmware"
+            app:isPreferenceVisible="false"
+            app:iconSpaceReserved="false">
+
+        <Preference
+                android:key="internal_firmware_settings"
+                android:title="@string/internal_firmware_settings"
+                android:summary="@string/internal_firmware_settings_summary"
+                app:iconSpaceReserved="false"
+                android:fragment="com.storm3ds.emulator.ui.settings.fragments.FirmwarePreferencesFragment" />
+
+        <Preference
+                android:key="custom_bios_firmware"
+                android:title="@string/custom_bios_firmware"
+                app:iconSpaceReserved="false"
+                android:fragment="com.storm3ds.emulator.ui.settings.fragments.CustomFirmwarePreferencesFragment" />
+    </PreferenceCategory>
+
+
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_network_wfc"
+            app:iconSpaceReserved="false">
+
+        <ListPreference
+                android:key="system_wfc_server"
+                android:title="@string/wfc_server_title"
+                android:summary="@string/wfc_server_summary"
+                app:iconSpaceReserved="false"
+                app:useSimpleSummaryProvider="true"
+                android:defaultValue="none"
+                android:entries="@array/wfc_server_options"
+                android:entryValues="@array/wfc_server_values" />
+
+        <EditTextPreference
+                android:key="system_wfc_custom_dns"
+                android:title="@string/wfc_custom_dns_title"
+                android:summary="@string/wfc_custom_dns_summary"
+                app:iconSpaceReserved="false"
+                app:useSimpleSummaryProvider="true"
+                android:defaultValue="178.62.43.212" />
+
+        <Preference
+                android:key="system_wfc_test_connection"
+                android:title="@string/wfc_test_connection_title"
+                android:summary="@string/wfc_test_connection_summary"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_layout_management"
+            app:iconSpaceReserved="false">
+
+        <SwitchPreference
+                android:key="system_disable_touch_gestures_on_touch_screen_area"
+                android:title="@string/system_disable_touch_gestures_on_touch_screen_area"
+                android:summary="@string/system_disable_touch_gestures_on_touch_screen_area_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="system_ignore_display_cutout_in_layouts"
+                android:title="@string/system_ignore_display_cutout_in_layouts"
+                android:summary="@string/system_ignore_display_cutout_in_layouts_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <Preference
+                android:key="backup_internal_layout"
+                android:title="@string/backup_internal_layout"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="backup_external_layout"
+                android:title="@string/backup_external_layout"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="restore_internal_layout"
+                android:title="@string/restore_internal_layout"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="restore_external_layout"
+                android:title="@string/restore_external_layout"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

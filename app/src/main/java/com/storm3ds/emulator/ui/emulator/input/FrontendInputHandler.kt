@@ -1,0 +1,58 @@
+package com.storm3ds.emulator.ui.emulator.input
+
+import com.storm3ds.emulator.domain.model.Input
+import com.storm3ds.emulator.domain.model.Point
+
+abstract class FrontendInputHandler : IInputListener {
+    override fun onKeyPress(key: Input) {
+        when (key) {
+            Input.PAUSE -> onPausePressed()
+            Input.FAST_FORWARD -> onFastForwardPressed()
+            Input.HOLD_FAST_FORWARD -> onFastForwardHoldPressed()
+            Input.MICROPHONE -> onMicrophonePressed()
+            Input.TOGGLE_SOFT_INPUT -> onSoftInputTogglePressed()
+            Input.RESET -> onResetPressed()
+            Input.SWAP_SCREENS -> onSwapScreens()
+            Input.QUICK_SAVE -> onQuickSave()
+            Input.QUICK_LOAD -> onQuickLoad()
+            Input.REWIND -> onRewind()
+            Input.TRANSLATE -> onTranslate()
+            Input.TOGGLE_EXTRA_BUTTONS -> onToggleExtraButtons()
+            Input.LOCK_ROTATION -> onLockRotation()
+            Input.TOGGLE_ANALOG_STICK -> onToggleAnalogStick()
+            Input.SLOW_MOTION -> onSlowMotion()
+            Input.FRAME_ADVANCE -> onFrameAdvance()
+            Input.TAKE_SCREENSHOT -> onTakeScreenshot()
+            else -> {}
+        }
+    }
+
+    override fun onKeyReleased(key: Input) {
+        when (key) {
+            Input.HOLD_FAST_FORWARD -> onFastForwardHoldReleased()
+            else -> {}
+        }
+    }
+
+    override fun onTouch(point: Point) {
+    }
+
+    abstract fun onPausePressed()
+    abstract fun onFastForwardPressed()
+    abstract fun onFastForwardHoldPressed()
+    abstract fun onFastForwardHoldReleased()
+    abstract fun onMicrophonePressed()
+    abstract fun onSoftInputTogglePressed()
+    abstract fun onResetPressed()
+    abstract fun onSwapScreens()
+    abstract fun onQuickSave()
+    abstract fun onQuickLoad()
+    abstract fun onRewind()
+    abstract fun onTranslate()
+    abstract fun onToggleExtraButtons()
+    abstract fun onLockRotation()
+    abstract fun onToggleAnalogStick()
+    open fun onSlowMotion() {}
+    open fun onFrameAdvance() {}
+    open fun onTakeScreenshot() {}
+}

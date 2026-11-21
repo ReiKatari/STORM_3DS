@@ -1,0 +1,384 @@
+<resources>
+    <style name="AppThemeBase" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorBackgroundFloating">@color/colorSurface</item>
+        <item name="colorOnPrimary">@color/colorOnPrimary</item>
+        <item name="colorOnSecondary">@color/colorOnSecondary</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="android:windowBackground">@color/colorBackground</item>
+        <item name="android:textColorPrimary">@color/textColorPrimary</item>
+        <item name="android:textColorSecondary">@color/textColorSecondary</item>
+        <item name="colorControlActivated">@color/colorAccent</item>
+        <item name="colorControlHighlight">@color/watermelonGreenDim</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/colorBackground</item>
+        <item name="android:windowLightStatusBar">@bool/lightNavigationBar</item>
+        <item name="toolbarNavigationButtonStyle">@style/Toolbar.Button.Navigation</item>
+        <item name="actionOverflowMenuStyle">@style/Menu.OverflowUnder</item>
+        <item name="preferenceTheme">@style/Preference</item>
+        <item name="alertDialogTheme">@style/WatermelonAlertDialog</item>
+        <item name="android:alertDialogTheme">@style/WatermelonAlertDialog</item>
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowAnimationStyle">@style/WindowFadeAnimation</item>
+    </style>
+
+    <style name="WindowFadeAnimation">
+        <item name="android:activityOpenEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@android:anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@android:anim/fade_out</item>
+        <item name="android:taskOpenEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:taskOpenExitAnimation">@android:anim/fade_out</item>
+        <item name="android:taskCloseEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:taskCloseExitAnimation">@android:anim/fade_out</item>
+    </style>
+
+    <style name="AppTheme" parent="@style/AppThemeBase" />
+
+    <style name="AppTheme.DarkBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#00E5FF</item>
+        <item name="colorPrimaryDark">#05060A</item>
+        <item name="colorAccent">#00E5FF</item>
+        <item name="colorSurface">#0D1017</item>
+        <item name="colorBackgroundFloating">#0D1017</item>
+        <item name="android:colorBackground">#05060A</item>
+        <item name="android:windowBackground">#05060A</item>
+        <item name="android:statusBarColor">#05060A</item>
+        <item name="android:navigationBarColor">#05060A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#F8FAFC</item>
+        <item name="android:textColorSecondary">#A8B3C7</item>
+        <item name="colorControlActivated">#00E5FF</item>
+        <item name="colorControlHighlight">#2E00E5FF</item>
+    </style>
+
+    <style name="AppTheme.Dark" parent="@style/AppTheme.DarkBase" />
+
+    <style name="AppTheme.LightBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#0284C7</item>
+        <item name="colorPrimaryDark">#F1F5FA</item>
+        <item name="colorAccent">#0284C7</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorBackgroundFloating">#FFFFFF</item>
+        <item name="android:colorBackground">#F1F5FA</item>
+        <item name="android:windowBackground">#F1F5FA</item>
+        <item name="android:statusBarColor">#F1F5FA</item>
+        <item name="android:navigationBarColor">#F1F5FA</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:textColorPrimary">#0F172A</item>
+        <item name="android:textColorSecondary">#334155</item>
+        <item name="colorControlActivated">#0284C7</item>
+        <item name="colorControlHighlight">#1F0284C7</item>
+    </style>
+
+    <style name="AppTheme.Light" parent="@style/AppTheme.LightBase" />
+
+    <style name="AppTheme.MidnightBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#A855F7</item>
+        <item name="colorPrimaryDark">#0C0818</item>
+        <item name="colorAccent">#A855F7</item>
+        <item name="colorSurface">#16102B</item>
+        <item name="colorBackgroundFloating">#16102B</item>
+        <item name="android:colorBackground">#0C0818</item>
+        <item name="android:windowBackground">#0C0818</item>
+        <item name="android:statusBarColor">#0C0818</item>
+        <item name="android:navigationBarColor">#0C0818</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#FAF5FF</item>
+        <item name="android:textColorSecondary">#D8B4FE</item>
+        <item name="colorControlActivated">#A855F7</item>
+        <item name="colorControlHighlight">#33A855F7</item>
+    </style>
+
+    <style name="AppTheme.Midnight" parent="@style/AppTheme.MidnightBase" />
+
+    <style name="AppTheme.CyberpunkBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#FF007F</item>
+        <item name="colorPrimaryDark">#090612</item>
+        <item name="colorAccent">#FF007F</item>
+        <item name="colorSurface">#130E24</item>
+        <item name="colorBackgroundFloating">#130E24</item>
+        <item name="android:colorBackground">#090612</item>
+        <item name="android:windowBackground">#090612</item>
+        <item name="android:statusBarColor">#090612</item>
+        <item name="android:navigationBarColor">#090612</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#F8FAFC</item>
+        <item name="android:textColorSecondary">#67E8F9</item>
+        <item name="colorControlActivated">#FF007F</item>
+        <item name="colorControlHighlight">#36FF007F</item>
+    </style>
+
+    <style name="AppTheme.Cyberpunk" parent="@style/AppTheme.CyberpunkBase" />
+
+    <style name="AppTheme.GothicBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#FF2A37</item>
+        <item name="colorPrimaryDark">#080709</item>
+        <item name="colorAccent">#FF2A37</item>
+        <item name="colorSurface">#131115</item>
+        <item name="colorBackgroundFloating">#131115</item>
+        <item name="android:colorBackground">#080709</item>
+        <item name="android:windowBackground">#080709</item>
+        <item name="android:statusBarColor">#080709</item>
+        <item name="android:navigationBarColor">#080709</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#F6F2F3</item>
+        <item name="android:textColorSecondary">#D4B6BC</item>
+        <item name="colorControlActivated">#FF2A37</item>
+        <item name="colorControlHighlight">#36FF2A37</item>
+    </style>
+
+    <style name="AppTheme.Gothic" parent="@style/AppTheme.GothicBase" />
+
+    <style name="AppTheme.MatrixBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#00FF66</item>
+        <item name="colorPrimaryDark">#030A06</item>
+        <item name="colorAccent">#00FF66</item>
+        <item name="colorSurface">#08170F</item>
+        <item name="colorBackgroundFloating">#08170F</item>
+        <item name="android:colorBackground">#030A06</item>
+        <item name="android:windowBackground">#030A06</item>
+        <item name="android:statusBarColor">#030A06</item>
+        <item name="android:navigationBarColor">#030A06</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#E6FFF0</item>
+        <item name="android:textColorSecondary">#4ADE80</item>
+        <item name="colorControlActivated">#00FF66</item>
+        <item name="colorControlHighlight">#3000FF66</item>
+    </style>
+
+    <style name="AppTheme.Matrix" parent="@style/AppTheme.MatrixBase" />
+
+    <style name="AppTheme.SolarBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#F59E0B</item>
+        <item name="colorPrimaryDark">#0E0904</item>
+        <item name="colorAccent">#F59E0B</item>
+        <item name="colorSurface">#1B1308</item>
+        <item name="colorBackgroundFloating">#1B1308</item>
+        <item name="android:colorBackground">#0E0904</item>
+        <item name="android:windowBackground">#0E0904</item>
+        <item name="android:statusBarColor">#0E0904</item>
+        <item name="android:navigationBarColor">#0E0904</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">#FFFBEB</item>
+        <item name="android:textColorSecondary">#FCD34D</item>
+        <item name="colorControlActivated">#F59E0B</item>
+        <item name="colorControlHighlight">#33F59E0B</item>
+    </style>
+
+    <style name="AppTheme.Solar" parent="@style/AppTheme.SolarBase" />
+
+    <style name="AppTheme.SakuraBase" parent="@style/AppThemeBase">
+        <item name="colorPrimary">#E11D48</item>
+        <item name="colorPrimaryDark">#FFF5F8</item>
+        <item name="colorAccent">#E11D48</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorBackgroundFloating">#FFFFFF</item>
+        <item name="android:colorBackground">#FFF5F8</item>
+        <item name="android:windowBackground">#FFF5F8</item>
+        <item name="android:statusBarColor">#FFF5F8</item>
+        <item name="android:navigationBarColor">#FFF5F8</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:textColorPrimary">#2D121C</item>
+        <item name="android:textColorSecondary">#7B2445</item>
+        <item name="colorControlActivated">#E11D48</item>
+        <item name="colorControlHighlight">#24E11D48</item>
+    </style>
+
+    <style name="AppTheme.Sakura" parent="@style/AppTheme.SakuraBase" />
+
+    <style name="WatermelonAlertDialog" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_watermelon_dialog</item>
+        <item name="android:windowTitleStyle">@style/WatermelonAlertDialog.Title</item>
+        <item name="buttonBarPositiveButtonStyle">@style/WatermelonAlertDialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/WatermelonAlertDialog.Button</item>
+        <item name="buttonBarNeutralButtonStyle">@style/WatermelonAlertDialog.Button</item>
+        <item name="alertDialogStyle">@style/WatermelonAlertDialog.Layout</item>
+        <item name="android:listChoiceBackgroundIndicator">@drawable/bg_watermelon_dialog_selection</item>
+        <item name="android:listSelector">@drawable/bg_watermelon_dialog_selection</item>
+    </style>
+
+    <style name="WatermelonAlertDialog.Layout" parent="AlertDialog.AppCompat">
+        <item name="singleChoiceItemLayout">@layout/watermelon_dialog_single_choice</item>
+        <item name="listItemLayout">@layout/watermelon_dialog_list_item</item>
+    </style>
+
+    <style name="WatermelonAlertDialogTitleBase" parent="Base.DialogWindowTitle.AppCompat">
+        <item name="android:fontFamily">@font/space_grotesk</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+    </style>
+
+    <style name="WatermelonAlertDialog.Title" parent="@style/WatermelonAlertDialogTitleBase" />
+
+    <style name="WatermelonAlertDialogButtonBase" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">?attr/colorAccent</item>
+        <item name="android:fontFamily">@font/manrope</item>
+    </style>
+
+    <style name="WatermelonAlertDialog.Button" parent="@style/WatermelonAlertDialogButtonBase" />
+
+    <style name="SplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splashBackground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
+    </style>
+
+    <style name="EmulatorTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="alertDialogTheme">@style/WatermelonAlertDialog</item>
+        <item name="android:alertDialogTheme">@style/WatermelonAlertDialog</item>
+    </style>
+
+    <style name="MaterialDialog" parent="Theme.MaterialComponents.DayNight.Dialog">
+        <item name="colorPrimary">@color/colorAccent</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="android:windowBackground">@drawable/bg_watermelon_dialog</item>
+        <item name="android:windowTitleStyle">@style/WatermelonAlertDialog.Title</item>
+    </style>
+
+    <style name="Toolbar">
+        <item name="android:background">?android:attr/colorBackground</item>
+        <item name="android:elevation">0dp</item>
+        <item name="popupTheme">@style/ThemeOverlay.AppCompat.DayNight</item>
+        <item name="titleTextAppearance">@style/Toolbar.TitleText</item>
+        <item name="titleTextColor">?android:attr/textColorPrimary</item>
+        <item name="subtitleTextColor">?android:attr/textColorSecondary</item>
+    </style>
+
+    <style name="Toolbar.Button.Navigation" parent="Widget.AppCompat.Toolbar.Button.Navigation">
+        <item name="tint">?android:attr/textColorPrimary</item>
+    </style>
+
+    <style name="ToolbarTitleTextBase" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textSize">19sp</item>
+        <item name="lineHeight">24sp</item>
+        <item name="android:fontFamily">@font/space_grotesk</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+    </style>
+
+    <style name="Toolbar.TitleText" parent="@style/ToolbarTitleTextBase" />
+
+    <style name="FullscreenDialog">
+        <item name="android:windowEnterAnimation">@anim/dialog_slide_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_slide_out</item>
+    </style>
+
+    <style name="FullscreenDialog.Restore">
+        <item name="android:windowEnterAnimation">@null</item>
+    </style>
+
+    <style name="Preference" parent="@style/PreferenceThemeOverlay">
+        <item name="android:tint">?android:attr/textColorPrimary</item>
+        <item name="preferenceStyle">@style/Watermelon.Preference</item>
+        <item name="preferenceCategoryStyle">@style/Watermelon.Preference.Category</item>
+        <item name="switchPreferenceCompatStyle">@style/Watermelon.Preference.Switch</item>
+        <item name="switchPreferenceStyle">@style/Watermelon.Preference.SwitchLegacy</item>
+        <item name="checkBoxPreferenceStyle">@style/Watermelon.Preference.CheckBox</item>
+        <item name="dropdownPreferenceStyle">@style/Watermelon.Preference.DropDown</item>
+        <item name="editTextPreferenceStyle">@style/Watermelon.Preference.EditText</item>
+        <item name="dialogPreferenceStyle">@style/Watermelon.Preference.Dialog</item>
+        <item name="seekBarPreferenceStyle">@style/Watermelon.Preference.SeekBar</item>
+    </style>
+
+    <style name="Watermelon.Preference" parent="@style/Preference.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.Category" parent="@style/Preference.Category.Material">
+        <item name="android:layout">@layout/watermelon_preference_category</item>
+        <item name="iconSpaceReserved">false</item>
+    </style>
+
+    <style name="Watermelon.Preference.Switch" parent="@style/Preference.SwitchPreferenceCompat.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.SwitchLegacy" parent="@style/Preference.SwitchPreference.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.CheckBox" parent="@style/Preference.CheckBoxPreference.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.DropDown" parent="@style/Preference.DropDown.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.EditText" parent="@style/Preference.DialogPreference.EditTextPreference.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.Dialog" parent="@style/Preference.DialogPreference.Material">
+        <item name="android:layout">@layout/watermelon_preference</item>
+    </style>
+
+    <style name="Watermelon.Preference.SeekBar" parent="@style/Preference.SeekBarPreference.Material">
+        <item name="android:layout">@layout/watermelon_preference_seekbar</item>
+    </style>
+
+    <style name="Button.Ripple" parent="android:Widget.ImageButton">
+        <item name="android:background">@drawable/drawable_ripple</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <style name="Button.Ripple.Small" parent="android:Widget.ImageButton">
+        <item name="android:background">@drawable/drawable_ripple_small</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <style name="ButtonEditorBase" parent="Widget.AppCompat.Button.Borderless">
+        <item name="android:textColor">@color/textLayoutEditor</item>
+        <item name="android:background">@drawable/bg_watermelon_editor_chip</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:paddingLeft">10dp</item>
+        <item name="android:paddingRight">10dp</item>
+        <item name="android:layout_marginLeft">2dp</item>
+        <item name="android:layout_marginRight">2dp</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:layout_marginBottom">2dp</item>
+        <item name="android:minHeight">36dp</item>
+        <item name="android:height">36dp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+    </style>
+
+    <style name="Button.Editor" parent="@style/ButtonEditorBase" />
+
+    <style name="Menu.OverflowUnder" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="overlapAnchor">false</item>
+        <item name="android:overlapAnchor">false</item>
+    </style>
+
+    <style name="Text.SaveStateSlot" parent="Widget.AppCompat.TextView">
+        <item name="android:textAppearance">?android:attr/textAppearanceMedium</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+    </style>
+
+    <style name="ColourTile">
+        <item name="android:background">@drawable/color_picker_tile_background</item>
+        <item name="android:foreground">@drawable/color_picker_selector</item>
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+</resources>

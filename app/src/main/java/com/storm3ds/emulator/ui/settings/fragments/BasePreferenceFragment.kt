@@ -1,0 +1,419 @@
+package com.storm3ds.emulator.ui.settings.fragments
+
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceGroupAdapter
+import androidx.preference.TwoStatePreference
+import androidx.recyclerview.widget.RecyclerView
+import com.storm3ds.emulator.ui.settings.dialogs.SettingsChoiceDialogContent
+import com.storm3ds.emulator.ui.settings.dialogs.SettingsEditTextDialogContent
+import com.storm3ds.emulator.ui.settings.dialogs.SettingsMultiChoiceDialogContent
+import com.storm3ds.emulator.ui.settings.dialogs.SettingsSeekBarDialogContent
+import com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog
+
+abstract class BasePreferenceFragment : PreferenceFragmentCompat() {
+
+    protected fun hideDependentsWhenInactive(
+        switchKey: String,
+        vararg dependentKeys: String,
+        showWhenChecked: Boolean = true,
+    ) {
+        val switch = findPreference<TwoStatePreference>(switchKey) ?: return
+        fun apply(checked: Boolean) {
+            val visible = checked == showWhenChecked
+            dependentKeys.forEach { key -> findPreference<Preference>(key)?.isVisible = visible }
+        }
+        apply(switch.isChecked)
+        val existing = switch.onPreferenceChangeListener
+        switch.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { pref, newValue ->
+            val allowed = existing?.onPreferenceChange(pref, newValue) ?: true
+            if (allowed && newValue is Boolean) {
+                apply(newValue)
+            }
+            allowed
+        }
+    }
+
+    private var lastActivatedKey: String? = null
+
+    override fun onCreateRecyclerView(inflater: LayoutInflater, parent: ViewGroup, savedInstanceState: Bundle?): RecyclerView {
+        return super.onCreateRecyclerView(inflater, parent, savedInstanceState).apply {
+            clipToPadding = false
+
+            ViewCompat.setOnApplyWindowInsetsListener(this) { view, windowInsets ->
+                val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                view.updatePadding(bottom = insets.bottom)
+
+                WindowInsetsCompat.CONSUMED
+            }
+
+            val recyclerView = this
+            addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+                override fun onChildViewAttachedToWindow(view: View) {
+                    val adapter = recyclerView.adapter as? PreferenceGroupAdapter
+                    val pos = recyclerView.getChildAdapterPosition(view)
+                    val pref = if (pos != RecyclerView.NO_POSITION) adapter?.getItem(pos) else null
+                    applyThemeToPreferenceView(view, pref is androidx.preference.PreferenceCategory)
+                    view.post {
+                        if (view.isAttachedToWindow) {
+                            val postPos = recyclerView.getChildAdapterPosition(view)
+                            val postPref = if (postPos != RecyclerView.NO_POSITION) adapter?.getItem(postPos) else pref
+                            applyThemeToPreferenceView(view, postPref is androidx.preference.PreferenceCategory)
+                        }
+                    }
+                    view.setOnFocusChangeListener { v, hasFocus ->
+                        if (hasFocus) {
+                            val pos = recyclerView.getChildAdapterPosition(v)
+                            val adapter = recyclerView.adapter as? PreferenceGroupAdapter
+                            if (pos != RecyclerView.NO_POSITION && adapter != null) {
+                                (adapter.getItem(pos) as? Preference)?.let { pref ->
+                                    (activity as? com.storm3ds.emulator.ui.settings.SettingsActivity)?.onPreferenceFocused(pref)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                override fun onChildViewDetachedFromWindow(view: View) {
+                    view.onFocusChangeListener = null
+                }
+            })
+        }
+    }
+
+    override fun onPreferenceTreeClick(preference: Preference): Boolean {
+        lastActivatedKey = preference.key
+        return super.onPreferenceTreeClick(preference)
+    }
+
+    private val accentListener: (String) -> Unit = {
+        view?.post { applyAccentColorToViews() }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.post { applyAccentColorToViews() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.storm3ds.emulator.ui.theme.AppThemeManager.addAccentChangeListener(accentListener)
+        view?.post { applyAccentColorToViews() }
+        val key = lastActivatedKey ?: return
+        val recyclerView = listView ?: return
+        recyclerView.post { restoreFocusToPreference(recyclerView, key) }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        com.storm3ds.emulator.ui.theme.AppThemeManager.removeAccentChangeListener(accentListener)
+    }
+
+    private fun createPreferenceCardDrawable(
+        colors: com.storm3ds.emulator.ui.theme.WatermelonColors,
+        radiusDp: Float,
+    ): StateListDrawable {
+        val density = resources.displayMetrics.density
+        val radiusPx = radiusDp * density
+        val strokeNormal = (1f * density).toInt().coerceAtLeast(1)
+        val strokeFocused = (2f * density).toInt().coerceAtLeast(1)
+        val surface2Int = colors.surface2.toArgb()
+        val surface3Int = colors.surface3.toArgb()
+        val lineInt = colors.line.toArgb()
+        val accentInt = colors.green.toArgb()
+
+        fun makeShape(fill: Int, strokeWidth: Int, strokeColor: Int) = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusPx
+            setColor(fill)
+            setStroke(strokeWidth, strokeColor)
+        }
+
+        return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), makeShape(surface3Int, strokeFocused, accentInt))
+            addState(intArrayOf(android.R.attr.state_selected), makeShape(surface3Int, strokeFocused, accentInt))
+            addState(intArrayOf(android.R.attr.state_pressed), makeShape(surface3Int, strokeNormal, lineInt))
+            addState(intArrayOf(), makeShape(surface2Int, strokeNormal, lineInt))
+        }
+    }
+
+    private fun applyThemeToPreferenceView(view: View, isCategory: Boolean) {
+        val ctx = context ?: view.context ?: return
+        val colors = com.storm3ds.emulator.ui.theme.AppThemeManager.getCurrentWatermelonColors(ctx)
+        val accent = colors.green.toArgb()
+        val states = arrayOf(
+            intArrayOf(-android.R.attr.state_checked),
+            intArrayOf(android.R.attr.state_checked),
+        )
+        val thumbCsl = ColorStateList(states, intArrayOf(colors.text3.toArgb(), accent))
+        val trackCsl = ColorStateList(states, intArrayOf(colors.switchOff.toArgb(), colors.green.copy(alpha = 0.45f).toArgb()))
+        val enabledDisabledStates = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf())
+        val titleCsl = ColorStateList(
+            enabledDisabledStates,
+            intArrayOf(colors.text.copy(alpha = 0.38f).toArgb(), colors.text.toArgb()),
+        )
+        val summaryCsl = ColorStateList(
+            enabledDisabledStates,
+            intArrayOf(colors.text2.copy(alpha = 0.38f).toArgb(), colors.text2.toArgb()),
+        )
+
+        if (isCategory) {
+            (view as? android.widget.TextView ?: view.findViewById(android.R.id.title))?.setTextColor(accent)
+        } else if (view is FrameLayout && view.childCount == 1) {
+            val card = view.getChildAt(0)
+            if (card is LinearLayout) {
+                val radiusDp = if (card.minimumHeight >= (80 * resources.displayMetrics.density).toInt()) 15f else 13f
+                card.background = createPreferenceCardDrawable(colors, radiusDp)
+            }
+        }
+        tintChildControls(view, colors, thumbCsl, trackCsl, titleCsl, summaryCsl)
+    }
+
+    protected fun applyAccentColorToViews() {
+        val ctx = context ?: return
+        val colors = com.storm3ds.emulator.ui.theme.AppThemeManager.getCurrentWatermelonColors(ctx)
+        val bgInt = colors.bg.toArgb()
+        view?.setBackgroundColor(bgInt)
+
+        val rv = listView ?: return
+        rv.setBackgroundColor(bgInt)
+        rv.post {
+            val adapter = rv.adapter as? PreferenceGroupAdapter
+            for (i in 0 until rv.childCount) {
+                val child = rv.getChildAt(i)
+                val pos = rv.getChildAdapterPosition(child)
+                val pref = if (pos != RecyclerView.NO_POSITION) adapter?.getItem(pos) else null
+                applyThemeToPreferenceView(child, pref is androidx.preference.PreferenceCategory)
+            }
+        }
+    }
+
+    private fun tintChildControls(
+        view: View,
+        colors: com.storm3ds.emulator.ui.theme.WatermelonColors,
+        thumb: ColorStateList,
+        track: ColorStateList,
+        titleCsl: ColorStateList,
+        summaryCsl: ColorStateList,
+    ) {
+        val accent = colors.green.toArgb()
+        if (view is androidx.appcompat.widget.SwitchCompat) {
+            view.thumbTintList = thumb
+            view.trackTintList = track
+        } else if (view is android.widget.Switch) {
+            view.thumbTintList = thumb
+            view.trackTintList = track
+        } else if (view is android.widget.CompoundButton) {
+            view.buttonTintList = thumb
+        } else if (view is android.widget.SeekBar) {
+            view.thumbTintList = ColorStateList.valueOf(accent)
+            view.progressTintList = ColorStateList.valueOf(accent)
+            view.progressBackgroundTintList = ColorStateList.valueOf(colors.switchOff.toArgb())
+        } else if (view is android.widget.ImageView) {
+            val id = view.id
+            if (id == android.R.id.icon || id == com.storm3ds.emulator.R.id.buttonResetDefault || view.tag == "tint_accent") {
+                androidx.core.widget.ImageViewCompat.setImageTintList(view, ColorStateList.valueOf(accent))
+            }
+        } else if (view is android.widget.TextView) {
+            when {
+                view.tag == "category_title" || (view.id == android.R.id.title && view.parent is RecyclerView) -> {
+                    view.setTextColor(accent)
+                }
+                view.id == android.R.id.title -> {
+                    view.setTextColor(titleCsl)
+                }
+                view.id == android.R.id.summary || view.id == androidx.preference.R.id.seekbar_value -> {
+                    view.setTextColor(summaryCsl)
+                }
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                tintChildControls(view.getChildAt(i), colors, thumb, track, titleCsl, summaryCsl)
+            }
+        }
+    }
+
+    override fun onDisplayPreferenceDialog(preference: Preference) {
+        when (preference) {
+            is androidx.preference.ListPreference -> {
+                showStyledListPreferenceDialog(preference)
+            }
+            is androidx.preference.EditTextPreference -> {
+                showStyledEditTextPreferenceDialog(preference)
+            }
+            is androidx.preference.MultiSelectListPreference -> {
+                showStyledMultiSelectListPreferenceDialog(preference)
+            }
+            is androidx.preference.SeekBarPreference -> {
+                showStyledSeekBarPreferenceDialog(preference)
+            }
+            else -> {
+                super.onDisplayPreferenceDialog(preference)
+            }
+        }
+    }
+
+    protected open fun showStyledListPreferenceDialog(preference: androidx.preference.ListPreference) {
+        val context = context ?: return
+        val entries = preference.entries ?: return
+        val entryValues = preference.entryValues ?: return
+        val currentValue = preference.value
+        val icon = resolvePreferenceIcon(preference.key)
+
+        showSettingsComposeDialog(context) { dismiss ->
+            SettingsChoiceDialogContent(
+                title = preference.title?.toString() ?: "",
+                subtitle = preference.summary?.toString()?.takeIf { it != "%s" },
+                icon = icon,
+                options = entries.toList(),
+                values = entryValues.toList(),
+                selectedValue = currentValue,
+                onSelect = { newValue ->
+                    if (preference.callChangeListener(newValue)) {
+                        preference.value = newValue
+                    }
+                },
+                onDismiss = dismiss,
+            )
+        }
+    }
+
+    /**
+     * Whether the given EditText preference holds a secret (e.g. an API key) and must be masked while editing.
+     */
+    protected open fun isPasswordPreference(preference: androidx.preference.EditTextPreference): Boolean = false
+
+    protected open fun showStyledEditTextPreferenceDialog(preference: androidx.preference.EditTextPreference) {
+        val context = context ?: return
+        val icon = resolvePreferenceIcon(preference.key)
+
+        showSettingsComposeDialog(context) { dismiss ->
+            SettingsEditTextDialogContent(
+                title = preference.title?.toString() ?: "",
+                subtitle = preference.summary?.toString()?.takeIf { it != "%s" },
+                icon = icon,
+                currentText = preference.text ?: "",
+                isPassword = isPasswordPreference(preference),
+                onConfirm = { newValue ->
+                    if (preference.callChangeListener(newValue)) {
+                        preference.text = newValue
+                    }
+                },
+                onDismiss = dismiss,
+            )
+        }
+    }
+
+    protected open fun showStyledMultiSelectListPreferenceDialog(preference: androidx.preference.MultiSelectListPreference) {
+        val context = context ?: return
+        val entries = preference.entries ?: return
+        val entryValues = preference.entryValues ?: return
+        val currentValues = preference.values ?: emptySet()
+        val icon = resolvePreferenceIcon(preference.key)
+
+        showSettingsComposeDialog(context) { dismiss ->
+            SettingsMultiChoiceDialogContent(
+                title = preference.title?.toString() ?: "",
+                subtitle = preference.summary?.toString()?.takeIf { it != "%s" },
+                icon = icon,
+                options = entries.toList(),
+                values = entryValues.toList(),
+                selectedValues = currentValues,
+                onConfirm = { newValues ->
+                    if (preference.callChangeListener(newValues)) {
+                        preference.values = newValues
+                    }
+                },
+                onDismiss = dismiss,
+            )
+        }
+    }
+
+    protected open fun showStyledSeekBarPreferenceDialog(preference: androidx.preference.SeekBarPreference) {
+        val context = context ?: return
+        val icon = resolvePreferenceIcon(preference.key)
+
+        showSettingsComposeDialog(context) { dismiss ->
+            SettingsSeekBarDialogContent(
+                title = preference.title?.toString() ?: "",
+                subtitle = preference.summary?.toString()?.takeIf { it != "%s" },
+                icon = icon,
+                currentValue = preference.value,
+                minValue = preference.min,
+                maxValue = preference.max,
+                onConfirm = { newValue ->
+                    if (preference.callChangeListener(newValue)) {
+                        preference.value = newValue
+                    }
+                },
+                onDismiss = dismiss,
+            )
+        }
+    }
+
+    private fun resolvePreferenceIcon(key: String?): ImageVector {
+        if (key == null) return Icons.Filled.Tune
+        val k = key.lowercase()
+        return when {
+            k.contains("translator_enabled") -> Icons.Filled.Translate
+            k.contains("opacity") -> Icons.Filled.Opacity
+            k.contains("font") || k.contains("scale") -> Icons.Filled.FormatSize
+            k.contains("key") || k.contains("api") -> Icons.Filled.Key
+            k.contains("endpoint") || k.contains("url") -> Icons.Filled.Link
+            k.contains("region") || k.contains("crop") -> Icons.Filled.CropFree
+            k.contains("cache") || k.contains("clear") -> Icons.Filled.DeleteSweep
+            k.contains("pause") -> Icons.Filled.PauseCircleOutline
+            k.contains("floating") || k.contains("trigger") -> Icons.Filled.TouchApp
+            k.contains("model") -> Icons.Filled.Psychology
+            k.contains("lang") -> Icons.Filled.Language
+            k.contains("card") || k.contains("style") -> Icons.Filled.Dashboard
+            k.contains("tts") || k.contains("voice") || k.contains("pitch") -> Icons.Filled.RecordVoiceOver
+            k.contains("engine") || k.contains("translator") -> Icons.Filled.GTranslate
+            k.contains("theme") || k.contains("color") || k.contains("accent") -> Icons.Filled.Palette
+            k.contains("speed") || k.contains("rewind") || k.contains("fast") -> Icons.Filled.FastForward
+            k.contains("update") -> Icons.Filled.CloudSync
+            k.contains("dir") || k.contains("search") || k.contains("folder") -> Icons.Filled.Folder
+            k.contains("icon") || k.contains("filter") -> Icons.Filled.Filter
+            k.contains("title") || k.contains("name") -> Icons.Filled.TextFields
+            k.contains("view") || k.contains("mode") || k.contains("display") -> Icons.Filled.GridView
+            k.contains("save") || k.contains("state") -> Icons.Filled.Save
+            k.contains("dsiware") || k.contains("dsi") -> Icons.Filled.SportsEsports
+            k.contains("cpu") || k.contains("arm") || k.contains("overclock") || k.contains("jit") -> Icons.Filled.Memory
+            k.contains("sd") || k.contains("dldi") || k.contains("nand") -> Icons.Filled.SdCard
+            k.contains("wfc") || k.contains("dns") || k.contains("server") || k.contains("wifi") -> Icons.Filled.Wifi
+            k.contains("audio") || k.contains("sound") || k.contains("volume") || k.contains("mic") -> Icons.Filled.VolumeUp
+            k.contains("video") || k.contains("renderer") || k.contains("shader") || k.contains("fps") -> Icons.Filled.Tv
+            k.contains("haptic") || k.contains("vibrat") || k.contains("touch") -> Icons.Filled.TouchApp
+            else -> Icons.Filled.Tune
+        }
+    }
+
+    private fun restoreFocusToPreference(recyclerView: RecyclerView, key: String) {
+        val adapter = recyclerView.adapter as? PreferenceGroupAdapter ?: return
+        for (i in 0 until adapter.itemCount) {
+            val item = adapter.getItem(i)
+            if (item?.key == key) {
+                val viewHolder = recyclerView.findViewHolderForAdapterPosition(i)
+                viewHolder?.itemView?.requestFocus()
+                break
+            }
+        }
+    }
+}

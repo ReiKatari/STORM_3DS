@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_appearance"
+            app:iconSpaceReserved="false">
+
+        <ListPreference
+                android:key="theme"
+                android:title="@string/theme"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/theme_options"
+                android:entryValues="@array/theme_values"
+                android:defaultValue="dark" />
+
+        <ListPreference
+                android:key="theme_accent_color"
+                android:title="@string/theme_accent_color_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/theme_accent_color_options"
+                android:entryValues="@array/theme_accent_color_values"
+                android:defaultValue="theme_default" />
+
+        <ListPreference
+                android:key="rom_card_style"
+                android:title="@string/rom_card_style_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/rom_card_style_options"
+                android:entryValues="@array/rom_card_style_values"
+                android:defaultValue="glassmorphism" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:key="pref_cat_pause_menu_tools"
+            android:title="@string/v794_cat_general_pause_menu"
+            app:iconSpaceReserved="false">
+
+        <SwitchPreference
+                android:key="extended_pause_menu_enabled"
+                app:key="extended_pause_menu_enabled"
+                android:title="@string/pref_extended_pause_menu_title"
+                android:summary="@string/pref_extended_pause_menu_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false"
+                app:defaultValue="false" />
+
+        <Preference
+                android:key="manage_pause_menu"
+                android:title="@string/v792_general_pause_menu_title"
+                android:summary="@string/v792_general_pause_menu_summary"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_emulation_speed"
+            app:iconSpaceReserved="false">
+
+        <ListPreference
+                android:key="fast_forward_speed_multiplier"
+                android:title="@string/fast_forward_max_speed"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/fast_forward_speed_multiplier_options"
+                android:entryValues="@array/fast_forward_speed_multiplier_values"
+                android:defaultValue="-1" />
+
+        <ListPreference
+                android:key="frame_limit_speed_multiplier"
+                android:title="@string/frame_limit_speed"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/frame_limit_speed_multiplier_options"
+                android:entryValues="@array/frame_limit_speed_multiplier_values"
+                android:defaultValue="1" />
+
+        <Preference
+                android:key="enable_rewind"
+                android:title="@string/rewind"
+                android:summary="%s"
+                app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+                android:key="enable_sustained_performance"
+                android:title="@string/sustained_performance_mode"
+                android:summary="@string/sustained_performance_mode_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:key="category_backup_restore"
+            android:title="@string/pref_cat_backup_restore"
+            app:iconSpaceReserved="false">
+
+        <Preference
+                android:key="import_storm_folder_settings"
+                android:title="@string/import_storm_folder_settings"
+                android:summary="@string/import_storm_folder_settings_summary"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="manage_setting_snapshots"
+                android:title="@string/manage_setting_snapshots"
+                android:summary="@string/manage_setting_snapshots_summary"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="export_import_stormlayout"
+                android:title="@string/export_import_stormlayout"
+                android:summary="@string/export_import_stormlayout_summary"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="backup_settings"
+                android:title="@string/backup_settings"
+                android:summary="@string/backup_settings_summary"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="restore_settings"
+                android:title="@string/restore_settings"
+                android:summary="@string/restore_settings_summary"
+                app:isPreferenceVisible="@bool/settings_backup_restore_enabled"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="settings_export_json"
+                android:title="@string/v780_settings_export_json_title"
+                android:summary="@string/v780_settings_export_json_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="settings_import_json"
+                android:title="@string/v780_settings_import_json_title"
+                android:summary="@string/v780_settings_import_json_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="settings_reset_defaults"
+                android:title="@string/v780_settings_reset_defaults_title"
+                android:summary="@string/v780_settings_reset_defaults_summary"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

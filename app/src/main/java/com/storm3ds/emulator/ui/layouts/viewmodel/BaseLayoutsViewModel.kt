@@ -1,0 +1,130 @@
+package com.storm3ds.emulator.ui.layouts.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.domain.model.layout.LayoutConfiguration
+import com.storm3ds.emulator.domain.repositories.LayoutsRepository
+import com.storm3ds.emulator.ui.layouts.model.SelectedLayout
+import java.util.UUID
+
+abstract class BaseLayoutsViewModel(protected val layoutsRepository: LayoutsRepository) : ViewModel() {
+
+    protected val _layouts = MutableStateFlow<List<LayoutConfiguration>?>(null)
+    val layouts = _layouts.asStateFlow()
+
+    abstract val selectedLayoutId: StateFlow<SelectedLayout>
+
+    fun addLayout(layout: LayoutConfiguration) {
+        viewModelScope.launch {
+            layoutsRepository.saveLayout(layout)
+        }
+    }
+
+    fun duplicateLayout(layout: LayoutConfiguration, copySuffix: String, onComplete: ((LayoutConfiguration) -> Unit)? = null) {
+        viewModelScope.launch {
+            val baseName = layout.name?.ifBlank { "Layout" } ?: "Layout"
+            val newName = "$baseName $copySuffix".trim()
+            val duplicatedLayout = layout.copy(
+                id = UUID.randomUUID(),
+                name = newName,
+                type = LayoutConfiguration.LayoutType.CUSTOM
+            )
+            layoutsRepository.saveLayout(duplicatedLayout)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onComplete?.invoke(duplicatedLayout)
+            }
+        }
+    }
+
+    fun deleteLayout(layout: LayoutConfiguration) {
+        viewModelScope.launch {
+            if (layout.id == selectedLayoutId.value.layoutId) {
+                applyFallbackLayout()
+            }
+            layoutsRepository.deleteLayout(layout)
+        }
+    }
+
+    fun exportLayout(context: android.content.Context, layout: LayoutConfiguration, uri: android.net.Uri, onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val dto = com.storm3ds.emulator.impl.dtos.layout.LayoutConfigurationDto.fromModel(layout)
+                val json = com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(dto)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onComplete?.invoke(true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onComplete?.invoke(false)
+                }
+            }
+        }
+    }
+
+    enum class LayoutImportResult {
+        SUCCESS,
+        ALREADY_EXISTS,
+        ERROR
+    }
+
+    fun importLayout(context: android.content.Context, uri: android.net.Uri, onComplete: ((LayoutImportResult) -> Unit)? = null) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)?.use { input ->
+                    input.bufferedReader(Charsets.UTF_8).readText()
+                } ?: run {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onComplete?.invoke(LayoutImportResult.ERROR)
+                    }
+                    return@launch
+                }
+
+                val dto = com.google.gson.Gson().fromJson(json, com.storm3ds.emulator.impl.dtos.layout.LayoutConfigurationDto::class.java)
+                val model = dto.toModel()
+
+                val currentLayouts = layoutsRepository.getLayouts().firstOrNull() ?: emptyList()
+                val existingMatch = currentLayouts.firstOrNull { existing ->
+                    existing.type == LayoutConfiguration.LayoutType.CUSTOM &&
+                    existing.layoutVariants == model.layoutVariants
+                }
+
+                if (existingMatch != null) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        setSelectedLayoutId(existingMatch.id)
+                        onComplete?.invoke(LayoutImportResult.ALREADY_EXISTS)
+                    }
+                    return@launch
+                }
+
+                val importedLayout = model.copy(
+                    id = UUID.randomUUID(),
+                    name = model.name?.let { if (it.endsWith(")")) it else "$it (Imported)" } ?: "Imported Layout",
+                    type = LayoutConfiguration.LayoutType.CUSTOM
+                )
+                layoutsRepository.saveLayout(importedLayout)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    setSelectedLayoutId(importedLayout.id)
+                    onComplete?.invoke(LayoutImportResult.SUCCESS)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onComplete?.invoke(LayoutImportResult.ERROR)
+                }
+            }
+        }
+    }
+
+    abstract fun setSelectedLayoutId(id: UUID?)
+
+    protected abstract fun applyFallbackLayout()
+}

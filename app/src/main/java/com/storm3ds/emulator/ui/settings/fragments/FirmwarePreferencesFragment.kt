@@ -1,0 +1,67 @@
+package com.storm3ds.emulator.ui.settings.fragments
+
+import android.os.Bundle
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import dagger.hilt.android.AndroidEntryPoint
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.common.DirectoryAccessValidator
+import com.storm3ds.emulator.common.UriPermissionManager
+import com.storm3ds.emulator.ui.settings.PreferenceFragmentHelper
+import com.storm3ds.emulator.ui.settings.PreferenceFragmentTitleProvider
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class FirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitleProvider {
+    private val helper by lazy { PreferenceFragmentHelper(this, uriPermissionManager, directoryAccessValidator) }
+    @Inject lateinit var uriPermissionManager: UriPermissionManager
+    @Inject lateinit var directoryAccessValidator: DirectoryAccessValidator
+
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.pref_internal_firmware_settings, rootKey)
+        helper.bindPreferenceSummaryToValue(findPreference("firmware_settings_birthday"))
+
+        val macPref = findPreference<Preference>("internal_mac_address")
+        val prefs = preferenceManager.sharedPreferences
+        if (prefs?.getString("internal_mac_address", null).isNullOrBlank()) {
+            val defaultMac = com.storm3ds.emulator.domain.model.MacAddress.randomDsAddress().toString()
+            prefs?.edit()?.putString("internal_mac_address", defaultMac)?.apply()
+        }
+        macPref?.summary = prefs?.getString("internal_mac_address", null) ?: getString(R.string.not_set)
+
+        macPref?.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
+            val macStr = (newValue as? String)?.trim() ?: return@OnPreferenceChangeListener false
+            if (!isValidMacAddress(macStr)) {
+                android.widget.Toast.makeText(requireContext(), R.string.v780_mac_invalid_format, android.widget.Toast.LENGTH_SHORT).show()
+                false
+            } else {
+                val formatted = formatMacAddress(macStr)
+                preferenceManager.sharedPreferences?.edit()?.putString("internal_mac_address", formatted)?.apply()
+                macPref.summary = formatted
+                false
+            }
+        }
+
+        findPreference<Preference>("internal_randomize_mac")?.setOnPreferenceClickListener {
+            val randomMac = com.storm3ds.emulator.domain.model.MacAddress.randomDsAddress().toString()
+            preferenceManager.sharedPreferences?.edit()?.putString("internal_mac_address", randomMac)?.apply()
+            macPref?.summary = randomMac
+            android.widget.Toast.makeText(requireContext(), getString(R.string.v780_mac_generated, randomMac), android.widget.Toast.LENGTH_SHORT).show()
+            true
+        }
+
+        hideDependentsWhenInactive("internal_randomize_mac_address", "internal_mac_address", "internal_randomize_mac", showWhenChecked = false)
+    }
+
+    private fun isValidMacAddress(mac: String): Boolean {
+        val parts = mac.split(":", "-")
+        if (parts.size != 6) return false
+        return parts.all { it.length == 2 && it.toIntOrNull(16) != null }
+    }
+
+    private fun formatMacAddress(mac: String): String {
+        return mac.split(":", "-").joinToString(":") { it.uppercase() }
+    }
+
+    override fun getTitle() = getString(R.string.internal_firmware_settings)
+}

@@ -1,0 +1,1628 @@
+package com.storm3ds.emulator.impl
+
+import android.content.Context
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.widget.Toast
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
+import android.provider.DocumentsContract
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import com.storm3ds.emulator.R
+import com.storm3ds.emulator.common.romprocessors.RomFileProcessorFactory
+import com.storm3ds.emulator.common.uridelegates.UriHandler
+import com.storm3ds.emulator.domain.model.RomScanningStatus
+import kotlinx.coroutines.sync.withLock
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.domain.model.rom.config.RomConfig
+import com.storm3ds.emulator.domain.repositories.RomsRepository
+import com.storm3ds.emulator.domain.repositories.SettingsRepository
+import com.storm3ds.emulator.impl.dtos.rom.RomConfigDto
+import com.storm3ds.emulator.impl.dtos.rom.RomDto
+import com.storm3ds.emulator.impl.dtos.rom.RomDirectoryFileDto
+import com.storm3ds.emulator.impl.dtos.rom.RomDirectoryStateDto
+import com.storm3ds.emulator.domain.model.rom.RomDirectoryScanStatus
+import com.storm3ds.emulator.utils.FileUtils
+import com.storm3ds.emulator.utils.SubjectSharedFlow
+import java.io.File
+import java.io.FileOutputStream
+import java.io.FileReader
+import java.io.OutputStreamWriter
+import java.lang.reflect.Type
+import java.security.MessageDigest
+import java.util.Date
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+
+class FileSystemRomsRepository(
+        private val context: Context,
+        private val gson: Gson,
+        private val settingsRepository: SettingsRepository,
+        private val romFileProcessorFactory: RomFileProcessorFactory,
+        private val uriHandler: UriHandler,
+        private val settingsBackupManager: SettingsBackupManager,
+) : RomsRepository {
+
+    companion object {
+        private const val TAG = "FSRomsRepository"
+        private const val EXTERNAL_STORAGE_PROVIDER_AUTHORITY = "com.android.externalstorage.documents"
+        private const val ROM_DATA_FILE = "rom_data.json"
+        private const val ROM_METADATA_MIRROR_FILE = "rom_metadata_mirror.json"
+        private const val ROM_DIRECTORY_STATE_FILE = "rom_directory_state.json"
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val dsiWareTitlesMetadataStore by lazy { DSiWareTitlesMetadataStore(context) }
+    private val romListType: Type = object : TypeToken<List<RomDto>>(){}.type
+    private val romMetadataMirrorListType: Type = object : TypeToken<List<RomMetadataMirrorDto>>(){}.type
+    private val directoryStateListType: Type = object : TypeToken<List<RomDirectoryStateDto>>(){}.type
+    private val romsChannel = SubjectSharedFlow<List<Rom>>()
+    private val romDataSaveTrigger = MutableSharedFlow<List<Rom>>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    private val scanningStatusSubject = MutableStateFlow(RomScanningStatus.NOT_SCANNING)
+    private val roms: java.util.concurrent.CopyOnWriteArrayList<Rom> = java.util.concurrent.CopyOnWriteArrayList()
+    private var areRomsLoaded = AtomicBoolean(false)
+    private val directoryStatesLock = Any()
+    private val directoryStates: MutableMap<String, DirectoryCacheState> = mutableMapOf()
+    private val directoryScanStatuses: MutableMap<String, RomDirectoryScanStatus> = mutableMapOf()
+    private val directoryScanStatusFlow = MutableStateFlow<List<RomDirectoryScanStatus>>(emptyList())
+    private val romOptionsReadErrorNotifications: MutableSet<String> = mutableSetOf()
+    @Volatile private var currentDirectoryUris: Map<String, Uri> = emptyMap()
+    @Volatile private var hasUnavailableSearchDirectories = false
+    private val scanMutex = Mutex()
+    private val romDataMutex = Mutex()
+    private val initJob = coroutineScope.launch {
+        loadDirectoryStates()
+        ensureRomSearchDirectoriesInitialized()
+    }
+
+    private fun getStorageSettingsFile(fileName: String): File {
+        val extRoot = runCatching { android.os.Environment.getExternalStorageDirectory() }.getOrNull()
+        val settingsDir = if (extRoot != null) {
+            File(extRoot, "STORM 3DS/settings").apply { mkdirs() }
+        } else {
+            context.filesDir
+        }
+        val target = File(settingsDir, fileName)
+        if (!target.exists() && settingsDir != context.filesDir) {
+            val legacy = File(context.filesDir, fileName)
+            if (legacy.isFile && legacy.length() > 0L) {
+                runCatching {
+                    legacy.copyTo(target, overwrite = false)
+                    legacy.delete()
+                }
+            }
+        }
+        return target
+    }
+
+    init {
+        coroutineScope.launch {
+            @OptIn(FlowPreview::class)
+            romDataSaveTrigger
+                .debounce(500L)
+                .collectLatest { snapshot ->
+                    if (!hasUnavailableSearchDirectories) {
+                        saveRomData(snapshot)
+                    }
+                }
+        }
+
+        coroutineScope.launch {
+            settingsRepository.observeRomSearchDirectories().collectLatest { directories ->
+                onRomSearchDirectoriesChanged(directories)
+            }
+        }
+    }
+
+    private fun ensureRomSearchDirectoriesInitialized() {
+        if (settingsRepository.getRomSearchDirectories().isNotEmpty()) {
+            return
+        }
+        val stateUris = synchronized(directoryStatesLock) {
+            directoryStates.keys.mapNotNull { runCatching { it.toUri() }.getOrNull() }
+        }
+        if (stateUris.isNotEmpty()) {
+            stateUris.forEach { settingsRepository.addRomSearchDirectory(it) }
+            return
+        }
+        val extRoot = runCatching { android.os.Environment.getExternalStorageDirectory() }.getOrNull() ?: return
+        val defaultNdsFolder = File(extRoot, "GAMES/HANDHELDS/Nintendo 3DS")
+        if (defaultNdsFolder.exists() && defaultNdsFolder.isDirectory) {
+            settingsRepository.addRomSearchDirectory(
+                "content://com.android.externalstorage.documents/tree/primary%3AGAMES%2FHANDHELDS%2FNintendo%20DS".toUri()
+            )
+        }
+    }
+
+    private suspend fun onRomSearchDirectoriesChanged(searchDirectories: Array<Uri>) {
+        initJob.join()
+        scanMutex.withLock {
+            val newDirectoryMap = searchDirectories.associateBy { it.toString() }
+            val previousDirectoryMap = currentDirectoryUris
+            currentDirectoryUris = newDirectoryMap
+
+            if (newDirectoryMap.isNotEmpty()) {
+                removeStaleDirectoryStates(newDirectoryMap.keys)
+            }
+
+            val removedDirectoryKeys = previousDirectoryMap.keys - newDirectoryMap.keys
+            val addedDirectoryKeys = newDirectoryMap.keys - previousDirectoryMap.keys
+
+            val removedDirectoryUris = removedDirectoryKeys.mapNotNull { previousDirectoryMap[it] }.toSet()
+            val addedDirectoryStrings = addedDirectoryKeys.toSet()
+
+            if (!areRomsLoaded.get()) {
+                return@withLock
+            }
+
+            if (removedDirectoryUris.isNotEmpty()) {
+                removeRomsForDirectories(removedDirectoryUris)
+            }
+            purgeNonExistentRoms()
+
+            if (addedDirectoryStrings.isNotEmpty()) {
+                executeScanLocked(targetDirectories = addedDirectoryStrings)
+            }
+        }
+    }
+
+    /**
+     * Runs a ROM directory scan. Scans are serialised (no overlapping scans fighting over the same list)
+     * and the scanning status is always reset in `finally`, so the UI can never stay in the scanning state.
+     */
+    private suspend fun runSerialisedScan(targetDirectories: Set<String>? = null) {
+        initJob.join()
+        scanMutex.withLock {
+            executeScanLocked(targetDirectories)
+        }
+    }
+
+    private suspend fun executeScanLocked(targetDirectories: Set<String>? = null) {
+        scanningStatusSubject.emit(RomScanningStatus.SCANNING)
+        try {
+            val buffer = mutableListOf<Rom>()
+            scanForNewRoms(targetDirectories = targetDirectories).collect {
+                buffer.add(it)
+                if (buffer.size >= 4) {
+                    addRoms(buffer)
+                    buffer.clear()
+                }
+            }
+            if (buffer.isNotEmpty()) {
+                addRoms(buffer)
+                buffer.clear()
+            }
+            purgeNonExistentRoms()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during ROM scan", e)
+        } finally {
+            scanningStatusSubject.value = RomScanningStatus.NOT_SCANNING
+        }
+    }
+
+    override fun getRoms(): Flow<List<Rom>> = flow {
+        if (areRomsLoaded.compareAndSet(false, true)) {
+            coroutineScope.launch {
+                loadCachedRoms()
+            }
+        }
+        emitAll(romsChannel)
+    }
+
+    override fun getRomScanningStatus(): StateFlow<RomScanningStatus> {
+        return scanningStatusSubject.asStateFlow()
+    }
+
+    override fun observeRomDirectoryScanStatuses(): Flow<List<RomDirectoryScanStatus>> {
+        return directoryScanStatusFlow.asStateFlow()
+    }
+
+    override suspend fun getRomAtPath(path: String): Rom? {
+        val allRoms = kotlinx.coroutines.withTimeoutOrNull(1500L) {
+            getRoms().first()
+        } ?: roms.toList()
+        val targetFile = java.io.File(path)
+        val targetName = targetFile.name
+
+        allRoms.find { rom ->
+            val romPath = FileUtils.getAbsolutePathFromSAFUri(context, rom.uri)
+            romPath == path
+        }?.let { return refreshRomConfigFromOptions(it) }
+
+        allRoms.find { rom ->
+            rom.fileName.equals(targetName, ignoreCase = true)
+        }?.let { return refreshRomConfigFromOptions(it) }
+
+        if (targetFile.exists() && targetFile.canRead()) {
+            return getRomAtUri(android.net.Uri.fromFile(targetFile))
+        }
+
+        return null
+    }
+
+    override suspend fun getRomAtUri(uri: Uri): Rom? {
+        val allRoms = kotlinx.coroutines.withTimeoutOrNull(1500L) {
+            getRoms().first()
+        } ?: roms.toList()
+
+        // Quick exact URI match first (no filename needed)
+        allRoms.find { rom -> rom.uri == uri }?.let { return refreshRomConfigFromOptions(it) }
+
+        // Pre-filter by filename for performance
+        val incomingFileName = DocumentFile.fromSingleUri(context, uri)?.name
+        val candidateRoms = if (incomingFileName != null) {
+            allRoms.filter { it.fileName == incomingFileName }
+        } else {
+            allRoms
+        }
+
+        // Try to find matching ROM by path, then by size (filename already pre-filtered)
+        val cachedRom = findRomByPath(candidateRoms, uri)
+            ?: findRomBySize(candidateRoms, uri)
+
+        if (cachedRom != null)
+            return refreshRomConfigFromOptions(cachedRom)
+
+        // ROM is not known. Create a new ROM from the URI
+        if (uri.scheme == Rom.INSTALLED_DSIWARE_URI_SCHEME) {
+            val titleId = resolveInstalledDsiWareTitleId(uri)
+            if (titleId != null) {
+                val titleIdHex = (titleId and 0xFFFFFFFFL).toString(16).padStart(8, '0').lowercase()
+                val displayName = dsiWareTitlesMetadataStore.getDisplayName(titleId, "DSiWare ($titleIdHex)")
+                val customName = dsiWareTitlesMetadataStore.getCustomName(titleIdHex)
+                val savedConfig = readInstalledDsiWareConfig(titleId)
+                    ?: RomConfig.forDsiWareTitle().copy(customName = customName)
+                val raHash = dsiWareTitlesMetadataStore.getRaHash(titleIdHex).orEmpty()
+                return Rom(
+                    name = displayName,
+                    developerName = "",
+                    fileName = "$displayName.nds",
+                    uri = uri,
+                    parentTreeUri = null,
+                    config = savedConfig,
+                    lastPlayed = null,
+                    isDsiWareTitle = true,
+                    retroAchievementsHash = raHash,
+                    installedDsiWareTitleId = titleId and 0xFFFFFFFFL,
+                )
+            }
+        }
+
+        return romFileProcessorFactory.getFileRomProcessorForDocument(uri)
+            ?.getRomFromUri(uri, null)
+            ?.let { rom ->
+                applyRestoredRomMetadata(rom, readRomOptionsConfig(rom))
+            }
+    }
+
+    private fun findRomByPath(roms: List<Rom>, uri: Uri): Rom? {
+        val incomingPath = FileUtils.getAbsolutePathFromSingleUri(context, uri) ?: return null
+        return roms.find { rom ->
+            FileUtils.getAbsolutePathFromSingleUri(context, rom.uri) == incomingPath
+        }
+    }
+
+    private fun findRomBySize(roms: List<Rom>, uri: Uri): Rom? {
+        val incomingDoc = DocumentFile.fromSingleUri(context, uri)?.takeIf { it.exists() } ?: return null
+        val incomingSize = incomingDoc.length()
+
+        return roms.find { rom ->
+            val romDoc = DocumentFile.fromSingleUri(context, rom.uri)
+            romDoc?.length() == incomingSize
+        }
+    }
+
+    override fun updateRomConfig(rom: Rom, romConfig: RomConfig) {
+        val installedTitleId = resolveInstalledDsiWareTitleId(rom)
+        if (installedTitleId != null && (rom.isInstalledDsiWareShortcut || rom.uri.scheme == Rom.INSTALLED_DSIWARE_URI_SCHEME)) {
+            writeInstalledDsiWareConfig(installedTitleId, romConfig)
+        }
+
+        val romIndex = roms.indexOfFirst { it.hasSameFileAsRom(rom) }
+        if (romIndex < 0)
+            return
+
+        roms[romIndex].config = romConfig
+        if (installedTitleId != null) {
+            writeInstalledDsiWareConfig(installedTitleId, romConfig)
+        }
+        syncRomOptionsFile(roms[romIndex])
+        onRomsChanged()
+    }
+
+    override fun setRomLastPlayed(rom: Rom, lastPlayed: Date) {
+        val romIndex = roms.indexOfFirst { it.hasSameFileAsRom(rom) }
+        if (romIndex < 0)
+            return
+
+        rom.lastPlayed = lastPlayed
+        roms[romIndex] = rom
+        onRomsChanged()
+    }
+
+    override fun addRomPlayTime(rom: Rom, playTime: Duration) {
+        val romIndex = roms.indexOfFirst { it.hasSameFileAsRom(rom) }
+        if (romIndex < 0)
+            return
+
+        val romInList = roms[romIndex]
+        val updatedRom = romInList.copy(totalPlayTime = romInList.totalPlayTime + playTime)
+        roms[romIndex] = updatedRom
+        com.storm3ds.emulator.ui.stats.PlayStatsStore.recordPlayTime(context, updatedRom, playTime.inWholeMilliseconds)
+        onRomsChanged()
+    }
+
+    override fun setRomFavorite(rom: Rom, favorite: Boolean) {
+        val romIndex = roms.indexOfFirst { it.hasSameFileAsRom(rom) }
+        if (romIndex < 0)
+            return
+
+        val romInList = roms[romIndex]
+        if (romInList.isFavorite == favorite)
+            return
+
+        roms[romIndex] = romInList.copy(isFavorite = favorite)
+        onRomsChanged()
+    }
+
+    override fun rescanRoms() {
+        synchronized(directoryStatesLock) {
+            directoryStates.clear()
+            directoryScanStatuses.clear()
+            emitDirectoryScanStatusesLocked()
+        }
+
+        coroutineScope.launch {
+            initJob.join()
+            val directoryCacheFile = getStorageSettingsFile(ROM_DIRECTORY_STATE_FILE)
+            if (directoryCacheFile.isFile) {
+                directoryCacheFile.delete()
+            }
+            runSerialisedScan()
+        }
+    }
+
+    override fun invalidateRoms() {
+        runBlocking {
+            initJob.join()
+            romDataMutex.withLock {
+                if (areRomsLoaded.compareAndSet(true, false)) {
+                    roms.clear()
+                }
+
+                val cacheFile = getStorageSettingsFile(ROM_DATA_FILE)
+                if (cacheFile.isFile) {
+                    cacheFile.delete()
+                }
+
+                val directoryCacheFile = getStorageSettingsFile(ROM_DIRECTORY_STATE_FILE)
+                if (directoryCacheFile.isFile) {
+                    directoryCacheFile.delete()
+                }
+
+                synchronized(directoryStatesLock) {
+                    directoryStates.clear()
+                    directoryScanStatuses.clear()
+                }
+
+                directoryScanStatusFlow.value = emptyList()
+            }
+        }
+    }
+
+    private fun addRom(rom: Rom) {
+        addRoms(listOf(rom))
+    }
+
+    private fun addRoms(newRoms: List<Rom>) {
+        if (newRoms.isEmpty()) return
+        val restoredMetadata = loadRestoredRomMetadata()
+        var hasChanges = false
+
+        for (rom in newRoms) {
+            val optionsConfig = readRomOptionsConfig(rom)
+            val incomingRom = applyRestoredRomMetadataWithCachedMirror(rom, optionsConfig, restoredMetadata)
+            val existingRom = roms.find { it.hasSameFileAsRom(rom) }
+            if (existingRom == incomingRom) continue
+
+            if (existingRom != null) {
+                val updatedRom = existingRom.copy(
+                    name = incomingRom.name,
+                    developerName = incomingRom.developerName,
+                    isDsiWareTitle = incomingRom.isDsiWareTitle,
+                    isDsiEnhanced = incomingRom.isDsiEnhanced,
+                    retroAchievementsHash = incomingRom.retroAchievementsHash,
+                    config = optionsConfig ?: existingRom.config,
+                    gameCode = incomingRom.gameCode.takeIf { it.isNotEmpty() } ?: existingRom.gameCode,
+                    installedDsiWareTitleId = incomingRom.installedDsiWareTitleId ?: existingRom.installedDsiWareTitleId,
+                )
+                val existingIndex = roms.indexOf(existingRom)
+                if (existingIndex >= 0) {
+                    roms[existingIndex] = updatedRom
+                } else {
+                    roms.add(updatedRom)
+                }
+                hasChanges = true
+            } else {
+                roms.add(incomingRom)
+                hasChanges = true
+            }
+        }
+
+        if (hasChanges) {
+            onRomsChanged()
+        }
+    }
+
+    private fun refreshRomConfigFromOptions(rom: Rom): Rom {
+        val optionsConfig = readRomOptionsConfig(rom) ?: return rom
+        val updatedRom = applyRestoredRomMetadata(rom, optionsConfig)
+        if (updatedRom == rom) {
+            return rom
+        }
+
+        val romIndex = roms.indexOfFirst { it.hasSameFileAsRom(rom) }
+        if (romIndex >= 0) {
+            roms[romIndex] = updatedRom
+            onRomsChanged()
+        }
+        return updatedRom
+    }
+
+    private fun applyRestoredRomMetadata(rom: Rom, optionsConfig: RomConfig?): Rom {
+        val metadata = loadRestoredRomMetadata()
+        return applyRestoredRomMetadataWithCachedMirror(rom, optionsConfig, metadata)
+    }
+
+    private fun applyRestoredRomMetadataWithCachedMirror(rom: Rom, optionsConfig: RomConfig?, metadata: List<RomMetadataMirrorDto>): Rom {
+        val found = metadata.firstOrNull {
+            rom.retroAchievementsHash.isNotBlank() && it.retroAchievementsHash == rom.retroAchievementsHash
+        } ?: metadata.firstOrNull {
+            rom.gameCode.isNotBlank() && it.gameCode == rom.gameCode
+        } ?: metadata.firstOrNull {
+            it.fileName == rom.fileName && it.isDsiWareTitle == rom.isDsiWareTitle
+        }
+        return if (found != null) {
+            rom.copy(
+                config = optionsConfig ?: found.config.toModel(),
+                lastPlayed = found.lastPlayed,
+                totalPlayTime = found.totalPlayTime.milliseconds,
+                isFavorite = found.isFavorite,
+                gameCode = if (rom.gameCode.isNotBlank()) rom.gameCode else found.gameCode,
+            )
+        } else {
+            optionsConfig?.let { rom.copy(config = it) } ?: rom
+        }
+    }
+
+    private fun loadRestoredRomMetadata(): List<RomMetadataMirrorDto> {
+        val metadataFile = File(context.filesDir, ROM_METADATA_MIRROR_FILE)
+        if (!metadataFile.isFile) {
+            return emptyList()
+        }
+
+        return runCatching {
+            FileReader(metadataFile).use { reader ->
+                gson.fromJson<List<RomMetadataMirrorDto>>(reader, romMetadataMirrorListType).orEmpty()
+            }
+        }.onFailure {
+            Log.w(TAG, "Failed to parse restored ROM metadata", it)
+        }.getOrElse { emptyList() }
+    }
+
+    private fun syncRomOptionsFile(rom: Rom) {
+        if (shouldPersistRomOptions(rom)) {
+            writeRomOptions(rom)
+        } else {
+            deleteRomOptions(rom)
+        }
+    }
+
+    private fun shouldPersistRomOptions(rom: Rom): Boolean {
+        val defaultConfig = if (rom.isDsiWareTitle) {
+            RomConfig.forDsiWareTitle()
+        } else {
+            RomConfig.default()
+        }
+        return rom.config != defaultConfig
+    }
+
+    private fun resolveInstalledDsiWareTitleId(uri: Uri): Long? {
+        if (uri.scheme != Rom.INSTALLED_DSIWARE_URI_SCHEME) return null
+        return uri.lastPathSegment?.toLongOrNull(16)?.let { it and 0xFFFFFFFFL }
+    }
+
+    private fun resolveInstalledDsiWareTitleId(rom: Rom): Long? {
+        return rom.installedDsiWareTitleId?.let { it and 0xFFFFFFFFL } ?: resolveInstalledDsiWareTitleId(rom.uri)
+    }
+
+    private fun readInstalledDsiWareConfig(titleId: Long): RomConfig? {
+        val rawJson = dsiWareTitlesMetadataStore.getRomConfigJson(titleId) ?: return null
+        return runCatching {
+            val dto = gson.fromJson(rawJson, RomConfigDto::class.java) ?: return null
+            val config = dto.toModel()
+            if (config.customName.isNullOrBlank()) {
+                val titleIdHex = (titleId and 0xFFFFFFFFL).toString(16).padStart(8, '0').lowercase()
+                val customName = dsiWareTitlesMetadataStore.getCustomName(titleIdHex)
+                if (!customName.isNullOrBlank()) config.copy(customName = customName) else config
+            } else {
+                config
+            }
+        }.onFailure {
+            Log.w(TAG, "Failed to parse installed DSiWare RomConfig for titleId=$titleId", it)
+        }.getOrNull()
+    }
+
+    private fun writeInstalledDsiWareConfig(titleId: Long, romConfig: RomConfig) {
+        dsiWareTitlesMetadataStore.setCustomName(titleId, romConfig.customName)
+        if (romConfig == RomConfig.forDsiWareTitle()) {
+            dsiWareTitlesMetadataStore.setRomConfigJson(titleId, null)
+        } else {
+            val json = gson.toJson(RomConfigDto.fromModel(romConfig))
+            dsiWareTitlesMetadataStore.setRomConfigJson(titleId, json)
+        }
+    }
+
+    private fun readRomOptionsConfig(rom: Rom): RomConfig? {
+        val installedTitleId = resolveInstalledDsiWareTitleId(rom)
+        if (installedTitleId != null && (rom.isInstalledDsiWareShortcut || rom.uri.scheme == Rom.INSTALLED_DSIWARE_URI_SCHEME)) {
+            return readInstalledDsiWareConfig(installedTitleId)
+        }
+        val optionsDocument = getRomOptionsDocument(rom)
+            ?: return installedTitleId?.let { readInstalledDsiWareConfig(it) }
+        return runCatching {
+            val reader = context.contentResolver.openInputStream(optionsDocument.uri)?.bufferedReader()
+                ?: throw IllegalStateException("Could not open ${optionsDocument.uri}")
+            reader.use {
+                val options = gson.fromJson(it, RomOptionsDto::class.java)
+                    ?: throw IllegalStateException("Empty ROM options")
+                options.config.toModel()
+            }
+        }.onFailure { throwable ->
+            Log.w(TAG, "Failed to read ROM options for ${rom.fileName}", throwable)
+            notifyRomOptionsReadError(optionsDocument)
+            rewriteRomOptionsFromCachedConfig(rom)
+        }.getOrNull()
+    }
+
+    private fun rewriteRomOptionsFromCachedConfig(rom: Rom) {
+        if (!shouldPersistRomOptions(rom)) {
+            return
+        }
+
+        Log.i(TAG, "Rewriting unreadable ROM options from cached config for ${rom.fileName}")
+        writeRomOptions(rom)
+    }
+
+    private fun writeRomOptions(rom: Rom) {
+        val rootDocument = getRomOptionsRootDocument(rom) ?: return
+        val optionsFileName = getRomOptionsFileName(rom)
+        val rootUri = rootDocument.uri
+        if (rootUri.scheme == "file" && !rootUri.path.isNullOrBlank()) {
+            val dir = File(rootUri.path!!).apply { mkdirs() }
+            val legacyBin = File(dir, "$optionsFileName.bin")
+            if (legacyBin.exists()) runCatching { legacyBin.delete() }
+            val optsFile = File(dir, optionsFileName)
+            runCatching {
+                optsFile.writeText(gson.toJson(RomOptionsDto(config = RomConfigDto.fromModel(rom.config))))
+            }.onFailure {
+                Log.w(TAG, "Failed to write ROM options for ${rom.fileName}", it)
+            }
+            return
+        }
+        val optionsDocument = rootDocument.findFile(optionsFileName)
+            ?: rootDocument.findFile("$optionsFileName.bin")
+            ?: rootDocument.createFile("*/*", optionsFileName)
+            ?: rootDocument.findFile(optionsFileName)
+            ?: return
+
+        runCatching {
+            val outputStream = context.contentResolver.openOutputStream(optionsDocument.uri, "wt")
+                ?: throw IllegalStateException("Could not open ${optionsDocument.uri}")
+            OutputStreamWriter(outputStream).use {
+                it.write(gson.toJson(RomOptionsDto(config = RomConfigDto.fromModel(rom.config))))
+            }
+        }.onFailure {
+            Log.w(TAG, "Failed to write ROM options for ${rom.fileName}", it)
+        }
+    }
+
+    private fun deleteRomOptions(rom: Rom) {
+        getRomOptionsDocument(rom)?.let { document ->
+            runCatching { document.delete() }.onFailure {
+                Log.w(TAG, "Failed to delete ROM options for ${rom.fileName}", it)
+            }
+        }
+    }
+
+    private fun getRomOptionsDocument(rom: Rom): DocumentFile? {
+        val rootDoc = getRomOptionsRootDocument(rom) ?: return null
+        val name = getRomOptionsFileName(rom)
+        return rootDoc.findFile(name) ?: rootDoc.findFile("$name.bin")
+    }
+
+    private fun getRomOptionsRootDocument(rom: Rom): DocumentFile? {
+        return runCatching {
+            uriHandler.getUriTreeDocument(settingsRepository.getSaveFileDirectory(rom))
+        }.onFailure {
+            Log.w(TAG, "Failed to resolve ROM options directory for ${rom.fileName}", it)
+        }.getOrNull()
+    }
+
+    private fun getRomOptionsFileName(rom: Rom): String {
+        val romFileName = rom.fileName.ifBlank {
+            uriHandler.getUriDocument(rom.uri)?.name ?: rom.name
+        }
+        return romFileName.replaceAfterLast('.', "opts", "$romFileName.opts")
+    }
+
+    private fun notifyRomOptionsReadError(optionsDocument: DocumentFile) {
+        val notificationKey = optionsDocument.uri.toString()
+        val shouldNotify = synchronized(romOptionsReadErrorNotifications) {
+            romOptionsReadErrorNotifications.add(notificationKey)
+        }
+        if (!shouldNotify) {
+            return
+        }
+
+        mainHandler.post {
+            Toast.makeText(context, R.string.rom_options_read_error, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun removeRom(rom: Rom, notifyChanged: Boolean = true) {
+        if (roms.removeAll { it.hasSameFileAsRom(rom) } && notifyChanged) {
+            onRomsChanged()
+        }
+    }
+
+    private fun removeAllRoms() {
+        roms.clear()
+        onRomsChanged()
+    }
+
+    private fun removeRomsForDirectories(directoryUris: Set<Uri>) {
+        if (directoryUris.isEmpty()) {
+            return
+        }
+
+        val directoryDocIds = directoryUris.mapNotNull { uri ->
+            runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
+        }
+
+        if (directoryDocIds.isEmpty()) {
+            return
+        }
+
+        val removed = roms.removeAll { rom ->
+            val parentUri = rom.parentTreeUri ?: return@removeAll false
+            val parentDocId = runCatching { DocumentsContract.getDocumentId(parentUri) }.getOrNull()
+                ?: runCatching { DocumentsContract.getTreeDocumentId(parentUri) }.getOrNull()
+                ?: return@removeAll false
+            directoryDocIds.any { matchesDirectoryDocId(parentDocId, it) }
+        }
+
+        if (removed) {
+            onRomsChanged()
+        }
+    }
+
+    private fun matchesDirectoryDocId(docId: String, directoryDocId: String): Boolean {
+        if (docId == directoryDocId) return true
+        if (directoryDocId.endsWith(":") || directoryDocId.endsWith("/")) {
+            return docId.startsWith(directoryDocId)
+        }
+        return docId.startsWith("$directoryDocId/")
+    }
+
+    private fun onRomsChanged(persist: Boolean = true) {
+        val snapshot = roms.toList()
+        romsChannel.tryEmit(snapshot)
+        if (persist && !hasUnavailableSearchDirectories) {
+            romDataSaveTrigger.tryEmit(snapshot)
+        }
+    }
+
+    private suspend fun loadCachedRoms() {
+        initJob.join()
+        scanMutex.withLock {
+        scanningStatusSubject.emit(RomScanningStatus.SCANNING)
+        try {
+            val legacyCacheFile = File(context.filesDir, ROM_DATA_FILE)
+            if (legacyCacheFile.isFile) {
+                legacyCacheFile.delete()
+            }
+
+            ensureRomSearchDirectoriesInitialized()
+            val searchDirectories = settingsRepository.getRomSearchDirectories()
+            val unavailableDirectories = updateUnavailableSearchDirectories(searchDirectories)
+            val cacheReadResult = getCachedRoms()
+            val cachedRoms = if (unavailableDirectories.isEmpty()) {
+                cacheReadResult.roms
+            } else {
+                cacheReadResult.roms.filterNot { rom ->
+                    unavailableDirectories.any { directoryUri -> isRomInDirectory(rom, directoryUri) }
+                }
+            }
+
+            val validCachedRoms = if (searchDirectories.isNotEmpty()) {
+                cachedRoms
+                    .filterNot { rom ->
+                        val uriStr = rom.uri.toString()
+                        val pathStr = rom.uri.path.orEmpty()
+                        uriStr.contains("dsi_sd") || pathStr.contains("dsi_sd") ||
+                            uriStr.startsWith(Rom.INSTALLED_DSIWARE_URI_SCHEME) ||
+                            pathStr.startsWith(context.filesDir.path)
+                    }
+            } else {
+                emptyList()
+            }
+
+            if (validCachedRoms.isEmpty() && searchDirectories.isNotEmpty() && unavailableDirectories.isEmpty()) {
+                Log.w(TAG, "ROM cache is empty but search directories exist; forcing full rescan")
+                synchronized(directoryStatesLock) {
+                    directoryStates.clear()
+                    directoryScanStatuses.clear()
+                    emitDirectoryScanStatusesLocked()
+                }
+                saveDirectoryStates()
+            }
+
+            val fixedCachedRoms = validCachedRoms.map { rom ->
+                val gc0 = rom.gameCode.firstOrNull()
+                val isDsiFile = rom.fileName.endsWith(".dsi", ignoreCase = true) ||
+                    rom.uri.path?.endsWith(".dsi", ignoreCase = true) == true ||
+                    rom.isInstalledDsiWareShortcut ||
+                    rom.installedDsiWareTitleId != null ||
+                    gc0 == 'K' || gc0 == 'H' ||
+                    (!rom.isDsiEnhanced && gc0 == '4')
+                if (isDsiFile && (!rom.isDsiWareTitle || rom.config.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT)) {
+                    val updatedConfig = if (rom.config.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
+                        rom.config.copy(runtimeConsoleType = com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DSi)
+                    } else {
+                        rom.config
+                    }
+                    rom.copy(isDsiWareTitle = true, isDsiEnhanced = false, config = updatedConfig)
+                } else {
+                    rom
+                }
+            }
+
+            if (fixedCachedRoms.any { it.gameCode.isBlank() && !it.isInstalledDsiWareShortcut }) {
+                Log.w(TAG, "Found cached ROMs without gameCode; clearing directory states to refresh metadata")
+                synchronized(directoryStatesLock) {
+                    directoryStates.clear()
+                }
+                saveDirectoryStates()
+            }
+
+            roms.clear()
+            roms.addAll(fixedCachedRoms)
+            onRomsChanged(persist = searchDirectories.isNotEmpty() && unavailableDirectories.isEmpty())
+
+            var scannedRom = false
+            try {
+                val buffer = mutableListOf<Rom>()
+                scanForNewRoms().collect {
+                    scannedRom = true
+                    buffer.add(it)
+                    if (buffer.size >= 4) {
+                        addRoms(buffer)
+                        buffer.clear()
+                    }
+                }
+                if (buffer.isNotEmpty()) {
+                    addRoms(buffer)
+                    buffer.clear()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during scanForNewRoms", e)
+            }
+            purgeNonExistentRoms()
+            if (!cacheReadResult.isValid && !scannedRom) {
+                onRomsChanged(persist = false)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in loadCachedRoms", e)
+        } finally {
+            scanningStatusSubject.emit(RomScanningStatus.NOT_SCANNING)
+        }
+        }
+    }
+
+    private fun scanForNewRoms(targetDirectories: Set<String>? = null): Flow<Rom> = flow {
+        val directories = settingsRepository.getRomSearchDirectories()
+        updateUnavailableSearchDirectories(directories)
+        for (directory in directories) {
+            val directoryString = directory.toString()
+            if (targetDirectories != null && !targetDirectories.contains(directoryString)) {
+                continue
+            }
+            if (!hasPersistedReadPermission(directory)) {
+                Log.w(TAG, "ROM directory permission is missing; reauthorization required for $directory")
+                markDirectoryNotScanned(directory, getDirectoryState(directory)?.lastScanned)
+                continue
+            }
+            val documentFile = getDocumentFileForUri(directory)
+            if (documentFile != null) {
+                processDirectory(directory, documentFile, this)
+            } else {
+                markDirectoryNotScanned(directory, null)
+            }
+        }
+    }
+
+    private suspend fun processDirectory(directoryUri: Uri, directoryDocument: DocumentFile, collector: FlowCollector<Rom>) {
+        val cachedState = getDirectoryState(directoryUri)
+        val fileStates = collectDirectoryFileStates(directoryUri, directoryDocument)
+        if (fileStates == null) {
+            if (!directoryDocument.exists() || !directoryDocument.canRead()) {
+                Log.w(TAG, "ROM directory is not readable; preserving cached ROM data for $directoryUri")
+            } else {
+                Log.w(TAG, "ROM directory scan failed; preserving cached ROM data for $directoryUri")
+            }
+            markDirectoryNotScanned(directoryUri, cachedState?.lastScanned)
+            return
+        }
+
+        val directoryHash = computeDirectoryHash(fileStates)
+        val now = System.currentTimeMillis()
+
+        val cachedFiles = cachedState?.files ?: emptyMap()
+        val currentFiles = fileStates.associateBy { it.uri.toString() }
+        val currentRomUris = roms.map { it.uri.toString() }.toSet()
+
+        val currentDocIds = currentFiles.values.mapNotNull { runCatching { DocumentsContract.getDocumentId(it.uri) }.getOrNull() }.toSet()
+        val currentFileNames = currentFiles.values.mapNotNull {
+            it.displayName.takeIf { n -> n.isNotEmpty() } ?: it.documentFile.name ?: it.uri.lastPathSegment?.substringAfterLast('/')
+        }.toSet()
+        val currentUriStrings = currentFiles.keys
+
+        // Reconcile and purge any stale ROMs currently in memory for this directory that no longer exist on storage
+        val staleRomUris = roms.filter { isRomInDirectory(it, directoryUri) }
+            .filter { rom ->
+                val uriStr = rom.uri.toString()
+                val docId = runCatching { DocumentsContract.getDocumentId(rom.uri) }.getOrNull()
+                val isPresent = currentUriStrings.contains(uriStr) || (docId != null && currentDocIds.contains(docId))
+                !isPresent
+            }
+            .map { it.uri.toString() }
+            .toSet()
+
+        if (staleRomUris.isNotEmpty()) {
+            Log.i(TAG, "processDirectory: removing ${staleRomUris.size} stale/deleted ROM(s) from directory $directoryUri")
+            removeRomsByUriStrings(staleRomUris)
+        }
+
+        val hasRomsForDirectory = roms.any { isRomInDirectory(it, directoryUri) }
+        if (cachedState != null && cachedState.hash == directoryHash && hasRomsForDirectory && staleRomUris.isEmpty()) {
+            val refreshedState = cachedState.copy(lastScanned = now)
+            updateDirectoryState(refreshedState, RomDirectoryScanStatus.ScanResult.UNCHANGED)
+            return
+        }
+
+        val directoryMetadataChanged = cachedState != null &&
+            cachedState.hash != directoryHash &&
+            cachedFiles.keys == currentFiles.keys &&
+            currentFiles.all { (uri, fileState) ->
+                cachedFiles[uri]?.let { cachedFile ->
+                    cachedFile.lastModified == fileState.lastModified && cachedFile.size == fileState.size
+                } == true
+            }
+        val updatedFiles = if (directoryMetadataChanged) {
+            fileStates
+        } else {
+            fileStates.filter { fileState ->
+                val uriStr = fileState.uri.toString()
+                val cachedFile = cachedFiles[uriStr]
+                cachedFile == null ||
+                    cachedFile.lastModified != fileState.lastModified ||
+                    cachedFile.size != fileState.size ||
+                    uriStr !in currentRomUris
+            }
+        }
+
+        val removedFiles = cachedFiles.keys - currentFiles.keys
+        removeRomsByUriStrings(removedFiles)
+
+        val updatedExistingUris = updatedFiles.mapNotNull { fileState ->
+            fileState.uri.toString().takeIf { cachedFiles.containsKey(it) }
+        }.toSet()
+        removeRomsByUriStrings(updatedExistingUris)
+
+        val updatedFileUris = updatedFiles.map { it.uri.toString() }.toSet()
+        val processedUpdatedFileUris = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+        val parallelism = (Runtime.getRuntime().availableProcessors() * 2).coerceIn(4, 16)
+        val semaphore = Semaphore(parallelism)
+
+        val romStream = kotlinx.coroutines.channels.Channel<Rom>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        coroutineScope {
+            launch {
+                coroutineScope {
+                    for (fileState in updatedFiles) {
+                        launch(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                val parsedRom = runCatching {
+                                    val fileName = fileState.displayName.takeIf { it.isNotEmpty() }
+                                        ?: fileState.documentFile.name
+                                        ?: fileState.uri.lastPathSegment?.substringAfterLast('/')
+                                        ?: ""
+                                    val fileRomProcessor = romFileProcessorFactory.getFileRomProcessorForFileName(fileName)
+                                        ?: romFileProcessorFactory.getFileRomProcessorForDocument(fileState.documentFile)
+                                        ?: return@runCatching null
+                                    val rom = fileRomProcessor.getRomFromUri(fileState.uri, fileState.parentUri)
+                                        ?: return@runCatching null
+
+                                    processedUpdatedFileUris.add(fileState.uri.toString())
+                                    rom
+                                }.getOrElse {
+                                    Log.e(TAG, "Failed to process file at ${fileState.uri}", it)
+                                    null
+                                }
+                                if (parsedRom != null) {
+                                    romStream.send(parsedRom)
+                                }
+                            }
+                        }
+                    }
+                }
+                romStream.close()
+            }
+            for (rom in romStream) {
+                collector.emit(rom)
+            }
+        }
+
+        val cacheableFiles = currentFiles.filterKeys { uri ->
+            !updatedFileUris.contains(uri) || processedUpdatedFileUris.contains(uri)
+        }
+
+        val newCacheState = DirectoryCacheState(
+            directoryUri = directoryUri,
+            hash = computeDirectoryHash(cacheableFiles.values.toList()),
+            lastScanned = now,
+            files = cacheableFiles.mapValues { (_, fileState) ->
+                DirectoryCacheFile(
+                    uri = fileState.uri,
+                    lastModified = fileState.lastModified,
+                    size = fileState.size
+                )
+            }
+        )
+
+        val scanResult = if (updatedFiles.isEmpty() && removedFiles.isEmpty()) {
+            RomDirectoryScanStatus.ScanResult.UNCHANGED
+        } else {
+            RomDirectoryScanStatus.ScanResult.UPDATED
+        }
+
+        updateDirectoryState(newCacheState, scanResult)
+    }
+
+    private fun collectDirectoryFileStates(directoryUri: Uri, rootDirectory: DocumentFile): List<DirectoryFileState>? {
+        val files = mutableListOf<DirectoryFileState>()
+        // 1. Fast direct java.io.File traversal for local storage / STORM 3DS paths
+        if (collectDirectoryFileStatesFromDirectStorage(directoryUri, files)) {
+            Log.d(TAG, "collectDirectoryFileStates: fast direct storage traversal returned ${files.size} file(s) for $directoryUri")
+            return files
+        }
+        files.clear()
+        // 2. Fast SAF bulk query
+        if (collectDirectoryFileStatesFromSaf(directoryUri, files) && files.isNotEmpty()) {
+            return files
+        }
+        files.clear()
+        // 3. Fallback to recursive DocumentFile traversal
+        if (!collectDirectoryFileStatesRecursive(rootDirectory, files)) {
+            return null
+        }
+        return files
+    }
+
+    private fun collectDirectoryFileStatesFromDirectStorage(directoryUri: Uri, accumulator: MutableList<DirectoryFileState>): Boolean {
+        val isFileScheme = directoryUri.scheme == "file"
+        val rootFile = if (isFileScheme) {
+            val path = directoryUri.path ?: return false
+            File(path)
+        } else {
+            if (directoryUri.authority != EXTERNAL_STORAGE_PROVIDER_AUTHORITY) return false
+            FileUtils.resolveDirectFileFromExternalStorageUri(directoryUri) ?: return false
+        }
+
+        if (!rootFile.exists() || !rootFile.isDirectory || !rootFile.canRead()) return false
+
+        val rootDocId = if (isFileScheme) {
+            rootFile.absolutePath
+        } else {
+            runCatching { DocumentsContract.getTreeDocumentId(directoryUri) }.getOrNull()
+                ?: runCatching { DocumentsContract.getDocumentId(directoryUri) }.getOrNull()
+                ?: return false
+        }
+        return collectDirectoryFileStatesFromDirectStorageRecursive(directoryUri, rootFile, rootDocId, accumulator, isFileScheme)
+    }
+
+    private fun collectDirectoryFileStatesFromDirectStorageRecursive(
+        directoryUri: Uri,
+        currentDir: File,
+        parentDocId: String,
+        accumulator: MutableList<DirectoryFileState>,
+        isFileScheme: Boolean = false,
+    ): Boolean {
+        val children = currentDir.listFiles() ?: return false
+        val parentUri = if (isFileScheme) {
+            Uri.fromFile(currentDir)
+        } else {
+            DocumentsContract.buildDocumentUriUsingTree(directoryUri, parentDocId)
+        }
+        for (file in children) {
+            if (file.isDirectory) {
+                val childDocId = if (isFileScheme) {
+                    file.absolutePath
+                } else {
+                    if (parentDocId.endsWith(":")) "$parentDocId${file.name}" else "$parentDocId/${file.name}"
+                }
+                if (!collectDirectoryFileStatesFromDirectStorageRecursive(directoryUri, file, childDocId, accumulator, isFileScheme)) {
+                    return false
+                }
+            } else {
+                val effectiveFileName = file.name
+                val processor = romFileProcessorFactory.getFileRomProcessorForFileName(effectiveFileName)
+                if (processor != null) {
+                    val fileUri = if (isFileScheme) {
+                        Uri.fromFile(file)
+                    } else {
+                        val childDocId = if (parentDocId.endsWith(":")) "$parentDocId${file.name}" else "$parentDocId/${file.name}"
+                        DocumentsContract.buildDocumentUriUsingTree(directoryUri, childDocId)
+                    }
+                    accumulator.add(
+                        DirectoryFileState(
+                            uri = fileUri,
+                            parentUri = parentUri,
+                            lastModified = file.lastModified().coerceAtLeast(0),
+                            size = file.length().coerceAtLeast(0),
+                            documentFile = DocumentFile.fromFile(file),
+                            displayName = effectiveFileName,
+                        )
+                    )
+                }
+            }
+        }
+        return true
+    }
+
+    private fun collectDirectoryFileStatesFromSaf(directoryUri: Uri, accumulator: MutableList<DirectoryFileState>): Boolean {
+        return try {
+            val treeDocumentId = DocumentsContract.getTreeDocumentId(directoryUri)
+            val parentDocumentId = if (DocumentsContract.isDocumentUri(context, directoryUri)) {
+                DocumentsContract.getDocumentId(directoryUri)
+            } else {
+                treeDocumentId
+            }
+            collectDirectoryFileStatesFromSafRecursive(directoryUri, parentDocumentId, accumulator)
+        } catch (e: Exception) {
+            Log.w(TAG, "Fast SAF scan failed, falling back to DocumentFile", e)
+            false
+        }
+    }
+
+    private fun collectDirectoryFileStatesFromSafRecursive(directoryUri: Uri, parentDocId: String, accumulator: MutableList<DirectoryFileState>): Boolean {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(directoryUri, parentDocId)
+        val projection = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            DocumentsContract.Document.COLUMN_SIZE
+        )
+        context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+            val idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val mimeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+            val modIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+            val sizeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
+
+            if (idIndex < 0) return false
+
+            while (cursor.moveToNext()) {
+                val docId = cursor.getString(idIndex) ?: continue
+                val displayName = if (nameIndex >= 0) cursor.getString(nameIndex) ?: "" else ""
+                val effectiveFileName = displayName.ifBlank {
+                    docId.substringAfterLast('/').substringAfterLast(':')
+                }
+                val mimeType = if (mimeIndex >= 0) cursor.getString(mimeIndex) else null
+                val lastModified = if (modIndex >= 0) cursor.getLong(modIndex).coerceAtLeast(0) else 0L
+                val size = if (sizeIndex >= 0) cursor.getLong(sizeIndex).coerceAtLeast(0) else 0L
+
+                val fileUri = DocumentsContract.buildDocumentUriUsingTree(directoryUri, docId)
+                val parentUri = DocumentsContract.buildDocumentUriUsingTree(directoryUri, parentDocId)
+
+                if (DocumentsContract.Document.MIME_TYPE_DIR == mimeType) {
+                    if (!collectDirectoryFileStatesFromSafRecursive(directoryUri, docId, accumulator)) {
+                        return false
+                    }
+                } else {
+                    val processor = romFileProcessorFactory.getFileRomProcessorForFileName(effectiveFileName)
+
+                    if (processor != null) {
+                        val docFile = DocumentFile.fromSingleUri(context, fileUri)
+                            ?: DocumentFile.fromFile(java.io.File(effectiveFileName))
+                        accumulator.add(
+                            DirectoryFileState(
+                                uri = fileUri,
+                                parentUri = parentUri,
+                                lastModified = lastModified,
+                                size = size,
+                                documentFile = docFile,
+                                displayName = effectiveFileName
+                            )
+                        )
+                    }
+                }
+            }
+        } ?: return false
+        return true
+    }
+
+    private fun collectDirectoryFileStatesRecursive(currentDirectory: DocumentFile, accumulator: MutableList<DirectoryFileState>): Boolean {
+        if (!currentDirectory.exists() || !currentDirectory.canRead()) {
+            Log.w(TAG, "Cannot read ROM directory ${currentDirectory.uri}")
+            return false
+        }
+
+        val files = try {
+            currentDirectory.listFiles()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to list files for directory ${currentDirectory.uri}", e)
+            return false
+        }
+        for (file in files) {
+            if (file.isDirectory) {
+                if (!collectDirectoryFileStatesRecursive(file, accumulator)) {
+                    return false
+                }
+                continue
+            }
+
+            val docName = file.name
+            val fileProcessor = romFileProcessorFactory.getFileRomProcessorForDocument(file)
+                ?: docName?.let { romFileProcessorFactory.getFileRomProcessorForFileName(it) }
+            if (fileProcessor != null) {
+                accumulator.add(
+                    DirectoryFileState(
+                        uri = file.uri,
+                        parentUri = currentDirectory.uri,
+                        lastModified = file.lastModified().coerceAtLeast(0),
+                        size = file.length().coerceAtLeast(0),
+                        documentFile = file,
+                        displayName = docName.orEmpty(),
+                    )
+                )
+            }
+        }
+        return true
+    }
+
+    private fun computeDirectoryHash(fileStates: List<DirectoryFileState>): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update("rom-directory-cache-v7".toByteArray())
+        fileStates.sortedBy { it.uri.toString() }.forEach { state ->
+            val entry = "${state.uri}|${state.lastModified}|${state.size}"
+            digest.update(entry.toByteArray())
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun getDirectoryState(directoryUri: Uri): DirectoryCacheState? {
+        return synchronized(directoryStatesLock) {
+            directoryStates[directoryUri.toString()]
+        }
+    }
+
+    private fun updateDirectoryState(state: DirectoryCacheState, scanResult: RomDirectoryScanStatus.ScanResult) {
+        synchronized(directoryStatesLock) {
+            directoryStates[state.directoryUri.toString()] = state
+            directoryScanStatuses[state.directoryUri.toString()] = RomDirectoryScanStatus(
+                directoryUri = state.directoryUri,
+                lastScanTimestamp = state.lastScanned,
+                result = scanResult
+            )
+            emitDirectoryScanStatusesLocked()
+        }
+        saveDirectoryStates()
+    }
+
+    private fun markDirectoryNotScanned(directoryUri: Uri, lastScanTimestamp: Long?) {
+        synchronized(directoryStatesLock) {
+            directoryScanStatuses[directoryUri.toString()] = RomDirectoryScanStatus(
+                directoryUri = directoryUri,
+                lastScanTimestamp = lastScanTimestamp,
+                result = RomDirectoryScanStatus.ScanResult.NOT_SCANNED
+            )
+            emitDirectoryScanStatusesLocked()
+        }
+    }
+
+    private fun removeRomsByUriStrings(uriStrings: Set<String>) {
+        if (uriStrings.isEmpty()) {
+            return
+        }
+
+        if (roms.removeAll { uriStrings.contains(it.uri.toString()) }) {
+            onRomsChanged()
+        }
+    }
+
+    private fun removeStaleDirectoryStates(validDirectoryUris: Set<String>) {
+        var hasChanged = false
+        synchronized(directoryStatesLock) {
+            val iterator = directoryStates.keys.iterator()
+            while (iterator.hasNext()) {
+                val key = iterator.next()
+                if (!validDirectoryUris.contains(key)) {
+                    iterator.remove()
+                    directoryScanStatuses.remove(key)
+                    hasChanged = true
+                }
+            }
+            if (hasChanged) {
+                emitDirectoryScanStatusesLocked()
+            }
+        }
+
+        if (hasChanged) {
+            saveDirectoryStates()
+        }
+    }
+
+    private fun updateUnavailableSearchDirectories(searchDirectories: Array<Uri>): List<Uri> {
+        val unavailableDirectories = searchDirectories.filterNot { hasPersistedReadPermission(it) }
+        hasUnavailableSearchDirectories = unavailableDirectories.isNotEmpty()
+        unavailableDirectories.forEach { directoryUri ->
+            Log.w(TAG, "ROM search directory has no persisted read permission; cache will not be trusted for $directoryUri")
+            markDirectoryNotScanned(directoryUri, getDirectoryState(directoryUri)?.lastScanned)
+        }
+        return unavailableDirectories
+    }
+
+    private fun getDocumentFileForUri(directoryUri: Uri): DocumentFile? {
+        if (directoryUri.scheme == "file" || directoryUri.scheme == null) {
+            val path = directoryUri.path ?: directoryUri.toString()
+            val file = File(path)
+            return if (file.exists() && file.canRead()) DocumentFile.fromFile(file) else null
+        }
+        val treeDoc = DocumentFile.fromTreeUri(context, directoryUri)
+        if (treeDoc != null && treeDoc.exists() && treeDoc.canRead()) return treeDoc
+        val singleDoc = DocumentFile.fromSingleUri(context, directoryUri)
+        if (singleDoc != null && singleDoc.exists() && singleDoc.canRead()) return singleDoc
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(directoryUri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            return DocumentFile.fromFile(directFile)
+        }
+        return treeDoc ?: singleDoc
+    }
+
+    private fun hasPersistedReadPermission(directoryUri: Uri): Boolean {
+        if (directoryUri.scheme != "content") {
+            val path = directoryUri.path ?: directoryUri.toString()
+            val file = File(path)
+            return !file.exists() || file.canRead()
+        }
+        val document = DocumentFile.fromTreeUri(context, directoryUri)
+        if (document?.canRead() == true) {
+            return true
+        }
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(directoryUri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            return true
+        }
+        return context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.isReadPermission && (permission.uri == directoryUri || permission.uri.toString() == directoryUri.toString())
+        }
+    }
+
+    private fun isRomInDirectory(rom: Rom, directoryUri: Uri): Boolean {
+        val romUriStr = rom.uri.toString()
+        val romPath = rom.uri.path ?: romUriStr
+        if (romUriStr.contains("dsi_sd") || romPath.startsWith(context.filesDir.path) || romUriStr.startsWith(Rom.INSTALLED_DSIWARE_URI_SCHEME)) {
+            return false
+        }
+        val parentUri = rom.parentTreeUri
+        val directoryDocId = runCatching { DocumentsContract.getTreeDocumentId(directoryUri) }.getOrNull()
+        if (directoryDocId != null) {
+            val parentDocId = parentUri?.let {
+                runCatching { DocumentsContract.getDocumentId(it) }.getOrNull()
+                    ?: runCatching { DocumentsContract.getTreeDocumentId(it) }.getOrNull()
+                    ?: it.lastPathSegment
+            }
+            if (parentDocId != null && matchesDirectoryDocId(parentDocId, directoryDocId)) {
+                return true
+            }
+            val romDocId = runCatching { DocumentsContract.getDocumentId(rom.uri) }.getOrNull()
+                ?: rom.uri.lastPathSegment
+            if (romDocId != null && matchesDirectoryDocId(romDocId, directoryDocId)) {
+                return true
+            }
+        }
+        val dirPath = directoryUri.path ?: directoryUri.toString()
+        val normalizedDirPath = if (dirPath.endsWith("/")) dirPath else "$dirPath/"
+        if (romPath == dirPath || romPath.startsWith(normalizedDirPath)) {
+            return true
+        }
+        val dirSegment = directoryUri.lastPathSegment ?: directoryUri.toString()
+        return rom.uri.toString().contains(dirSegment) || rom.parentTreeUri?.toString() == directoryUri.toString()
+    }
+
+    private fun doesRomFileExist(rom: Rom): Boolean {
+        val romUriStr = rom.uri.toString()
+        val romPath = rom.uri.path ?: romUriStr
+        if (romUriStr.contains("dsi_sd") || romPath.startsWith(context.filesDir.path)) {
+            return false
+        }
+        if (rom.isInstalledDsiWareShortcut || romUriStr.startsWith(Rom.INSTALLED_DSIWARE_URI_SCHEME)) {
+            return false
+        }
+        val scheme = rom.uri.scheme
+        if (scheme == "file" || scheme == null) {
+            val path = rom.uri.path ?: return false
+            val file = File(path)
+            return file.exists() && file.isFile && file.length() > 0
+        }
+        val existsViaSaf = try {
+            context.contentResolver.openFileDescriptor(rom.uri, "r")?.use { pfd ->
+                pfd.statSize > 0
+            } ?: false
+        } catch (_: Throwable) {
+            false
+        }
+        if (existsViaSaf) return true
+        val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(rom.uri)
+        return directFile != null && directFile.exists() && directFile.isFile && directFile.length() > 0
+    }
+
+    private fun purgeNonExistentRoms() {
+        val nonExistentUris = roms.filterNot { doesRomFileExist(it) }.map { it.uri.toString() }.toSet()
+        if (nonExistentUris.isNotEmpty()) {
+            Log.i(TAG, "purgeNonExistentRoms: purging ${nonExistentUris.size} ghost ROM(s) that no longer exist on storage")
+            removeRomsByUriStrings(nonExistentUris)
+        }
+    }
+
+    private fun loadDirectoryStates() {
+        val cacheFile = getStorageSettingsFile(ROM_DIRECTORY_STATE_FILE)
+        if (!cacheFile.isFile) {
+            return
+        }
+
+        runCatching {
+            java.io.BufferedReader(java.io.InputStreamReader(java.io.FileInputStream(cacheFile), Charsets.UTF_8), 65536).use { reader ->
+                gson.fromJson<List<RomDirectoryStateDto>>(reader, directoryStateListType)
+            }
+        }.onSuccess { stateDtos ->
+            if (stateDtos != null) {
+                synchronized(directoryStatesLock) {
+                    directoryStates.clear()
+                    directoryScanStatuses.clear()
+                    stateDtos.forEach { dto ->
+                        val state = dto.toCacheState()
+                        directoryStates[state.directoryUri.toString()] = state
+                        directoryScanStatuses[state.directoryUri.toString()] = RomDirectoryScanStatus(
+                            directoryUri = state.directoryUri,
+                            lastScanTimestamp = state.lastScanned.takeIf { it > 0 },
+                            result = RomDirectoryScanStatus.ScanResult.UNCHANGED
+                        )
+                    }
+                    emitDirectoryScanStatusesLocked()
+                }
+            }
+        }.onFailure {
+            Log.w(TAG, "Failed to load ROM directory cache", it)
+        }
+    }
+
+    private fun emitDirectoryScanStatusesLocked() {
+        directoryScanStatusFlow.value = directoryScanStatuses.values.sortedBy { it.directoryUri.toString() }
+    }
+
+    private fun saveDirectoryStates() {
+        val directoryStateDtos = synchronized(directoryStatesLock) {
+            directoryStates.values.map { it.toDto() }
+        }
+
+        val cacheFile = getStorageSettingsFile(ROM_DIRECTORY_STATE_FILE)
+        try {
+            val json = gson.toJson(directoryStateDtos)
+            writeTextAtomically(cacheFile, json)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save ROM directory cache", e)
+        }
+    }
+
+    private fun getCachedRoms(): RomCacheReadResult {
+        val cacheFile = getStorageSettingsFile(ROM_DATA_FILE)
+        if (!cacheFile.isFile) {
+            return RomCacheReadResult(emptyList(), true)
+        }
+
+        return runCatching {
+            java.io.BufferedReader(java.io.InputStreamReader(java.io.FileInputStream(cacheFile), Charsets.UTF_8), 65536).use { reader ->
+                gson.fromJson<List<RomDto>>(reader, romListType).orEmpty().map {
+                    it.toModel()
+                }
+            }
+        }.map {
+            RomCacheReadResult(it, true)
+        }.onFailure {
+            Log.w(TAG, "Failed to parse cached ROM data; cache will be rebuilt", it)
+        }.getOrElse { RomCacheReadResult(emptyList(), false) }
+    }
+
+    private suspend fun saveRomData(romData: List<Rom>) = romDataMutex.withLock {
+        if (!areRomsLoaded.get()) return@withLock
+        val cacheFile = getStorageSettingsFile(ROM_DATA_FILE)
+
+        try {
+            val romDtos = romData.map {
+                RomDto.fromModel(it)
+            }
+            val romsJson = gson.toJson(romDtos)
+
+            writeTextAtomically(cacheFile, romsJson)
+            saveRomMetadataMirror(romData)
+            settingsBackupManager.requestMirrorWrite()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save ROM data", e)
+        }
+    }
+
+    private fun saveRomMetadataMirror(romData: List<Rom>) {
+        val metadataFile = getStorageSettingsFile(ROM_METADATA_MIRROR_FILE)
+        val metadata = romData.map {
+            RomMetadataMirrorDto(
+                name = it.name,
+                developerName = it.developerName,
+                fileName = it.fileName,
+                config = RomConfigDto.fromModel(it.config),
+                lastPlayed = it.lastPlayed,
+                isDsiWareTitle = it.isDsiWareTitle,
+                isDsiEnhanced = it.isDsiEnhanced,
+                retroAchievementsHash = it.retroAchievementsHash,
+                totalPlayTime = it.totalPlayTime.inWholeMilliseconds,
+                isFavorite = it.isFavorite,
+                gameCode = it.gameCode,
+            )
+        }
+        writeTextAtomically(metadataFile, gson.toJson(metadata))
+    }
+
+    private fun writeTextAtomically(file: File, text: String) {
+        val tempFile = File(file.parentFile, "${file.name}.tmp")
+        FileOutputStream(tempFile).use { stream ->
+            val writer = OutputStreamWriter(stream)
+            writer.write(text)
+            writer.flush()
+            runCatching { stream.fd.sync() }
+        }
+
+        if (!tempFile.renameTo(file)) {
+            if (file.exists() && !file.delete()) {
+                throw IllegalStateException("Could not replace ${file.absolutePath}")
+            }
+            if (!tempFile.renameTo(file)) {
+                throw IllegalStateException("Could not move ${tempFile.absolutePath} to ${file.absolutePath}")
+            }
+        }
+    }
+
+    private data class RomCacheReadResult(
+        val roms: List<Rom>,
+        val isValid: Boolean,
+    )
+
+    private data class DirectoryCacheState(
+        val directoryUri: Uri,
+        val hash: String,
+        val lastScanned: Long,
+        val files: Map<String, DirectoryCacheFile>
+    ) {
+        fun toDto(): RomDirectoryStateDto {
+            return RomDirectoryStateDto(
+                directoryUri = directoryUri.toString(),
+                hash = hash,
+                lastScanned = lastScanned,
+                files = files.values.map {
+                    RomDirectoryFileDto(
+                        uri = it.uri.toString(),
+                        lastModified = it.lastModified,
+                        size = it.size
+                    )
+                }
+            )
+        }
+    }
+
+    private data class DirectoryCacheFile(
+        val uri: Uri,
+        val lastModified: Long,
+        val size: Long
+    )
+
+    private data class DirectoryFileState(
+        val uri: Uri,
+        val parentUri: Uri,
+        val lastModified: Long,
+        val size: Long,
+        val documentFile: DocumentFile,
+        val displayName: String = "",
+    )
+
+    private data class RomMetadataMirrorDto(
+        val name: String,
+        val developerName: String,
+        val fileName: String,
+        val config: RomConfigDto,
+        val lastPlayed: Date? = null,
+        val isDsiWareTitle: Boolean,
+        val isDsiEnhanced: Boolean = false,
+        val retroAchievementsHash: String,
+        val totalPlayTime: Long = 0,
+        val isFavorite: Boolean = false,
+        val gameCode: String = "",
+    )
+
+    private data class RomOptionsDto(
+        val version: Int = 1,
+        val config: RomConfigDto,
+    )
+
+    private fun RomDirectoryStateDto.toCacheState(): DirectoryCacheState {
+        val fileEntries = files.associateBy({ it.uri }) {
+            DirectoryCacheFile(
+                uri = it.uri.toUri(),
+                lastModified = it.lastModified,
+                size = it.size
+            )
+        }
+        return DirectoryCacheState(
+            directoryUri = directoryUri.toUri(),
+            hash = hash,
+            lastScanned = lastScanned,
+            files = fileEntries
+        )
+    }
+}

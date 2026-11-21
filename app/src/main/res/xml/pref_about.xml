@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+            android:title="@string/about_app_title">
+        <Preference
+                android:key="about_app_name"
+                android:title="STORM 3DS"
+                android:summary="@string/about_app_description"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="about_version"
+                android:title="@string/about_version_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="manual_check_updates"
+                android:title="@string/v800_check_updates_title"
+                android:summary="@string/v800_check_updates_summary"
+                app:icon="@drawable/ic_refresh"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="about_copy_diagnostics"
+                android:title="@string/v780_about_copy_diagnostics_title"
+                android:summary="@string/v780_about_copy_diagnostics_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="about_fork_info"
+                android:title="@string/about_fork_info_title"
+                android:summary="@string/about_fork_info_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="about_github"
+                android:title="@string/about_github_title"
+                android:summary="@string/about_github_summary"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/about_credits_title">
+        <Preference
+                android:key="credits_jpeacekeeper"
+                android:title="@string/about_credits_jpeacekeeper_title"
+                android:summary="@string/about_credits_jpeacekeeper_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_watermelonds"
+                android:title="@string/about_credits_watermelonds_title"
+                android:summary="@string/about_credits_watermelonds_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_melonds"
+                android:title="@string/about_credits_melonds_title"
+                android:summary="@string/about_credits_melonds_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_melonds_ds"
+                android:title="@string/about_credits_melonds_ds_title"
+                android:summary="@string/about_credits_melonds_ds_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_drastic"
+                android:title="@string/about_credits_drastic_title"
+                android:summary="@string/about_credits_drastic_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_libraries"
+                android:title="@string/about_credits_libraries_title"
+                android:summary="@string/about_credits_libraries_summary"
+                app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

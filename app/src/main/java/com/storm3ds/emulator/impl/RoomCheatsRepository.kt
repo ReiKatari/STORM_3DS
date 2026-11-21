@@ -1,0 +1,439 @@
+package com.storm3ds.emulator.impl
+
+import android.content.Context
+import android.net.Uri
+import androidx.room.withTransaction
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import com.storm3ds.emulator.common.cheats.jusrcheat.JusrcheatRepository
+import com.storm3ds.emulator.common.workers.CheatImportWorker
+import com.storm3ds.emulator.database.MelonDatabase
+import com.storm3ds.emulator.database.entities.CheatDatabaseEntity
+import com.storm3ds.emulator.database.entities.CheatEntity
+import com.storm3ds.emulator.database.entities.CheatFolderEntity
+import com.storm3ds.emulator.database.entities.CheatStatusUpdate
+import com.storm3ds.emulator.database.entities.GameEntity
+import com.storm3ds.emulator.domain.model.Cheat
+import com.storm3ds.emulator.domain.model.CheatDatabase
+import com.storm3ds.emulator.domain.model.CheatFolder
+import com.storm3ds.emulator.domain.model.CheatGameSearchResult
+import com.storm3ds.emulator.domain.model.CheatImportProgress
+import com.storm3ds.emulator.domain.model.Game
+import com.storm3ds.emulator.domain.model.RomInfo
+import com.storm3ds.emulator.domain.repositories.CheatsRepository
+import com.storm3ds.emulator.ui.cheats.model.CheatSubmissionForm
+
+class RoomCheatsRepository(
+    private val context: Context,
+    private val database: MelonDatabase,
+    private val settingsBackupManager: SettingsBackupManager,
+) : CheatsRepository {
+    companion object {
+        private const val IMPORT_WORKER_NAME = "cheat_import_worker"
+    }
+
+    private val findGameMutex = Mutex()
+
+    @get:JvmName("jusrcheatRepositoryProp")
+    val jusrcheatRepository: JusrcheatRepository by lazy {
+        JusrcheatRepository.getInstance(context, database)
+    }
+
+    override fun getJusrcheatRepository(): JusrcheatRepository {
+        return jusrcheatRepository
+    }
+
+    override suspend fun getGames(): List<Game> {
+        return database.gameDao().getGames().map { game ->
+            Game(
+                game.id,
+                game.name,
+                game.gameCode,
+                game.gameChecksum,
+                emptyList(),
+            )
+        }
+    }
+
+    override suspend fun findGameForRom(romInfo: RomInfo): Game? = findGameMutex.withLock {
+        val lookupCode = romInfo.cheatGameCode
+        val cleanGameCode = romInfo.gameCode.take(4).uppercase()
+        val checksumStr = romInfo.headerChecksumString()
+
+        var gameEntity = database.gameDao().findGame(lookupCode, checksumStr)
+            ?: (if (checksumStr.isNotBlank()) database.gameDao().findGameByChecksum(checksumStr) else null)
+            ?: database.gameDao().findGameByCode(lookupCode)
+            ?: (if (!romInfo.isDsiWareTitle && cleanGameCode.length == 4) database.gameDao().findGameByCode(cleanGameCode) else null)
+            ?: (if (cleanGameCode.length >= 3) database.gameDao().findGameByPrefix(cleanGameCode.take(3)) else null)
+
+        if (gameEntity == null || database.cheatFolderDao().getFoldersForGame(gameEntity.id ?: -1).isEmpty()) {
+            val populated = com.storm3ds.emulator.common.cheats.EmbeddedActionReplayCheats.populateIfEmpty(
+                database,
+                lookupCode,
+                romInfo.gameTitle.ifBlank { romInfo.gameName },
+                checksumStr
+            )
+            if (populated) {
+                gameEntity = database.gameDao().findGame(lookupCode, checksumStr)
+                    ?: (if (checksumStr.isNotBlank()) database.gameDao().findGameByChecksum(checksumStr) else null)
+                    ?: database.gameDao().findGameByCode(lookupCode)
+                    ?: (if (!romInfo.isDsiWareTitle && cleanGameCode.length == 4) database.gameDao().findGameByCode(cleanGameCode) else null)
+                    ?: (if (cleanGameCode.length >= 3) database.gameDao().findGameByPrefix(cleanGameCode.take(3)) else null)
+            }
+        }
+
+        if (gameEntity == null || database.cheatFolderDao().getFoldersForGame(gameEntity.id ?: -1).isEmpty()) {
+            val jusrGames = jusrcheatRepository.findGamesForRom(
+                romInfo.gameCode,
+                romInfo.gameTitle.ifBlank { romInfo.gameName }
+            )
+            val matchedJusrGame = jusrGames.firstOrNull { it.totalCheatsCount > 0 }
+            if (matchedJusrGame != null) {
+                jusrcheatRepository.attachEntireGameToActiveRom(romInfo, matchedJusrGame, enableAll = false)
+                settingsBackupManager.requestMirrorWrite()
+                gameEntity = database.gameDao().findGame(lookupCode, checksumStr)
+                    ?: (if (checksumStr.isNotBlank()) database.gameDao().findGameByChecksum(checksumStr) else null)
+                    ?: database.gameDao().findGameByCode(lookupCode)
+                    ?: (if (!romInfo.isDsiWareTitle && cleanGameCode.length == 4) database.gameDao().findGameByCode(cleanGameCode) else null)
+                    ?: (if (cleanGameCode.length >= 3) database.gameDao().findGameByPrefix(cleanGameCode.take(3)) else null)
+            }
+        }
+
+        gameEntity?.let {
+            Game(
+                it.id,
+                it.name,
+                it.gameCode,
+                it.gameChecksum,
+                emptyList(),
+            )
+        }
+    }
+
+    override fun getAllGameCheats(game: Game): Flow<List<CheatFolder>> {
+        val gameId = game.id ?: return emptyFlow()
+
+        return database.gameDao().getGameCheats(gameId).map { foldersWithCheats ->
+            foldersWithCheats.map {
+                CheatFolder(
+                    it.cheatFolder.id,
+                    it.cheatFolder.name,
+                    it.cheats.map { cheat ->
+                        Cheat(
+                            cheat.id,
+                            cheat.cheatDatabaseId,
+                            cheat.name,
+                            cheat.description,
+                            cheat.code,
+                            cheat.enabled
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    override fun getFolderCheats(folder: CheatFolder): Flow<List<Cheat>> {
+        return database.cheatDao().getFolderCheats(folder.id!!).map {
+            it.map { cheat ->
+                Cheat(
+                    cheat.id,
+                    cheat.cheatDatabaseId,
+                    cheat.name,
+                    cheat.description,
+                    cheat.code,
+                    cheat.enabled
+                )
+            }
+        }
+    }
+
+    override suspend fun getRomEnabledCheats(romInfo: RomInfo): List<Cheat> {
+        val lookupCode = romInfo.cheatGameCode
+        val cleanGameCode = romInfo.gameCode.take(4).uppercase()
+        val checksumStr = romInfo.headerChecksumString()
+
+        // 1. Exact checksum + null checksum query
+        val primaryCheats = database.cheatDao().getEnabledRomCheats(lookupCode, checksumStr)
+        val exactCheats = if (primaryCheats.isNotEmpty()) {
+            primaryCheats
+        } else {
+            database.cheatDao().getEnabledRomCheats(cleanGameCode, checksumStr)
+        }
+
+        // 2. Fallback CRC-agnostic query ONLY when exact-CRC cheats are empty
+        val allCandidates = if (exactCheats.isNotEmpty()) {
+            exactCheats
+        } else {
+            val crcAgnosticLookup = database.cheatDao().getEnabledRomCheatsIgnoreCrc(lookupCode)
+            val crcAgnosticCode = if (cleanGameCode != lookupCode) {
+                database.cheatDao().getEnabledRomCheatsIgnoreCrc(cleanGameCode)
+            } else {
+                emptyList()
+            }
+            (crcAgnosticLookup + crcAgnosticCode)
+        }.distinctBy { it.id ?: (it.code.hashCode().toLong() xor it.name.hashCode().toLong()) }
+
+        return allCandidates.map { cheat ->
+            Cheat(
+                cheat.id,
+                cheat.cheatDatabaseId,
+                cheat.name,
+                cheat.description,
+                cheat.code,
+                cheat.enabled
+            )
+        }
+    }
+
+    override suspend fun updateCheatsStatus(cheats: List<Cheat>) {
+        val cheatEntities = cheats.mapNotNull { cheat ->
+            cheat.id?.let { id -> CheatStatusUpdate(id, cheat.enabled) }
+        }
+        if (cheatEntities.isEmpty()) return
+
+        database.cheatDao().updateCheatsStatus(cheatEntities)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun addCheatFolder(folderName: String, game: Game) {
+        val cheatFolderEntity = CheatFolderEntity(
+            id = null,
+            gameId = game.id!!,
+            name = folderName,
+        )
+
+        database.cheatFolderDao().insertCheatFolder(cheatFolderEntity)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun deleteCheatDatabaseIfExists(databaseName: String) {
+        database.withTransaction {
+            database.cheatDatabaseDao().deleteCheatDatabase(databaseName)
+            database.cheatFolderDao().deleteEmptyFolders()
+            database.gameDao().deleteEmptyGames()
+        }
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun clearAllCheatDatabases() {
+        database.withTransaction {
+            database.cheatDao().deleteAllCheats()
+            database.cheatFolderDao().deleteAllCheatFolders()
+            database.gameDao().deleteAllGames()
+            database.cheatDatabaseDao().deleteAllImportedCheatDatabases()
+        }
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun searchGames(query: String, limit: Int): List<CheatGameSearchResult> {
+        return database.gameDao().searchGamesWithCheatCount(query.trim(), limit).map { projection ->
+            CheatGameSearchResult(
+                gameId = projection.gameId,
+                gameName = projection.gameName,
+                gameCode = projection.gameCode,
+                cheatCount = projection.cheatCount,
+            )
+        }
+    }
+
+    override suspend fun addCheatDatabase(databaseName: String): CheatDatabase {
+        val databaseEntity = CheatDatabaseEntity(
+            id = null,
+            name = databaseName,
+        )
+
+        val id = database.cheatDatabaseDao().insertCheatDatabase(databaseEntity)
+        settingsBackupManager.requestMirrorWrite()
+        return CheatDatabase(id, databaseName)
+    }
+
+    override suspend fun addGameCheats(game: Game): Game {
+        val inserted = database.withTransaction {
+            insertGameCheatsInternal(game)
+        }
+        settingsBackupManager.requestMirrorWrite()
+        return inserted
+    }
+
+    suspend fun addGameCheatsBatch(games: List<Game>) {
+        if (games.isEmpty()) return
+        database.withTransaction {
+            for (game in games) {
+                insertGameCheatsInternal(game)
+            }
+        }
+    }
+
+    fun notifyCheatsUpdated() {
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    private suspend fun insertGameCheatsInternal(game: Game): Game {
+        var insertedGame = database.gameDao().findGame(game.gameCode, game.gameChecksum)
+        if (insertedGame == null) {
+            val gameEntity = GameEntity(
+                id = null,
+                name = game.name,
+                gameCode = game.gameCode,
+                gameChecksum = game.gameChecksum,
+            )
+
+            val id = database.gameDao().insertGame(gameEntity)
+            insertedGame = if (id != -1L) {
+                gameEntity.copy(id = id)
+            } else {
+                database.gameDao().findGame(game.gameCode, game.gameChecksum)
+            }
+        }
+
+        val gameId = insertedGame?.id
+        if (gameId == null) {
+            return Game(
+                id = null,
+                name = game.name,
+                gameCode = game.gameCode,
+                gameChecksum = game.gameChecksum,
+                cheats = emptyList(),
+            )
+        }
+
+        game.cheats.forEach { folder ->
+            val folderEntity = CheatFolderEntity(
+                id = null,
+                gameId = gameId,
+                name = folder.name,
+            )
+
+            val folderId = database.cheatFolderDao().insertCheatFolder(folderEntity)
+            val newCheats = folder.cheats.map {
+                CheatEntity(
+                    id = null,
+                    cheatFolderId = folderId,
+                    cheatDatabaseId = it.cheatDatabaseId,
+                    name = it.name,
+                    description = it.description,
+                    code = it.code,
+                    enabled = false
+                )
+            }
+            if (newCheats.isNotEmpty()) {
+                database.cheatDao().insertCheats(newCheats)
+            }
+        }
+
+        return Game(
+            id = insertedGame.id,
+            name = insertedGame.name,
+            gameCode = insertedGame.gameCode,
+            gameChecksum = insertedGame.gameChecksum,
+            cheats = emptyList(),
+        )
+    }
+
+    override suspend fun addCheat(folder: CheatFolder, cheat: Cheat) {
+        val cheatEntity = CheatEntity(
+            id = null,
+            cheatFolderId = folder.id!!,
+            cheatDatabaseId = cheat.cheatDatabaseId,
+            name = cheat.name,
+            description = cheat.description,
+            code = cheat.code,
+            enabled = cheat.enabled,
+        )
+
+        database.cheatDao().insertCheat(cheatEntity)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun addCustomCheat(folder: CheatFolder, cheatForm: CheatSubmissionForm) {
+        val cheatEntity = CheatEntity(
+            id = null,
+            cheatFolderId = folder.id!!,
+            cheatDatabaseId = CheatDatabaseEntity.CUSTOM_CHEATS_DATABASE_ID,
+            name = cheatForm.name,
+            description = cheatForm.description,
+            code = cheatForm.code,
+            enabled = false,
+        )
+
+        database.cheatDao().insertCheat(cheatEntity)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun updateCheat(cheat: Cheat) {
+        val originalEntity = database.cheatDao().getCheat(cheat.id!!) ?: return
+        val updatedCheatEntity = CheatEntity(
+            id = cheat.id,
+            cheatFolderId = originalEntity.cheatFolderId,
+            cheatDatabaseId = originalEntity.cheatDatabaseId,
+            name = cheat.name,
+            description = cheat.description,
+            code = cheat.code,
+            enabled = cheat.enabled,
+        )
+
+        database.cheatDao().insertCheat(updatedCheatEntity)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override suspend fun deleteCheat(cheat: Cheat) {
+        val cheatId = cheat.id ?: return
+        database.cheatDao().deleteCheat(cheatId)
+        settingsBackupManager.requestMirrorWrite()
+    }
+
+    override fun importCheats(uri: Uri) {
+        val workRequest = OneTimeWorkRequestBuilder<CheatImportWorker>()
+                .setInputData(workDataOf(CheatImportWorker.KEY_URI to uri.toString()))
+                .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(IMPORT_WORKER_NAME, ExistingWorkPolicy.KEEP, workRequest)
+    }
+
+    override fun isCheatImportOngoing(): Boolean {
+        val workManager = WorkManager.getInstance(context)
+        val statuses = workManager.getWorkInfosForUniqueWork(IMPORT_WORKER_NAME)
+        val infos = statuses.get()
+
+        return infos.any { !it.state.isFinished }
+    }
+
+    override fun getCheatImportProgress(): Flow<CheatImportProgress> {
+        val workManager = WorkManager.getInstance(context)
+        return workManager.getWorkInfosForUniqueWorkFlow(IMPORT_WORKER_NAME)
+            .mapNotNull { workInfos ->
+                if (workInfos.isEmpty()) {
+                    return@mapNotNull CheatImportProgress(CheatImportProgress.CheatImportStatus.NOT_IMPORTING, 0f, null)
+                }
+                val workInfo = workInfos.firstOrNull { !it.state.isFinished } ?: workInfos.first()
+                when (workInfo.state) {
+                    WorkInfo.State.ENQUEUED -> CheatImportProgress(CheatImportProgress.CheatImportStatus.STARTING, 0f, null)
+                    WorkInfo.State.RUNNING -> {
+                        val relativeProgress = workInfo.progress.getFloat(CheatImportWorker.KEY_PROGRESS_RELATIVE, 0f)
+                        val itemName = workInfo.progress.getString(CheatImportWorker.KEY_PROGRESS_ITEM)
+                        CheatImportProgress(CheatImportProgress.CheatImportStatus.ONGOING, relativeProgress, itemName)
+                    }
+                    WorkInfo.State.SUCCEEDED -> CheatImportProgress(CheatImportProgress.CheatImportStatus.FINISHED, 1f, null)
+                    WorkInfo.State.CANCELLED,
+                    WorkInfo.State.FAILED -> CheatImportProgress(CheatImportProgress.CheatImportStatus.FAILED, 0f, null)
+                    WorkInfo.State.BLOCKED -> {
+                        if (workInfos.all { it.state.isFinished }) {
+                            CheatImportProgress(CheatImportProgress.CheatImportStatus.NOT_IMPORTING, 0f, null)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+    }
+}

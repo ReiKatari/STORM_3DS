@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="console_skin_entries_v792">
+        <item>STORM AURORA FLUID (跟随应用主题)</item>
+        <item>STORM AURORA FLUID (午夜青紫)</item>
+        <item>STORM AURORA FLUID (赛博霓虹)</item>
+        <item>STORM AURORA FLUID (帝国璀璨金)</item>
+        <item>Nintendo 3DS (水光蓝)</item>
+        <item>Nintendo 3DS (宇宙黑)</item>
+        <item>Nintendo 3DS (烈焰红)</item>
+        <item>Nintendo 3DS (珍珠粉)</item>
+        <item>Nintendo 3DS (冰雪白)</item>
+        <item>Nintendo 3DS (午夜紫)</item>
+        <item>Nintendo 3DS XL (红黑配色)</item>
+        <item>Nintendo 3DS XL (蓝黑配色)</item>
+        <item>Nintendo 3DS XL (马里奥银限定版)</item>
+        <item>Nintendo 3DS XL (NES复古限定版)</item>
+        <item>New Nintendo 3DS (哑光黑)</item>
+        <item>New Nintendo 3DS (珍珠白)</item>
+        <item>New Nintendo 3DS XL (金属黑)</item>
+        <item>New Nintendo 3DS XL (金属蓝)</item>
+        <item>New Nintendo 3DS XL (银河星系版)</item>
+        <item>New Nintendo 3DS XL (SFC复古版)</item>
+        <item>New Nintendo 3DS XL (海拉鲁金)</item>
+        <item>New Nintendo 3DS XL (梅祖拉的假面)</item>
+        <item>New Nintendo 3DS XL (萨姆斯银河战士)</item>
+        <item>New Nintendo 3DS XL (皮卡丘黄)</item>
+        <item>Nintendo 2DS (绯红黑)</item>
+        <item>New Nintendo 2DS XL (黑松石蓝)</item>
+        <item>New Nintendo 2DS XL (白橙配色)</item>
+        <item>New Nintendo 2DS XL (精灵球限定版)</item>
+        <item>New Nintendo 2DS XL (海利亚之盾)</item>
+        <item>STORM 3DS (黑曜石碳纤维专业版)</item>
+    </string-array>
+    <string-array name="console_skin_values_v792">
+        <item>aurora_auto_theme</item>
+        <item>aurora_midnight</item>
+        <item>aurora_cyberpunk</item>
+        <item>aurora_imperial_gold</item>
+        <item>classic_3ds_aqua_blue</item>
+        <item>classic_3ds_cosmo_black</item>
+        <item>classic_3ds_flare_red</item>
+        <item>classic_3ds_pearl_pink</item>
+        <item>classic_3ds_ice_white</item>
+        <item>classic_3ds_midnight_purple</item>
+        <item>threeds_xl_red_black</item>
+        <item>threeds_xl_blue_black</item>
+        <item>threeds_xl_silver_mario</item>
+        <item>threeds_xl_nes_retro</item>
+        <item>new_3ds_matte_black</item>
+        <item>new_3ds_pearl_white</item>
+        <item>new_3ds_xl_metallic_black</item>
+        <item>new_3ds_xl_metallic_blue</item>
+        <item>new_3ds_xl_galaxy</item>
+        <item>new_3ds_xl_snes</item>
+        <item>new_3ds_xl_hyrule_gold</item>
+        <item>new_3ds_xl_majoras_mask</item>
+        <item>new_3ds_xl_samus_metroid</item>
+        <item>new_3ds_xl_pikachu</item>
+        <item>twods_slab_crimson</item>
+        <item>new_2ds_xl_black_turquoise</item>
+        <item>new_2ds_xl_white_orange</item>
+        <item>new_2ds_xl_pokeball</item>
+        <item>new_2ds_xl_hylian_shield</item>
+        <item>storm_3ds_obsidian_pro</item>
+    </string-array>
+</resources>

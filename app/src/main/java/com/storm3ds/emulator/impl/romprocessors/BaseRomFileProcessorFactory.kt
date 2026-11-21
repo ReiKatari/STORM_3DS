@@ -1,0 +1,48 @@
+package com.storm3ds.emulator.impl.romprocessors
+
+import android.content.Context
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
+import com.storm3ds.emulator.common.romprocessors.RomFileProcessor
+import com.storm3ds.emulator.common.romprocessors.RomFileProcessorFactory
+
+abstract class BaseRomFileProcessorFactory(private val context: Context) : RomFileProcessorFactory {
+
+    abstract fun getRomFileProcessorForFileExtension(extension: String): RomFileProcessor?
+
+    override fun getFileRomProcessorForFileName(fileName: String): RomFileProcessor? {
+        val lastDotIndex = fileName.lastIndexOf('.')
+        if (lastDotIndex < 0) return null
+
+        val extension = fileName.substring(lastDotIndex + 1).lowercase()
+        return getRomFileProcessorForFileExtension(extension)
+    }
+
+    override fun getFileRomProcessorForDocument(romDocument: DocumentFile): RomFileProcessor? {
+        val fileName = romDocument.name ?: romDocument.uri.lastPathSegment ?: return null
+        return getFileRomProcessorForFileName(fileName)
+    }
+
+    override fun getFileRomProcessorForDocument(romUri: Uri): RomFileProcessor? {
+        val romDocument = DocumentFile.fromSingleUri(context, romUri)
+        val candidates = buildList {
+            romDocument?.name?.let { add(it) }
+            runCatching {
+                context.contentResolver.query(romUri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0 && !cursor.isNull(nameIndex)) {
+                            cursor.getString(nameIndex)?.let { add(it) }
+                        }
+                    }
+                }
+            }
+            romUri.lastPathSegment?.let { add(it) }
+            romUri.path?.let { add(it) }
+        }
+        for (candidate in candidates) {
+            getFileRomProcessorForFileName(candidate)?.let { return it }
+        }
+        return getRomFileProcessorForFileExtension("3ds")
+    }
+}
