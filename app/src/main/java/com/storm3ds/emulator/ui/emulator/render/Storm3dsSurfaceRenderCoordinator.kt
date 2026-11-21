@@ -22,16 +22,23 @@ class Storm3dsSurfaceRenderCoordinator(
     }
 
     private var mainSurfaceView: EmulatorSurfaceView? = null
+    private var secondarySurfaceView: EmulatorSurfaceView? = null
     @Volatile
     private var stopped = false
 
     override fun addSurface(surface: EmulatorSurfaceView) {
         if (stopped) return
-        mainSurfaceView = surface
-        surface.setSurfaceLifecycleListener(this)
-        surface.getCurrentSurface()?.let { s ->
-            if (s.isValid) {
-                NativeLibrary.surfaceChanged(s)
+        if (mainSurfaceView == null || mainSurfaceView === surface) {
+            mainSurfaceView = surface
+            surface.setSurfaceLifecycleListener(this)
+            surface.getCurrentSurface()?.let { s ->
+                if (s.isValid) NativeLibrary.surfaceChanged(s)
+            }
+        } else {
+            secondarySurfaceView = surface
+            surface.setSurfaceLifecycleListener(this)
+            surface.getCurrentSurface()?.let { s ->
+                if (s.isValid) NativeLibrary.secondarySurfaceChanged(s)
             }
         }
     }
@@ -41,6 +48,9 @@ class Storm3dsSurfaceRenderCoordinator(
         if (mainSurfaceView === surface) {
             mainSurfaceView = null
             runCatching { NativeLibrary.surfaceDestroyed() }
+        } else if (secondarySurfaceView === surface) {
+            secondarySurfaceView = null
+            runCatching { NativeLibrary.secondarySurfaceDestroyed() }
         }
     }
 
@@ -49,7 +59,7 @@ class Storm3dsSurfaceRenderCoordinator(
         config: VulkanPresentationConfig?,
         background: RuntimeBackground,
     ) {
-        if (stopped || config == null) return
+        if (stopped || config == null || surface !== mainSurfaceView) return
         val top = config.topScreenRect
         val bot = config.bottomScreenRect
         lastTopRect = top
@@ -77,23 +87,35 @@ class Storm3dsSurfaceRenderCoordinator(
         stopped = true
         mainSurfaceView?.setSurfaceLifecycleListener(null)
         mainSurfaceView = null
+        secondarySurfaceView?.setSurfaceLifecycleListener(null)
+        secondarySurfaceView = null
+        runCatching { NativeLibrary.secondarySurfaceDestroyed() }
         runCatching { NativeLibrary.surfaceDestroyed() }
     }
 
     override fun onSurfaceCreated(surfaceView: EmulatorSurfaceView, surface: Surface) {
-        if (!stopped && surface.isValid) {
+        if (stopped || !surface.isValid) return
+        if (surfaceView === secondarySurfaceView) {
+            NativeLibrary.secondarySurfaceChanged(surface)
+        } else {
             NativeLibrary.surfaceChanged(surface)
         }
     }
 
     override fun onSurfaceChanged(surfaceView: EmulatorSurfaceView, surface: Surface, width: Int, height: Int) {
-        if (!stopped && surface.isValid) {
+        if (stopped || !surface.isValid) return
+        if (surfaceView === secondarySurfaceView) {
+            NativeLibrary.secondarySurfaceChanged(surface)
+        } else {
             NativeLibrary.surfaceChanged(surface)
         }
     }
 
     override fun onSurfaceDestroyed(surfaceView: EmulatorSurfaceView) {
-        if (!stopped) {
+        if (stopped) return
+        if (surfaceView === secondarySurfaceView) {
+            runCatching { NativeLibrary.secondarySurfaceDestroyed() }
+        } else {
             runCatching { NativeLibrary.surfaceDestroyed() }
         }
     }

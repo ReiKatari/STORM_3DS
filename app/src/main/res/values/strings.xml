@@ -29,10 +29,10 @@
     <string name="version_nightly">Nightly</string>
 
     <string name="console_ds">Nintendo 3DS</string>
-    <string name="console_dsi">Nintendo 3DSi</string>
+    <string name="console_dsi">Nintendo 3DS</string>
 
     <string name="console_ds_full">Nintendo 3DS</string>
-    <string name="console_dsi_full">Nintendo 3DSi</string>
+    <string name="console_dsi_full">Nintendo 3DS</string>
 
     <string name="size_bytes">B</string>
     <string name="size_kb">KB</string>
@@ -55,8 +55,8 @@
     <string name="renderer_init_failed_message">%1$s renderer could not be initialized. Change Video renderer in Settings.</string>
     <string name="action_search_roms">Search ROMs</string>
     <string name="action_sort_roms">Sort ROMs</string>
-    <string name="action_boot_firmware_ds">Boot Nintendo 3DS firmware</string>
-    <string name="action_boot_firmware_dsi">Boot Nintendo 3DSi firmware</string>
+    <string name="action_boot_firmware_ds">Boot 3DS HOME Menu</string>
+    <string name="action_boot_firmware_dsi">Boot Nintendo 3DS firmware</string>
     <string name="audio">Audio</string>
     <string name="general">General</string>
     <string name="save_files">Save files</string>
@@ -339,7 +339,7 @@
     <string name="category_roms">ROMs</string>
     <string name="category_roms_summary">Search directory, icon filtering, cache settings</string>
     <string name="category_system">System</string>
-    <string name="category_system_summary">Firmware settings, custom BIOS, JIT</string>
+    <string name="category_system_summary">New 3DS, CPU clock, region, JIT, keys</string>
     <string name="theme">Theme</string>
     <string name="fast_forward_max_speed">Fast-forward max speed</string>
     <string name="frame_limit_speed">Emulation speed</string>
@@ -363,11 +363,11 @@
     <string name="rom_filter_favorites">Favorites</string>
     <string name="rom_filter_ds">DS</string>
     <string name="rom_filter_dsi_enhanced">DSi Enhanced</string>
-    <string name="rom_filter_dsiware">Nintendo 3DSiWare</string>
+    <string name="rom_filter_dsiware">Nintendo 3DS (Digital)</string>
     <string name="rom_filter_retro_achievements">RA</string>
     <string name="rom_filter_ds_empty">No DS games found</string>
     <string name="rom_filter_dsi_enhanced_empty">No DSi Enhanced games found</string>
-    <string name="rom_filter_dsiware_empty">No Nintendo 3DSiWare games found</string>
+    <string name="rom_filter_dsiware_empty">No Nintendo 3DS (Digital) games found</string>
     <string name="rom_filter_retro_achievements_empty">No games with RetroAchievements found</string>
     <string name="rom_continue_playing">Continue playing</string>
     <string name="rom_no_results_filter">No ROMs match this filter</string>
@@ -400,7 +400,7 @@
     <string name="pause_hint_resume">Resume</string>
     <string name="pause_hint_back">Back</string>
     <string name="app_brand_watermelon" translatable="false">STORM</string>
-    <string name="app_brand_ds" translatable="false">DS</string>
+    <string name="app_brand_ds" translatable="false"> 3DS</string>
     <string name="external_hint_open">Open</string>
     <string name="external_hint_favorite">Favorite</string>
     <string name="save_state_slot_quick">QUICK</string>
@@ -445,8 +445,8 @@
     <string name="generate_new_mac_address_description">Generating a new MAC address will make games think they are running on a different system.</string>
     <string name="enable_jit">Enable JIT</string>
     <string name="enable_jit_summary">Improves performance but may cause freezes or crashes.</string>
-    <string name="enable_storm_compiler">Enable STORM compiler</string>
-    <string name="enable_storm_compiler_summary">Optimized LLVM/Clang vectorized ARM64 engine with fast memory decoding pipeline.</string>
+    <string name="enable_storm_compiler">ARM11 JIT compiler (Dynarmic)</string>
+    <string name="enable_storm_compiler_summary">Dynamic ARM11/VFP recompilation for full-speed 3DS emulation.</string>
     <string name="jit_not_supported">JIT is only supported in 64 bit devices.</string>
     <string name="save_internal_config_as_file">Save internal config as a file</string>
     <string name="save_internal_config_as_file_summary">Keeps STORM 3DS.opts synchronized in the save-file directory, or in a ROM directory when no save-file directory is configured.</string>
@@ -458,12 +458,12 @@
     <string name="system_dldi_sd_card_image_size">Nintendo 3DS SD card image size</string>
     <string name="open_dldi_file_manager">Open Nintendo 3DS SD card file manager</string>
     <string name="open_dldi_file_manager_summary">Browse, create, rename and delete Nintendo 3DS SD card files</string>
-    <string name="system_dsi_sd_card_enabled">Enable Nintendo 3DSi SD card</string>
-    <string name="system_dsi_sd_card_enabled_summary">Emulate Nintendo 3DSi console SD card slot</string>
-    <string name="system_dsi_sd_card_dir">Nintendo 3DSi SD card folder</string>
-    <string name="system_dsi_sd_card_image_size">Nintendo 3DSi SD card image size</string>
-    <string name="open_dsi_sd_file_manager">Open Nintendo 3DSi SD card file manager</string>
-    <string name="open_dsi_sd_file_manager_summary">Browse, create, rename and delete Nintendo 3DSi SD card files</string>
+    <string name="system_dsi_sd_card_enabled">Enable Nintendo 3DS SD card</string>
+    <string name="system_dsi_sd_card_enabled_summary">Emulate Nintendo 3DS console SD card slot</string>
+    <string name="system_dsi_sd_card_dir">Nintendo 3DS SD card folder</string>
+    <string name="system_dsi_sd_card_image_size">Nintendo 3DS SD card image size</string>
+    <string name="open_dsi_sd_file_manager">Open Nintendo 3DS SD card file manager</string>
+    <string name="open_dsi_sd_file_manager_summary">Browse, create, rename and delete Nintendo 3DS SD card files</string>
     <string name="system_disable_touch_gestures_on_touch_screen_area">Disable touch gestures on touch screen area</string>
     <string name="system_disable_touch_gestures_on_touch_screen_area_summary">Prevents Android system gestures from triggering over the DS touch screen while playing. Leave off if you use the back gesture to open the in-game menu.</string>
     <string name="system_ignore_display_cutout_in_layouts">Ignore display cutout in layouts</string>
@@ -646,7 +646,7 @@
     <string name="enable_cheats">Enable cheats</string>
     <string name="cheats_database">Cheats database (XML format)</string>
     <string name="import_cheats">Import cheats</string>
-    <string name="import_cheats_summary">Import cheats from database files to make them available. Only XML databases are supported for now. Any previously imported cheat will be deleted.</string>
+    <string name="import_cheats_summary">Import Gateway 3DS (.txt) cheat files for your Nintendo 3DS games.</string>
     <string name="rom_shortcut">ROM shortcut</string>
 
     <string name="firmware_nickname">Nickname</string>
@@ -1121,17 +1121,17 @@
         <item>Compute</item>
     </string-array>
 
-    <string-array name="video_internal_resolution_options">
-        <item>1x native (256x192)</item>
-        <item>2x native (512x384)</item>
-        <item>3x native (768x576)</item>
-        <item>4x native (1024x768)</item>
-        <item>5x native (1280x960)</item>
-        <item>6x native (1536x1152)</item>
-        <item>7x native (1792x1344)</item>
-        <item>8x native (2048x1536)</item>
-        <item>12x native (3072x2304)</item>
-        <item>16x native (4096x3072)</item>
+        <string-array name="video_internal_resolution_options">
+        <item>1x native (400x240)</item>
+        <item>2x (800x480)</item>
+        <item>3x (1200x720)</item>
+        <item>4x (1600x960)</item>
+        <item>5x (2000x1200)</item>
+        <item>6x (2400x1440)</item>
+        <item>7x (2800x1680)</item>
+        <item>8x (3200x1920)</item>
+        <item>9x (3600x2160)</item>
+        <item>10x (4000x2400)</item>
     </string-array>
 
     <string-array name="video_filtering_options">
@@ -1282,24 +1282,8 @@
     </string-array>
 
     <string name="about_app_title">About and credits</string>
-    <string name="about_app_description">High-performance fork of WaterSTORM 3DS (powered by STORM 3DS core) for Android, featuring Vulkan 3D, RetroArch shaders, and RetroAchievements.</string>
-    <string name="about_app_summary">STORM 3DS, STORM 3DS, WaterSTORM 3DS, authors and open source licenses</string>
-    <string name="about_fork_info_title">Project base: WaterSTORM 3DS fork</string>
-    <string name="about_fork_info_summary">STORM 3DS is an advanced fork of WaterSTORM 3DS (developed by SapphireRhodonite and contributors), which is an Android port of the STORM 3DS core (StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura and team). Includes extensive Slot-1 DSiWare direct boot fixes, NAND/Firmware integrity protection, RetroAchievements offline play and sync, external dual display on TV/monitors via USB-C/HDMI, fast ROM scanner, HUD positioning, and custom themes.</string>
     <string name="about_version_title">Version</string>
     <string name="about_credits_title">Credits and acknowledgements</string>
-    <string name="about_credits_jpeacekeeper_title">JPeacekeeper (4PDA)</string>
-    <string name="about_credits_jpeacekeeper_summary">Invaluable testing contributions, detailed DSi bug reports, frame rate standardization, and ongoing project improvements</string>
-    <string name="about_credits_watermelonds_title">WaterSTORM 3DS (Android port)</string>
-    <string name="about_credits_watermelonds_summary">SapphireRhodonite, rafaelvcaetano and contributors - Android port, Vulkan rendering fastpaths, librashader integration, modern UI and touch controls</string>
-    <string name="about_credits_melonds_title">STORM 3DS (original core)</string>
-    <string name="about_credits_melonds_summary">StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura and STORM 3DS team - original high-accuracy Nintendo 3DS core emulator</string>
-    <string name="about_credits_melonds_ds_title">STORM 3DS DS (RetroArch core)</string>
-    <string name="about_credits_melonds_ds_summary">JesseTG and Libretro team - DSiWare autoloading mechanics, TLNC warmboot architecture, and Libretro core innovations</string>
-    <string name="about_credits_drastic_title">DraStic and fastDS inspirations</string>
-    <string name="about_credits_drastic_summary">Exophase and DraStic / fastDS creators - screen preset inspirations, quick display layouts, and touch ergonomic concepts</string>
-    <string name="about_credits_libraries_title">Open source libraries and tools</string>
-    <string name="about_credits_libraries_summary">Google Oboe (AAudio/OpenSL ES), librashader (RetroArch Slang shaders), RetroAchievements (rcheevos), libslirp (Wi-Fi), libadrenotools (Adreno/Turnip drivers)</string>
     <string name="about_github_title">STORM 3DS repository</string>
     <string name="about_github_summary">https://github.com/ReiKatari/STORM_3DS</string>
     <string name="button_color_theme">Button color style</string>
@@ -1673,12 +1657,12 @@
     <string name="video_ds_color_profile_standard">Standard sRGB (uncalibrated)</string>
     <string name="video_ds_color_profile_ds_phat">Original Nintendo 3DS Phat (NTR-001)</string>
     <string name="video_ds_color_profile_ds_lite">Nintendo 3DS Lite (USG-001)</string>
-    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DSi XL IPS (UTL-001)</string>
+    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DS XL IPS (UTL-001)</string>
     <string name="video_ds_hinge_gap_title">Dual-screen physical hinge gap</string>
     <string name="video_ds_hinge_gap_0">None (0 px)</string>
     <string name="video_ds_hinge_gap_32">Compact hinge (32 px)</string>
     <string name="video_ds_hinge_gap_64">Nintendo 3DS Lite hinge (64 px)</string>
-    <string name="video_ds_hinge_gap_90">Nintendo 3DSi XL hinge (90 px)</string>
+    <string name="video_ds_hinge_gap_90">Nintendo 3DS XL hinge (90 px)</string>
     <string name="enhancement_active_notification">Active: %1$s</string>
     <string name="rom_settings_slot2_addon_title">Slot-2 accessory (GBA)</string>
     <string name="rom_settings_solar_sensor_title">Solar sensor (Boktai)</string>
@@ -1775,4 +1759,21 @@
     <string name="cheats_download_fallback_embedded">Online repository unreachable - loaded %1$d built-in games</string>
     <string name="cheats_import_finished">Cheat database imported successfully</string>
     <string name="cheats_import_failed">Failed to import cheat database (invalid or unreadable file)</string>
+
+    <string name="about_app_description">High-performance hybrid Nintendo 3DS emulator for Android powered by the Azahar C++20 core, Borked3DS SPIR-V optimizer, Citra MMJ speedhacks, RetroArch .slangp shaders, and a WatermelonDS-inspired STORM UI.</string>
+    <string name="about_app_summary">Azahar, Citra MMJ, Borked3DS, AzaharPlus, WatermelonDS UI and licenses</string>
+    <string name="about_fork_info_title">Architecture: Azahar + Borked3DS + Citra MMJ + WatermelonDS UI</string>
+    <string name="about_fork_info_summary">STORM 3DS combines the Azahar C++20 Nintendo 3DS emulation core with Borked3DS SPIRV-Tools shader optimization, Citra MMJ performance speedhacks and cheat database, AzaharPlus decryption compatibility, RetroArch .slangp shaders, and an Android interface based on WatermelonDS.</string>
+    <string name="about_credits_azahar_title">Azahar &amp; Citra (3DS Core)</string>
+    <string name="about_credits_azahar_summary">Azahar team (PabloMK7, Lime3DS) &amp; Citra contributors - C++20 Nintendo 3DS emulation core, Z3DS, Artic Base, Bundle &amp; Vulkan/GLES backends</string>
+    <string name="about_credits_citra_mmj_title">Citra MMJ (weihuoya)</string>
+    <string name="about_credits_citra_mmj_summary">weihuoya - mobile performance speedhacks (FMV Hack, Skip Slow Draw, Skip Texture Copy), virtual memory scanner and Gateway cheat DB</string>
+    <string name="about_credits_borked3ds_title">Borked3DS (SPIRV-Tools-opt)</string>
+    <string name="about_credits_borked3ds_summary">Borked3DS team - SPIRV-Tools validation, legalization and shader optimization pipeline for Vulkan</string>
+    <string name="about_credits_azaharplus_title">AzaharPlus, Lime3DS &amp; Mandarine</string>
+    <string name="about_credits_azaharplus_summary">Encrypted ROM/NCCH/CIA decryption helpers, legacy format compatibility, speed improvements and online extensions</string>
+    <string name="about_credits_watermelonds_title">WatermelonDS (Android UI Interface)</string>
+    <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
+    <string name="about_credits_libraries_title">Open source libraries and tools</string>
+    <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
 </resources>

@@ -110,49 +110,56 @@ template <typename Type>
 Type Config::GetSettingFromKey(const std::string& group, const std::string& key,
                                std::optional<Type> default_value) {
 
-    const std::string default_str =
-        default_android_values.contains(key) ? default_android_values.at(key) : "";
+    const bool has_storm_override = default_android_values.contains(key);
+    const std::string default_str = has_storm_override ? default_android_values.at(key) : "";
 
     const bool has_per_game = per_game_config && per_game_config->HasValue(group, key);
     const bool has_android = android_config && android_config->HasValue(group, key);
 
     if constexpr (std::is_same_v<Type, bool>) {
-        bool value = (default_value && default_str == "")
+        bool value = (default_value && !has_storm_override)
                          ? *default_value
                          : (default_str == "1" || default_str == "true");
         if (has_per_game) {
             value = per_game_config->GetBoolean(group, key, value);
+        } else if (has_storm_override) {
+            return (default_str == "1" || default_str == "true");
         } else if (has_android) {
             value = android_config->GetBoolean(group, key, value);
         }
         return value;
     } else if constexpr (std::is_floating_point_v<Type>) {
-        double value = (default_value && default_str == "")
+        double value = (default_value && !has_storm_override)
                            ? static_cast<double>(*default_value)
                            : (default_str.empty() ? 0.0 : std::stod(default_str));
         if (has_per_game) {
             value = per_game_config->GetReal(group, key, value);
+        } else if (has_storm_override && !default_str.empty()) {
+            return static_cast<Type>(std::stod(default_str));
         } else if (has_android) {
             value = android_config->GetReal(group, key, value);
         }
         return static_cast<Type>(value);
     } else if constexpr (std::is_integral_v<Type>) {
-        long value = (default_value && default_str == "")
+        long value = (default_value && !has_storm_override)
                          ? static_cast<long>(*default_value)
                          : (default_str.empty() ? 0L : std::stol(default_str));
         if (has_per_game) {
             value = per_game_config->GetInteger(group, key, value);
+        } else if (has_storm_override && !default_str.empty()) {
+            return static_cast<Type>(std::stol(default_str));
         } else if (has_android) {
             value = android_config->GetInteger(group, key, value);
         }
         return static_cast<Type>(value);
     } else if constexpr (std::is_same_v<Type, std::string>) {
-        std::string value = (default_value && default_str == "") ? *default_value : default_str;
+        std::string value = (default_value && !has_storm_override) ? *default_value : default_str;
         if (has_per_game) {
-            // config.ini will return empty strings with get so need to make sure not to override
             auto const configured = per_game_config->Get(group, key, value);
             if (!configured.empty())
                 value = configured;
+        } else if (has_storm_override) {
+            return default_str;
         } else if (has_android) {
             auto const configured = android_config->Get(group, key, value);
             if (!configured.empty())

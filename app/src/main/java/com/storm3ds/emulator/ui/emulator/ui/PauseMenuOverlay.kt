@@ -138,6 +138,8 @@ internal fun pauseOptionIcon(option: PauseMenuOption): ImageVector {
         RomPauseMenuOption.FRAME_ADVANCE -> Icons.Filled.PlayArrow
         RomPauseMenuOption.REWIND -> Icons.Filled.History
         RomPauseMenuOption.CHEATS -> Icons.Filled.Tune
+        RomPauseMenuOption.LOAD_AMIIBO -> Icons.Filled.Layers
+        RomPauseMenuOption.REMOVE_AMIIBO -> Icons.Filled.Close
         RomPauseMenuOption.VIEW_ACHIEVEMENTS -> Icons.Filled.EmojiEvents
         RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> Icons.Filled.Refresh
         RomPauseMenuOption.CALIBRATE_GYRO -> Icons.Filled.TouchApp
@@ -196,6 +198,8 @@ private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
 
         RomPauseMenuOption.ROM_SETTINGS,
         RomPauseMenuOption.CHEATS,
+        RomPauseMenuOption.LOAD_AMIIBO,
+        RomPauseMenuOption.REMOVE_AMIIBO,
         RomPauseMenuOption.VIEW_ACHIEVEMENTS,
         RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS,
         RomPauseMenuOption.SETTINGS,

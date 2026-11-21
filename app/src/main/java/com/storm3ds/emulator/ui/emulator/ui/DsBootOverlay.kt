@@ -48,7 +48,7 @@ fun DsBootOverlay(
 
     Console3DBootScreen(
         consoleType = consoleType,
-        statusText = statusText ?: (if (isDsi) "Launching Nintendo 3DSi System Firmware…" else "Launching Nintendo 3DS System Firmware…"),
+        statusText = statusText ?: ("Launching Nintendo 3DS System…"),
         contentAlpha = contentAlpha,
         modifier = modifier,
     )

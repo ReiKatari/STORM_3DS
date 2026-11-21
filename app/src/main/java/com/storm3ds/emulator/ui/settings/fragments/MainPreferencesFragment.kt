@@ -118,19 +118,19 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             pref.summary = saveSummary
         }
 
-        // 4. System (console type NDS/DSi, JIT status, custom BIOS status, overclock)
+        // 4. System (New 3DS / Old 3DS, JIT status, CPU clock)
         findPreference<Preference>("settings_home_system")?.let { pref ->
+            val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
             val compilerEnabled = prefs.getBoolean("enable_storm_compiler", true)
-            val overclock = prefs.getString("arm9_overclock", "1") ?: "1"
-            val customBios = prefs.getBoolean("use_custom_bios", false)
+            val cpuPct = prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100"
+            val modelStr = if (isNew3ds) "New 3DS" else "Old 3DS"
             val jitStr = "JIT: ${getString(if (compilerEnabled) R.string.on else R.string.off)}"
-            val biosStr = getString(if (customBios) R.string.v793_summary_custom_bios else R.string.v793_summary_builtin_drastic_bios)
-            pref.summary = "NDS/DSi • $jitStr • ${overclock}x • $biosStr"
+            pref.summary = "$modelStr • $jitStr • CPU $cpuPct%"
         }
 
         // 5. Video (renderer, resolution scale, filtering, console skin)
         findPreference<Preference>("settings_home_video")?.let { pref ->
-            val renderer = prefs.getString("video_renderer", "opengl") ?: "opengl"
+            val renderer = prefs.getString("video_renderer", "vulkan") ?: "vulkan"
             val resolution = prefs.getString("video_internal_resolution", "2") ?: "2"
             val rendererName = getLocalizedEntry(renderer, R.array.video_renderer_values, R.array.video_renderer_options)
             val filter = prefs.getString("video_filtering", "quilez") ?: "quilez"

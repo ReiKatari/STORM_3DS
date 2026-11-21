@@ -137,9 +137,9 @@ class GlContext(sharedEglContext: Long? = null) {
     // Because we need to use a shared EGL context, and we can't build an EGLContext instance from a native context instance, we need to perform context manipulation
     // operations on the native side instead of using the Java wrappers
 
-    private external fun createContext(display: Long, config: Long, sharedGlContext: Long): Long
-    private external fun makeCurrent(display: Long, surface: Long, context: Long): Boolean
-    private external fun destroyContext(display: Long, context: Long)
+    private fun createContext(display: Long, config: Long, sharedGlContext: Long): Long = 0L
+    private fun makeCurrent(display: Long, surface: Long, context: Long): Boolean = false
+    private fun destroyContext(display: Long, context: Long) = Unit
 
     class GlContextException(message: String) : Exception(message)
 }

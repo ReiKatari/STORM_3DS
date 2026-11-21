@@ -48,7 +48,7 @@
     <string name="v792_stats_biorhythm_peak">Pic d\'activité : %1$s</string>
     <string name="v792_stats_platform_title">Répartition par plateforme</string>
     <string name="v792_stats_platform_nds_label">Nintendo 3DS</string>
-    <string name="v792_stats_platform_dsi_label">Nintendo 3DSi</string>
+    <string name="v792_stats_platform_dsi_label">Nintendo 3DS</string>
     <string name="v792_stats_platform_games_count">%1$d jeux</string>
     <string name="v792_stats_milestones_title">Étapes et records</string>
     <string name="v792_stats_milestones_unlocked_count">%1$d sur %2$d débloqués</string>

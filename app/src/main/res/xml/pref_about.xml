@@ -46,33 +46,33 @@
     <PreferenceCategory
             android:title="@string/about_credits_title">
         <Preference
-                android:key="credits_jpeacekeeper"
-                android:title="@string/about_credits_jpeacekeeper_title"
-                android:summary="@string/about_credits_jpeacekeeper_summary"
+                android:key="credits_azahar"
+                android:title="@string/about_credits_azahar_title"
+                android:summary="@string/about_credits_azahar_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_citra_mmj"
+                android:title="@string/about_credits_citra_mmj_title"
+                android:summary="@string/about_credits_citra_mmj_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_borked3ds"
+                android:title="@string/about_credits_borked3ds_title"
+                android:summary="@string/about_credits_borked3ds_summary"
+                app:iconSpaceReserved="false" />
+
+        <Preference
+                android:key="credits_azaharplus"
+                android:title="@string/about_credits_azaharplus_title"
+                android:summary="@string/about_credits_azaharplus_summary"
                 app:iconSpaceReserved="false" />
 
         <Preference
                 android:key="credits_watermelonds"
                 android:title="@string/about_credits_watermelonds_title"
                 android:summary="@string/about_credits_watermelonds_summary"
-                app:iconSpaceReserved="false" />
-
-        <Preference
-                android:key="credits_melonds"
-                android:title="@string/about_credits_melonds_title"
-                android:summary="@string/about_credits_melonds_summary"
-                app:iconSpaceReserved="false" />
-
-        <Preference
-                android:key="credits_melonds_ds"
-                android:title="@string/about_credits_melonds_ds_title"
-                android:summary="@string/about_credits_melonds_ds_summary"
-                app:iconSpaceReserved="false" />
-
-        <Preference
-                android:key="credits_drastic"
-                android:title="@string/about_credits_drastic_title"
-                android:summary="@string/about_credits_drastic_summary"
                 app:iconSpaceReserved="false" />
 
         <Preference

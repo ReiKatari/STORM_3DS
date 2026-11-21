@@ -17,6 +17,8 @@ class CiaInstallWorker(val context: Context, params: WorkerParameters) : Worker(
     var lastMax: Int = 100
 
     override fun doWork(): Result {
+        com.storm3ds.emulator.NativeCoreLoader.load()
+        NativeLibrary.setUserDirectory(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath())
         val uris = inputData.getStringArray(KEY_FILE_PATHS) ?: return Result.failure()
         for (path in uris) {
             val status = installCIA(path)

@@ -97,26 +97,31 @@ private fun resolveLocalIpv4Address(): String {
     }.getOrDefault("Неизвестно")
 }
 
-private fun parseDiscoveredLanRooms(rawSessions: Array<String>, fallbackTitle: String): List<NetplayRoom> {
+internal fun parseDiscoveredLanRooms(rawSessions: Array<String>, fallbackTitle: String): List<NetplayRoom> {
     return rawSessions.mapNotNull { entry ->
         val parts = entry.split("|")
-        if (parts.size < 4) return@mapNotNull null
-        val ip = parts[0].trim()
-        val hostName = parts[1].trim().ifEmpty { "DS Host" }
-        val currentPlayers = parts[2].toIntOrNull() ?: 1
-        val maxPlayers = parts[3].toIntOrNull() ?: 4
-        val status = parts.getOrNull(4)?.toIntOrNull() ?: 1
-        val statusLabel = if (status == 2) "В игре ($ip)" else "Ожидание ($ip)"
-        NetplayRoom(
-            id = ip,
-            hostName = hostName,
-            gameTitle = fallbackTitle,
-            serverType = statusLabel,
-            currentPlayers = currentPlayers,
-            maxPlayers = maxPlayers,
-            pingMs = 4,
-            hostIp = ip,
-        )
+        when {
+            parts.size >= 4 -> {
+                val ip = parts[0].trim()
+                val hostName = parts[1].trim().ifEmpty { "3DS Host" }
+                val currentPlayers = parts[2].toIntOrNull() ?: 1
+                val maxPlayers = parts[3].toIntOrNull() ?: 4
+                val status = parts.getOrNull(4)?.toIntOrNull() ?: 1
+                val statusLabel = if (status == 2) "В игре ($ip)" else "Ожидание ($ip)"
+                NetplayRoom(ip, hostName, fallbackTitle, statusLabel, currentPlayers, maxPlayers, 4, ip)
+            }
+            parts.size == 3 -> {
+                val roomName = parts[0].trim().ifEmpty { "3DS Room" }
+                val endpoint = parts[1].trim()
+                val hostIp = endpoint.substringBefore(':').trim()
+                val counts = parts[2].split('/')
+                val currentPlayers = counts.getOrNull(0)?.trim()?.toIntOrNull() ?: 1
+                val maxPlayers = counts.getOrNull(1)?.trim()?.toIntOrNull() ?: 4
+                if (hostIp.isEmpty()) return@mapNotNull null
+                NetplayRoom(endpoint, roomName, fallbackTitle, "Azahar NetPlay ($endpoint)", currentPlayers, maxPlayers, 4, hostIp)
+            }
+            else -> null
+        }
     }
 }
 
@@ -149,30 +154,24 @@ fun NetplayLobbyDialog(
     val wfcServers = remember {
         listOf(
             WfcServerOption(
-                id = "wiimmfi",
-                title = "Wiimmfi WFC (Рекомендуется)",
-                dnsIp = "167.235.229.36",
-                description = "Основной глобальный сервер Nintendo WFC (Mario Kart DS, Pokémon Gen 4/5, Animal Crossing и др.)",
+                id = "pretendo",
+                title = "Pretendo Network (Рекомендуется для 3DS)",
+                dnsIp = "https://api.pretendo.cc",
+                description = "Онлайн-сервисы Nintendo 3DS (Mario Kart 7, Kid Icarus, Splatoon / Miiverse / Nimbus)",
             ),
             WfcServerOption(
-                id = "kaeru",
-                title = "Kaeru WFC",
-                dnsIp = "178.62.43.212",
-                description = "Альтернативный сервер сообщества с поддержкой классических игр DS и сетевых сервисов",
-            ),
-            WfcServerOption(
-                id = "altwfc",
-                title = "AltWFC / WFCZwei",
-                dnsIp = "172.104.88.237",
-                description = "Классический сервер AltWFC для старых ревизий игр Nintendo 3DS",
+                id = "stock_nintendo",
+                title = "Стандартный режим / Локальный NetPlay",
+                dnsIp = "",
+                description = "Отключить перенаправление Pretendo Web API (использовать стандартные комнаты NetPlay)",
             ),
         )
     }
 
     var discoveredRooms by remember { mutableStateOf<List<NetplayRoom>>(emptyList()) }
     var activeWfcServer by remember {
-        val saved = prefs.getString("system_wfc_server", "wiimmfi") ?: "wiimmfi"
-        mutableStateOf(if (saved in wfcServers.map { it.id }) saved else "wiimmfi")
+        val saved = if (prefs.getBoolean("3ds_pretendo_enabled", false)) "pretendo" else "stock_nintendo"
+        mutableStateOf(saved)
     }
 
     DisposableEffect(Unit) {
@@ -256,7 +255,7 @@ fun NetplayLobbyDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Локальный мультиплеер NiFi (Wi-Fi / Hotspot) и серверы WFC",
+                                text = "Локальные комнаты Azahar NetPlay и сервер Pretendo Network",
                                 color = colors.text2,
                                 fontFamily = WatermelonMono,
                                 fontSize = 9.5.sp
@@ -613,7 +612,7 @@ fun NetplayLobbyDialog(
                                     Icon(Icons.Filled.Dns, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        text = "Сервер Nintendo Wi-Fi Connection (WFC)",
+                                        text = "Онлайн-сервер Nintendo 3DS (Pretendo / Nimbus)",
                                         color = colors.text,
                                         fontFamily = SpaceGrotesk,
                                         fontSize = 13.sp,
@@ -622,7 +621,7 @@ fun NetplayLobbyDialog(
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    text = "Выберите онлайн-сервер WFC. STORM 3DS автоматически прописывает его DNS в точку доступа melonAP и перенаправляет трафик игры на выбранный сервер без ручной настройки.",
+                                    text = "Выберите режим Pretendo Network. STORM 3DS автоматически настраивает Web API (api.pretendo.cc) и LLE-модули ядра Azahar для сетевой игры Nintendo 3DS.",
                                     color = colors.text2,
                                     fontSize = 11.sp,
                                     lineHeight = 15.sp
@@ -647,8 +646,8 @@ fun NetplayLobbyDialog(
                                             )
                                             .clickable {
                                                 activeWfcServer = server.id
-                                                prefs.edit().putString("system_wfc_server", server.id).apply()
-                                                Toast.makeText(context, "Выбран сервер ${server.title} (DNS: ${server.dnsIp})", Toast.LENGTH_SHORT).show()
+                                                prefs.edit().putBoolean("3ds_pretendo_enabled", server.id == "pretendo").apply()
+                                                Toast.makeText(context, "Выбран профиль: ${server.title}", Toast.LENGTH_SHORT).show()
                                             }
                                             .padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically
@@ -682,7 +681,7 @@ fun NetplayLobbyDialog(
                                                     fontWeight = FontWeight.Bold
                                                 )
                                                 Text(
-                                                    text = "DNS: ${server.dnsIp}",
+                                                    text = if (server.dnsIp.isNotEmpty()) "api.pretendo.cc" else "LAN / Off",
                                                     color = Color(0xFF10B981),
                                                     fontFamily = WatermelonMono,
                                                     fontSize = 9.5.sp,
@@ -711,8 +710,8 @@ fun NetplayLobbyDialog(
                                 .background(Brush.horizontalGradient(listOf(Color(0xFF059669), Color(0xFF10B981))))
                                 .clickable {
                                     val validServerIds = wfcServers.map { it.id }
-                                    val chosenServer = if (activeWfcServer in validServerIds) activeWfcServer else "wiimmfi"
-                                    prefs.edit().putString("system_wfc_server", chosenServer).apply()
+                                    val chosenServer = if (activeWfcServer in validServerIds) activeWfcServer else "pretendo"
+                                    prefs.edit().putBoolean("3ds_pretendo_enabled", chosenServer == "pretendo").apply()
                                     val serverObj = wfcServers.firstOrNull { it.id == chosenServer } ?: wfcServers.first()
                                     coroutineScope.launch {
                                         withContext(Dispatchers.IO) {
@@ -745,7 +744,7 @@ fun NetplayLobbyDialog(
                                 Icon(Icons.Filled.Language, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "Запустить игру с WFC онлайн",
+                                    text = "Запустить игру с выбранным профилем 3DS",
                                     color = Color.White,
                                     fontFamily = WatermelonMono,
                                     fontSize = 11.sp,

@@ -21,7 +21,7 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.pref_about, rootKey)
 
-        val vName = (runCatching { requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName }.getOrNull() ?: "8.6.0")
+        val vName = (runCatching { requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName }.getOrNull() ?: "1.1.0")
             .removePrefix("v")
             .removePrefix("V")
         findPreference<Preference>("about_version")?.summary = vName
@@ -86,7 +86,7 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
 
         findPreference<Preference>("about_fork_info")?.setOnPreferenceClickListener {
-            openExternalUrl("https://github.com/SapphireRhodonite/WatermelonDS")
+            openExternalUrl("https://github.com/azahar-emu/azahar")
             true
         }
 
@@ -95,8 +95,23 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             true
         }
 
-        findPreference<Preference>("credits_jpeacekeeper")?.setOnPreferenceClickListener {
-            openExternalUrl("https://4pda.to/forum/index.php?showuser=5768740")
+        findPreference<Preference>("credits_azahar")?.setOnPreferenceClickListener {
+            openExternalUrl("https://github.com/azahar-emu/azahar")
+            true
+        }
+
+        findPreference<Preference>("credits_citra_mmj")?.setOnPreferenceClickListener {
+            openExternalUrl("https://github.com/weihuoya/citra")
+            true
+        }
+
+        findPreference<Preference>("credits_borked3ds")?.setOnPreferenceClickListener {
+            openExternalUrl("https://github.com/Borked3DS/Borked3DS")
+            true
+        }
+
+        findPreference<Preference>("credits_azaharplus")?.setOnPreferenceClickListener {
+            openExternalUrl("https://github.com/AzaharPlus/AzaharPlus")
             true
         }
 
@@ -105,34 +120,22 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             true
         }
 
-        findPreference<Preference>("credits_melonds")?.setOnPreferenceClickListener {
-            openExternalUrl("https://melonds.kuribo64.net/")
-            true
-        }
-
-        findPreference<Preference>("credits_melonds_ds")?.setOnPreferenceClickListener {
-            openExternalUrl("https://github.com/JesseTG/melonds-ds")
-            true
-        }
-
-        findPreference<Preference>("credits_drastic")?.setOnPreferenceClickListener {
-            openExternalUrl("https://drastic-ds.com/")
-            true
-        }
-
         findPreference<Preference>("credits_libraries")?.setOnPreferenceClickListener {
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.about_credits_libraries_title)
                 .setMessage(
-                    "• melonDS Core (Arisotura and melonDS team)\n" +
-                    "• DraStic Open-Source Replacement BIOS\n" +
-                    "• Librashader (SnowflakePowered - RetroArch Slang Shaders)\n" +
-                    "• rcheevos (RetroAchievements C Library)\n" +
-                    "• Google ML Kit Text Recognition and Translation\n" +
-                    "• Jetpack Compose, Material 3 and AndroidX\n" +
-                    "• Dagger Hilt, Kotlin Coroutines and Serialization\n" +
-                    "• OkHttp, Retrofit, Room and Markwon\n" +
-                    "• Picasso and Coil Image Loaders"
+                    "• Azahar & Citra Core (C++20 Nintendo 3DS Engine)\n" +
+                    "• Citra MMJ (weihuoya - Speedhacks, Cheat DB & Memory Tools)\n" +
+                    "• Borked3DS (SPIRV-Tools-opt Shader Optimization)\n" +
+                    "• AzaharPlus, Lime3DS & Mandarine (Decryption & Formats)\n" +
+                    "• WatermelonDS (SapphireRhodonite - Android UI Interface)\n" +
+                    "• Librashader (SnowflakePowered - RetroArch .slangp Shaders)\n" +
+                    "• libadrenotools (Bylaws - Custom Turnip Vulkan Drivers)\n" +
+                    "• Dynarmic, Teakra, SoundTouch, Cubeb, Zstandard, Crypto++\n" +
+                    "• SPIRV-Tools, Glslang & Vulkan Memory Allocator (VMA)\n" +
+                    "• Google ML Kit Text Recognition & Translation\n" +
+                    "• Jetpack Compose, Material, AndroidX, Hilt, Room & Coil\n" +
+                    "• Apache Commons Compress, junrar, XZ, OkHttp & Retrofit"
                 )
                 .setPositiveButton(android.R.string.ok, null)
                 .show()

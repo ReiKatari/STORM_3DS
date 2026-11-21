@@ -160,7 +160,7 @@ private fun NoDirectoriesScreen(
                             letterSpacing = (-0.3).sp,
                         )
                         Text(
-                            text = "DS",
+                            text = "3DS",
                             color = Color(0xFF00E5FF),
                             fontFamily = SpaceGrotesk,
                             fontSize = 21.sp,

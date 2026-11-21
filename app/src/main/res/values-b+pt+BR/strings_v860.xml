@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">Não foi possível descriptografar a ROM: %1$s</string>
     <string name="decrypt_rom_err_read">Falha ao ler o arquivo ROM</string>
     <string name="decrypt_rom_err_write">Falha ao gravar o arquivo ROM descriptografado</string>
-    <string name="decrypt_rom_err_not_dsi">Este arquivo não é uma ROM válida de Nintendo 3DSi</string>
+    <string name="decrypt_rom_err_not_dsi">Este arquivo não é uma ROM válida de Nintendo 3DS</string>
     <string name="decrypt_rom_err_too_small">O arquivo ROM é muito pequeno ou está corrompido</string>
     <string name="decrypt_rom_err_bounds">A região Modcrypt ultrapassa os limites do arquivo ROM</string>
     <string name="decrypt_rom_err_validation">Falha na validação do cabeçalho da ROM descriptografada</string>

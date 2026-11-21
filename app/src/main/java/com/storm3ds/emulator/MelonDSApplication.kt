@@ -280,12 +280,10 @@ class MelonDSApplication : Application(), Configuration.Provider {
                     val isCustomDs = currentDs != null &&
                             !currentDs.contains("data/user/0") &&
                             !currentDs.contains("files/bios") &&
-                            !currentDs.contains("STORM%20DS/bios") &&
                             !currentDs.contains("STORM 3DS/bios")
                     val isCustomDsi = currentDsi != null &&
                             !currentDsi.contains("data/user/0") &&
                             !currentDsi.contains("files/bios") &&
-                            !currentDsi.contains("STORM%20DS/bios") &&
                             !currentDsi.contains("STORM 3DS/bios")
 
                     if (!isBiosDownloadBlocked && !isCustomDs && !isCustomDsi && (currentDs == null || currentDsi == null)) {

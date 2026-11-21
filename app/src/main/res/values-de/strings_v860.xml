@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">ROM konnte nicht entschlüsselt werden: %1$s</string>
     <string name="decrypt_rom_err_read">ROM-Datei konnte nicht gelesen werden</string>
     <string name="decrypt_rom_err_write">Entschlüsselte ROM-Datei konnte nicht geschrieben werden</string>
-    <string name="decrypt_rom_err_not_dsi">Diese Datei ist kein gültiges Nintendo 3DSi-ROM</string>
+    <string name="decrypt_rom_err_not_dsi">Diese Datei ist kein gültiges Nintendo 3DS-ROM</string>
     <string name="decrypt_rom_err_too_small">ROM-Datei ist zu klein oder beschädigt</string>
     <string name="decrypt_rom_err_bounds">Modcrypt-Bereich überschreitet die Dateigrenzen des ROMs</string>
     <string name="decrypt_rom_err_validation">Validierung des entschlüsselten ROM-Headers fehlgeschlagen</string>

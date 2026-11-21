@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">Не удалось расшифровать ROM: %1$s</string>
     <string name="decrypt_rom_err_read">Не удалось прочитать файл ROM</string>
     <string name="decrypt_rom_err_write">Не удалось записать расшифрованный файл ROM</string>
-    <string name="decrypt_rom_err_not_dsi">Этот файл не является корректным ROM для Nintendo 3DSi</string>
+    <string name="decrypt_rom_err_not_dsi">Этот файл не является корректным ROM для Nintendo 3DS</string>
     <string name="decrypt_rom_err_too_small">Файл ROM слишком мал или повреждён</string>
     <string name="decrypt_rom_err_bounds">Область Modcrypt выходит за пределы файла ROM</string>
     <string name="decrypt_rom_err_validation">Проверка заголовка расшифрованного ROM не пройдена</string>

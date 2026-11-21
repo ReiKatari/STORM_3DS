@@ -74,6 +74,8 @@ object MelonEmulator {
     @Volatile private var depth3dStrength: Int = 0
     @Volatile private var currentSpeedMultiplier: Double = 100.0
     @Volatile private var fastForwardActive: Boolean = false
+    @Volatile private var muteOnFastForward: Boolean = false
+    @Volatile private var touchDown: Boolean = false
     private val rewindExecutor = Executors.newSingleThreadScheduledExecutor()
     private var rewindTask: ScheduledFuture<*>? = null
     private val diagnosticBuf = StringBuilder()
@@ -100,14 +102,113 @@ object MelonEmulator {
     }
 
     private fun applyConfigurationToAzahar(cfg: EmulatorConfiguration) {
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(NativeBridgeHost.appContext)
         NativeLibrary.addDefaultSetting(SettingKeys.use_virtual_sd(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
-        NativeLibrary.addDefaultSetting(SettingKeys.is_new_3ds(), if (cfg.consoleType == ConsoleType.DSi) "1" else "1")
+
+        val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
+        val cpuClock = (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull()?.coerceIn(25, 200) ?: 100
+        val regionVal = (prefs.getString("3ds_region_value", "-1") ?: "-1").toIntOrNull() ?: -1
+        val regionFree = prefs.getBoolean("3ds_apply_region_free", true)
+        NativeLibrary.addDefaultSetting(SettingKeys.is_new_3ds(), if (isNew3ds) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.cpu_clock_percentage(), cpuClock.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.region_value(), regionVal.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.apply_region_free_patch(), if (regionFree) "1" else "0")
+
         val useVulkan = cfg.rendererConfiguration.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN
+        val resScale = cfg.rendererConfiguration.internalResolutionScaling.coerceIn(1, 10)
+        val asyncShaders = prefs.getBoolean("video_async_shader_compilation", true)
+        val texFilter = (prefs.getString("video_texture_filter", "0") ?: "0").toIntOrNull()?.coerceIn(0, 5) ?: 0
+        val hdTex = prefs.getBoolean("video_hd_textures_enabled", false)
+        val dumpTex = prefs.getBoolean("video_dump_textures_enabled", false)
+        val preloadTex = prefs.getBoolean("video_preload_textures_enabled", false)
+
         NativeLibrary.addDefaultSetting(SettingKeys.graphics_api(), if (useVulkan) "2" else "1")
-        NativeLibrary.addDefaultSetting(SettingKeys.volume(), (cfg.volume / 100f).toString())
-        NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), if (cfg.soundEnabled) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.resolution_factor(), resScale.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.async_shader_compilation(), if (asyncShaders) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.filter_mode(), if (cfg.rendererConfiguration.videoFiltering.ordinal > 0) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.texture_filter(), texFilter.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.custom_textures(), if (hdTex) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.async_custom_loading(), if (hdTex) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.dump_textures(), if (dumpTex) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.preload_textures(), if (preloadTex) "1" else "0")
+
+        val fmvHack = prefs.getBoolean("3ds_fmv_hack", true)
+        val skipSlowDraw = prefs.getBoolean("3ds_skip_slow_draw", false)
+        val skipTexCopy = prefs.getBoolean("3ds_skip_tex_copy", false)
+        val accurateMul = prefs.getBoolean("3ds_accurate_mul", false)
+        val audioStretch = prefs.getBoolean("3ds_audio_stretch", true)
+        val spirvOpt = prefs.getBoolean("3ds_spirv_opt", true)
+        val disableRightEye = prefs.getBoolean("3ds_disable_right_eye", false)
+
+        val videoDepthKey = prefs.getString("video_vulkan_3d_depth_mode", "off")
+        val modeFromVideo = when (videoDepthKey) {
+            "sbs_xr" -> NativeLibrary.StereoMode.SIDE_BY_SIDE.nativeValue
+            "sbs_full" -> NativeLibrary.StereoMode.SIDE_BY_SIDE_FULL.nativeValue
+            "anaglyph" -> NativeLibrary.StereoMode.ANAGLYPH.nativeValue
+            "interlaced" -> NativeLibrary.StereoMode.INTERLACED.nativeValue
+            "reverse_interlaced" -> NativeLibrary.StereoMode.REVERSE_INTERLACED.nativeValue
+            "cardboard_vr" -> NativeLibrary.StereoMode.CARDBOARD_VR.nativeValue
+            "gyro_parallax" -> NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue
+            else -> 0
+        }
+        val render3dMode = if (prefs.contains("3ds_render_mode")) {
+            prefs.getInt("3ds_render_mode", modeFromVideo).coerceIn(0, 7)
+        } else {
+            modeFromVideo
+        }
+        val depthFromVideo = prefs.getString("video_vulkan_3d_depth_strength", "0")?.toIntOrNull() ?: 0
+        val factor3d = if (prefs.contains("3ds_depth_factor")) {
+            prefs.getInt("3ds_depth_factor", depthFromVideo).coerceIn(0, 100)
+        } else {
+            depthFromVideo.coerceIn(0, 100)
+        }
+
+        NativeLibrary.addDefaultSetting(SettingKeys.skip_slow_draw(), if (skipSlowDraw) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.skip_texture_copy(), if (skipTexCopy) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.shaders_accurate_mul(), if (accurateMul) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.enable_audio_stretching(), if (audioStretch) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.optimize_spirv_output(), if (spirvOpt) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.render_3d(), render3dMode.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.factor_3d(), factor3d.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.disable_right_eye_render(), if (disableRightEye) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.volume(), (cfg.volume.coerceIn(0, 512) / 256f).coerceIn(0f, 1f).toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), if (cfg.soundEnabled) "1" else "0")
+
+        val pretendoEnabled = prefs.getBoolean("3ds_pretendo_enabled", false)
+        NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
+        NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (pretendoEnabled) "1" else "0")
+
+        val articIp = prefs.getString("3ds_artic_ip", "").orEmpty().trim()
+        val articController = prefs.getBoolean("3ds_artic_controller", false)
+        if (articIp.isNotEmpty()) {
+            NativeLibrary.addDefaultSetting(SettingKeys.last_artic_base_addr(), articIp)
+        }
+        NativeLibrary.addDefaultSetting(SettingKeys.use_artic_base_controller(), if (articController) "1" else "0")
+
+        val shaderPresetPath = if (cfg.rendererConfiguration.videoFiltering == com.storm3ds.emulator.domain.model.VideoFiltering.RETROARCH) {
+            cfg.rendererConfiguration.retroArchShader.presetPath.orEmpty()
+        } else ""
+        NativeLibrary.addDefaultSetting(SettingKeys.librashader_enabled(), if (shaderPresetPath.isNotBlank()) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.librashader_preset_path(), shaderPresetPath)
+
+        runCatching {
+            NativeLibrary.setSpeedhacks(fmvHack, skipSlowDraw, skipTexCopy, accurateMul, audioStretch, false)
+            NativeLibrary.setSpirvOptimization(if (spirvOpt) 1 else 0, false, false)
+            NativeLibrary.setRender3dMode(render3dMode)
+            NativeLibrary.setFactor3d(factor3d)
+            NativeLibrary.setDisableRightEyeRender(disableRightEye)
+            val logFilter = prefs.getString("3ds_log_filter", "*:Info") ?: "*:Info"
+            val logRegex = prefs.getString("3ds_log_regex", "") ?: ""
+            NativeLibrary.setLogFilterAndRegex(logFilter, logRegex)
+        }
+
+        val sysLang = (prefs.getString("3ds_system_language", "1") ?: "1").toIntOrNull()?.coerceIn(0, 11) ?: 1
+        runCatching {
+            com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.load()
+            com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.setSystemLanguage(sysLang)
+            com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.save()
+        }
     }
 
     fun setupCheats(cheats: Array<Cheat>) {
@@ -120,14 +221,16 @@ object MelonEmulator {
                 for (i in existing.indices.reversed()) {
                     CheatEngine.removeCheat(i)
                 }
-                for (cheat in cheats) {
-                    if (!cheat.enabled) continue
-                    val gatewayCode = formatDSOrGatewayCheat(cheat.code)
-                    val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
-                    nc.setEnabled(true)
-                    CheatEngine.addCheat(nc)
+                if (cheats.isNotEmpty()) {
+                    for (cheat in cheats) {
+                        if (!cheat.enabled) continue
+                        val gatewayCode = formatDSOrGatewayCheat(cheat.code)
+                        val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
+                        nc.setEnabled(true)
+                        CheatEngine.addCheat(nc)
+                    }
+                    CheatEngine.saveCheatFile(tid)
                 }
-                CheatEngine.saveCheatFile(tid)
             }
         }
     }
@@ -158,13 +261,43 @@ object MelonEmulator {
 
     fun loadRom(romUri: Uri, sramUri: Uri, gbaSlotType: GbaSlotType, gbaRomUri: Uri?, gbaSramUri: Uri?): LoadResult {
         NativeCoreLoader.load()
-        val nativePath = resolveUriToNativePath(romUri)
+        var nativePath = resolveUriToNativePath(romUri)
         if (nativePath.isBlank()) {
             return LoadResult.NDS_FAILED
         }
+        var titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
+        val ext = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
+            .firstNotNullOfOrNull { candidate ->
+                candidate.substringBefore('?').substringAfterLast('.', "").lowercase()
+                    .takeIf { it in setOf("cia", "zcia", "bcia") }
+            } ?: ""
+        if (ext in setOf("cia", "zcia", "bcia")) {
+            val installStatus = runCatching { NativeLibrary.installCiaSimple(nativePath) }.getOrDefault(-1)
+            if (installStatus != 0) {
+                return LoadResult.NDS_FAILED
+            }
+            val tidHex = if (titleId != 0L) String.format("%016x", titleId) else ""
+            val installedPath = runCatching {
+                NativeLibrary.getInstalledGamePaths().firstOrNull { game ->
+                    tidHex.isEmpty() || game.path.contains(tidHex, ignoreCase = true)
+                }?.path
+            }.getOrNull()
+            if (!installedPath.isNullOrBlank()) {
+                nativePath = installedPath
+                titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(titleId)
+            }
+        }
         currentRomPath = nativePath
-        currentTitleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
+        currentTitleId = titleId
         if (currentTitleId != 0L) {
+            val tidHex = String.format("%016X", currentTitleId)
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(NativeBridgeHost.appContext)
+            if (prefs.getBoolean("3ds_auto_profiles_enabled", true)) {
+                com.storm3ds.emulator.impl.profiles.GameProfilesRepository.findForTitleId(NativeBridgeHost.appContext, tidHex)?.let { profile ->
+                    com.storm3ds.emulator.impl.profiles.GameProfilesRepository.applyProfile(profile)
+                    NativeLibrary.reloadSettings()
+                }
+            }
             runCatching { NativeLibrary.playTimeManagerStart(currentTitleId) }
         }
         return LoadResult.SUCCESS
@@ -321,6 +454,9 @@ object MelonEmulator {
 
     private fun extractSlotFromUri(uri: Uri): Int {
         val name = uri.lastPathSegment.orEmpty()
+        if (name.contains("autosave", ignoreCase = true) || name.contains("periodic", ignoreCase = true)) {
+            return NativeLibrary.SAVESTATE_SLOT_COUNT - 1
+        }
         val match = Regex("""(\d+)""").findAll(name).lastOrNull()?.groupValues?.get(1)?.toIntOrNull()
         return (match ?: 1).coerceIn(0, NativeLibrary.SAVESTATE_SLOT_COUNT - 1)
     }
@@ -365,17 +501,28 @@ object MelonEmulator {
 
     fun onScreenTouch(x: Int, y: Int) {
         val rect = com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastBottomRect
+        val sx: Float
+        val sy: Float
         if (rect != null && rect.width > 0 && rect.height > 0) {
-            val sx = rect.x + (x.coerceIn(0, 255) / 256f) * rect.width
-            val sy = rect.y + (y.coerceIn(0, 191) / 192f) * rect.height
+            sx = rect.x + (x.coerceIn(0, 255) / 256f) * rect.width
+            sy = rect.y + (y.coerceIn(0, 191) / 192f) * rect.height
+        } else {
+            sx = x.toFloat()
+            sy = y.toFloat()
+        }
+        if (!touchDown) {
+            touchDown = true
             NativeLibrary.onTouchEvent(sx, sy, true)
         } else {
-            NativeLibrary.onTouchEvent(x.toFloat(), y.toFloat(), true)
+            NativeLibrary.onTouchMoved(sx, sy)
         }
     }
 
     fun onScreenRelease() {
-        NativeLibrary.onTouchEvent(0f, 0f, false)
+        if (touchDown) {
+            touchDown = false
+            NativeLibrary.onTouchEvent(0f, 0f, false)
+        }
     }
 
     fun onInputDown(input: Input) {
@@ -430,16 +577,22 @@ object MelonEmulator {
         } else {
             NativeLibrary.disableTemporaryFrameLimit()
         }
+        runCatching { NativeLibrary.setAudioMuted(fastForwardActive && muteOnFastForward) }
     }
 
-    fun setMuteOnFastForwardEnabled(enabled: Boolean) {}
+    fun setMuteOnFastForwardEnabled(enabled: Boolean) {
+        muteOnFastForward = enabled
+        runCatching { NativeLibrary.setAudioMuted(fastForwardActive && muteOnFastForward) }
+    }
 
     fun setFrameLimitSpeedMultiplier(multiplier: Float) {
         currentSpeedMultiplier = (multiplier * 100.0).coerceIn(10.0, 500.0)
         NativeLibrary.setTemporaryFrameLimit(currentSpeedMultiplier)
     }
 
-    fun setMicrophoneEnabled(enabled: Boolean) {}
+    fun setMicrophoneEnabled(enabled: Boolean) {
+        runCatching { NativeLibrary.setMicrophoneEnabled(enabled) }
+    }
 
     fun getDetailedEmulationDiagnostic(): String =
         "ROM=$currentRomPath titleId=0x${currentTitleId.toString(16)} fps=${getFPS()} keys=0x${NativeLibrary.getAesKeyStatusMask().toString(16)}"

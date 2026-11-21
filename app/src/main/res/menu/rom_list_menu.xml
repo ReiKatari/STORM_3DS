@@ -64,6 +64,7 @@
             <item
                 android:id="@+id/action_boot_firmware_dsi"
                 android:title="@string/action_boot_firmware_dsi"
+                android:visible="false"
                 android:orderInCategory="1" />
         </menu>
     </item>

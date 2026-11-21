@@ -172,28 +172,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".ui.shortcutsetup.DSFirmwareShortcutSetupActivity"
-            android:label="DS Firmware"
-            android:icon="@mipmap/ic_platform_ds"
-            android:enabled="false"
-            android:exported="false" >
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.shortcutsetup.DSiFirmwareShortcutSetupActivity"
-            android:label="DSi Firmware"
-            android:icon="@mipmap/ic_platform_dsi"
-            android:enabled="false"
-            android:exported="false" >
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+
         <activity
             android:name=".ui.cheats.CheatsActivity"
             android:label="@string/cheats"

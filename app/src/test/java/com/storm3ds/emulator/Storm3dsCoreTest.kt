@@ -4,9 +4,11 @@ import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.impl.emulator.EmulatorMessageQueue
 import com.storm3ds.emulator.nativebridge.NativeLibrary
 import com.storm3ds.emulator.ui.common.views.ButtonColorStyle
 import com.storm3ds.emulator.ui.emulator.skin.ConsoleSkinTheme
+import com.storm3ds.emulator.ui.romdetails.ui.parseDiscoveredLanRooms
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -119,5 +121,72 @@ class Storm3dsCoreTest {
         val root = Json.parseToJsonElement(file!!.readText()).jsonObject
         val profiles = root["profiles"]!!.jsonArray
         assertTrue("Expected >= 25 profiles, got ${profiles.size}", profiles.size >= 25)
+    }
+
+    @Test
+    fun `stereo mode enum values match Azahar settings header ordinals 0 to 7`() {
+        assertEquals(0, NativeLibrary.StereoMode.OFF.nativeValue)
+        assertEquals(1, NativeLibrary.StereoMode.SIDE_BY_SIDE.nativeValue)
+        assertEquals(2, NativeLibrary.StereoMode.SIDE_BY_SIDE_FULL.nativeValue)
+        assertEquals(3, NativeLibrary.StereoMode.ANAGLYPH.nativeValue)
+        assertEquals(4, NativeLibrary.StereoMode.INTERLACED.nativeValue)
+        assertEquals(5, NativeLibrary.StereoMode.REVERSE_INTERLACED.nativeValue)
+        assertEquals(6, NativeLibrary.StereoMode.CARDBOARD_VR.nativeValue)
+        assertEquals(7, NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue)
+    }
+
+    @Test
+    fun `emulator message queue starts and stops cleanly without native deadlock`() {
+        val queue = EmulatorMessageQueue { _, _ -> }
+        queue.start()
+        assertTrue(queue.isActive())
+        queue.stop()
+        assertFalse(queue.isActive())
+        queue.cleanup()
+        assertFalse(queue.isActive())
+    }
+
+    @Test
+    fun `rom decryptor returns clean status without missing JNI errors`() {
+        assertEquals(
+            MelonRomDecryptor.EncryptionStatus.NOT_ENCRYPTED,
+            MelonRomDecryptor.checkEncryption("nonexistent_game.3ds"),
+        )
+        assertEquals(
+            MelonRomDecryptor.DecryptResult.ALREADY_DECRYPTED,
+            MelonRomDecryptor.decryptRom("nonexistent_game.3ds"),
+        )
+    }
+
+    @Test
+    fun `azahar netplay room parser supports 3-field room entries`() {
+        val rooms = parseDiscoveredLanRooms(
+            arrayOf("Mario Kart 7 Room|192.168.1.50:24872|2/8"),
+            fallbackTitle = "Mario Kart 7",
+        )
+        assertEquals(1, rooms.size)
+        assertEquals("Mario Kart 7 Room", rooms[0].hostName)
+        assertEquals("192.168.1.50", rooms[0].hostIp)
+        assertEquals(2, rooms[0].currentPlayers)
+        assertEquals(8, rooms[0].maxPlayers)
+    }
+
+    @Test
+    fun `ui branding strings and readme contain zero WaterSTORM or STORM DS leftovers`() {
+        val paths = listOf(
+            "src/main/res/values/strings.xml",
+            "src/main/res/values-b+ru/strings.xml",
+            "src/main/java/com/storm3ds/emulator/ui/romlist/composables/RomBrowserComposables.kt",
+            "src/main/java/com/storm3ds/emulator/ui/romlist/NoRomSearchDirectoriesFragment.kt",
+            "../README.md",
+        )
+        for (rel in paths) {
+            val f = File(rel).takeIf { it.exists() } ?: File("app", rel)
+            assertTrue("Missing file $rel", f.exists())
+            val txt = f.readText()
+            assertFalse("WaterSTORM found in $rel", "WaterSTORM" in txt)
+            assertFalse("STORM DS found in $rel", "STORM DS" in txt)
+            assertFalse("Nintendo 3DSi found in $rel", "Nintendo 3DSi" in txt)
+        }
     }
 }

@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">ROMを復号できませんでした: %1$s</string>
     <string name="decrypt_rom_err_read">ROMファイルの読み込みに失敗しました</string>
     <string name="decrypt_rom_err_write">復号済みROMファイルの書き込みに失敗しました</string>
-    <string name="decrypt_rom_err_not_dsi">有効なNintendo 3DSi ROMファイルではありません</string>
+    <string name="decrypt_rom_err_not_dsi">有効なNintendo 3DS ROMファイルではありません</string>
     <string name="decrypt_rom_err_too_small">ROMファイルが小さすぎるか破損しています</string>
     <string name="decrypt_rom_err_bounds">Modcrypt領域がROMファイルの範囲を超えています</string>
     <string name="decrypt_rom_err_validation">復号済みROMヘッダーの検証に失敗しました</string>

@@ -48,7 +48,7 @@
     <string name="v792_stats_biorhythm_peak">Peak activity time: %1$s</string>
     <string name="v792_stats_platform_title">Platform distribution</string>
     <string name="v792_stats_platform_nds_label">Nintendo 3DS</string>
-    <string name="v792_stats_platform_dsi_label">Nintendo 3DSi</string>
+    <string name="v792_stats_platform_dsi_label">Nintendo 3DS</string>
     <string name="v792_stats_platform_games_count">%1$d games</string>
     <string name="v792_stats_milestones_title">Milestones and records</string>
     <string name="v792_stats_milestones_unlocked_count">%1$d of %2$d unlocked</string>

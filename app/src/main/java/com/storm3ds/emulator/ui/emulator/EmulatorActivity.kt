@@ -276,6 +276,26 @@ class EmulatorActivity : AppCompatActivity() {
     @Inject
     lateinit var boxArtRepository: com.storm3ds.emulator.ui.romlist.boxart.BoxArtRepository
 
+    private val amiiboPickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val userRoot = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
+            val amiiboDir = File(userRoot, "amiibo").apply { mkdirs() }
+            val dest = File(amiiboDir, "live_amiibo.bin")
+            val ok = runCatching {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    dest.outputStream().use { output -> input.copyTo(output) }
+                }
+                com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(dest.absolutePath)
+            }.getOrDefault(false)
+            android.widget.Toast.makeText(
+                this,
+                if (ok) "Amiibo loaded!" else "Failed to load Amiibo (.bin)",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+        viewModel.resumeEmulator()
+    }
+
     private var presentation: ExternalPresentation? = null
     private var lastKnownGoodTopRect: Rect? = null
     private var lastKnownGoodBottomRect: Rect? = null
@@ -1325,6 +1345,26 @@ class EmulatorActivity : AppCompatActivity() {
                                     activeOverlays.addActiveOverlay(EmulatorOverlay.SLOW_MOTION_DIALOG)
                                     showSlowMotionSpeedDialog.value = true
                                     requestOverlayHostFocus()
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.LOAD_AMIIBO) {
+                                    dismissPauseMenu()
+                                    val tidHex = String.format("%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
+                                    val staged = File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "amiibo/${tidHex}_amiibo.bin")
+                                    if (staged.isFile) {
+                                        val ok = runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(staged.absolutePath) }.getOrDefault(false)
+                                        android.widget.Toast.makeText(this@EmulatorActivity, if (ok) "Staged Amiibo loaded!" else "Amiibo load failed", android.widget.Toast.LENGTH_SHORT).show()
+                                        viewModel.resumeEmulator()
+                                    } else {
+                                        amiiboPickerLauncher.launch(arrayOf("*/*"))
+                                    }
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.REMOVE_AMIIBO) {
+                                    dismissPauseMenu()
+                                    runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.removeAmiibo() }
+                                    android.widget.Toast.makeText(this@EmulatorActivity, "Amiibo removed", android.widget.Toast.LENGTH_SHORT).show()
+                                    viewModel.resumeEmulator()
                                     return@PauseMenuOverlay
                                 }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.FRAME_ADVANCE) {
@@ -6249,7 +6289,26 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
 
     private fun takeCleanScreenshot(resumeAfterCapture: Boolean = false) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val screenshotBitmap = runCatching { viewModel.captureScreenshot() }.getOrNull()
+            val screenshotBitmap = runCatching {
+                val surfaceView = binding.surfaceMain
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && surfaceView.holder.surface.isValid && surfaceView.width > 0 && surfaceView.height > 0) {
+                    val bmp = Bitmap.createBitmap(surfaceView.width, surfaceView.height, Bitmap.Config.ARGB_8888)
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var ok = false
+                    runOnUiThread {
+                        runCatching {
+                            android.view.PixelCopy.request(surfaceView, bmp, { result ->
+                                ok = (result == android.view.PixelCopy.SUCCESS)
+                                latch.countDown()
+                            }, handler)
+                        }.onFailure { latch.countDown() }
+                    }
+                    runCatching { latch.await(450L, java.util.concurrent.TimeUnit.MILLISECONDS) }
+                    if (ok) bmp else viewModel.captureScreenshot()
+                } else {
+                    viewModel.captureScreenshot()
+                }
+            }.getOrNull()
             if (resumeAfterCapture) {
                 withContext(Dispatchers.Main) {
                     if (!isFrameAdvanceHudVisible.value) {

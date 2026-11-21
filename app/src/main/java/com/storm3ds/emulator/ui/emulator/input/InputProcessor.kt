@@ -557,6 +557,20 @@ class InputProcessor(
         val analogX = if (mappedX.absoluteValue < deadzone) 0f else mappedX
         val analogY = if (mappedY.absoluteValue < deadzone) 0f else mappedY
         dispatchSlot2AnalogInput(analogX, analogY)
+        // Map physical controller right analog stick -> New 3DS C-Stick
+        val rawCStickX = resolveSlot2AxisValue(
+            motionEvent = motionEvent,
+            preferredAxisCode = MotionEvent.AXIS_Z,
+            fallbackAxisCodes = intArrayOf(MotionEvent.AXIS_RX),
+        ).coerceIn(-1f, 1f)
+        val rawCStickY = resolveSlot2AxisValue(
+            motionEvent = motionEvent,
+            preferredAxisCode = MotionEvent.AXIS_RZ,
+            fallbackAxisCodes = intArrayOf(MotionEvent.AXIS_RY),
+        ).coerceIn(-1f, 1f)
+        val cX = if (rawCStickX.absoluteValue < deadzone) 0f else rawCStickX
+        val cY = if (rawCStickY.absoluteValue < deadzone) 0f else rawCStickY
+        MelonEmulator.setCStickAxis(cX, cY)
         val now = SystemClock.uptimeMillis()
         lastSlot2RawAnalogEventAtMs = now
         if ((analogX.absoluteValue > 0f || analogY.absoluteValue > 0f)

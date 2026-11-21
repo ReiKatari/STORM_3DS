@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">Gagal mendekripsi ROM: %1$s</string>
     <string name="decrypt_rom_err_read">Gagal membaca file ROM</string>
     <string name="decrypt_rom_err_write">Gagal menulis file ROM yang didekripsi</string>
-    <string name="decrypt_rom_err_not_dsi">File ini bukan ROM Nintendo 3DSi yang valid</string>
+    <string name="decrypt_rom_err_not_dsi">File ini bukan ROM Nintendo 3DS yang valid</string>
     <string name="decrypt_rom_err_too_small">File ROM terlalu kecil atau rusak</string>
     <string name="decrypt_rom_err_bounds">Area Modcrypt melebihi batas file ROM</string>
     <string name="decrypt_rom_err_validation">Validasi header ROM yang didekripsi gagal</string>

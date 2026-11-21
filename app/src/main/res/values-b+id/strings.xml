@@ -25,9 +25,9 @@
     <string name="version_beta">Beta</string>
     <string name="version_nightly">Tiap malam</string>
     <string name="console_ds">Nintendo 3DS</string>
-    <string name="console_dsi">Nintendo 3DSi</string>
+    <string name="console_dsi">Nintendo 3DS</string>
     <string name="console_ds_full">Nintendo 3DS</string>
-    <string name="console_dsi_full">Nintendo 3DSi</string>
+    <string name="console_dsi_full">Nintendo 3DS</string>
     <string name="size_bytes">B</string>
     <string name="size_kb">KB</string>
     <string name="size_mb">MB</string>
@@ -503,17 +503,17 @@
         <item>Vulkan</item>
         <item>Compute</item>
     </string-array>
-    <string-array name="video_internal_resolution_options">
-        <item>1x asli (256x192)</item>
-        <item>2x asli (512x384)</item>
-        <item>3x asli (768x576)</item>
-        <item>4x asli (1024x768)</item>
-        <item>5x asli (1280x960)</item>
-        <item>6x asli (1536x1152)</item>
-        <item>7x asli (1792x1344)</item>
-        <item>8x asli (2048x1536)</item>
-        <item>12x asli (3072x2304)</item>
-        <item>16x asli (4096x3072)</item>
+        <string-array name="video_internal_resolution_options">
+        <item>1x native (400x240)</item>
+        <item>2x (800x480)</item>
+        <item>3x (1200x720)</item>
+        <item>4x (1600x960)</item>
+        <item>5x (2000x1200)</item>
+        <item>6x (2400x1440)</item>
+        <item>7x (2800x1680)</item>
+        <item>8x (3200x1920)</item>
+        <item>9x (3600x2160)</item>
+        <item>10x (4000x2400)</item>
     </string-array>
     <string-array name="video_filtering_options">
         <item>Tidak ada</item>
@@ -596,7 +596,7 @@
     <string name="renderer_init_failed_title">Gagal menginisialisasi perender</string>
     <string name="renderer_init_failed_message">Perender %1$s tidak dapat diinisialisasi. Ubah perender video di Pengaturan.</string>
     <string name="action_boot_firmware_ds">Jalankan firmware Nintendo 3DS</string>
-    <string name="action_boot_firmware_dsi">Jalankan firmware Nintendo 3DSi</string>
+    <string name="action_boot_firmware_dsi">Jalankan firmware Nintendo 3DS</string>
     <string name="audio">Audio</string>
     <string name="general">Umum</string>
     <string name="save_files">Berkas simpanan</string>
@@ -753,11 +753,11 @@
     <string name="rom_filter_favorites">Favorit</string>
     <string name="rom_filter_ds">DS</string>
     <string name="rom_filter_dsi_enhanced">DSi Enhanced</string>
-    <string name="rom_filter_dsiware">Nintendo 3DSiWare</string>
+    <string name="rom_filter_dsiware">Nintendo 3DS (Digital)</string>
     <string name="rom_filter_retro_achievements">RA</string>
     <string name="rom_filter_ds_empty">Tidak ada game DS yang ditemukan</string>
     <string name="rom_filter_dsi_enhanced_empty">Tidak ada game DSi Enhanced yang ditemukan</string>
-    <string name="rom_filter_dsiware_empty">Tidak ada game Nintendo 3DSiWare yang ditemukan</string>
+    <string name="rom_filter_dsiware_empty">Tidak ada game Nintendo 3DS (Digital) yang ditemukan</string>
     <string name="rom_filter_retro_achievements_empty">Tidak ada game dengan RetroAchievements yang ditemukan</string>
     <string name="rom_continue_playing">Lanjutkan bermain</string>
     <string name="rom_no_results_filter">Tidak ada ROM yang cocok dengan filter ini</string>
@@ -790,7 +790,7 @@
     <string name="pause_hint_resume">Lanjutkan</string>
     <string name="pause_hint_back">Kembali</string>
     <string name="app_brand_watermelon">STORM</string>
-    <string name="app_brand_ds">DS</string>
+    <string name="app_brand_ds"> 3DS</string>
     <string name="external_hint_open">Buka</string>
     <string name="external_hint_favorite">Favorit</string>
     <string name="save_state_slot_quick">QUICK</string>
@@ -825,12 +825,12 @@
     <string name="system_dldi_sd_card_image_size">DLDI SD image size</string>
     <string name="open_dldi_file_manager">Buka manajer berkas kartu SD Nintendo 3DS</string>
     <string name="open_dldi_file_manager_summary">Jelajahi, buat, ubah nama, dan hapus berkas kartu SD Nintendo 3DS</string>
-    <string name="system_dsi_sd_card_enabled">Aktifkan kartu SD Nintendo 3DSi</string>
-    <string name="system_dsi_sd_card_enabled_summary">Emulasikan slot kartu SD konsol Nintendo 3DSi</string>
-    <string name="system_dsi_sd_card_dir">Folder kartu SD Nintendo 3DSi</string>
-    <string name="system_dsi_sd_card_image_size">Ukuran image kartu SD Nintendo 3DSi</string>
-    <string name="open_dsi_sd_file_manager">Buka manajer berkas kartu SD Nintendo 3DSi</string>
-    <string name="open_dsi_sd_file_manager_summary">Jelajahi, buat, ubah nama, dan hapus berkas kartu SD Nintendo 3DSi</string>
+    <string name="system_dsi_sd_card_enabled">Aktifkan kartu SD Nintendo 3DS</string>
+    <string name="system_dsi_sd_card_enabled_summary">Emulasikan slot kartu SD konsol Nintendo 3DS</string>
+    <string name="system_dsi_sd_card_dir">Folder kartu SD Nintendo 3DS</string>
+    <string name="system_dsi_sd_card_image_size">Ukuran image kartu SD Nintendo 3DS</string>
+    <string name="open_dsi_sd_file_manager">Buka manajer berkas kartu SD Nintendo 3DS</string>
+    <string name="open_dsi_sd_file_manager_summary">Jelajahi, buat, ubah nama, dan hapus berkas kartu SD Nintendo 3DS</string>
     <string name="system_disable_touch_gestures_on_touch_screen_area">Nonaktifkan gestur sistem di area layar sentuh</string>
     <string name="system_disable_touch_gestures_on_touch_screen_area_summary">Mencegah gestur sistem Android terpicu di atas layar sentuh DS saat bermain. Biarkan nonaktif jika Anda menggunakan gestur kembali untuk membuka menu.</string>
     <string name="system_ignore_display_cutout_in_layouts">Abaikan poni/lubang kamera dalam tata letak</string>
@@ -1190,24 +1190,8 @@ Impor ke STORM 3DS?</string>
     <string name="shader_compatibility_report_no_rom_folder">Belum ada folder ROM yang dikonfigurasi untuk menyimpan.</string>
     <string name="shader_compatibility_report_clear">Bersihkan</string>
     <string name="about_app_title">Tentang dan kredit</string>
-    <string name="about_app_description">Fork berperforma tinggi dari WaterSTORM 3DS (ditenagai inti STORM 3DS) untuk Android, dilengkapi Vulkan 3D, shader RetroArch, dan RetroAchievements.</string>
-    <string name="about_app_summary">STORM 3DS, STORM 3DS, WaterSTORM 3DS, pembuat dan lisensi sumber terbuka</string>
-    <string name="about_fork_info_title">Project Base: WaterSTORM 3DS Fork</string>
-    <string name="about_fork_info_summary">STORM 3DS adalah fork lanjutan dari WaterSTORM 3DS (dikembangkan oleh SapphireRhodonite dan kontributor), yang merupakan port Android dari inti STORM 3DS (StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura dan tim). Mencakup perbaikan boot langsung Slot-1 DSiWare, perlindungan integritas NAND/Firmware, mode offline dan sinkronisasi RetroAchievements, tampilan layar ganda eksternal di TV/monitor melalui USB-C/HDMI, pemindai ROM cepat, pengaturan posisi HUD, serta tema kustom.</string>
     <string name="about_version_title">Versi</string>
     <string name="about_credits_title">Kredit dan ucapan terima kasih</string>
-    <string name="about_credits_jpeacekeeper_title">JPeacekeeper (4PDA)</string>
-    <string name="about_credits_jpeacekeeper_summary">Kontribusi pengujian yang sangat berharga, laporan bug DSi yang mendetail, standardisasi frame rate, dan peningkatan proyek berkelanjutan</string>
-    <string name="about_credits_watermelonds_title">WaterSTORM 3DS (Android Port)</string>
-    <string name="about_credits_watermelonds_summary">SapphireRhodonite, rafaelvcaetano dan kontributor - port Android, jalur cepat rendering Vulkan, integrasi librashader, UI modern dan kontrol sentuh</string>
-    <string name="about_credits_melonds_title">STORM 3DS (Original Core)</string>
-    <string name="about_credits_melonds_summary">StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura dan tim STORM 3DS - emulator inti Nintendo 3DS asli berakurasi tinggi</string>
-    <string name="about_credits_melonds_ds_title">STORM 3DS DS (RetroArch Core)</string>
-    <string name="about_credits_melonds_ds_summary">JesseTG dan tim Libretro - mekanisme pemuatan otomatis DSiWare, arsitektur warmboot TLNC, serta inovasi inti Libretro</string>
-    <string name="about_credits_drastic_title">Inspirasi DraStic dan fastDS</string>
-    <string name="about_credits_drastic_summary">Exophase dan pembuat DraStic / fastDS - inspirasi preset layar, tata letak tampilan cepat, dan konsep ergonomi sentuh</string>
-    <string name="about_credits_libraries_title">Pustaka dan alat sumber terbuka</string>
-    <string name="about_credits_libraries_summary">Google Oboe (AAudio/OpenSL ES), librashader (shader RetroArch Slang), RetroAchievements (rcheevos), libslirp (Wi-Fi), libadrenotools (driver Adreno/Turnip)</string>
     <string name="about_github_title">STORM 3DS Repository</string>
     <string name="about_github_summary">https://github.com/ReiKatari/STORM_3DS</string>
     <string name="button_color_theme">Button Color Style</string>
@@ -1494,12 +1478,12 @@ Impor ke STORM 3DS?</string>
     <string name="video_ds_color_profile_standard">sRGB standar (tanpa kalibrasi)</string>
     <string name="video_ds_color_profile_ds_phat">Nintendo 3DS Phat asli (NTR-001)</string>
     <string name="video_ds_color_profile_ds_lite">Nintendo 3DS Lite (USG-001)</string>
-    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DSi XL IPS (UTL-001)</string>
+    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DS XL IPS (UTL-001)</string>
     <string name="video_ds_hinge_gap_title">Jarak engsel fisik layar ganda</string>
     <string name="video_ds_hinge_gap_0">Tidak ada (0 px)</string>
     <string name="video_ds_hinge_gap_32">Engsel ringkas (32 px)</string>
     <string name="video_ds_hinge_gap_64">Engsel Nintendo 3DS Lite (64 px)</string>
-    <string name="video_ds_hinge_gap_90">Engsel Nintendo 3DSi XL (90 px)</string>
+    <string name="video_ds_hinge_gap_90">Engsel Nintendo 3DS XL (90 px)</string>
     <string name="enhancement_active_notification">Aktif: %1$s</string>
     <string name="rom_settings_slot2_addon_title">Aksesori Slot-2 (GBA)</string>
     <string name="rom_settings_solar_sensor_title">Sensor surya (Boktai)</string>
@@ -1596,4 +1580,21 @@ Impor ke STORM 3DS?</string>
     <string name="cheats_import_finished">Basis data cheat berhasil diimpor</string>
     <string name="cheats_import_failed">Gagal mengimpor basis data cheat</string>
     <string name="rom_search_dir_saf_fallback_hint">Tidak dapat mengakses direktori, silakan pilih lagi</string>
+
+    <string name="about_app_description">High-performance hybrid Nintendo 3DS emulator for Android powered by the Azahar C++20 core, Borked3DS SPIR-V optimizer, Citra MMJ speedhacks, RetroArch .slangp shaders, and a WatermelonDS-inspired STORM UI.</string>
+    <string name="about_app_summary">Azahar, Citra MMJ, Borked3DS, AzaharPlus, WatermelonDS UI and licenses</string>
+    <string name="about_fork_info_title">Architecture: Azahar + Borked3DS + Citra MMJ + WatermelonDS UI</string>
+    <string name="about_fork_info_summary">STORM 3DS combines the Azahar C++20 Nintendo 3DS emulation core with Borked3DS SPIRV-Tools shader optimization, Citra MMJ performance speedhacks and cheat database, AzaharPlus decryption compatibility, RetroArch .slangp shaders, and an Android interface based on WatermelonDS.</string>
+    <string name="about_credits_azahar_title">Azahar &amp; Citra (3DS Core)</string>
+    <string name="about_credits_azahar_summary">Azahar team (PabloMK7, Lime3DS) &amp; Citra contributors - C++20 Nintendo 3DS emulation core, Z3DS, Artic Base, Bundle &amp; Vulkan/GLES backends</string>
+    <string name="about_credits_citra_mmj_title">Citra MMJ (weihuoya)</string>
+    <string name="about_credits_citra_mmj_summary">weihuoya - mobile performance speedhacks (FMV Hack, Skip Slow Draw, Skip Texture Copy), virtual memory scanner and Gateway cheat DB</string>
+    <string name="about_credits_borked3ds_title">Borked3DS (SPIRV-Tools-opt)</string>
+    <string name="about_credits_borked3ds_summary">Borked3DS team - SPIRV-Tools validation, legalization and shader optimization pipeline for Vulkan</string>
+    <string name="about_credits_azaharplus_title">AzaharPlus, Lime3DS &amp; Mandarine</string>
+    <string name="about_credits_azaharplus_summary">Encrypted ROM/NCCH/CIA decryption helpers, legacy format compatibility, speed improvements and online extensions</string>
+    <string name="about_credits_watermelonds_title">WatermelonDS (Android UI Interface)</string>
+    <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
+    <string name="about_credits_libraries_title">Open source libraries and tools</string>
+    <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
 </resources>

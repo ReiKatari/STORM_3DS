@@ -25,7 +25,7 @@
     <string name="version_beta">Beta</string>
     <string name="version_nightly">Nightly</string>
     <string name="console_ds">Nintendo 3DS</string>
-    <string name="console_dsi">Nintendo 3DSi</string>
+    <string name="console_dsi">Nintendo 3DS</string>
     <string name="console_ds_full">任天堂 DS</string>
     <string name="console_dsi_full">任天堂 DSi</string>
     <string name="size_bytes">B</string>
@@ -737,17 +737,17 @@
         <item>Vulkan</item>
         <item>Compute</item>
     </string-array>
-    <string-array name="video_internal_resolution_options">
-        <item>1倍原生（256x192）</item>
-        <item>2倍原生（512x384）</item>
-        <item>3倍原生（768x576）</item>
-        <item>4倍原生（1024x768）</item>
-        <item>5倍原生（1280x960）</item>
-        <item>6倍原生（1536x1152）</item>
-        <item>7倍原生（1792x1344）</item>
-        <item>8倍原生（2048x1536）</item>
-        <item>12倍原生（3072x2304）</item>
-        <item>16倍原生（4096x3072）</item>
+        <string-array name="video_internal_resolution_options">
+        <item>1x native (400x240)</item>
+        <item>2x (800x480)</item>
+        <item>3x (1200x720)</item>
+        <item>4x (1600x960)</item>
+        <item>5x (2000x1200)</item>
+        <item>6x (2400x1440)</item>
+        <item>7x (2800x1680)</item>
+        <item>8x (3200x1920)</item>
+        <item>9x (3600x2160)</item>
+        <item>10x (4000x2400)</item>
     </string-array>
     <string-array name="video_filtering_options">
         <item>无</item>
@@ -834,7 +834,7 @@
     <string name="video_retroarch_shader_browser_passes">通道数：%1$d</string>
     <string name="reset_to_default">恢复默认设置</string>
     <string name="action_boot_firmware_ds">启动 Nintendo 3DS 固件</string>
-    <string name="action_boot_firmware_dsi">启动 Nintendo 3DSi 固件</string>
+    <string name="action_boot_firmware_dsi">启动 Nintendo 3DS 固件</string>
     <string name="audio">音频</string>
     <string name="general">常规</string>
     <string name="save_files">存档文件</string>
@@ -938,7 +938,7 @@
     <string name="rom_filter_dsi_enhanced">DSi 增强版</string>
     <string name="rom_filter_ds_empty">未找到 DS 游戏</string>
     <string name="rom_filter_dsi_enhanced_empty">未找到 DSi 增强版游戏</string>
-    <string name="rom_filter_dsiware_empty">未找到 Nintendo 3DSiWare 游戏</string>
+    <string name="rom_filter_dsiware_empty">未找到 Nintendo 3DS (Digital) 游戏</string>
     <string name="rom_filter_retro_achievements_empty">未找到支持 RetroAchievements 的游戏</string>
     <string name="rom_action_send_save_file">发送存档文件</string>
     <string name="rom_action_import_save_file">导入存档文件</string>
@@ -962,7 +962,7 @@
     <string name="pause_hint_resume">继续</string>
     <string name="pause_hint_back">返回</string>
     <string name="app_brand_watermelon">STORM</string>
-    <string name="app_brand_ds">DS</string>
+    <string name="app_brand_ds"> 3DS</string>
     <string name="external_hint_open">打开</string>
     <string name="external_hint_favorite">收藏</string>
     <string name="save_state_slot_quick">QUICK</string>
@@ -1182,24 +1182,8 @@
     <string name="shader_compatibility_report_no_rom_folder">尚未配置用于保存的 ROM 文件夹。</string>
     <string name="shader_compatibility_report_clear">清空</string>
     <string name="about_app_title">关于与致谢</string>
-    <string name="about_app_description">基于 STORM 3DS 核心的高性能 Android 端 WaterSTORM 3DS 分支模拟器，支持 Vulkan 3D、RetroArch 着色器与 RetroAchievements。</string>
-    <string name="about_app_summary">STORM 3DS, STORM 3DS, WaterSTORM 3DS, 作者与开源许可</string>
-    <string name="about_fork_info_title">Project Base: WaterSTORM 3DS Fork</string>
-    <string name="about_fork_info_summary">STORM 3DS is an advanced fork of WaterSTORM 3DS (developed by SapphireRhodonite 与贡献者), which is an Android port of the STORM 3DS core (StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura 与团队). Includes extensive Slot-1 DSiWare direct boot fixes, NAND/Firmware integrity protection, RetroAchievements offline play 和 sync, external dual display on TV/monitors via USB-C/HDMI, fast ROM scanner, HUD positioning, and custom themes.</string>
     <string name="about_version_title">版本</string>
     <string name="about_credits_title">致谢与鸣谢</string>
-    <string name="about_credits_jpeacekeeper_title">JPeacekeeper (4PDA)</string>
-    <string name="about_credits_jpeacekeeper_summary">宝贵的测试贡献、详尽的 DSi 错误报告、帧率标准化以及持续的项目改进建议</string>
-    <string name="about_credits_watermelonds_title">WaterSTORM 3DS (Android Port)</string>
-    <string name="about_credits_watermelonds_summary">SapphireRhodonite, rafaelvcaetano 与 contributors - Android port, Vulkan rendering fastpaths, librashader integration, modern UI 和触控</string>
-    <string name="about_credits_melonds_title">STORM 3DS (Original Core)</string>
-    <string name="about_credits_melonds_summary">StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura 与 STORM 3DS 团队 - original high-accuracy Nintendo 3DS core emulator</string>
-    <string name="about_credits_melonds_ds_title">STORM 3DS DS (RetroArch Core)</string>
-    <string name="about_credits_melonds_ds_summary">JesseTG 与 Libretro 团队 - DSiWare autoloading mechanics, TLNC warmboot architecture, and Libretro core innovations</string>
-    <string name="about_credits_drastic_title">DraStic 与 fastDS Inspirations</string>
-    <string name="about_credits_drastic_summary">Exophase 与 DraStic / fastDS creators - screen preset inspirations, quick display layouts, and touch ergonomic concepts</string>
-    <string name="about_credits_libraries_title">开源库与工具</string>
-    <string name="about_credits_libraries_summary">Google Oboe（AAudio/OpenSL ES 音频）、librashader（RetroArch Slang 着色器）、RetroAchievements (rcheevos)、libslirp (Wi-Fi)、libadrenotools（Adreno/Turnip 驱动）</string>
     <string name="about_github_title">STORM 3DS Repository</string>
     <string name="about_github_summary">https://github.com/ReiKatari/STORM_3DS</string>
     <string name="button_color_theme">Button Color Style</string>
@@ -1512,12 +1496,12 @@
     <string name="video_ds_color_profile_standard">标准 sRGB（未校准）</string>
     <string name="video_ds_color_profile_ds_phat">初代 Nintendo 3DS Phat (NTR-001)</string>
     <string name="video_ds_color_profile_ds_lite">Nintendo 3DS Lite (USG-001)</string>
-    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DSi XL IPS (UTL-001)</string>
+    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DS XL IPS (UTL-001)</string>
     <string name="video_ds_hinge_gap_title">双屏物理转轴间距</string>
     <string name="video_ds_hinge_gap_0">无 (0 px)</string>
     <string name="video_ds_hinge_gap_32">紧凑转轴 (32 px)</string>
     <string name="video_ds_hinge_gap_64">Nintendo 3DS Lite 转轴 (64 px)</string>
-    <string name="video_ds_hinge_gap_90">Nintendo 3DSi XL 转轴 (90 px)</string>
+    <string name="video_ds_hinge_gap_90">Nintendo 3DS XL 转轴 (90 px)</string>
     <string name="enhancement_active_notification">已启用：%1$s</string>
     <string name="rom_settings_slot2_addon_title">Slot-2 扩展配件 (GBA)</string>
     <string name="rom_settings_solar_sensor_title">阳光传感器（我们的太阳）</string>
@@ -1614,4 +1598,21 @@
     <string name="cheats_import_finished">金手指数据库导入成功</string>
     <string name="cheats_import_failed">金手指数据库导入失败</string>
     <string name="rom_search_dir_saf_fallback_hint">无法访问该目录，请重新选择</string>
+
+    <string name="about_app_description">High-performance hybrid Nintendo 3DS emulator for Android powered by the Azahar C++20 core, Borked3DS SPIR-V optimizer, Citra MMJ speedhacks, RetroArch .slangp shaders, and a WatermelonDS-inspired STORM UI.</string>
+    <string name="about_app_summary">Azahar, Citra MMJ, Borked3DS, AzaharPlus, WatermelonDS UI and licenses</string>
+    <string name="about_fork_info_title">Architecture: Azahar + Borked3DS + Citra MMJ + WatermelonDS UI</string>
+    <string name="about_fork_info_summary">STORM 3DS combines the Azahar C++20 Nintendo 3DS emulation core with Borked3DS SPIRV-Tools shader optimization, Citra MMJ performance speedhacks and cheat database, AzaharPlus decryption compatibility, RetroArch .slangp shaders, and an Android interface based on WatermelonDS.</string>
+    <string name="about_credits_azahar_title">Azahar &amp; Citra (3DS Core)</string>
+    <string name="about_credits_azahar_summary">Azahar team (PabloMK7, Lime3DS) &amp; Citra contributors - C++20 Nintendo 3DS emulation core, Z3DS, Artic Base, Bundle &amp; Vulkan/GLES backends</string>
+    <string name="about_credits_citra_mmj_title">Citra MMJ (weihuoya)</string>
+    <string name="about_credits_citra_mmj_summary">weihuoya - mobile performance speedhacks (FMV Hack, Skip Slow Draw, Skip Texture Copy), virtual memory scanner and Gateway cheat DB</string>
+    <string name="about_credits_borked3ds_title">Borked3DS (SPIRV-Tools-opt)</string>
+    <string name="about_credits_borked3ds_summary">Borked3DS team - SPIRV-Tools validation, legalization and shader optimization pipeline for Vulkan</string>
+    <string name="about_credits_azaharplus_title">AzaharPlus, Lime3DS &amp; Mandarine</string>
+    <string name="about_credits_azaharplus_summary">Encrypted ROM/NCCH/CIA decryption helpers, legacy format compatibility, speed improvements and online extensions</string>
+    <string name="about_credits_watermelonds_title">WatermelonDS (Android UI Interface)</string>
+    <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
+    <string name="about_credits_libraries_title">Open source libraries and tools</string>
+    <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
 </resources>

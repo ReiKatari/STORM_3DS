@@ -95,57 +95,32 @@ class InputPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             }
             entries = when (lang) {
                 "ru" -> arrayOf(
-                    "Прицеливание стилусом (FPS / Шутеры)",
-                    "Наклон руля D-Pad (Гонки)",
-                    "Аналоговый сенсор Slot-2"
+                    "Прицеливание по экрану (FPS / Шутеры)",
+                    "Наклон руля D-Pad / Circle Pad (Гонки)"
                 )
                 "de" -> arrayOf(
-                    "Stylus-Zielen (FPS / Shooter)",
-                    "D-Pad-Lenkung (Rennspiele)",
-                    "Slot-2-Analogsensor"
+                    "Touchscreen-Zielen (FPS / Shooter)",
+                    "D-Pad / Schiebepad-Lenkung (Rennen)"
                 )
                 "fr" -> arrayOf(
-                    "Visée au stylet (FPS / Tir)",
-                    "Direction D-Pad (Course)",
-                    "Capteur analogique Slot-2"
+                    "Visée tactile (FPS / Tir)",
+                    "Direction D-Pad / Pad circulaire (Course)"
                 )
                 "zh" -> arrayOf(
-                    "触控笔瞄准 (FPS / 射击)",
-                    "十字键倾斜转向 (赛车)",
-                    "Slot-2 模拟传感器"
+                    "触屏瞄准 (FPS / 射击)",
+                    "十字键 / 滑垫倾斜转向 (赛车)"
                 )
                 "ja" -> arrayOf(
-                    "タッチペン照準 (FPS / シューティング)",
-                    "十字キー傾きステアリング (レース)",
-                    "スロット2アナログセンサー"
-                )
-                "es" -> arrayOf(
-                    "Apuntado con lápiz táctil (FPS)",
-                    "Dirección por inclinación D-Pad (Carreras)",
-                    "Sensor analógico Slot-2"
-                )
-                "it" -> arrayOf(
-                    "Mira con stilo touch (FPS)",
-                    "Sterzo D-Pad con inclinazione (Corse)",
-                    "Sensore analogico Slot-2"
-                )
-                "pt" -> arrayOf(
-                    "Mira com caneta touch (FPS)",
-                    "Direção D-Pad por inclinação (Corrida)",
-                    "Sensor analógico Slot-2"
-                )
-                "id" -> arrayOf(
-                    "Bidikan stylus layar sentuh (FPS)",
-                    "Kemudi miring D-Pad (Balap)",
-                    "Sensor analog Slot-2"
+                    "タッチスクリーン照準 (FPS / シューティング)",
+                    "十字キー / スライドパッド傾き操作"
                 )
                 else -> arrayOf(
-                    "Touchscreen stylus aiming (FPS)",
-                    "D-Pad tilt steering (Racing)",
-                    "Slot-2 analog motion sensor"
+                    "Touchscreen aiming (FPS)",
+                    "D-Pad / Circle Pad tilt steering (Racing)"
                 )
             }
-            entryValues = arrayOf("touch_aim", "dpad_steer", "slot2_analog")
+            entryValues = arrayOf("touch_aim", "dpad_steer")
+            if (value == "slot2_analog") value = "touch_aim"
             if (value == null) {
                 value = "touch_aim"
             }

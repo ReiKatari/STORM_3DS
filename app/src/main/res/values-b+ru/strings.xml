@@ -25,9 +25,9 @@
   <string name="version_beta">Бета</string>
   <string name="version_nightly">Ночная сборка</string>
   <string name="console_ds">Nintendo 3DS</string>
-  <string name="console_dsi">Nintendo 3DSi</string>
+  <string name="console_dsi">Nintendo 3DS</string>
   <string name="console_ds_full">Nintendo 3DS</string>
-  <string name="console_dsi_full">Nintendo 3DSi</string>
+  <string name="console_dsi_full">Nintendo 3DS</string>
   <string name="size_bytes">Б</string>
   <string name="size_kb">КБ</string>
   <string name="size_mb">МБ</string>
@@ -595,18 +595,18 @@
     <item>Vulkan</item>
     <item>Compute</item>
   </string-array>
-  <string-array name="video_internal_resolution_options">
-    <item>1x Нативное (256x192)</item>
-    <item>2x Нативное (512x384)</item>
-    <item>3x Нативное (768x576)</item>
-    <item>4x Нативное (1024x768)</item>
-    <item>5x Нативное (1280x960)</item>
-    <item>6x Нативное (1536x1152)</item>
-    <item>7x Нативное (1792x1344)</item>
-    <item>8x Нативное (2048x1536)</item>
-    <item>12x Нативное (3072x2304)</item>
-    <item>16x Нативное (4096x3072)</item>
-  </string-array>
+      <string-array name="video_internal_resolution_options">
+        <item>1x оригинал (400x240)</item>
+        <item>2x (800x480)</item>
+        <item>3x (1200x720)</item>
+        <item>4x (1600x960)</item>
+        <item>5x (2000x1200)</item>
+        <item>6x (2400x1440)</item>
+        <item>7x (2800x1680)</item>
+        <item>8x (3200x1920)</item>
+        <item>9x (3600x2160)</item>
+        <item>10x (4000x2400)</item>
+    </string-array>
   <string-array name="video_filtering_options">
     <item>Нет</item>
     <item>Линейная</item>
@@ -774,8 +774,8 @@
   <string name="category_general_summary">Тема оформления, скорость, перемотка и обновления</string>
   <string name="category_roms">Папки и список игр</string>
   <string name="category_roms_summary">Директории поиска, отображение обложек и кэш</string>
-  <string name="category_system">Система и BIOS</string>
-  <string name="category_system_summary">Настройки DS/DSi, дамп прошивки, JIT-компилятор</string>
+  <string name="category_system">Система 3DS</string>
+  <string name="category_system_summary">New 3DS, частота CPU, регион, JIT и ключи</string>
   <string name="category_video">Видео и графика</string>
   <string name="category_video_summary">Графический движок, разрешение 3D, Vulkan и шейдеры</string>
   <string name="category_audio">Звуковые настройки</string>
@@ -800,12 +800,12 @@
   <string name="rom_filter_all">Все игры</string>
   <string name="rom_filter_favorites">Избранные</string>
   <string name="rom_filter_ds">Игры Nintendo 3DS</string>
-  <string name="rom_filter_dsi_enhanced">Игры Nintendo 3DSi Enhanced</string>
-  <string name="rom_filter_dsiware">Игры Nintendo 3DSiWare</string>
+  <string name="rom_filter_dsi_enhanced">Игры Nintendo 3DS Enhanced</string>
+  <string name="rom_filter_dsiware">Игры Nintendo 3DS (Digital)</string>
   <string name="rom_filter_retro_achievements">С достижениями</string>
   <string name="rom_filter_ds_empty">Игры Nintendo 3DS не найдены</string>
-  <string name="rom_filter_dsi_enhanced_empty">Игры Nintendo 3DSi Enhanced не найдены</string>
-  <string name="rom_filter_dsiware_empty">Игры Nintendo 3DSiWare не найдены</string>
+  <string name="rom_filter_dsi_enhanced_empty">Игры Nintendo 3DS Enhanced не найдены</string>
+  <string name="rom_filter_dsiware_empty">Игры Nintendo 3DS (Digital) не найдены</string>
   <string name="rom_filter_retro_achievements_empty">Игры с достижениями не найдены</string>
   <string name="rom_continue_playing">Продолжить игру</string>
   <string name="rom_no_results_filter">Нет игр по выбранному фильтру</string>
@@ -838,7 +838,7 @@
   <string name="pause_hint_resume">Продолжить</string>
   <string name="pause_hint_back">Назад</string>
   <string name="app_brand_watermelon">STORM</string>
-  <string name="app_brand_ds">STORM 3DS</string>
+  <string name="app_brand_ds"> 3DS</string>
   <string name="external_hint_open">Запустить</string>
   <string name="external_hint_favorite">Избранное</string>
   <string name="save_state_slot_quick">Быстрое сохранение</string>
@@ -882,8 +882,8 @@
   <string name="generate_new_mac_address_description">Обновить MAC-адрес сетевого адаптера</string>
   <string name="enable_jit">Включить JIT-компилятор</string>
   <string name="enable_jit_summary">Динамическая рекомпиляция CPU для максимальной скорости</string>
-  <string name="enable_storm_compiler">Включить STORM-компилятор</string>
-  <string name="enable_storm_compiler_summary">Оптимизированный LLVM/Clang векторизованный ARM64 движок со скоростным пайплайном памяти</string>
+  <string name="enable_storm_compiler">ARM11 JIT-компилятор (Dynarmic)</string>
+  <string name="enable_storm_compiler_summary">Динамическая рекомпиляция ARM11 для высокой скорости игр 3DS.</string>
   <string name="jit_not_supported">JIT не поддерживается на данном устройстве</string>
   <string name="save_internal_config_as_file">Сохранять настройки в файл</string>
   <string name="save_internal_config_as_file_summary">Экспорт конфигурации эмулятора</string>
@@ -895,12 +895,12 @@
   <string name="system_dldi_sd_card_image_size">Размер образа SD-карты Nintendo 3DS</string>
   <string name="open_dldi_file_manager">Открыть менеджер файлов SD-карты Nintendo 3DS</string>
   <string name="open_dldi_file_manager_summary">Просмотр, создание, переименование и удаление файлов SD-карты Nintendo 3DS</string>
-  <string name="system_dsi_sd_card_enabled">Включить SD-карту Nintendo 3DSi</string>
-  <string name="system_dsi_sd_card_enabled_summary">Эмуляция слота SD-карты консоли Nintendo 3DSi</string>
-  <string name="system_dsi_sd_card_dir">Папка SD-карты Nintendo 3DSi</string>
-  <string name="system_dsi_sd_card_image_size">Размер образа SD-карты Nintendo 3DSi</string>
-  <string name="open_dsi_sd_file_manager">Открыть менеджер файлов SD-карты Nintendo 3DSi</string>
-  <string name="open_dsi_sd_file_manager_summary">Просмотр, создание, переименование и удаление файлов SD-карты Nintendo 3DSi</string>
+  <string name="system_dsi_sd_card_enabled">Включить SD-карту Nintendo 3DS</string>
+  <string name="system_dsi_sd_card_enabled_summary">Эмуляция слота SD-карты консоли Nintendo 3DS</string>
+  <string name="system_dsi_sd_card_dir">Папка SD-карты Nintendo 3DS</string>
+  <string name="system_dsi_sd_card_image_size">Размер образа SD-карты Nintendo 3DS</string>
+  <string name="open_dsi_sd_file_manager">Открыть менеджер файлов SD-карты Nintendo 3DS</string>
+  <string name="open_dsi_sd_file_manager_summary">Просмотр, создание, переименование и удаление файлов SD-карты Nintendo 3DS</string>
   <string name="system_disable_touch_gestures_on_touch_screen_area">Отключить жесты над сенсорным экраном</string>
   <string name="system_disable_touch_gestures_on_touch_screen_area_summary">Предотвращает случайное выявление системных жестов Android</string>
   <string name="system_ignore_display_cutout_in_layouts">Игнорировать вырез экрана</string>
@@ -1071,7 +1071,7 @@
   <string name="enable_cheats">Включить поддержку читов</string>
   <string name="cheats_database">База данных чит-кодов</string>
   <string name="import_cheats">База чит-кодов</string>
-  <string name="import_cheats_summary">Загрузить базу чит-кодов (usrcheat.dat / xml)</string>
+  <string name="import_cheats_summary">Импортировать коды Gateway 3DS (.txt) для игр Nintendo 3DS.</string>
   <string name="rom_shortcut">Ярлык на рабочем столе</string>
   <string name="firmware_language">Язык консоли Nintendo 3DS</string>
   <string name="action_sort_alphabetically">По алфавиту (A-Z)</string>
@@ -1082,8 +1082,8 @@
   <string name="layout_import_success">Профиль раскладки успешно импортирован</string>
   <string name="layout_already_imported">Этот профиль раскладки уже импортирован</string>
   <string name="layout_operation_failed">Не удалось выполнить операцию с макетом</string>
-  <string name="action_boot_firmware_ds">Запустить прошивку Nintendo 3DS</string>
-  <string name="action_boot_firmware_dsi">Запустить прошивку Nintendo 3DSi</string>
+  <string name="action_boot_firmware_ds">Главное меню 3DS (HOME)</string>
+  <string name="action_boot_firmware_dsi">Запустить прошивку Nintendo 3DS</string>
   <string name="audio">Звук</string>
   <string name="video">Видео</string>
   <string name="general">Основные</string>
@@ -1170,7 +1170,7 @@
   <string name="nightly_update_available_message">Доступна новая предварительная версия STORM 3DS. Скачать её сейчас?</string>
   <string name="rom_cache_status_cached">Проверено %1$s (кэш)</string>
   <string name="info_vulkan_compiling_stage_warmup">Прогрев конвейеров Vulkan</string>
-  <string name="dsi_incorrect_bios_dir_info">Путь к BIOS Nintendo 3DSi содержит некорректные дамп-файлы</string>
+  <string name="dsi_incorrect_bios_dir_info">Путь к BIOS Nintendo 3DS содержит некорректные дамп-файлы</string>
   <string name="dsiware_manager_import_file_error">Ошибка импорта файла DSiWare</string>
   <string name="video_retroarch_shader_browser_passes">Проходов: %1$d</string>
   <plurals name="video_retroarch_shader_browser_passes">
@@ -1217,24 +1217,8 @@
   <string name="internal_layout_restore_error">Ошибка восстановления внутреннего макета</string>
   <string name="dsiware_manager_fix_setup">Исправить настройки DSi</string>
     <string name="about_app_title">О программе и благодарности</string>
-    <string name="about_app_description">Мощный форк эмулятора WaterSTORM 3DS (на ядре STORM 3DS) для Android с Vulkan 3D, поддержкой шейдеров RetroArch и RetroAchievements.</string>
-    <string name="about_app_summary">STORM 3DS, STORM 3DS, WaterSTORM 3DS, авторы и лицензии</string>
-    <string name="about_fork_info_title">Основа проекта: форк WaterSTORM 3DS</string>
-    <string name="about_fork_info_summary">STORM 3DS является расширенным форком WaterSTORM 3DS (автор SapphireRhodonite и авторы), который в свою очередь основан на ядре STORM 3DS (StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura и команда). Включает глубокие доработки ядра DSi/DSiWare, прямого запуска Slot-1 без повреждения NAND, оффлайн-достижений RetroAchievements, вывода на ТВ/мониторы через USB-C/HDMI, быстрый проводник РОМов, позиционирование HUD и кастомные темы.</string>
     <string name="about_version_title">Версия</string>
     <string name="about_credits_title">Благодарности авторам</string>
-    <string name="about_credits_jpeacekeeper_title">JPeacekeeper (4PDA)</string>
-    <string name="about_credits_jpeacekeeper_summary">Неоценимый вклад в тестирование, детальные отчеты об ошибках DSi/NAND, стандартизацию фреймрейта и развитие проекта STORM 3DS</string>
-    <string name="about_credits_watermelonds_title">WaterSTORM 3DS (Android Port)</string>
-    <string name="about_credits_watermelonds_summary">SapphireRhodonite, rafaelvcaetano и контрибьюторы - порт на Android, высокоскоростной Vulkan-рендер, поддержка шейдеров librashader, Material Design UI и сенсорный интерфейс</string>
-    <string name="about_credits_melonds_title">STORM 3DS (Оригинальное ядро)</string>
-    <string name="about_credits_melonds_summary">StapleButter, Nadia, RSDuck, genericretrogeek, Arisotura и команда STORM 3DS - разработка эталонного ядра эмулятора Nintendo 3DS и Nintendo 3DSi</string>
-    <string name="about_credits_melonds_ds_title">STORM 3DS DS (RetroArch Core)</string>
-    <string name="about_credits_melonds_ds_summary">JesseTG и команда Libretro - механика DSiWare Autoload, спецификации TLNC warmboot и архитектура ядра Libretro</string>
-    <string name="about_credits_drastic_title">Вдохновение DraStic и fastDS</string>
-    <string name="about_credits_drastic_summary">Exophase и создатели DraStic / fastDS - идеи удобных пресетов экранов, быстрого переключения раскладок и эргономики сенсорного управления</string>
-    <string name="about_credits_libraries_title">Сторонние библиотеки и инструменты</string>
-    <string name="about_credits_libraries_summary">Google Oboe (звук AAudio/OpenSL ES), librashader (шейдеры RetroArch Slang), RetroAchievements (rcheevos), libslirp (Wi-Fi), libadrenotools (драйверы Adreno/Turnip)</string>
     <string name="about_github_title">Репозиторий STORM 3DS</string>
     <string name="about_github_summary">https://github.com/ReiKatari/STORM_3DS</string>
     <string name="button_color_theme">Цвет экранных кнопок</string>
@@ -1601,7 +1585,7 @@
     <string name="video_ds_color_profile_standard">Стандартный sRGB (без цветокоррекции)</string>
     <string name="video_ds_color_profile_ds_phat">Оригинальная Nintendo 3DS Phat (NTR-001)</string>
     <string name="video_ds_color_profile_ds_lite">Nintendo 3DS Lite (USG-001)</string>
-    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DSi XL IPS (UTL-001)</string>
+    <string name="video_ds_color_profile_dsi_xl">Nintendo 3DS XL IPS (UTL-001)</string>
     <string name="video_ds_hinge_gap_title">Физический зазор петли между экранами</string>
     <string name="video_ds_hinge_gap_0">Без зазора (0 пикс.)</string>
     <string name="video_ds_hinge_gap_32">Малый зазор (32 пикс.)</string>
@@ -1706,4 +1690,21 @@
     <string name="cheats_import_finished">База чит-кодов успешно импортирована</string>
     <string name="cheats_import_failed">Ошибка импорта базы читов (неподдерживаемый или повреждённый файл)</string>
     <string name="rom_search_dir_saf_fallback_hint">Не удалось получить доступ к каталогу, выберите снова</string>
+
+    <string name="about_app_description">Высокопроизводительный гибридный эмулятор Nintendo 3DS для Android на базе C++20 ядра Azahar с оптимизацией Borked3DS SPIR-V, спидхаками Citra MMJ, шейдерами RetroArch .slangp и интерфейсом на основе WatermelonDS.</string>
+    <string name="about_app_summary">Azahar, Citra MMJ, Borked3DS, AzaharPlus, интерфейс WatermelonDS и лицензии</string>
+    <string name="about_fork_info_title">Архитектура: Azahar + Borked3DS + Citra MMJ + интерфейс WatermelonDS</string>
+    <string name="about_fork_info_summary">STORM 3DS объединяет C++20 ядро эмуляции Nintendo 3DS от Azahar с оптимизацией шейдеров Borked3DS SPIRV-Tools, спидхаками и базой читов Citra MMJ, расшифровкой образов AzaharPlus, шейдерами RetroArch .slangp и интерфейсом Android на основе WatermelonDS.</string>
+    <string name="about_credits_azahar_title">Azahar и Citra (ядро Nintendo 3DS)</string>
+    <string name="about_credits_azahar_summary">Команда Azahar (PabloMK7, Lime3DS) и разработчики Citra - ядро эмуляции Nintendo 3DS, форматы Z3DS, Artic Base, Bundle и бэкенды Vulkan/GLES</string>
+    <string name="about_credits_citra_mmj_title">Citra MMJ (weihuoya)</string>
+    <string name="about_credits_citra_mmj_summary">weihuoya - спидхаки производительности (FMV Hack, Skip Slow Draw, Skip Texture Copy), сканер памяти и база читов Gateway</string>
+    <string name="about_credits_borked3ds_title">Borked3DS (SPIRV-Tools-opt)</string>
+    <string name="about_credits_borked3ds_summary">Команда Borked3DS - интеграция оптимизатора, валидации и легализации шейдеров SPIRV-Tools для Vulkan</string>
+    <string name="about_credits_azaharplus_title">AzaharPlus, Lime3DS и Mandarine</string>
+    <string name="about_credits_azaharplus_summary">Улучшения расшифровки зашифрованных ROM/NCCH/CIA, совместимость старых форматов и сетевые доработки</string>
+    <string name="about_credits_watermelonds_title">WatermelonDS (пользовательский интерфейс)</string>
+    <string name="about_credits_watermelonds_summary">SapphireRhodonite и авторы - основа современного интерфейса Android (Jetpack Compose, темы, редактор экранов, OCR-переводчик, наэкранные кнопки)</string>
+    <string name="about_credits_libraries_title">Библиотеки с открытым исходным кодом</string>
+    <string name="about_credits_libraries_summary">librashader (шейдеры RetroArch), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
 </resources>

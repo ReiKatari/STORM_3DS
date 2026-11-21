@@ -85,13 +85,10 @@ fun RomTechnicalInfoDialog(
         rom.lastPlayed?.let { dateFormat.format(it) } ?: context.getString(R.string.rom_info_never_played)
     }
 
-    val platformStr = remember(rom.isDsiWareTitle, rom.isDsiEnhanced) {
-        when {
-            rom.isDsiWareTitle || rom.isInstalledDsiWareShortcut -> "Nintendo 3DSiWare"
-            rom.isDsiEnhanced -> "Nintendo 3DS (DSi Enhanced)"
-            else -> "Nintendo 3DS"
-        }
+    val extLower = remember(rom.fileName) {
+        rom.fileName.substringAfterLast('.', "").lowercase()
     }
+    val platformStr = "Nintendo 3DS"
 
     val isRu = remember { java.util.Locale.getDefault().language.startsWith("ru") }
     val playTimeStr = remember(rom.totalPlayTime) {
@@ -107,11 +104,16 @@ fun RomTechnicalInfoDialog(
         }
     }
 
-    val unitCodeStr = remember(rom.isDsiWareTitle, rom.isDsiEnhanced, rom.isInstalledDsiWareShortcut) {
-        when {
-            rom.isDsiWareTitle || rom.isInstalledDsiWareShortcut -> "0x03 (DSi)"
-            rom.isDsiEnhanced -> "0x02 (DSi+)"
-            else -> "0x00 (NDS)"
+    val unitCodeStr = remember(extLower) {
+        when (extLower) {
+            "3ds", "cci" -> "NCSD (.${extLower.uppercase()})"
+            "cxi", "app" -> "NCCH Exe (.${extLower.uppercase()})"
+            "cia" -> "CTR Archive (.CIA)"
+            "3dsx", "elf", "axf" -> "3DS Homebrew (.${extLower.uppercase()})"
+            "zcci", "zcxi", "zcia", "z3dsx" -> "Z3DS Compressed (.${extLower.uppercase()})"
+            "bcci", "bcxi", "bcia" -> "3DS Bundle (.${extLower.uppercase()})"
+            "artic" -> "Artic Base Stream (.ARTIC)"
+            else -> "CTR (.${extLower.uppercase().ifEmpty { "3DS" }})"
         }
     }
 

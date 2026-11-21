@@ -195,6 +195,9 @@ object NativeLibrary {
     external fun getAesKeyStatusMask(): Int
     external fun createBundleNative(outPath: String, mainFile: String, deps: Array<String>): Int
     external fun setLogFilterAndRegex(filter: String, regex: String)
+    external fun setMicrophoneEnabled(enabled: Boolean)
+    external fun setAudioMuted(muted: Boolean)
+    external fun installCiaSimple(path: String): Int
 
     data class InstalledGame(val path: String, val mediaType: GameMediaType)
 
@@ -625,11 +628,11 @@ object NativeLibrary {
     enum class StereoMode(val nativeValue: Int) {
         OFF(0),
         SIDE_BY_SIDE(1),
-        ANAGLYPH(2),
-        INTERLACED(3),
-        REVERSE_INTERLACED(4),
-        CARDBOARD_VR(5),
-        SIDE_BY_SIDE_FULL(6),
+        SIDE_BY_SIDE_FULL(2),
+        ANAGLYPH(3),
+        INTERLACED(4),
+        REVERSE_INTERLACED(5),
+        CARDBOARD_VR(6),
         GYRO_PARALLAX(7);
     }
 }

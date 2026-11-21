@@ -152,8 +152,8 @@
         <item>6</item>
         <item>7</item>
         <item>8</item>
-        <item>12</item>
-        <item>16</item>
+        <item>9</item>
+        <item>10</item>
     </string-array>
 
     <string-array name="video_filtering_values">
@@ -320,7 +320,7 @@
         <item>Nintendo 3DS Lite (Matte Black)</item>
         <item>Nintendo 3DS Lite (Polar White)</item>
         <item>Nintendo 3DS Lite (Crimson Red)</item>
-        <item>Nintendo 3DSi XL (Midnight Blue)</item>
+        <item>Nintendo 3DS XL (Midnight Blue)</item>
         <item>Nintendo 3DS (Aqua Blue)</item>
         <item>New Nintendo 3DS XL (Cosmo Black)</item>
     </string-array>
@@ -521,28 +521,124 @@
 
     <string-array name="video_vulkan_3d_depth_mode_options">
         <item>@string/video_vulkan_3d_depth_mode_off</item>
-        <item>@string/video_vulkan_3d_depth_mode_gyro</item>
+        <item>Side-by-Side</item>
+        <item>Side-by-Side (Full)</item>
         <item>@string/video_vulkan_3d_depth_mode_anaglyph</item>
-        <item>@string/video_vulkan_3d_depth_mode_sbs</item>
+        <item>Interlaced</item>
+        <item>Reverse Interlaced</item>
+        <item>Cardboard VR</item>
+        <item>@string/video_vulkan_3d_depth_mode_gyro</item>
     </string-array>
     <string-array name="video_vulkan_3d_depth_mode_values">
         <item>off</item>
-        <item>gyro_parallax</item>
-        <item>anaglyph</item>
         <item>sbs_xr</item>
+        <item>sbs_full</item>
+        <item>anaglyph</item>
+        <item>interlaced</item>
+        <item>reverse_interlaced</item>
+        <item>cardboard_vr</item>
+        <item>gyro_parallax</item>
     </string-array>
 
     <string-array name="video_vulkan_3d_depth_strength_options">
+        <item>0%</item>
         <item>25%</item>
         <item>50%</item>
         <item>75%</item>
         <item>100%</item>
     </string-array>
     <string-array name="video_vulkan_3d_depth_strength_values">
+        <item>0</item>
         <item>25</item>
         <item>50</item>
         <item>75</item>
         <item>100</item>
+    </string-array>
+
+    <string-array name="cpu_clock_percentage_options">
+        <item>25% (Battery Saver)</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100% (Native 3DS)</item>
+        <item>125%</item>
+        <item>150%</item>
+        <item>200% (Overclock)</item>
+    </string-array>
+    <string-array name="cpu_clock_percentage_values">
+        <item>25</item>
+        <item>50</item>
+        <item>75</item>
+        <item>100</item>
+        <item>125</item>
+        <item>150</item>
+        <item>200</item>
+    </string-array>
+
+    <string-array name="region_value_options">
+        <item>Auto-select</item>
+        <item>Japan (JPN)</item>
+        <item>USA</item>
+        <item>Europe (EUR)</item>
+        <item>Australia (AUS)</item>
+        <item>China (CHN)</item>
+        <item>Korea (KOR)</item>
+        <item>Taiwan (TWN)</item>
+    </string-array>
+    <string-array name="region_value_values">
+        <item>-1</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+
+    <string-array name="system_language_options">
+        <item>Japanese</item>
+        <item>English</item>
+        <item>French</item>
+        <item>German</item>
+        <item>Italian</item>
+        <item>Spanish</item>
+        <item>Simplified Chinese</item>
+        <item>Korean</item>
+        <item>Dutch</item>
+        <item>Portuguese</item>
+        <item>Russian</item>
+        <item>Traditional Chinese</item>
+    </string-array>
+    <string-array name="system_language_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+    </string-array>
+
+    <string-array name="texture_filter_options">
+        <item>None</item>
+        <item>Anime4K Ultrafast</item>
+        <item>Bicubic</item>
+        <item>ScaleForce</item>
+        <item>xBRZ Freescale</item>
+        <item>MMPX</item>
+    </string-array>
+    <string-array name="texture_filter_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
     </string-array>
 
     <string-array name="video_ds_color_profile_options">

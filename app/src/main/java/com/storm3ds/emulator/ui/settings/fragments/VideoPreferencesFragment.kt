@@ -337,22 +337,16 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val supportsComputeRenderer = supportsOpenGlRenderer && Build.HARDWARE.equals("qcom", ignoreCase = true)
 
         rendererPreference.apply {
-            if (!supportsOpenGlRenderer || !supportsComputeRenderer) {
-                val values = context.resources.getStringArray(R.array.video_renderer_values)
-                val entries = context.resources.getStringArray(R.array.video_renderer_options)
-                val filteredPairs = values.zip(entries).filterNot { (value, _) ->
-                    (!supportsOpenGlRenderer && value == "opengl") ||
-                        (!supportsComputeRenderer && value == "compute")
-                }
-                entryValues = filteredPairs.map { it.first }.toTypedArray()
-                this.entries = filteredPairs.map { it.second }.toTypedArray()
+            val values = context.resources.getStringArray(R.array.video_renderer_values)
+            val entries = context.resources.getStringArray(R.array.video_renderer_options)
+            val filteredPairs = values.zip(entries).filter { (v, _) ->
+                v == "vulkan" || (supportsOpenGlRenderer && v == "opengl")
+            }
+            entryValues = filteredPairs.map { it.first }.toTypedArray()
+            this.entries = filteredPairs.map { it.second }.toTypedArray()
 
-                if (!supportsOpenGlRenderer && value.equals("opengl", ignoreCase = true)) {
-                    value = "software"
-                }
-                if (!supportsComputeRenderer && value.equals("compute", ignoreCase = true)) {
-                    value = "software"
-                }
+            if (value != "vulkan" && value != "opengl") {
+                value = "vulkan"
             }
 
             setOnPreferenceChangeListener { _, newValue ->

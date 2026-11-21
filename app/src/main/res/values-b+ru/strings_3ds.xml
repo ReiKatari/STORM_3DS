@@ -77,4 +77,23 @@
     <string name="input_home">HOME</string>
     <string name="input_combo_1">Комбо 1</string>
     <string name="input_combo_2">Комбо 2</string>
+    <string name="pref_3ds_hardware_cat">Система и железо Nintendo 3DS</string>
+    <string name="pref_3ds_setup_title">Ключи 3DS, спидхаки, SPIR-V и 3D</string>
+    <string name="pref_3ds_setup_summary">Импорт boot9/aes_keys/seeddb, спидхаки, SPIR-V, Artic Base и Pretendo</string>
+    <string name="pref_3ds_new3ds_title">Режим New Nintendo 3DS</string>
+    <string name="pref_3ds_new3ds_summary">Увеличенная память, дополнительные ядра CPU и кнопки C-Stick/ZL/ZR</string>
+    <string name="pref_3ds_cpu_clock_title">Частота CPU эмулятора</string>
+    <string name="pref_3ds_region_title">Регион консоли 3DS</string>
+    <string name="pref_3ds_language_title">Язык системы 3DS</string>
+    <string name="pref_3ds_region_free_title">Патч Region-Free</string>
+    <string name="pref_3ds_region_free_summary">Запуск игр и CIA любого региона Nintendo 3DS</string>
+    <string name="pref_3ds_async_shader_title">Асинхронная компиляция шейдеров</string>
+    <string name="pref_3ds_async_shader_summary">Устраняет фризы при компиляции шейдеров (Vulkan / GLES)</string>
+    <string name="pref_3ds_texture_filter_title">Фильтр апскейлинга текстур</string>
+    <string name="pref_3ds_dump_textures_title">Дамп текстур 3DS</string>
+    <string name="pref_3ds_dump_textures_summary">Сохранять оригинальные текстуры игры в STORM 3DS/dump/textures/</string>
+    <string name="pref_3ds_preload_textures_title">Предзагрузка HD-текстур в RAM</string>
+    <string name="pause_menu_load_amiibo">Загрузить Amiibo (.bin)</string>
+    <string name="pause_menu_remove_amiibo">Убрать Amiibo</string>
+    <string name="pref_3ds_preload_textures_summary">Загружать пакеты HD-текстур в оперативную память при запуске</string>
 </resources>

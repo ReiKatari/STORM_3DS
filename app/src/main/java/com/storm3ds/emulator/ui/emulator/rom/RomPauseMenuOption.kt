@@ -15,6 +15,8 @@ enum class RomPauseMenuOption(override val textResource: Int) : PauseMenuOption 
     FRAME_ADVANCE(R.string.frame_advance_step),
     REWIND(R.string.rewind),
     CHEATS(R.string.cheats),
+    LOAD_AMIIBO(R.string.pause_menu_load_amiibo),
+    REMOVE_AMIIBO(R.string.pause_menu_remove_amiibo),
     VIEW_ACHIEVEMENTS(R.string.achievements),
     SYNC_RETRO_ACHIEVEMENTS(R.string.ra_pending_sync_menu),
     CALIBRATE_GYRO(R.string.input_gyro_recenter_quick_action),

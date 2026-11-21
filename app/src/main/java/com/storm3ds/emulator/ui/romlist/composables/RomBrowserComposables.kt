@@ -209,7 +209,7 @@ fun WatermelonLibraryHeader(
                                 append("STORM ")
                             }
                             withStyle(SpanStyle(color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)) {
-                                append("DS")
+                                append("3DS")
                             }
                         },
                         fontFamily = SpaceGrotesk,
@@ -246,9 +246,6 @@ fun WatermelonLibraryHeader(
                         }
                         DropdownMenuItem(onClick = { overflowOpen = false; onBootFirmwareDs() }) {
                             Text(stringResource(R.string.action_boot_firmware_ds))
-                        }
-                        DropdownMenuItem(onClick = { overflowOpen = false; onBootFirmwareDsi() }) {
-                            Text(stringResource(R.string.action_boot_firmware_dsi))
                         }
                         DropdownMenuItem(onClick = { overflowOpen = false; onRefresh() }) {
                             Text(stringResource(R.string.action_refresh_rom_list))
@@ -338,10 +335,6 @@ fun FilterChipsRow(
         RomFilter.RECENTLY_PLAYED to R.string.rom_filter_recently_played,
         RomFilter.UNPLAYED to R.string.rom_filter_unplayed,
         RomFilter.HAS_SAVES to R.string.rom_filter_has_saves,
-        RomFilter.DS_ONLY to R.string.rom_filter_ds,
-        RomFilter.DSI_ENHANCED_ONLY to R.string.rom_filter_dsi_enhanced,
-        RomFilter.DSIWARE_ONLY to R.string.rom_filter_dsiware,
-        RomFilter.WITH_RETRO_ACHIEVEMENTS to R.string.rom_filter_retro_achievements,
     )
     val accentColor = Color(com.storm3ds.emulator.ui.theme.AppThemeManager.getAccentColor())
     LazyRow(
@@ -358,8 +351,8 @@ fun FilterChipsRow(
                 RomFilter.UNPLAYED -> "✨ $titleText"
                 RomFilter.HAS_SAVES -> "💾 $titleText"
                 RomFilter.DS_ONLY -> "🎮 Nintendo 3DS"
-                RomFilter.DSI_ENHANCED_ONLY -> "⚡ Nintendo 3DSi Enhanced"
-                RomFilter.DSIWARE_ONLY -> "🕹️ Nintendo 3DSiWare"
+                RomFilter.DSI_ENHANCED_ONLY -> "⚡ Nintendo 3DS"
+                RomFilter.DSIWARE_ONLY -> "🕹️ Nintendo 3DS (Digital)"
                 RomFilter.WITH_RETRO_ACHIEVEMENTS -> "🏆 RA"
             }
             WatermelonChip(

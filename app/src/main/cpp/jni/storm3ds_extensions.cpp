@@ -10,7 +10,9 @@
 #include "common/file_util.h"
 #include "common/logging/backend.h"
 #include "common/settings.h"
+#include "audio_core/input_details.h"
 #include "core/core.h"
+#include "core/hle/service/am/am.h"
 #include "core/file_sys/seed_db.h"
 #include "core/hw/aes/key.h"
 #include "core/hw/unique_data.h"
@@ -157,6 +159,28 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
     filter.ParseFilterString(filter_str);
     Common::Log::SetGlobalFilter(filter);
     Common::Log::SetRegexFilter(regex_str);
+}
+
+JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setMicrophoneEnabled(
+    JNIEnv*, jobject, jboolean enabled) {
+    Settings::values.input_type.SetValue(
+        enabled == JNI_TRUE ? AudioCore::InputType::Auto : AudioCore::InputType::Null);
+    auto& system = Core::System::GetInstance();
+    if (system.IsPoweredOn()) {
+        system.ApplySettings();
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setAudioMuted(
+    JNIEnv*, jobject, jboolean muted) {
+    Settings::values.audio_muted = (muted == JNI_TRUE);
+}
+
+JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_installCiaSimple(
+    JNIEnv* env, jobject, jstring j_path) {
+    const std::string path = GetJString(env, j_path);
+    const auto res = Service::AM::InstallCIA(path, [](std::size_t, std::size_t) {});
+    return static_cast<jint>(res);
 }
 
 } // extern "C"

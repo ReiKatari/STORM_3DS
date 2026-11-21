@@ -932,9 +932,10 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getCurrentVideoRenderer(): VideoRenderer {
-        val videoRendererPreference = preferences.getString("video_renderer", "opengl")!!
+        val defaultRen = if (isVulkanRendererSupported()) "vulkan" else "opengl"
+        val videoRendererPreference = preferences.getString("video_renderer", defaultRen)!!
         val requested = runCatching { VideoRenderer.valueOf(videoRendererPreference.uppercase()) }
-            .getOrDefault(VideoRenderer.OPENGL)
+            .getOrDefault(VideoRenderer.VULKAN)
         return sanitizeVideoRenderer(
             renderer = requested,
             fallback = resolveSupportedFallbackVideoRenderer(),
@@ -2544,7 +2545,11 @@ class SharedPreferencesSettingsRepository(
     }
 
     private fun resolveSupportedFallbackVideoRenderer(): VideoRenderer {
-        return if (isOpenGlRendererSupported()) VideoRenderer.OPENGL else VideoRenderer.SOFTWARE
+        return when {
+            isVulkanRendererSupported() -> VideoRenderer.VULKAN
+            isOpenGlRendererSupported() -> VideoRenderer.OPENGL
+            else -> VideoRenderer.OPENGL
+        }
     }
 
     private fun isVulkanRendererSupported(): Boolean {

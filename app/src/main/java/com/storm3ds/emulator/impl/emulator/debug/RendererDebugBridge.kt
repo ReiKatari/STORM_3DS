@@ -98,8 +98,8 @@ internal object RendererDebugBridge {
             RENDERER_3D_DEBUG_FEATURE_MIDDLE_BAND or
             RENDERER_3D_DEBUG_FEATURE_LOWER_BAND
 
-    external fun getRenderer2DDebugControls(): IntArray?
-    external fun setRenderer2DDebugControls(
+    fun getRenderer2DDebugControls(): IntArray? = null
+    fun setRenderer2DDebugControls(
         mainForcedMode: Int,
         subForcedMode: Int,
         topForcedCompMode: Int,
@@ -113,53 +113,52 @@ internal object RendererDebugBridge {
         disabledMainObjOrderMask: Int,
         disabledSubObjOrderMask: Int,
         featureMask: Int,
-    )
-    external fun getRenderer3DDebugControls(): IntArray?
-    external fun setRenderer3DDebugControls(featureMask: Int)
-    external fun captureCurrentFrame(): IntArray?
-    external fun captureCurrentPackedTopPrimary(): IntArray?
-    external fun captureCurrentPackedBottomPrimary(): IntArray?
-    external fun captureCurrentPackedPlane(screenIndex: Int, planeIndex: Int): IntArray?
-    external fun captureCurrentCapture3dSource(): IntArray?
-    external fun captureCurrentCaptureLineUses3dMask(): IntArray?
-    external fun captureCurrentComp4TopPlaceholder(): IntArray?
-    external fun captureCurrentComp4BottomPlaceholder(): IntArray?
-    external fun captureCurrentCaptureFallbackMask(): IntArray?
-    external fun captureCurrentSoftPackedFrameMetaJson(): String?
-    external fun captureCurrentCompositedDimensions(): IntArray?
-    external fun captureCurrentCompositedFrame(): IntArray?
-    external fun isCurrentFrameReadyForDebug(): Boolean
-    external fun getCurrentFrameIndexForDebug(): Int
-    external fun requestPreparedRendererSnapshot()
-    external fun clearPreparedRendererSnapshot()
-    external fun startDenseScreenBurstCapture(
+    ) = Unit
+    fun getRenderer3DDebugControls(): IntArray? = null
+    fun setRenderer3DDebugControls(featureMask: Int) = Unit
+    fun captureCurrentFrame(): IntArray? = null
+    fun captureCurrentPackedTopPrimary(): IntArray? = null
+    fun captureCurrentPackedBottomPrimary(): IntArray? = null
+    fun captureCurrentPackedPlane(screenIndex: Int, planeIndex: Int): IntArray? = null
+    fun captureCurrentCapture3dSource(): IntArray? = null
+    fun captureCurrentCaptureLineUses3dMask(): IntArray? = null
+    fun captureCurrentComp4TopPlaceholder(): IntArray? = null
+    fun captureCurrentComp4BottomPlaceholder(): IntArray? = null
+    fun captureCurrentCaptureFallbackMask(): IntArray? = null
+    fun captureCurrentSoftPackedFrameMetaJson(): String? = null
+    fun captureCurrentCompositedDimensions(): IntArray? = null
+    fun captureCurrentCompositedFrame(): IntArray? = null
+    fun isCurrentFrameReadyForDebug(): Boolean = false
+    fun getCurrentFrameIndexForDebug(): Int = 0
+    fun requestPreparedRendererSnapshot() = Unit
+    fun clearPreparedRendererSnapshot() = Unit
+    fun startDenseScreenBurstCapture(
         frameCount: Int,
         stepFrames: Int,
         warmupFrames: Int,
         captureKindsMask: Int,
-    )
-    external fun isDenseScreenBurstCaptureComplete(): Boolean
-    external fun getDenseScreenBurstScheduleStats(): IntArray?
-    external fun getDenseScreenBurstCaptureFrameCount(): Int
-    external fun getDenseScreenBurstCaptureFrameId(index: Int): Int
-    external fun getDenseScreenBurstCaptureFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstPackedTopFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstPackedBottomFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstPackedPlaneFrame(index: Int, screenIndex: Int, planeIndex: Int): IntArray?
-    external fun getDenseScreenBurstCapture3dSourceFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstCaptureLineUses3dMaskFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstSoftPackedFrameMetaJson(index: Int): String?
-    external fun getDenseScreenBurstRenderer3dFrame(index: Int): IntArray?
-    external fun getDenseScreenBurstRenderer3dCaptureFrame(index: Int): IntArray?
-    external fun clearDenseScreenBurstCapture()
-    external fun captureCurrent3dDimensions(): IntArray?
-    external fun captureCurrent3dFrame(): IntArray?
-    external fun captureCurrent3dCaptureFrame(): IntArray?
-    external fun captureCurrent3dDepth(): IntArray?
-    external fun captureCurrent3dAttributes(): IntArray?
-    external fun captureCurrent3dCoverage(): IntArray?
-
-    external fun dumpCurrentRendererSnapshot()
+    ) = Unit
+    fun isDenseScreenBurstCaptureComplete(): Boolean = true
+    fun getDenseScreenBurstScheduleStats(): IntArray? = null
+    fun getDenseScreenBurstCaptureFrameCount(): Int = 0
+    fun getDenseScreenBurstCaptureFrameId(index: Int): Int = 0
+    fun getDenseScreenBurstCaptureFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstPackedTopFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstPackedBottomFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstPackedPlaneFrame(index: Int, screenIndex: Int, planeIndex: Int): IntArray? = null
+    fun getDenseScreenBurstCapture3dSourceFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstCaptureLineUses3dMaskFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstSoftPackedFrameMetaJson(index: Int): String? = null
+    fun getDenseScreenBurstRenderer3dFrame(index: Int): IntArray? = null
+    fun getDenseScreenBurstRenderer3dCaptureFrame(index: Int): IntArray? = null
+    fun clearDenseScreenBurstCapture() = Unit
+    fun captureCurrent3dDimensions(): IntArray? = null
+    fun captureCurrent3dFrame(): IntArray? = null
+    fun captureCurrent3dCaptureFrame(): IntArray? = null
+    fun captureCurrent3dDepth(): IntArray? = null
+    fun captureCurrent3dAttributes(): IntArray? = null
+    fun captureCurrent3dCoverage(): IntArray? = null
+    fun dumpCurrentRendererSnapshot() = Unit
 }
 
 internal data class RendererParityReport(

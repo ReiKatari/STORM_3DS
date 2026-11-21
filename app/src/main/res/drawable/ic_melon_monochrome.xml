@@ -5,18 +5,27 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Top Screen -->
+    <!-- Wide 5:3 Top Screen -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M34,26 L74,26 A6,6 0 0 1 80,32 L80,48 A6,6 0 0 1 74,54 L34,54 A6,6 0 0 1 28,48 L28,32 A6,6 0 0 1 34,26 Z" />
-
-    <!-- Bottom Screen -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,58 L74,58 A6,6 0 0 1 80,64 L80,80 A6,6 0 0 1 74,86 L34,86 A6,6 0 0 1 28,80 L28,64 A6,6 0 0 1 34,58 Z" />
-
-    <!-- Lightning Cutout / Accent -->
+        android:pathData="M24,25 L84,25 A5,5 0 0 1 89,30 L89,48 A3,3 0 0 1 86,51 L22,51 A3,3 0 0 1 19,48 L19,30 A5,5 0 0 1 24,25 Z" />
     <path
         android:fillColor="#000000"
-        android:pathData="M57,28 L43,53 L53,53 L47,82 L65,51 L55,51 Z" />
+        android:pathData="M29,30 L79,30 L79,46 L29,46 Z" />
+
+    <!-- Hinge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M21,52.5 L87,52.5 L87,55.5 L21,55.5 Z" />
+
+    <!-- Circle Pad + Narrow 4:3 Bottom Touch Screen -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,63 A5,5 0 1 0 28,73 A5,5 0 1 0 28,63 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M37,58 L77,58 A4,4 0 0 1 81,62 L81,79 A4,4 0 0 1 77,83 L37,83 A4,4 0 0 1 33,79 L33,62 A4,4 0 0 1 37,58 Z" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M59,62 L51,71 L56,71 L53,80 L63,69 L58,69 Z" />
 </vector>

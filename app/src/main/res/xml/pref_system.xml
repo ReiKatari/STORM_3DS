@@ -4,14 +4,76 @@
         xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <PreferenceCategory
-            android:title="Nintendo 3DS Hardware &amp; Extensions"
+            android:title="@string/pref_3ds_hardware_cat"
             app:iconSpaceReserved="false">
 
         <Preference
                 android:key="system_3ds_setup"
-                android:title="STORM 3DS Setup, Keys, Speedhacks &amp; 3D"
-                android:summary="Manage AES keys, MMJ speedhacks, SPIR-V, 3D modes, Artic Base, Pretendo &amp; Logs"
+                android:title="@string/pref_3ds_setup_title"
+                android:summary="@string/pref_3ds_setup_summary"
                 app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+                android:key="3ds_is_new_3ds"
+                android:title="@string/pref_3ds_new3ds_title"
+                android:summary="@string/pref_3ds_new3ds_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <ListPreference
+                android:key="3ds_cpu_clock_percentage"
+                android:title="@string/pref_3ds_cpu_clock_title"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false"
+                android:entries="@array/cpu_clock_percentage_options"
+                android:entryValues="@array/cpu_clock_percentage_values"
+                android:defaultValue="100" />
+
+        <ListPreference
+                android:key="3ds_region_value"
+                android:title="@string/pref_3ds_region_title"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false"
+                android:entries="@array/region_value_options"
+                android:entryValues="@array/region_value_values"
+                android:defaultValue="-1" />
+
+        <ListPreference
+                android:key="3ds_system_language"
+                android:title="@string/pref_3ds_language_title"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false"
+                android:entries="@array/system_language_options"
+                android:entryValues="@array/system_language_values"
+                android:defaultValue="1" />
+
+        <SwitchPreference
+                android:key="3ds_apply_region_free"
+                android:title="@string/pref_3ds_region_free_title"
+                android:summary="@string/pref_3ds_region_free_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="@string/pref_cat_core_compiler"
+            app:iconSpaceReserved="false">
+
+        <SwitchPreference
+                android:key="enable_storm_compiler"
+                android:title="@string/enable_storm_compiler"
+                android:summary="@string/enable_storm_compiler_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <ListPreference
+                android:key="arm9_overclock"
+                android:title="@string/arm9_overclock_title"
+                app:isPreferenceVisible="false"
+                app:iconSpaceReserved="false"
+                android:entries="@array/arm9_overclock_options"
+                android:entryValues="@array/arm9_overclock_values"
+                android:defaultValue="1" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -50,28 +112,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-            android:title="@string/pref_cat_core_compiler"
-            app:iconSpaceReserved="false">
-
-        <SwitchPreference
-                android:key="enable_storm_compiler"
-                android:title="@string/enable_storm_compiler"
-                android:summary="@string/enable_storm_compiler_summary"
-                app:iconSpaceReserved="false"
-                android:defaultValue="true" />
-
-        <ListPreference
-                android:key="arm9_overclock"
-                android:title="@string/arm9_overclock_title"
-                android:summary="@string/arm9_overclock_summary"
-                app:iconSpaceReserved="false"
-                app:useSimpleSummaryProvider="true"
-                android:entries="@array/arm9_overclock_options"
-                android:entryValues="@array/arm9_overclock_values"
-                android:defaultValue="1" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
             android:title="@string/pref_cat_bios_firmware"
             app:isPreferenceVisible="false"
             app:iconSpaceReserved="false">
@@ -79,29 +119,28 @@
         <Preference
                 android:key="internal_firmware_settings"
                 android:title="@string/internal_firmware_settings"
-                android:summary="@string/internal_firmware_settings_summary"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
                 android:fragment="com.storm3ds.emulator.ui.settings.fragments.FirmwarePreferencesFragment" />
 
         <Preference
                 android:key="custom_bios_firmware"
                 android:title="@string/custom_bios_firmware"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
                 android:fragment="com.storm3ds.emulator.ui.settings.fragments.CustomFirmwarePreferencesFragment" />
     </PreferenceCategory>
 
-
-
     <PreferenceCategory
             android:title="@string/pref_cat_network_wfc"
+            app:isPreferenceVisible="false"
             app:iconSpaceReserved="false">
 
         <ListPreference
                 android:key="system_wfc_server"
                 android:title="@string/wfc_server_title"
-                android:summary="@string/wfc_server_summary"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
-                app:useSimpleSummaryProvider="true"
                 android:defaultValue="none"
                 android:entries="@array/wfc_server_options"
                 android:entryValues="@array/wfc_server_values" />
@@ -109,15 +148,14 @@
         <EditTextPreference
                 android:key="system_wfc_custom_dns"
                 android:title="@string/wfc_custom_dns_title"
-                android:summary="@string/wfc_custom_dns_summary"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
-                app:useSimpleSummaryProvider="true"
                 android:defaultValue="178.62.43.212" />
 
         <Preference
                 android:key="system_wfc_test_connection"
                 android:title="@string/wfc_test_connection_title"
-                android:summary="@string/wfc_test_connection_summary"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

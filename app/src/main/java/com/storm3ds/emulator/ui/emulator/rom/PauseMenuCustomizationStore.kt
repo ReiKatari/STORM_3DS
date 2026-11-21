@@ -24,6 +24,7 @@ class PauseMenuCustomizationStore(
             RomPauseMenuOption.FRAME_ADVANCE,
             RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE,
             RomPauseMenuOption.CALIBRATE_GYRO,
+            RomPauseMenuOption.REMOVE_AMIIBO,
             RomPauseMenuOption.RENDERER_DEBUG,
             RomPauseMenuOption.RESET_COMPATIBILITY,
             RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS,

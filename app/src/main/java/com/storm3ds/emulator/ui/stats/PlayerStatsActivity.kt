@@ -623,18 +623,7 @@ private fun OverviewTabContent(
                         onClick = { selectedPlatform = PlatformFilter.ALL },
                         accentColor = accentColor,
                     )
-                    StatsFilterPill(
-                        label = stringResource(R.string.v792_stats_filter_platform_nds),
-                        isSelected = selectedPlatform == PlatformFilter.NDS,
-                        onClick = { selectedPlatform = PlatformFilter.NDS },
-                        accentColor = accentColor,
-                    )
-                    StatsFilterPill(
-                        label = stringResource(R.string.v792_stats_filter_platform_dsi),
-                        isSelected = selectedPlatform == PlatformFilter.DSI,
-                        onClick = { selectedPlatform = PlatformFilter.DSI },
-                        accentColor = colors.green,
-                    )
+
                     Spacer(Modifier.weight(1f))
                     Text(
                         text = "${filteredGames.size}",

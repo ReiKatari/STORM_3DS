@@ -9,7 +9,7 @@
     <string name="decrypt_rom_result_error_message">无法解密 ROM：%1$s</string>
     <string name="decrypt_rom_err_read">读取 ROM 文件失败</string>
     <string name="decrypt_rom_err_write">写入已解密的 ROM 文件失败</string>
-    <string name="decrypt_rom_err_not_dsi">此文件不是有效的 Nintendo 3DSi ROM</string>
+    <string name="decrypt_rom_err_not_dsi">此文件不是有效的 Nintendo 3DS ROM</string>
     <string name="decrypt_rom_err_too_small">ROM 文件过小或已损坏</string>
     <string name="decrypt_rom_err_bounds">Modcrypt 区域超出 ROM 文件范围</string>
     <string name="decrypt_rom_err_validation">已解密 ROM 的文件头校验失败</string>

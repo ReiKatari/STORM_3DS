@@ -767,8 +767,8 @@ object MelonRomDecryptor {
         }
     }
 
-    private external fun checkEncryptionNative(romPath: String): Int
-    private external fun checkEncryptionFdNative(fd: Int): Int
-    private external fun decryptRomNative(romPath: String, progressCallback: DecryptProgressCallback?): Int
-    private external fun decryptRomFdNative(fd: Int, progressCallback: DecryptProgressCallback?): Int
+    private fun checkEncryptionNative(romPath: String): Int = EncryptionStatus.NOT_ENCRYPTED.code
+    private fun checkEncryptionFdNative(fd: Int): Int = EncryptionStatus.NOT_ENCRYPTED.code
+    private fun decryptRomNative(romPath: String, progressCallback: DecryptProgressCallback?): Int = DecryptResult.ALREADY_DECRYPTED.code
+    private fun decryptRomFdNative(fd: Int, progressCallback: DecryptProgressCallback?): Int = DecryptResult.ALREADY_DECRYPTED.code
 }

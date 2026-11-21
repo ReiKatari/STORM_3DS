@@ -2324,6 +2324,8 @@ class EmulatorViewModel @Inject constructor(
                             }
                         }
                     }
+                    RomPauseMenuOption.LOAD_AMIIBO,
+                    RomPauseMenuOption.REMOVE_AMIIBO -> Unit
                     RomPauseMenuOption.VIEW_ACHIEVEMENTS -> _uiEvent.tryEmit(EmulatorUiEvent.ShowAchievementList)
                     RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> syncPendingRaSubmissionsFromPauseMenu()
                     RomPauseMenuOption.CALIBRATE_GYRO -> Unit
@@ -6811,8 +6813,8 @@ class EmulatorViewModel @Inject constructor(
                 rom != null && hasPeriodicAutoSave(rom)
             }
             RomPauseMenuOption.CHEATS -> true
-            RomPauseMenuOption.VIEW_ACHIEVEMENTS -> emulatorSession.isRetroAchievementsEnabledForSession()
-            RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> buildRaPendingSyncMenuState().isVisible
+            RomPauseMenuOption.VIEW_ACHIEVEMENTS -> false
+            RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> false
             RomPauseMenuOption.RENDERER_DEBUG -> rendererDebugToolsEnabled
             RomPauseMenuOption.RESET_COMPATIBILITY -> {
                 val rom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: currentRom

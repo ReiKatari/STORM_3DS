@@ -118,11 +118,10 @@ private fun Loading(modifier: Modifier) {
 
 enum class RomConfigCategory(val titleRu: String, val titleEn: String) {
     ALL("Все разделы", "All Sections"),
-    SYSTEM_CPU("Система и CPU", "System and CPU"),
     GRAPHICS_VULKAN("Графика и Vulkan", "Graphics and Vulkan"),
     SCREENS_LAYOUT("Экраны и корпус", "Screens and Layout"),
     AUDIO_CONTROLS("Управление и звук", "Controls and Audio"),
-    GBA_SLOT("Слот GBA", "GBA Slot");
+    SYSTEM_CPU("Скорость и имя", "Speed and Name");
 
     fun title(isRu: Boolean): String = if (isRu) titleRu else titleEn
 }
@@ -220,15 +219,16 @@ private fun Content(
     val globalVideoFilteringLabel = videoFilteringOptions.getOrNull(effectiveGlobalFiltering.ordinal) ?: effectiveGlobalFiltering.name
     val globalRetroArchPresetPathLabel = romConfig.globalRetroArchShaderPresetPath ?: context.getString(R.string.not_set)
     val globalRetroArchParametersLabel = romConfig.globalRetroArchShaderParameters ?: context.getString(R.string.not_set)
+    fun rendererLabel(r: VideoRenderer): String = when (r) {
+        VideoRenderer.VULKAN -> "Vulkan"
+        VideoRenderer.OPENGL -> "OpenGL ES 3.2"
+        else -> r.name
+    }
     val rendererItems = buildList<VideoRenderer?> {
         add(null)
-        add(VideoRenderer.SOFTWARE)
+        add(VideoRenderer.VULKAN)
         if (supportsOpenGlRenderer) {
             add(VideoRenderer.OPENGL)
-        }
-        add(VideoRenderer.VULKAN)
-        if (supportsComputeRenderer) {
-            add(VideoRenderer.COMPUTE)
         }
     }
     val filteringItems = listOf(null) + VideoFiltering.entries.filter { filtering ->
@@ -267,7 +267,7 @@ private fun Content(
     val showGraphics = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.GRAPHICS_VULKAN
     val showScreens = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.SCREENS_LAYOUT
     val showAudioControls = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.AUDIO_CONTROLS
-    val showGbaSlot = selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.GBA_SLOT
+    val showGbaSlot = false
 
     Column(
         modifier = modifier
@@ -386,7 +386,7 @@ private fun Content(
                     )
                 },
             )
-            if (!rom.isDsiWareTitle) {
+            if (false) {
                 ConfigRow(
                     title = stringResource(R.string.console_type),
                     value = if (romConfig.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
@@ -416,7 +416,7 @@ private fun Content(
         }
 
         if (showSystemCpu) {
-        ConfigSection(title = stringResource(R.string.rom_config_overclock_arm9)) {
+        ConfigSection(title = stringResource(R.string.rom_config_speed_multiplier)) {
             val normalizedArm9 = if (romConfig.arm9Overclock == 3) 2 else romConfig.arm9Overclock
             val arm9Label = when (normalizedArm9) {
                 null -> useGlobalWithValue("${romConfig.globalArm9Overclock}x")
@@ -425,7 +425,7 @@ private fun Content(
                 4 -> "4x (268 MHz)"
                 else -> "${normalizedArm9}x"
             }
-            ConfigRow(
+            if (false) ConfigRow(
                 title = stringResource(R.string.rom_config_overclock_arm9),
                 value = arm9Label,
                 showDivider = false,
@@ -559,13 +559,13 @@ private fun Content(
             )
             ConfigRow(
                 title = stringResource(R.string.renderer),
-                value = selectedRenderer?.let { rendererOptions[it.ordinal] } ?: useGlobalWithValue(globalRendererLabel),
+                value = selectedRenderer?.let { rendererLabel(it) } ?: useGlobalWithValue(rendererLabel(romConfig.globalVideoRenderer)),
                 showDivider = true,
                 onClick = {
                     videoRendererDialogState.show(
                         title = context.getString(R.string.renderer),
                         items = rendererItems,
-                        labelOf = { renderer -> renderer?.let { rendererOptions[it.ordinal] } ?: useGlobalWithValue(globalRendererLabel) },
+                        labelOf = { renderer -> renderer?.let { rendererLabel(it) } ?: useGlobalWithValue(rendererLabel(romConfig.globalVideoRenderer)) },
                         selected = selectedRenderer,
                         onSelect = { onConfigUpdate(RomConfigUpdateEvent.VideoRendererUpdate(it)) },
                     )
@@ -708,7 +708,7 @@ private fun Content(
         }
         }
 
-        if (showSystemCpu) {
+        if (false) {
         ConfigSection(title = stringResource(R.string.label_rom_config_retroachievements)) {
             ConfigRow(
                 title = stringResource(R.string.label_rom_config_retroachievements_for_rom),
@@ -833,7 +833,7 @@ private fun Content(
         }
         }
 
-        if (showGbaSlot || activeOverridesCount > 0) {
+        if (selectedFilter == RomConfigCategory.ALL || selectedFilter == RomConfigCategory.SYSTEM_CPU || activeOverridesCount > 0) {
         ConfigSection(title = stringResource(R.string.reset_rom_config_section)) {
             ConfigRow(
                 title = stringResource(R.string.reset_rom_config_title),

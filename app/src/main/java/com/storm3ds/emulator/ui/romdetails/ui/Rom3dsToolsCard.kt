@@ -50,13 +50,19 @@ fun Rom3dsToolsCard(
 
     val amiiboLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) {
-            val dest = File(NativeBridgeHost.resolveUserDirectoryPath(), "amiibo/${titleIdHex}_amiibo.bin")
+            val amiiboDir = File(NativeBridgeHost.resolveUserDirectoryPath(), "amiibo").apply { mkdirs() }
+            val dest = File(amiiboDir, "${titleIdHex}_amiibo.bin")
             runCatching {
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     dest.outputStream().use { output -> input.copyTo(output) }
                 }
-                NativeLibrary.loadAmiibo(dest.absolutePath)
-                Toast.makeText(context, "Amiibo loaded for next session", Toast.LENGTH_SHORT).show()
+                val loadedLive = if (NativeLibrary.isRunning()) NativeLibrary.loadAmiibo(dest.absolutePath) else false
+                val msg = if (loadedLive) {
+                    "Amiibo loaded into running game"
+                } else {
+                    "Amiibo staged! Tap Pause -> Load Amiibo inside game"
+                }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -116,7 +122,29 @@ fun Rom3dsToolsCard(
             }
         }
         if (mmjCheats.isNotEmpty()) {
-            Text("MMJ Bundled Cheat DB: ${mmjCheats.size} codes ready", fontSize = 11.sp, color = colors.text2)
+            Button(
+                onClick = {
+                    val userRoot = NativeBridgeHost.resolveUserDirectoryPath()
+                    val cheatsDir = File(userRoot, "cheats").apply { mkdirs() }
+                    val outFile = File(cheatsDir, "$titleIdHex.txt")
+                    val content = mmjCheats.joinToString("\n\n") { entry ->
+                        buildString {
+                            appendLine("[${entry.name}]")
+                            if (entry.notes.isNotBlank()) {
+                                entry.notes.lines().forEach { appendLine("* $it") }
+                            }
+                            append(entry.code)
+                        }
+                    }
+                    runCatching {
+                        outFile.writeText(content + "\n")
+                        Toast.makeText(context, "Exported ${mmjCheats.size} Gateway cheats to cheats/$titleIdHex.txt", Toast.LENGTH_LONG).show()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Install ${mmjCheats.size} MMJ Cheats ($titleIdHex)")
+            }
         }
     }
 }
