@@ -1,5 +1,7 @@
 package com.storm3ds.emulator.ui.romdetails.ui
 
+import com.storm3ds.emulator.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -44,7 +46,7 @@ fun Rom3dsToolsCard(
         if (uri != null) {
             val path = NativeLibrary.getNativePath(uri).ifBlank { uri.toString() }
             CiaInstallWorker.enqueueInstall(context, arrayOf(path))
-            Toast.makeText(context, "Queued CIA Update/DLC installation", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.rom_tools_3ds_cia_queued), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -58,9 +60,9 @@ fun Rom3dsToolsCard(
                 }
                 val loadedLive = if (NativeLibrary.isRunning()) NativeLibrary.loadAmiibo(dest.absolutePath) else false
                 val msg = if (loadedLive) {
-                    "Amiibo loaded into running game"
+                    context.getString(R.string.rom_tools_3ds_amiibo_loaded)
                 } else {
-                    "Amiibo staged! Tap Pause -> Load Amiibo inside game"
+                    context.getString(R.string.rom_tools_3ds_amiibo_staged)
                 }
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             }
@@ -77,29 +79,29 @@ fun Rom3dsToolsCard(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("STORM 3DS Title Tools ($titleIdHex)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+        Text(stringResource(R.string.rom_tools_3ds_title_fmt, titleIdHex), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
         if (profile != null) {
             Text(
-                "Recommended Profile: ${profile.renderer} ${profile.resolutionScale}x - ${profile.notes}",
+                stringResource(R.string.rom_tools_3ds_rec_profile_fmt, profile.renderer, profile.resolutionScale, profile.notes),
                 fontSize = 12.sp,
                 color = colors.green,
             )
             Button(
                 onClick = {
                     GameProfilesRepository.applyProfile(profile)
-                    Toast.makeText(context, "Applied ${profile.title} auto-profile", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.rom_tools_3ds_profile_applied_fmt, profile.title), Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Apply Optimal Game Profile")
+                Text(stringResource(R.string.rom_tools_3ds_apply_profile_btn))
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { ciaLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f)) {
-                Text("Install Update/DLC CIA", fontSize = 11.sp)
+                Text(stringResource(R.string.rom_tools_3ds_install_cia_btn), fontSize = 11.sp)
             }
             OutlinedButton(onClick = { amiiboLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f)) {
-                Text("Load Amiibo (.bin)", fontSize = 11.sp)
+                Text(stringResource(R.string.rom_tools_3ds_load_amiibo_btn), fontSize = 11.sp)
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -108,17 +110,17 @@ fun Rom3dsToolsCard(
                     val userRoot = NativeBridgeHost.resolveUserDirectoryPath()
                     File(userRoot, "load/mods/$titleIdHex").mkdirs()
                     File(userRoot, "load/textures/$titleIdHex").mkdirs()
-                    Toast.makeText(context, "Ready: STORM 3DS/load/mods/$titleIdHex", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.rom_tools_3ds_mods_ready_fmt, titleIdHex), Toast.LENGTH_LONG).show()
                 },
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Prepare Mods/HD Tex", fontSize = 11.sp)
+                Text(stringResource(R.string.rom_tools_3ds_prepare_mods_btn), fontSize = 11.sp)
             }
             OutlinedButton(
                 onClick = { showSystem3dsSetupDialog(context) },
                 modifier = Modifier.weight(1f),
             ) {
-                Text("3D / Speedhacks / Keys", fontSize = 11.sp)
+                Text(stringResource(R.string.rom_tools_3ds_setup_btn), fontSize = 11.sp)
             }
         }
         if (mmjCheats.isNotEmpty()) {
@@ -138,12 +140,12 @@ fun Rom3dsToolsCard(
                     }
                     runCatching {
                         outFile.writeText(content + "\n")
-                        Toast.makeText(context, "Exported ${mmjCheats.size} Gateway cheats to cheats/$titleIdHex.txt", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, context.getString(R.string.rom_tools_3ds_cheats_exported_fmt, mmjCheats.size, titleIdHex), Toast.LENGTH_LONG).show()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Install ${mmjCheats.size} MMJ Cheats ($titleIdHex)")
+                Text(stringResource(R.string.rom_tools_3ds_install_cheats_btn_fmt, mmjCheats.size, titleIdHex))
             }
         }
     }

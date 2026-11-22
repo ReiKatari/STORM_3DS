@@ -1,14 +1,20 @@
 package com.storm3ds.emulator
 
+import android.view.MotionEvent
 import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
 import com.storm3ds.emulator.domain.model.Input
+import com.storm3ds.emulator.domain.model.InputConfig
 import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
 import com.storm3ds.emulator.impl.emulator.EmulatorMessageQueue
+import com.storm3ds.emulator.impl.input.DefaultControllerConfigurationFactory
 import com.storm3ds.emulator.nativebridge.NativeLibrary
+import com.storm3ds.emulator.ui.cheats.ui.cheatform.CheatFormState
 import com.storm3ds.emulator.ui.common.views.ButtonColorStyle
+import com.storm3ds.emulator.ui.common.views.ButtonThemeManager
 import com.storm3ds.emulator.ui.emulator.skin.ConsoleSkinTheme
 import com.storm3ds.emulator.ui.romdetails.ui.parseDiscoveredLanRooms
+import com.storm3ds.emulator.ui.stats.PlayStatsStore
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -187,6 +193,182 @@ class Storm3dsCoreTest {
             assertFalse("WaterSTORM found in $rel", "WaterSTORM" in txt)
             assertFalse("STORM DS found in $rel", "STORM DS" in txt)
             assertFalse("Nintendo 3DSi found in $rel", "Nintendo 3DSi" in txt)
+        }
+    }
+
+    @Test
+    fun `coreError and installStatus map all 3ds values cleanly`() {
+        assertEquals(NativeLibrary.CoreError.Success, NativeLibrary.CoreError.fromInt(0))
+        assertEquals(NativeLibrary.CoreError.ErrorSystemFiles, NativeLibrary.CoreError.fromInt(10))
+        assertEquals(NativeLibrary.CoreError.ErrorArticDisconnected, NativeLibrary.CoreError.fromInt(12))
+        assertEquals(NativeLibrary.CoreError.ErrorShaderCacheCrash, NativeLibrary.CoreError.fromInt(17))
+        assertEquals(NativeLibrary.CoreError.ErrorUnknown, NativeLibrary.CoreError.fromInt(18))
+        assertEquals(NativeLibrary.CoreError.ErrorUnknown, NativeLibrary.CoreError.fromInt(999))
+        assertTrue(NativeLibrary.InstallStatus.ErrorCannotCheckBundle in NativeLibrary.InstallStatus.entries)
+    }
+
+    @Test
+    fun `default controller configuration binds ZL ZR HOME and excludes AXIS_X AXIS_Y from dpad`() {
+        val config = DefaultControllerConfigurationFactory().buildDefaultControllerConfiguration()
+        val mappedInputs = config.inputMapper.map { it.input }.toSet()
+        assertTrue(Input.ZL in mappedInputs)
+        assertTrue(Input.ZR in mappedInputs)
+        assertTrue(Input.HOME in mappedInputs)
+        assertTrue(config.getInputAssignments(Input.ZL)?.isNotEmpty() == true)
+        assertTrue(config.getInputAssignments(Input.ZR)?.isNotEmpty() == true)
+
+        val dpadInputs = setOf(Input.LEFT, Input.RIGHT, Input.UP, Input.DOWN)
+        for (entry in config.inputMapper.filter { it.input in dpadInputs }) {
+            for (assignment in listOf(entry.assignment, entry.altAssignment)) {
+                if (assignment is InputConfig.Assignment.Axis) {
+                    assertFalse(
+                        "D-Pad ${entry.input} must not consume analog stick AXIS_X",
+                        assignment.axisCode == MotionEvent.AXIS_X,
+                    )
+                    assertFalse(
+                        "D-Pad ${entry.input} must not consume analog stick AXIS_Y",
+                        assignment.axisCode == MotionEvent.AXIS_Y,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `button theme manager provides valid distinct palettes for all 34 styles`() {
+        val styles = ButtonColorStyle.entries
+        assertEquals(34, styles.size)
+        val palettes = styles.map { style ->
+            val p = ButtonThemeManager.paletteFor(style)
+            assertTrue("Expected opaque thumbDark for $style", p.thumbDark != 0)
+            assertTrue("Expected opaque labelText for $style", p.labelText != 0)
+            p
+        }
+        assertTrue("Expected multiple distinct palettes", palettes.toSet().size >= 30)
+    }
+
+    @Test
+    fun `cheat form state preserves multiline gateway 3ds code newlines`() {
+        val code = "D3000000 10000000\n0039C120 0000270F"
+        val form = CheatFormState(
+            isNewCheat = true,
+            cheatName = "Max Rupees",
+            cheatDescription = "Sets 9999 Rupees",
+            cheatCode = code,
+        )
+        assertTrue("Expected valid cheat form", form.validateFields())
+        assertEquals(code, form.buildSubmissionForm().code)
+    }
+
+    @Test
+    fun `play stats classifies 3dsx homebrew separately from retail 3ds titles`() {
+        assertTrue(PlayStatsStore.isDsiGame("HB3DS", "homebrew_menu.3dsx"))
+        assertFalse(PlayStatsStore.isDsiGame("0004000000030800", "Mario Kart 7"))
+    }
+
+    @Test
+    fun `all 10 pause_session_hours_minutes resources use positional args and zero em dashes`() {
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val targetFiles = resRoot.listFiles { f -> f.isDirectory && f.name.startsWith("values") }
+            ?.mapNotNull { dir -> File(dir, "strings_v780_emulator.xml").takeIf { it.isFile } }
+            .orEmpty()
+        assertEquals(10, targetFiles.size)
+        val forbidden = listOf('\u2014', '\u2013', '\u2015', '\u2012')
+        for (file in targetFiles) {
+            val txt = file.readText()
+            val line = txt.lines().firstOrNull { "pause_session_hours_minutes" in it }
+            assertTrue("Missing pause_session_hours_minutes in ${file.path}", line != null)
+            assertTrue("Expected %1\$d in ${file.path}: $line", "%1\$d" in line!!)
+            assertTrue("Expected %2\$d in ${file.path}: $line", "%2\$d" in line)
+            for (dash in forbidden) {
+                assertFalse("Forbidden dash U+${dash.code.toString(16)} in ${file.path}", dash in txt)
+            }
+        }
+    }
+
+    @Test
+    fun `threeDs system language defaults to system auto and maps device locales`() {
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val prefSystem = File(resRoot, "xml/pref_system.xml").readText()
+        assertTrue(
+            "3ds_system_language must default to -1 (System Default)",
+            Regex("""android:key="3ds_system_language"[\s\S]*?android:defaultValue="-1"""").containsMatchIn(prefSystem),
+        )
+
+        val arraysTxt = File(resRoot, "values/arrays.xml").readText()
+        assertTrue(
+            "system_language_values must start with -1",
+            Regex("""<string-array\s+name="system_language_values">\s*<item>-1</item>""").containsMatchIn(arraysTxt),
+        )
+        assertTrue(
+            "system_language_options must start with @string/pref_3ds_lang_system_default",
+            Regex("""<string-array\s+name="system_language_options">\s*<item>@string/pref_3ds_lang_system_default</item>""").containsMatchIn(arraysTxt),
+        )
+
+        assertEquals(0, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.JAPAN))
+        assertEquals(1, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.US))
+        assertEquals(2, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.FRANCE))
+        assertEquals(3, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.GERMANY))
+        assertEquals(4, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.ITALY))
+        assertEquals(5, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("es", "ES")))
+        assertEquals(6, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.SIMPLIFIED_CHINESE))
+        assertEquals(7, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.KOREA))
+        assertEquals(8, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("nl", "NL")))
+        assertEquals(9, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("pt", "BR")))
+        assertEquals(10, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("ru", "RU")))
+        assertEquals(10, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("uk", "UA")))
+        assertEquals(11, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale.TRADITIONAL_CHINESE))
+        assertEquals(1, MelonEmulator.resolveDevice3dsSystemLanguage(java.util.Locale("id", "ID")))
+    }
+
+    @Test
+    fun `all 10 locales have 100 percent string parity and system_3ds_setup is wired`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val sysPrefFrag = File(srcJava, "com/storm3ds/emulator/ui/settings/fragments/SystemPreferencesFragment.kt").readText()
+        assertTrue("system_3ds_setup preference must have a click listener", "findPreference<Preference>(\"system_3ds_setup\")" in sysPrefFrag)
+        assertTrue("system_3ds_setup click listener must invoke showSystem3dsSetupDialog", "showSystem3dsSetupDialog" in sysPrefFrag)
+
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val baseDir = File(resRoot, "values")
+        val locales = listOf(
+            "values-b+ru", "values-b+es", "values-b+fr", "values-de",
+            "values-b+it", "values-b+pt+BR", "values-b+id", "values-b+zh+Hans", "values-ja",
+        )
+        val docFactory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+        fun readStrings(dir: File): Set<String> {
+            val out = mutableSetOf<String>()
+            dir.listFiles { f -> f.isFile && f.extension == "xml" }?.forEach { file ->
+                val doc = docFactory.newDocumentBuilder().parse(file)
+                val nodes = doc.getElementsByTagName("string")
+                for (i in 0 until nodes.length) {
+                    val el = nodes.item(i) as org.w3c.dom.Element
+                    if (el.getAttribute("translatable") != "false") {
+                        out.add(el.getAttribute("name"))
+                    }
+                }
+            }
+            return out
+        }
+
+        val baseKeys = readStrings(baseDir)
+        assertTrue("Expected > 2500 base keys, got ${baseKeys.size}", baseKeys.size > 2500)
+        for (loc in locales) {
+            val locKeys = readStrings(File(resRoot, loc))
+            val missing = baseKeys - locKeys
+            assertTrue("Locale $loc is missing ${missing.size} strings, sample=${missing.take(10)}", missing.isEmpty())
+        }
+
+        val ruFiles = File(resRoot, "values-b+ru").listFiles { f -> f.isFile && f.extension == "xml" }.orEmpty()
+        val forbiddenEnInRu = Regex("""\b(CPU|GPU|RAM|Battery\s+Saver|Native\s+3DS|Overclock)\b""", RegexOption.IGNORE_CASE)
+        for (f in ruFiles) {
+            val doc = docFactory.newDocumentBuilder().parse(f)
+            for (tag in listOf("string", "item")) {
+                val nodes = doc.getElementsByTagName(tag)
+                for (i in 0 until nodes.length) {
+                    val txt = nodes.item(i).textContent
+                    assertFalse("Unlocalized English term in ${f.name}: $txt", forbiddenEnInRu.containsMatchIn(txt))
+                }
+            }
         }
     }
 }

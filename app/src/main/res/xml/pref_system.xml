@@ -45,7 +45,7 @@
                 app:iconSpaceReserved="false"
                 android:entries="@array/system_language_options"
                 android:entryValues="@array/system_language_values"
-                android:defaultValue="1" />
+                android:defaultValue="-1" />
 
         <SwitchPreference
                 android:key="3ds_apply_region_free"

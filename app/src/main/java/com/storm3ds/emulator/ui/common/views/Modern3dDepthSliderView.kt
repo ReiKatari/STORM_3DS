@@ -61,8 +61,17 @@ class Modern3dDepthSliderView @JvmOverloads constructor(
         strokeCap = Paint.Cap.ROUND
     }
 
-    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
         if (key == "button_color_theme") {
+            postInvalidate()
+        } else if (key == "3ds_depth_factor" || key == "video_vulkan_3d_depth_strength") {
+            val depth = if (sp.contains("video_vulkan_3d_depth_strength")) {
+                sp.getString("video_vulkan_3d_depth_strength", "50")?.toIntOrNull()
+                    ?: sp.getInt("3ds_depth_factor", 50)
+            } else {
+                sp.getInt("3ds_depth_factor", 50)
+            }
+            currentDepth = depth.coerceIn(0, 100)
             postInvalidate()
         }
     }
@@ -73,8 +82,11 @@ class Modern3dDepthSliderView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        PreferenceManager.getDefaultSharedPreferences(context)
-            .registerOnSharedPreferenceChangeListener(prefListener)
+        val sp = PreferenceManager.getDefaultSharedPreferences(context)
+        val synced = sp.getString("video_vulkan_3d_depth_strength", null)?.toIntOrNull()
+            ?: sp.getInt("3ds_depth_factor", currentDepth)
+        currentDepth = synced.coerceIn(0, 100)
+        sp.registerOnSharedPreferenceChangeListener(prefListener)
     }
 
     override fun onDetachedFromWindow() {
@@ -240,7 +252,7 @@ class Modern3dDepthSliderView @JvmOverloads constructor(
         // Bottom "OFF" detent legend
         labelPaint.textSize = (w * 0.18f).coerceIn(9f, 16f)
         labelPaint.color = if (!is3dActive) Color.parseColor("#CBD5E1") else Color.parseColor("#64748B")
-        canvas.drawText("OFF", cx, h - (h * 0.045f), labelPaint)
+        canvas.drawText(context.getString(com.storm3ds.emulator.R.string.off).uppercase(), cx, h - (h * 0.045f), labelPaint)
 
         // Metallic knurled thumb carriage
         val thumbHalfW = (w * 0.34f).coerceAtLeast(12f)
@@ -292,35 +304,13 @@ class Modern3dDepthSliderView @JvmOverloads constructor(
     )
 
     private fun resolveThemeColors(style: ButtonColorStyle): SliderTheme {
-        return when (style) {
-            ButtonColorStyle.CLASSIC_WHITE, ButtonColorStyle.WII_CRYSTAL, ButtonColorStyle.SWITCH_OLED -> SliderTheme(
-                Color.parseColor("#E6F1F5F9"), Color.parseColor("#8094A3B8"),
-                Color.parseColor("#334155"), Color.parseColor("#FFFFFFFF"), Color.parseColor("#FF94A3B8"),
-            )
-            ButtonColorStyle.ANIMAL_LEAF -> SliderTheme(
-                Color.parseColor("#E6A7F3D0"), Color.parseColor("#80059669"),
-                Color.parseColor("#064E3B"), Color.parseColor("#FFFFFBEB"), Color.parseColor("#FF6EE7B7"),
-            )
-            ButtonColorStyle.HYRULE_GOLD_3D -> SliderTheme(
-                Color.parseColor("#E64A3306"), Color.parseColor("#8010B981"),
-                Color.parseColor("#FDE68A"), Color.parseColor("#FFFCD34D"), Color.parseColor("#FF92400E"),
-            )
-            ButtonColorStyle.METROID_VISOR -> SliderTheme(
-                Color.parseColor("#E6450A0A"), Color.parseColor("#80F59E0B"),
-                Color.parseColor("#FDE68A"), Color.parseColor("#FFEF4444"), Color.parseColor("#FF7F1D1D"),
-            )
-            ButtonColorStyle.GALAXY_NEBULA -> SliderTheme(
-                Color.parseColor("#E62E1065"), Color.parseColor("#80E879F9"),
-                Color.parseColor("#E9D5FF"), Color.parseColor("#FFC084FC"), Color.parseColor("#FF4C1D95"),
-            )
-            ButtonColorStyle.STORM_CYBER_3D -> SliderTheme(
-                Color.parseColor("#E60A1E24"), Color.parseColor("#8000F5D4"),
-                Color.parseColor("#A5F3FC"), Color.parseColor("#FF67E8F9"), Color.parseColor("#FF0F766E"),
-            )
-            else -> SliderTheme(
-                Color.parseColor("#E61A1E27"), Color.parseColor("#66FFFFFF"),
-                Color.parseColor("#94A3B8"), Color.parseColor("#FFE2E8F0"), Color.parseColor("#FF64748B"),
-            )
-        }
+        val p = ButtonThemeManager.paletteFor(style)
+        return SliderTheme(
+            bg = p.housingBg,
+            stroke = p.housingStroke,
+            text = p.labelText,
+            thumbLight = p.thumbLight,
+            thumbDark = p.thumbDark,
+        )
     }
 }

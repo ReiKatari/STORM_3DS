@@ -91,10 +91,16 @@ class NDKMotion final : public Input::MotionDevice {
     }
 
     void Destruct() {
-        ASensorManager_destroyEventQueue(sensor_manager, event_queue);
+        if (sensor_manager && event_queue) {
+            ASensorManager_destroyEventQueue(sensor_manager, event_queue);
+            event_queue = nullptr;
+        }
     }
 
     void Update() const {
+        if (!event_queue) {
+            return;
+        }
         std::lock_guard lock{sensor_mutex};
         ALooper_pollOnce(0, nullptr, nullptr, nullptr);
         ASensorEvent event{};
@@ -162,6 +168,9 @@ public:
     }
 
     void EnableSensors() {
+        if (!sensor_manager || !event_queue) {
+            return;
+        }
         std::lock_guard lock{sensor_mutex};
         const auto init_sensor = [this](int sensor_type) {
             ASensorRef sensor = ASensorManager_getDefaultSensor(sensor_manager, sensor_type);
@@ -182,6 +191,9 @@ public:
     }
 
     void DisableSensors() {
+        if (!sensor_manager || !event_queue) {
+            return;
+        }
         std::lock_guard lock{sensor_mutex};
         const auto disable_sensor = [this](int sensor_type) {
             ASensorRef sensor = ASensorManager_getDefaultSensor(sensor_manager, sensor_type);

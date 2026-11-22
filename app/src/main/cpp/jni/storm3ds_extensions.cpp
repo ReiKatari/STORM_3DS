@@ -9,15 +9,19 @@
 #include "common/common_paths.h"
 #include "common/file_util.h"
 #include "common/logging/backend.h"
+#include "common/file_derived.h"
 #include "common/settings.h"
+#include "common/tar_file.h"
 #include "audio_core/input_details.h"
 #include "core/core.h"
 #include "core/hle/service/am/am.h"
+#include "core/file_sys/cia_container.h"
 #include "core/file_sys/seed_db.h"
 #include "core/hw/aes/key.h"
 #include "core/hw/unique_data.h"
 #include "core/loader/loader.h"
 #include "jni/android_common/android_common.h"
+#include "jni/config.h"
 #include "jni/emu_window/emu_window.h"
 #include "video_core/gpu.h"
 #include "video_core/renderer_base.h"
@@ -44,7 +48,14 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setRender3dMode(
     JNIEnv*, jobject, jint mode) {
-    Settings::values.render_3d.SetValue(static_cast<Settings::StereoRenderOption>(mode));
+    const auto clamped = std::clamp<int>(mode, 0, 7);
+    const auto which_display = clamped == 0 ? Settings::StereoWhichDisplay::None
+                                            : Settings::StereoWhichDisplay::PrimaryOnly;
+    Settings::values.render_3d.SetValue(static_cast<Settings::StereoRenderOption>(clamped));
+    Settings::values.render_3d_which_display.SetValue(which_display);
+    Config::AddDefaultSettingValue("render_3d", std::to_string(clamped));
+    Config::AddDefaultSettingValue("render_3d_which_display",
+                                   std::to_string(static_cast<int>(which_display)));
     auto& system = Core::System::GetInstance();
     if (system.IsPoweredOn()) {
         system.GPU().Renderer().NotifySurfaceChanged(false);
@@ -83,30 +94,64 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setCustomScreenLayout(
     JNIEnv*, jobject, jboolean is_portrait, jint top_x, jint top_y, jint top_w, jint top_h,
     jint bot_x, jint bot_y, jint bot_w, jint bot_h, jint second_layer_opacity) {
+    const int opacity = std::clamp(static_cast<int>(second_layer_opacity), 0, 100);
+    const int tx = std::max(0, static_cast<int>(top_x));
+    const int ty = std::max(0, static_cast<int>(top_y));
+    const int tw = std::max(0, static_cast<int>(top_w));
+    const int th = std::max(0, static_cast<int>(top_h));
+    const int bx = std::max(0, static_cast<int>(bot_x));
+    const int by = std::max(0, static_cast<int>(bot_y));
+    const int bw = std::max(0, static_cast<int>(bot_w));
+    const int bh = std::max(0, static_cast<int>(bot_h));
+
+    Settings::values.swap_screen.SetValue(false);
     Settings::values.storm_custom_layout_enabled.SetValue(true);
-    Settings::values.custom_second_layer_opacity.SetValue(
-        static_cast<u16>(std::clamp(static_cast<int>(second_layer_opacity), 0, 100)));
+    Settings::values.custom_second_layer_opacity.SetValue(static_cast<u16>(opacity));
+    Config::AddDefaultSettingValue("swap_screen", "0");
+    Config::AddDefaultSettingValue("custom_second_layer_opacity", std::to_string(opacity));
+
     if (is_portrait) {
         Settings::values.portrait_layout_option.SetValue(
             Settings::PortraitLayoutOption::PortraitCustomLayout);
-        Settings::values.custom_portrait_top_x.SetValue(static_cast<u16>(std::max(0, (int)top_x)));
-        Settings::values.custom_portrait_top_y.SetValue(static_cast<u16>(std::max(0, (int)top_y)));
-        Settings::values.custom_portrait_top_width.SetValue(static_cast<u16>(std::max(0, (int)top_w)));
-        Settings::values.custom_portrait_top_height.SetValue(static_cast<u16>(std::max(0, (int)top_h)));
-        Settings::values.custom_portrait_bottom_x.SetValue(static_cast<u16>(std::max(0, (int)bot_x)));
-        Settings::values.custom_portrait_bottom_y.SetValue(static_cast<u16>(std::max(0, (int)bot_y)));
-        Settings::values.custom_portrait_bottom_width.SetValue(static_cast<u16>(std::max(0, (int)bot_w)));
-        Settings::values.custom_portrait_bottom_height.SetValue(static_cast<u16>(std::max(0, (int)bot_h)));
+        Settings::values.custom_portrait_top_x.SetValue(static_cast<u16>(tx));
+        Settings::values.custom_portrait_top_y.SetValue(static_cast<u16>(ty));
+        Settings::values.custom_portrait_top_width.SetValue(static_cast<u16>(tw));
+        Settings::values.custom_portrait_top_height.SetValue(static_cast<u16>(th));
+        Settings::values.custom_portrait_bottom_x.SetValue(static_cast<u16>(bx));
+        Settings::values.custom_portrait_bottom_y.SetValue(static_cast<u16>(by));
+        Settings::values.custom_portrait_bottom_width.SetValue(static_cast<u16>(bw));
+        Settings::values.custom_portrait_bottom_height.SetValue(static_cast<u16>(bh));
+        Config::AddDefaultSettingValue(
+            "portrait_layout_option",
+            std::to_string(static_cast<int>(Settings::PortraitLayoutOption::PortraitCustomLayout)));
+        Config::AddDefaultSettingValue("custom_portrait_top_x", std::to_string(tx));
+        Config::AddDefaultSettingValue("custom_portrait_top_y", std::to_string(ty));
+        Config::AddDefaultSettingValue("custom_portrait_top_width", std::to_string(tw));
+        Config::AddDefaultSettingValue("custom_portrait_top_height", std::to_string(th));
+        Config::AddDefaultSettingValue("custom_portrait_bottom_x", std::to_string(bx));
+        Config::AddDefaultSettingValue("custom_portrait_bottom_y", std::to_string(by));
+        Config::AddDefaultSettingValue("custom_portrait_bottom_width", std::to_string(bw));
+        Config::AddDefaultSettingValue("custom_portrait_bottom_height", std::to_string(bh));
     } else {
         Settings::values.layout_option.SetValue(Settings::LayoutOption::CustomLayout);
-        Settings::values.custom_top_x.SetValue(static_cast<u16>(std::max(0, (int)top_x)));
-        Settings::values.custom_top_y.SetValue(static_cast<u16>(std::max(0, (int)top_y)));
-        Settings::values.custom_top_width.SetValue(static_cast<u16>(std::max(0, (int)top_w)));
-        Settings::values.custom_top_height.SetValue(static_cast<u16>(std::max(0, (int)top_h)));
-        Settings::values.custom_bottom_x.SetValue(static_cast<u16>(std::max(0, (int)bot_x)));
-        Settings::values.custom_bottom_y.SetValue(static_cast<u16>(std::max(0, (int)bot_y)));
-        Settings::values.custom_bottom_width.SetValue(static_cast<u16>(std::max(0, (int)bot_w)));
-        Settings::values.custom_bottom_height.SetValue(static_cast<u16>(std::max(0, (int)bot_h)));
+        Settings::values.custom_top_x.SetValue(static_cast<u16>(tx));
+        Settings::values.custom_top_y.SetValue(static_cast<u16>(ty));
+        Settings::values.custom_top_width.SetValue(static_cast<u16>(tw));
+        Settings::values.custom_top_height.SetValue(static_cast<u16>(th));
+        Settings::values.custom_bottom_x.SetValue(static_cast<u16>(bx));
+        Settings::values.custom_bottom_y.SetValue(static_cast<u16>(by));
+        Settings::values.custom_bottom_width.SetValue(static_cast<u16>(bw));
+        Settings::values.custom_bottom_height.SetValue(static_cast<u16>(bh));
+        Config::AddDefaultSettingValue(
+            "layout_option", std::to_string(static_cast<int>(Settings::LayoutOption::CustomLayout)));
+        Config::AddDefaultSettingValue("custom_top_x", std::to_string(tx));
+        Config::AddDefaultSettingValue("custom_top_y", std::to_string(ty));
+        Config::AddDefaultSettingValue("custom_top_width", std::to_string(tw));
+        Config::AddDefaultSettingValue("custom_top_height", std::to_string(th));
+        Config::AddDefaultSettingValue("custom_bottom_x", std::to_string(bx));
+        Config::AddDefaultSettingValue("custom_bottom_y", std::to_string(by));
+        Config::AddDefaultSettingValue("custom_bottom_width", std::to_string(bw));
+        Config::AddDefaultSettingValue("custom_bottom_height", std::to_string(bh));
     }
     std::scoped_lock lock{StormBridge::GetSurfaceMutex()};
     if (auto* w = StormBridge::GetPrimaryWindow()) {
@@ -176,11 +221,65 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
     Settings::values.audio_muted = (muted == JNI_TRUE);
 }
 
+JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setMicrophoneInputType(
+    JNIEnv*, jobject, jint input_type) {
+    AudioCore::InputType mapped = AudioCore::InputType::Null;
+    if (input_type == 1) {
+        mapped = AudioCore::InputType::Auto;
+    } else if (input_type == 2) {
+        mapped = AudioCore::InputType::Static;
+    }
+    Settings::values.input_type.SetValue(mapped);
+    Config::AddDefaultSettingValue("input_type", std::to_string(static_cast<int>(mapped)));
+    auto& system = Core::System::GetInstance();
+    if (system.IsPoweredOn()) {
+        system.ApplySettings();
+    }
+}
+
 JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_installCiaSimple(
     JNIEnv* env, jobject, jstring j_path) {
     const std::string path = GetJString(env, j_path);
     const auto res = Service::AM::InstallCIA(path, [](std::size_t, std::size_t) {});
     return static_cast<jint>(res);
+}
+
+JNIEXPORT jlong JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getCiaTitleId(
+    JNIEnv* env, jobject, jstring j_path) {
+    const std::string path = GetJString(env, j_path);
+    if (!FileUtil::Exists(path)) {
+        return 0;
+    }
+    std::unique_ptr<FileUtil::IOFileBase> in_file = std::make_unique<FileUtil::IOFile>(path, "rb");
+    if (!in_file || !in_file->IsOpen()) {
+        return 0;
+    }
+    if (auto tar = FileUtil::TarArchive::OpenTarArchive(in_file->OpenCopy())) {
+        std::string picked;
+        for (const auto& f : tar->GetFileList()) {
+            if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+                picked = f.name;
+                if (f.name.find("00040000") != std::string::npos) {
+                    break;
+                }
+            }
+        }
+        if (picked.empty()) {
+            return 0;
+        }
+        in_file = tar->OpenSubFile(picked);
+        if (!in_file || !in_file->IsGood()) {
+            return 0;
+        }
+    }
+    if (FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(in_file.get()).has_value()) {
+        in_file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+    }
+    FileSys::CIAContainer container;
+    if (container.Load(in_file.get()) != Loader::ResultStatus::Success) {
+        return 0;
+    }
+    return static_cast<jlong>(container.GetTitleMetadata().GetTitleID());
 }
 
 } // extern "C"

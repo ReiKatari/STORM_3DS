@@ -1122,7 +1122,7 @@
     </string-array>
 
         <string-array name="video_internal_resolution_options">
-        <item>1x native (400x240)</item>
+        <item>@string/video_res_1x_native</item>
         <item>2x (800x480)</item>
         <item>3x (1200x720)</item>
         <item>4x (1600x960)</item>
@@ -1454,7 +1454,7 @@
     <string name="wfc_custom_dns_title">Custom WFC primary DNS</string>
     <string name="wfc_custom_dns_summary">Primary DNS IP address for Nintendo WFC multiplayer</string>
     <string name="cheats_download_online">Download cheat database</string>
-    <string name="cheats_download_online_summary">Download the latest cheat database (usrcheat.dat) from online repositories</string>
+    <string name="cheats_download_online_summary">Automatically download the latest Gateway 3DS cheat database from online repositories</string>
     <string name="cheats_download_success">Cheat database updated successfully</string>
     <string name="video_ai_upscale_title">AI-upscale 2D sprites (Anime4K / NPU)</string>
     <string name="video_ai_upscale_summary">Real-time neural network scaling and edge smoothing for 2D sprites and fonts</string>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="button_color_theme_options">
+        <item>Nintendo 3DS (Biru Cosmo Aqua)</item>
+        <item>Nintendo 3DS Klasik (Abu-abu Metalik)</item>
+        <item>Nintendo 3DS Lite (Putih Murni)</item>
+        <item>Nintendo Famicom / NES (Emas dan Marun)</item>
+        <item>Nintendo Game Boy (Abu-abu Retro DMG dan Plum)</item>
+        <item>Nintendo Game Boy Advance (Indigo Gletser)</item>
+        <item>Nintendo GameCube (Indigo dan Hijau/Merah)</item>
+        <item>Nintendo Super Famicom / SNES (Empat Warna)</item>
+        <item>Nintendo Switch Neon (Merah dan Biru)</item>
+        <item>Nintendo Switch OLED (Putih Doff)</item>
+        <item>Nintendo Virtual Boy (Merah Laser dan Hampa)</item>
+        <item>Nintendo Wii (Putih Kristal dan Biru)</item>
+        <item>Nintendo Wii U (Batu Tulis Gelap dan Sian)</item>
+        <item>STORM Arcade Retro (Mesin Arkade Klasik / 4 Warna)</item>
+        <item>STORM Aurora Spectrum (Empat Warna Pastel / Terang)</item>
+        <item>STORM Cyber Neon (Sian dan Gelap)</item>
+        <item>STORM Cyberpunk 2077 (Neon / Multiwarna)</item>
+        <item>STORM Frost Glacier (Gradien Es / Terang)</item>
+        <item>STORM Gothic Crimson (Merah Rubi dan Karbon)</item>
+        <item>STORM Matrix Emerald (Hijau Neon)</item>
+        <item>STORM Midnight Amethyst (Ungu Pekat)</item>
+        <item>STORM Royal Gold (Emas dan Obsidian)</item>
+        <item>STORM Sakura Blossom (Bunga Sakura / Terang)</item>
+        <item>STORM Solar Fusion (Spektrum Surya / Terang)</item>
+        <item>New Nintendo 3DS SFC (ABXY Berwarna)</item>
+        <item>STORM Cyber 3D (Sian-Zamrud Holografik)</item>
+        <item>Zelda Hyrule Edition (Emas Kerajaan dan Zamrud)</item>
+        <item>Metroid Samus Visor (LED Merah Tua dan Kuning Amber)</item>
+        <item>New 3DS XL Galaxy (Ungu Pekat dan Magenta)</item>
+        <item>Animal Crossing Leaf (Mint Pastel dan Krem)</item>
+        <item>Monster Hunter Forge (Obsidian dan Bara Cair)</item>
+        <item>Pokemon PokeBall (Merah Mengilap dan Putih)</item>
+        <item>Persona Velvet Room (Kobalt Tengah Malam dan Perak)</item>
+        <item>Crystal Prism 3D (Cangkang Asap dan Cahaya Es)</item>
+    </string-array>
+    <string-array name="external_display_mode_options">
+        <item>Cerminkan</item>
+        <item>STORM 3DS</item>
+    </string-array>
+    <string-array name="frame_limit_speed_multiplier_options">
+        <item>1.0x</item>
+        <item>0.75x</item>
+        <item>0.5x</item>
+        <item>0.25x</item>
+    </string-array>
+    <string-array name="rom_input_mode_options">
+        <item>@string/use_global_preference</item>
+        <item>Kustom</item>
+    </string-array>
+    <string-array name="theme_options">
+        <item>STORM NIGHT (Gelap OLED)</item>
+        <item>STORM DAY (Terang)</item>
+        <item>STORM MIDNIGHT (Ungu Pekat)</item>
+        <item>STORM CYBERPUNK (Cyberpunk 2077)</item>
+        <item>STORM GOTHIC (Hitam dan Merah)</item>
+        <item>STORM MATRIX (Kode Siber Zamrud)</item>
+        <item>STORM SOLAR (Emas Plasma Bercahaya)</item>
+        <item>STORM SAKURA (Bunga Sakura Terang)</item>
+    </string-array>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24 suara (Distribusi neural otomatis sesuai konteks dan karakter)</item>
+        <item>🎙️ Dmitry (Bariton Neural)</item>
+        <item>🎙️ Elena (Sopran Neural)</item>
+        <item>🗡️ Pahlawan Muda (Tenor Cerah)</item>
+        <item>🦇 Ksatria Kegelapan / Batman (Bas Berat Serak)</item>
+        <item>👹 Bos / Tiran / Bowser (Bas Berat)</item>
+        <item>🃏 Joker / Penipu (Tenor Maniak)</item>
+        <item>💀 Iblis Jurang / Dracula (Bas Dalam)</item>
+        <item>📜 Tetua Bijak / Profesor (Parau)</item>
+        <item>👦 Anak Laki-laki / Rekan / Luke Triton (Jernih)</item>
+        <item>👧 Gadis Muda / Pearl Fey (Lembut Muda)</item>
+        <item>👑 Putri / Ratu Zelda (Agung)</item>
+        <item>💰 Pedagang / Tom Nook (Antusias dan Ceria)</item>
+        <item>🛡️ Penjaga / Kapten (Tegas dan Berwibawa)</item>
+        <item>🤖 Robot / Siborg / Pokédex (Sintetis)</item>
+        <item>📖 Narator / Penulis Tawarikh (Lembut Berwibawa)</item>
+        <item>🎀 Tsundere / Franziska (Sopran Angkuh)</item>
+        <item>🤫 Bisikan Misterius / Bayangan (Mistis)</item>
+        <item>✨ Peri Ceria / Navi (Alto Tinggi Ceria)</item>
+        <item>🏴‍☠️ Kapten Bajak Laut (Bas Kasar Menggeram)</item>
+        <item>🔬 Ilmuwan Gila / Dr. Wily (Eksentrik)</item>
+        <item>🎩 Pria Terhormat / Layton / Wright (Berwibawa Halus)</item>
+        <item>👻 Hantu / Arwah (Gema Eteris)</item>
+        <item>⚔️ Ksatria Mulia / Meta Knight (Bariton Mantap)</item>
+        <item>🕊️ Dewi / Malaikat Palutena (Kristal Suci)</item>
+    </string-array>
+</resources>

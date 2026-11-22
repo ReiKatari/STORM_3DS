@@ -100,9 +100,13 @@ EmuWindow_Android::~EmuWindow_Android() {
 }
 
 void EmuWindow_Android::MakeCurrent() {
-    core_context->MakeCurrent();
+    if (core_context) {
+        core_context->MakeCurrent();
+    }
 }
 
 void EmuWindow_Android::DoneCurrent() {
-    core_context->DoneCurrent();
+    if (core_context) {
+        core_context->DoneCurrent();
+    }
 }

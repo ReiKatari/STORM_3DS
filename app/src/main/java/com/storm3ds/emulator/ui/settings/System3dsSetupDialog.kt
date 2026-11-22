@@ -1,7 +1,11 @@
 package com.storm3ds.emulator.ui.settings
 
+import com.storm3ds.emulator.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.stringArrayResource
 import android.app.Dialog
 import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
@@ -36,6 +40,12 @@ import com.storm3ds.emulator.ui.theme.LocalWatermelonColors
 import com.storm3ds.emulator.ui.theme.SpaceGrotesk
 import java.io.File
 
+private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findComponentActivity()
+    else -> null
+}
+
 fun showSystem3dsSetupDialog(context: Context): Dialog {
     NativeCoreLoader.load()
     return showSettingsComposeDialog(context) { dismiss ->
@@ -66,23 +76,31 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     var audioStretch by remember { mutableStateOf(prefs.getBoolean("3ds_audio_stretch", true)) }
     var spirvOpt by remember { mutableStateOf(prefs.getBoolean("3ds_spirv_opt", true)) }
     var disableRightEye by remember { mutableStateOf(prefs.getBoolean("3ds_disable_right_eye", false)) }
-    var render3dMode by remember { mutableStateOf(prefs.getInt("3ds_render_mode", 0).coerceIn(0, 7)) }
-    var depth3d by remember { mutableStateOf(prefs.getInt("3ds_depth_factor", 0).coerceIn(0, 100)) }
+    val initialVideoMode = when (prefs.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()) {
+        "sbs_xr" -> 1
+        "sbs_full" -> 2
+        "anaglyph" -> 3
+        "interlaced" -> 4
+        "reverse_interlaced" -> 5
+        "cardboard_vr" -> 6
+        "gyro_parallax" -> 7
+        else -> 0
+    }
+    var render3dMode by remember { mutableStateOf(prefs.getInt("3ds_render_mode", initialVideoMode).coerceIn(0, 7)) }
+    val initialVideoDepth = prefs.getString("video_vulkan_3d_depth_strength", "50")?.toIntOrNull()?.coerceIn(0, 100) ?: 50
+    var depth3d by remember { mutableStateOf(prefs.getInt("3ds_depth_factor", initialVideoDepth).coerceIn(0, 100)) }
     var pretendoEnabled by remember { mutableStateOf(prefs.getBoolean("3ds_pretendo_enabled", false)) }
     var articIp by remember { mutableStateOf(prefs.getString("3ds_artic_ip", "192.168.1.100") ?: "192.168.1.100") }
     var articController by remember { mutableStateOf(prefs.getBoolean("3ds_artic_controller", false)) }
     var logFilter by remember { mutableStateOf(prefs.getString("3ds_log_filter", "*:Info") ?: "*:Info") }
     var logRegex by remember { mutableStateOf(prefs.getString("3ds_log_regex", "") ?: "") }
 
-    val modes3d = listOf(
-        "Off", "Side-by-Side", "SBS Full", "Anaglyph (Dubois)",
-        "Interlaced", "Reverse Interlaced", "Cardboard VR", "Gyro Parallax"
-    )
+    val modes3d = stringArrayResource(R.array.video_vulkan_3d_depth_mode_options)
 
     fun launchKeyPicker() {
-        val activity = context as? ComponentActivity
+        val activity = context.findComponentActivity()
         if (activity == null) {
-            Toast.makeText(context, "Place boot9.bin / aes_keys.txt / seeddb.bin into STORM 3DS/sysdata/", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.setup_3ds_place_keys_toast), Toast.LENGTH_LONG).show()
             return
         }
         val key = "storm3ds_key_import_${System.currentTimeMillis()}"
@@ -106,9 +124,9 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                         dest.outputStream().use { output -> input.copyTo(output) }
                     }
                     keyMask = NativeLibrary.getAesKeyStatusMask()
-                    Toast.makeText(context, "Imported $targetName into STORM 3DS/sysdata/", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.setup_3ds_imported_toast, targetName), Toast.LENGTH_SHORT).show()
                 }.onFailure { ex ->
-                    Toast.makeText(context, "Key import failed: ${ex.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.setup_3ds_import_failed_toast, ex.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -116,8 +134,8 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     }
 
     SettingsDialogScaffold(
-        title = "STORM 3DS System & Hardware Setup",
-        subtitle = "Keys, MMJ Speedhacks, SPIR-V, 3D Stereoscopy, Artic Base, Pretendo & Logs",
+        title = stringResource(R.string.setup_3ds_dialog_title),
+        subtitle = stringResource(R.string.setup_3ds_dialog_subtitle),
         icon = Icons.Filled.Tune,
         onDismiss = onDismiss,
     ) {
@@ -129,43 +147,43 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Decryption Keys (STORM 3DS/sysdata)", fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            Text(stringResource(R.string.setup_3ds_keys_header), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 KeyBadge("boot9.bin", (keyMask and 1) != 0, Modifier.weight(1f))
                 KeyBadge("aes_keys", (keyMask and 4) != 0 || (keyMask and 2) != 0, Modifier.weight(1f))
                 KeyBadge("seeddb", (keyMask and 8) != 0, Modifier.weight(1f))
             }
             OutlinedButton(onClick = { launchKeyPicker() }, modifier = Modifier.fillMaxWidth()) {
-                Text("Import Key File (boot9.bin / aes_keys.txt / seeddb.bin)")
+                Text(stringResource(R.string.setup_3ds_import_key_btn))
             }
 
             Divider(color = colors.line)
-            Text("Citra MMJ Speedhacks & Borked3DS SPIR-V", fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
-            SetupToggleRow("FMV Core Downcount Hack", fmvHack) { fmvHack = it }
-            SetupToggleRow("Skip Slow Draw", skipSlowDraw) { skipSlowDraw = it }
-            SetupToggleRow("Skip CPU Texture Copy", skipTexCopy) { skipTexCopy = it }
-            SetupToggleRow("Accurate Shader Multiplication", accurateMul) { accurateMul = it }
-            SetupToggleRow("Audio Time Stretching", audioStretch) { audioStretch = it }
-            SetupToggleRow("SPIR-V Optimizer (SPIRV-Tools)", spirvOpt) { spirvOpt = it }
+            Text(stringResource(R.string.setup_3ds_speedhacks_header), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            SetupToggleRow(stringResource(R.string.setup_3ds_fmv_hack), fmvHack) { fmvHack = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_skip_slow_draw), skipSlowDraw) { skipSlowDraw = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_skip_tex_copy), skipTexCopy) { skipTexCopy = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_accurate_mul), accurateMul) { accurateMul = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_audio_stretch), audioStretch) { audioStretch = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_spirv_opt), spirvOpt) { spirvOpt = it }
 
             Divider(color = colors.line)
-            Text("3D Stereoscopic Engine (${modes3d.getOrElse(render3dMode) { "Off" }} - $depth3d%)", fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            Text(stringResource(R.string.setup_3ds_3d_header_fmt, modes3d.getOrElse(render3dMode) { stringResource(R.string.video_vulkan_3d_depth_mode_off) }, depth3d), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
             Slider(value = depth3d.toFloat(), onValueChange = { depth3d = it.toInt() }, valueRange = 0f..100f)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(onClick = { render3dMode = (render3dMode + 1) % modes3d.size }, modifier = Modifier.weight(1f)) {
-                    Text("Mode: ${modes3d[render3dMode]}", maxLines = 1, fontSize = 11.sp)
+                    Text(stringResource(R.string.setup_3ds_3d_mode_btn_fmt, modes3d[render3dMode]), maxLines = 1, fontSize = 11.sp)
                 }
             }
-            SetupToggleRow("Disable Right Eye Render (+Performance)", disableRightEye) { disableRightEye = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_disable_right_eye), disableRightEye) { disableRightEye = it }
 
             Divider(color = colors.line)
-            Text("Network: Pretendo / Nimbus & Artic Base", fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
-            SetupToggleRow("Use Pretendo / Nimbus Network Endpoint", pretendoEnabled) { pretendoEnabled = it }
-            SetupToggleRow("Use Artic Base as External Controller", articController) { articController = it }
+            Text(stringResource(R.string.setup_3ds_network_header), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            SetupToggleRow(stringResource(R.string.setup_3ds_pretendo_toggle), pretendoEnabled) { pretendoEnabled = it }
+            SetupToggleRow(stringResource(R.string.setup_3ds_artic_controller), articController) { articController = it }
             OutlinedTextField(
                 value = articIp,
                 onValueChange = { articIp = it },
-                label = { Text("Artic Base Server IP") },
+                label = { Text(stringResource(R.string.setup_3ds_artic_ip_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -177,28 +195,28 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                         val outFile = File(userDir, "ArticBase.artic")
                         runCatching {
                             outFile.writeText("articbase://$trimmed")
-                            Toast.makeText(context, "Created ${outFile.absolutePath} (add to ROMs or open directly)", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, context.getString(R.string.setup_3ds_artic_created_toast, outFile.absolutePath), Toast.LENGTH_LONG).show()
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Generate ArticBase.artic Stream File")
+                Text(stringResource(R.string.setup_3ds_generate_artic_btn))
             }
 
             Divider(color = colors.line)
-            Text("Regex Diagnostic Log Filter", fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            Text(stringResource(R.string.setup_3ds_logs_header), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
             OutlinedTextField(
                 value = logFilter,
                 onValueChange = { logFilter = it },
-                label = { Text("Log Filter (*:Info, *:Debug)") },
+                label = { Text(stringResource(R.string.setup_3ds_log_filter_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = logRegex,
                 onValueChange = { logRegex = it },
-                label = { Text("Regex Pattern") },
+                label = { Text(stringResource(R.string.setup_3ds_log_regex_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -216,6 +234,17 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                         .putBoolean("3ds_disable_right_eye", disableRightEye)
                         .putInt("3ds_render_mode", render3dMode)
                         .putInt("3ds_depth_factor", depth3d)
+                        .putString("video_vulkan_3d_depth_mode", when (render3dMode) {
+                            1 -> "sbs_xr"
+                            2 -> "sbs_full"
+                            3 -> "anaglyph"
+                            4 -> "interlaced"
+                            5 -> "reverse_interlaced"
+                            6 -> "cardboard_vr"
+                            7 -> "gyro_parallax"
+                            else -> "off"
+                        })
+                        .putString("video_vulkan_3d_depth_strength", depth3d.toString())
                         .putBoolean("3ds_pretendo_enabled", pretendoEnabled)
                         .putString("3ds_artic_ip", articIp.trim())
                         .putBoolean("3ds_artic_controller", articController)
@@ -238,11 +267,11 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                             NativeLibrary.reloadSettings()
                         }
                     }
-                    Toast.makeText(context, "STORM 3DS settings applied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.setup_3ds_saved_toast), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 },
             ) {
-                Text("Save & Apply 3DS Core Configuration")
+                Text(stringResource(R.string.setup_3ds_save_apply_btn))
             }
         }
     }

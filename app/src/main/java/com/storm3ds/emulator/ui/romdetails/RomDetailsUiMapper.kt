@@ -36,6 +36,10 @@ class RomDetailsUiMapper(
         globalVulkanDriverDisplayName: String = "System GPU",
         availableVulkanDrivers: List<Pair<String?, String>> = emptyList(),
         isCustomVulkanDriverSupported: Boolean = true,
+        globalIsNew3ds: Boolean = true,
+        globalCpuClockPercentage: Int = 100,
+        globalRender3dMode: Int = 0,
+        globalRender3dFactor: Int = 50,
     ): RomConfigUiModel {
         return RomConfigUiModel(
             runtimeConsoleType = romConfig.runtimeConsoleType,
@@ -76,6 +80,14 @@ class RomDetailsUiMapper(
             globalVulkanDriverDisplayName = globalVulkanDriverDisplayName,
             availableVulkanDrivers = availableVulkanDrivers,
             isCustomVulkanDriverSupported = isCustomVulkanDriverSupported,
+            isNew3ds = romConfig.isNew3ds,
+            globalIsNew3ds = globalIsNew3ds,
+            cpuClockPercentage = romConfig.cpuClockPercentage,
+            globalCpuClockPercentage = globalCpuClockPercentage,
+            render3dMode = romConfig.render3dMode,
+            globalRender3dMode = globalRender3dMode,
+            render3dFactor = romConfig.render3dFactor,
+            globalRender3dFactor = globalRender3dFactor,
         )
     }
 

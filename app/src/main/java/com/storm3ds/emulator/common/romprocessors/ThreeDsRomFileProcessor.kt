@@ -18,10 +18,7 @@ class ThreeDsRomFileProcessor(
 ) : RomFileProcessor {
 
     private fun resolvePath(uri: Uri): String {
-        if (uri.scheme == "file") return uri.path ?: uri.toString()
-        val native = runCatching { NativeLibrary.getNativePath(uri) }.getOrNull()
-        if (!native.isNullOrBlank()) return native
-        return uri.toString()
+        return NativeLibrary.resolveNativeOrContentPath(uri)
     }
 
     override fun getRomFromUri(romUri: Uri, parentUri: Uri?): Rom? {
@@ -32,7 +29,8 @@ class ThreeDsRomFileProcessor(
                 ?: romUri.lastPathSegment?.substringAfterLast('/')
                 ?: "game.3ds"
             val fallbackTitle = fallbackFileName.substringBeforeLast('.').ifBlank { "Nintendo 3DS Game" }
-            val info = runCatching { GameInfo(path) }.getOrNull()
+            val isArtic = fallbackFileName.endsWith(".artic", ignoreCase = true)
+            val info = if (isArtic) null else runCatching { GameInfo(path) }.getOrNull()
             val valid = info?.let { runCatching { it.isValid() }.getOrDefault(false) } ?: false
             val title = if (valid) info!!.getTitle().ifBlank { fallbackTitle } else fallbackTitle
             val company = if (valid) runCatching { info!!.getCompany() }.getOrDefault("") else ""
@@ -48,9 +46,9 @@ class ThreeDsRomFileProcessor(
                 lastPlayed = null,
                 isDsiWareTitle = false,
                 isDsiEnhanced = false,
-                retroAchievementsHash = gameCode,
+                retroAchievementsHash = "",
                 gameCode = gameCode,
-                installedDsiWareTitleId = titleId.takeIf { it != 0L },
+                installedDsiWareTitleId = null,
             )
         }.getOrNull()
     }
@@ -100,7 +98,7 @@ class ThreeDsRomFileProcessor(
                 developerName = info.getCompany(),
                 isDSiWareTitle = false,
                 isDSiEnhanced = false,
-                retroAchievementsHash = String.format("%016X", tid),
+                retroAchievementsHash = "",
                 gameCode = String.format("%016X", tid),
                 titleId = tid,
             )

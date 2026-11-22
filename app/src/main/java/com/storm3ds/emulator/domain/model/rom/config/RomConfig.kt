@@ -28,6 +28,10 @@ data class RomConfig(
     val arm9Overclock: Int? = null,
     val fastForwardSpeedMultiplier: Float? = null,
     val customVulkanDriverName: String? = null,
+    val isNew3ds: Boolean? = null,
+    val cpuClockPercentage: Int? = null,
+    val render3dMode: Int? = null,
+    val render3dFactor: Int? = null,
 ) {
 
     fun getEffectiveControllerConfiguration(globalConfiguration: ControllerConfiguration): ControllerConfiguration {

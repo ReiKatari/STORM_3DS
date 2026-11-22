@@ -1,5 +1,6 @@
 package com.storm3ds.emulator.ui.emulator.ui
 
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.animate
 import com.storm3ds.emulator.ui.theme.Manrope
 import androidx.compose.foundation.background
@@ -520,7 +521,7 @@ private fun AchievementsHeader(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            text = "СОФТКОР",
+                            text = stringResource(R.string.ui_ra_softcore_caps),
                             fontFamily = com.storm3ds.emulator.ui.theme.SpaceGrotesk,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
@@ -536,7 +537,7 @@ private fun AchievementsHeader(
                         )
                     }
                     Spacer(Modifier.height(3.dp))
-                    val softcorePointsStr = com.storm3ds.emulator.utils.RussianPlurals.format(summary.totalPoints, "очко", "очка", "очков")
+                    val softcorePointsStr = LocalContext.current.resources.getQuantityString(R.plurals.ui_points_count, summary.totalPoints, summary.totalPoints)
                     Text(
                         text = "$softcorePointsStr (${summary.completedPercentage}%)",
                         fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
@@ -570,7 +571,7 @@ private fun AchievementsHeader(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            text = "ХАРДКОР (x2)",
+                            text = stringResource(R.string.ui_ra_hardcore_x2_caps),
                             fontFamily = com.storm3ds.emulator.ui.theme.SpaceGrotesk,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
@@ -587,9 +588,9 @@ private fun AchievementsHeader(
                     }
                     Spacer(Modifier.height(3.dp))
                     val hardcorePoints = if (summary.forHardcoreMode) summary.totalPoints else summary.totalPoints * 2
-                    val hardcorePointsStr = com.storm3ds.emulator.utils.RussianPlurals.format(hardcorePoints, "очко", "очка", "очков")
+                    val hardcorePointsStr = LocalContext.current.resources.getQuantityString(R.plurals.ui_points_count, hardcorePoints, hardcorePoints)
                     Text(
-                        text = "$hardcorePointsStr ${if (summary.forHardcoreMode) "(${summary.completedPercentage}%)" else "(Заблокировано)"}",
+                        text = "$hardcorePointsStr ${if (summary.forHardcoreMode) "(${summary.completedPercentage}%)" else stringResource(R.string.ui_ra_locked_parens)}",
                         fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
                         fontSize = 9.sp,
                         color = if (summary.forHardcoreMode) androidx.compose.ui.graphics.Color(0xFFFBBF24) else colors.text3

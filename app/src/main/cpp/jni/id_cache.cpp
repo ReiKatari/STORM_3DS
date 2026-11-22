@@ -159,8 +159,9 @@ jmethodID GetCiaInstallHelperSetProgress() {
 }
 jobject GetJavaCiaInstallStatus(Service::AM::InstallStatus status) {
     const auto it = s_java_cia_install_status.find(status);
-    ASSERT_MSG(it != s_java_cia_install_status.end(), "Invalid InstallStatus: {}", status);
-
+    if (it == s_java_cia_install_status.end()) {
+        return s_java_cia_install_status.at(Service::AM::InstallStatus::ErrorInvalid);
+    }
     return it->second;
 }
 } // namespace IDCache
@@ -269,6 +270,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
                                       to_java_cia_install_status("ErrorInvalid"));
     s_java_cia_install_status.emplace(Service::AM::InstallStatus::ErrorEncrypted,
                                       to_java_cia_install_status("ErrorEncrypted"));
+    s_java_cia_install_status.emplace(Service::AM::InstallStatus::ErrorCannotCheckBundle,
+                                      to_java_cia_install_status("ErrorCannotCheckBundle"));
     env->DeleteLocalRef(cia_install_status_class);
 
     MiiSelector::InitJNI(env);

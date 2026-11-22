@@ -54,7 +54,7 @@ fun Console3DBootScreen(
     contentAlpha: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
-    val isEnhancedMode = consoleType == ConsoleType.DSi
+    val isEnhancedMode = false
 
     val lidOpenAnim = remember { Animatable(0f) }
     LaunchedEffect(Unit) {

@@ -3,7 +3,9 @@ package com.storm3ds.emulator.nativebridge.applets
 import android.text.InputFilter
 import android.text.Spanned
 import android.widget.EditText
+import android.widget.Toast
 import androidx.annotation.Keep
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.nativebridge.NativeBridgeHost
@@ -40,21 +42,7 @@ object SoftwareKeyboard {
         val builder = MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.software_keyboard)
             .setView(editText)
-            .setPositiveButton(okLabel) { _, _ ->
-                val txt = editText.text?.toString().orEmpty()
-                val err = runCatching { ValidateInput(txt) }.getOrDefault(ValidationError.None)
-                if (err != ValidationError.None) {
-                    showError(err.name)
-                }
-                val confirmButtonIdx = when (config.buttonConfig) {
-                    ButtonConfig.SINGLE -> 0
-                    ButtonConfig.DUAL -> 1
-                    ButtonConfig.TRIPLE -> 2
-                    else -> 0
-                }
-                data = KeyboardData(confirmButtonIdx, txt)
-                synchronized(finishLock) { finishLock.notifyAll() }
-            }
+            .setPositiveButton(okLabel, null)
             .setOnCancelListener {
                 data = KeyboardData(0, "")
                 synchronized(finishLock) { finishLock.notifyAll() }
@@ -71,7 +59,25 @@ object SoftwareKeyboard {
                 synchronized(finishLock) { finishLock.notifyAll() }
             }
         }
-        builder.show()
+        val dialog = builder.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setOnClickListener {
+            val txt = editText.text?.toString().orEmpty()
+            val err = runCatching { ValidateInput(txt) }.getOrDefault(ValidationError.None)
+            if (err != ValidationError.None) {
+                editText.error = err.name
+                showError(err.name)
+                return@setOnClickListener
+            }
+            val confirmButtonIdx = when (config.buttonConfig) {
+                ButtonConfig.SINGLE -> 0
+                ButtonConfig.DUAL -> 1
+                ButtonConfig.TRIPLE -> 2
+                else -> 0
+            }
+            data = KeyboardData(confirmButtonIdx, txt)
+            dialog.dismiss()
+            synchronized(finishLock) { finishLock.notifyAll() }
+        }
     }
 
     @Keep
@@ -92,11 +98,14 @@ object SoftwareKeyboard {
     @Keep
     @JvmStatic
     fun showError(error: String) {
-        NativeLibrary.displayAlertMsg(
-            NativeBridgeHost.appContext.getString(R.string.software_keyboard),
-            error,
-            false
-        )
+        val activity = NativeLibrary.sEmulationActivity.get()
+        if (activity != null) {
+            activity.runOnUiThread {
+                Toast.makeText(activity, error, Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Log.error("SoftwareKeyboard error: $error")
+        }
     }
 
     @Suppress("FunctionName")

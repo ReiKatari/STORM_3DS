@@ -30,5 +30,9 @@ sealed class RomConfigUpdateEvent {
     data class Arm9OverclockUpdate(val arm9Overclock: Int?) : RomConfigUpdateEvent()
     data class FastForwardSpeedMultiplierUpdate(val speedMultiplier: Float?) : RomConfigUpdateEvent()
     data class CustomVulkanDriverUpdate(val customVulkanDriverName: String?) : RomConfigUpdateEvent()
+    data class IsNew3dsUpdate(val isNew3ds: Boolean?) : RomConfigUpdateEvent()
+    data class CpuClockPercentageUpdate(val cpuClockPercentage: Int?) : RomConfigUpdateEvent()
+    data class Render3dModeUpdate(val render3dMode: Int?) : RomConfigUpdateEvent()
+    data class Render3dFactorUpdate(val render3dFactor: Int?) : RomConfigUpdateEvent()
     data class ResetToDefaults(val preserveCustomName: Boolean = true) : RomConfigUpdateEvent()
 }

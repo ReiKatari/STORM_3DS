@@ -122,6 +122,7 @@ class FileSystemSaveStatesRepository(
         val saveStateFile = saveStateDirectoryDocument.findFile(saveStateName)
 
         saveStateFile?.delete()
+        deleteNativeCstForSlot(rom, saveState.slot)
         saveStateScreenshotProvider.deleteRomSaveStateScreenshot(rom, saveState)
         setSaveStateCustomName(rom, saveState.slot, null)
     }
@@ -185,6 +186,23 @@ class FileSystemSaveStatesRepository(
     private fun getSaveStateDirectoryDocument(rom: Rom): DocumentFile? {
         val saveStateDirectoryUri = settingsRepository.getSaveStateDirectory(rom) ?: return null
         return uriHandler.getUriTreeDocument(saveStateDirectoryUri)
+    }
+
+    private fun deleteNativeCstForSlot(rom: Rom, slotNumber: Int) {
+        val nativeSlot = when (slotNumber) {
+            SaveStateSlot.PERIODIC_AUTO_SAVE_SLOT -> 9
+            else -> slotNumber.coerceIn(0, 10)
+        }
+        runCatching {
+            val tidHex = rom.gameCode.trim().uppercase().takeIf { it.length == 16 && it.all { ch -> ch in '0'..'9' || ch in 'A'..'F' } }
+                ?: String.format(java.util.Locale.US, "%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
+            if (tidHex == "0000000000000000") return@runCatching
+            val statesDir = java.io.File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "states")
+            val cst = java.io.File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, nativeSlot))
+            if (cst.isFile) {
+                cst.delete()
+            }
+        }
     }
 
     private fun getRomFileNameWithoutExtension(rom: Rom): String? {

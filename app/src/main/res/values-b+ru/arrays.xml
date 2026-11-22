@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="video_console_skin_type_options">
-        <item>Nintendo 3DS Lite (Чёрный матовый)</item>
-        <item>Nintendo 3DS Lite (Полярный белый)</item>
-        <item>Nintendo 3DS Lite (Тёмно-красный)</item>
-        <item>Nintendo 3DS XL (Полуночный синий)</item>
-        <item>Nintendo 3DS (Голубой)</item>
-        <item>New Nintendo 3DS XL (Космический чёрный)</item>
-    </string-array>
 
     <string-array name="dsiware_boot_mode_entries">
         <item>@string/dsiware_boot_mode_autoload</item>
@@ -18,14 +10,6 @@
         <item>autoload</item>
         <item>direct</item>
         <item>system_menu</item>
-    </string-array>
-
-    <string-array name="resolution_hud_position_options">
-        <item>Скрыто</item>
-        <item>Верхний левый угол</item>
-        <item>Верхний правый угол</item>
-        <item>Нижний левый угол</item>
-        <item>Нижний правый угол</item>
     </string-array>
 
     <string-array name="translator_local_voice_model_options">

@@ -237,13 +237,13 @@ fun SaveStatesOverlay(
                         if (effectiveUndoSlot != null && onUndoOverwrite != null && (undoCount > 0 || undoSlotNumber != null)) {
                             val isRu = RussianPlurals.isRussian(context.resources)
                             val slotLabel = if (effectiveUndoSlot == 0) {
-                                if (isRu) "⚡ Быстрый" else "⚡ Quick"
+                                stringResource(R.string.ui_save_quick_short)
                             } else {
-                                if (isRu) "Слот $effectiveUndoSlot" else "Slot $effectiveUndoSlot"
+                                stringResource(R.string.ui_save_slot_num_fmt, effectiveUndoSlot)
                             }
                             val displayCount = if (undoCount > 0) undoCount else 1
                             val stepLabel = if (isRu) {
-                                RussianPlurals.format(displayCount, "шаг", "шага", "шагов")
+                                LocalContext.current.resources.getQuantityString(R.plurals.ui_undo_steps_count, displayCount, displayCount)
                             } else {
                                 "$displayCount ${if (displayCount == 1) "step" else "steps"}"
                             }
@@ -267,7 +267,7 @@ fun SaveStatesOverlay(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
-                                        text = if (isRu) "Откат: $slotLabel ($stepLabel)" else "Undo: $slotLabel ($stepLabel)",
+                                        text = stringResource(R.string.ui_save_undo_fmt, slotLabel, stepLabel),
                                         color = colors.green,
                                         fontFamily = SpaceGrotesk,
                                         fontSize = 11.sp,
@@ -476,7 +476,7 @@ private fun SaveStateSlotCard(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "СВОБОДНЫЙ СЛОТ",
+                        text = stringResource(R.string.ui_save_free_slot_caps),
                         color = colors.text3,
                         fontFamily = WatermelonMono,
                         fontSize = 8.5.sp,
@@ -501,9 +501,9 @@ private fun SaveStateSlotCard(
                 ) {
                     Text(
                         text = if (isQuick) {
-                            "⚡ БЫСТРОЕ"
+                            stringResource(R.string.ui_save_quick_caps)
                         } else {
-                            "СЛОТ ${slot.slot}"
+                            stringResource(R.string.ui_save_slot_caps_fmt, slot.slot)
                         },
                         color = Color.White,
                         fontFamily = WatermelonMono,
@@ -521,7 +521,7 @@ private fun SaveStateSlotCard(
                             .padding(horizontal = 6.dp, vertical = 3.dp),
                     ) {
                         Text(
-                            text = "↩️ РЕЗЕРВ",
+                            text = stringResource(R.string.ui_save_backup_caps),
                             color = colors.green,
                             fontFamily = WatermelonMono,
                             fontSize = 8.sp,
@@ -550,7 +550,7 @@ private fun SaveStateSlotCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
-                            contentDescription = "Переименовать",
+                            contentDescription = stringResource(R.string.ui_save_rename_cd),
                             tint = Color.White,
                             modifier = Modifier.size(13.dp),
                         )
@@ -567,7 +567,7 @@ private fun SaveStateSlotCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.ContentCopy,
-                            contentDescription = "Дублировать",
+                            contentDescription = stringResource(R.string.ui_save_duplicate_cd),
                             tint = Color.White,
                             modifier = Modifier.size(13.dp),
                         )
@@ -584,7 +584,7 @@ private fun SaveStateSlotCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
-                            contentDescription = "Удалить",
+                            contentDescription = stringResource(R.string.ui_save_delete_cd),
                             tint = colors.red,
                             modifier = Modifier.size(13.dp),
                         )
@@ -595,7 +595,7 @@ private fun SaveStateSlotCard(
 
         // Custom Name / Label
         if (slot.exists) {
-            val label = slot.customName?.takeIf { it.isNotBlank() } ?: "Без названия"
+            val label = slot.customName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ui_save_untitled)
             Text(
                 text = "🏷️ $label",
                 color = if (!slot.customName.isNullOrBlank()) colors.red else colors.text2,
@@ -653,7 +653,14 @@ private fun RenameSaveStateDialog(
     val colors = watermelon
     var text by remember { mutableStateOf(slot.customName ?: "") }
 
-    val presetTags = listOf("Перед боссом", "Чекпоинт", "Секрет", "Новая локация", "Перед развилкой", "Тест")
+    val presetTags = listOf(
+        stringResource(R.string.ui_save_tag_boss),
+        stringResource(R.string.ui_save_tag_checkpoint),
+        stringResource(R.string.ui_save_tag_secret),
+        stringResource(R.string.ui_save_tag_new_area),
+        stringResource(R.string.ui_save_tag_branch),
+        stringResource(R.string.ui_save_tag_test),
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -666,7 +673,7 @@ private fun RenameSaveStateDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Переименовать слот ${if (slot.slot == 0) "Быстрого сохранения" else slot.slot}",
+                    text = stringResource(R.string.ui_save_rename_title_fmt, if (slot.slot == 0) stringResource(R.string.ui_save_quick_genitive) else slot.slot.toString()),
                     fontFamily = SpaceGrotesk,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -677,8 +684,8 @@ private fun RenameSaveStateDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Название сохранения", color = colors.text3) },
-                    placeholder = { Text("Например: Перед боссом 3", color = colors.text3.copy(alpha = 0.6f)) },
+                    label = { Text(stringResource(R.string.ui_save_name_label), color = colors.text3) },
+                    placeholder = { Text(stringResource(R.string.ui_save_name_placeholder), color = colors.text3.copy(alpha = 0.6f)) },
                     singleLine = true,
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         textColor = colors.text,
@@ -693,7 +700,7 @@ private fun RenameSaveStateDialog(
 
                 // Quick preset chips
                 Text(
-                    text = "Быстрые шаблоны:",
+                    text = stringResource(R.string.ui_save_quick_templates),
                     color = colors.text3,
                     fontFamily = WatermelonMono,
                     fontSize = 10.sp,
@@ -751,7 +758,7 @@ private fun RenameSaveStateDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = { onConfirm(null) }) {
-                        Text("Очистить", color = colors.text3)
+                        Text(stringResource(R.string.ui_save_clear_btn), color = colors.text3)
                     }
                     Spacer(Modifier.width(8.dp))
                     TextButton(onClick = onDismiss) {
@@ -763,7 +770,7 @@ private fun RenameSaveStateDialog(
                         colors = ButtonDefaults.buttonColors(backgroundColor = colors.red),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Сохранить", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ui_save_confirm_btn), color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -791,7 +798,7 @@ private fun DuplicateSaveStateDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Дублировать сохранение",
+                    text = stringResource(R.string.ui_save_duplicate_title),
                     fontFamily = SpaceGrotesk,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -799,7 +806,7 @@ private fun DuplicateSaveStateDialog(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Из слота ${if (sourceSlot.slot == 0) "Быстрого" else sourceSlot.slot} в:",
+                    text = stringResource(R.string.ui_save_duplicate_from_fmt, if (sourceSlot.slot == 0) stringResource(R.string.ui_save_quick_short_genitive) else sourceSlot.slot.toString()),
                     fontFamily = WatermelonMono,
                     fontSize = 11.sp,
                     color = colors.text3,
@@ -826,7 +833,7 @@ private fun DuplicateSaveStateDialog(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = if (slot.slot == 0) "⚡ Быстрый слот" else "Слот ${slot.slot}",
+                                    text = if (slot.slot == 0) stringResource(R.string.ui_save_quick_slot_label) else stringResource(R.string.ui_save_slot_num_fmt, slot.slot),
                                     color = if (isSelf) colors.text3 else colors.text,
                                     fontFamily = SpaceGrotesk,
                                     fontSize = 13.sp,
@@ -835,7 +842,7 @@ private fun DuplicateSaveStateDialog(
                                 if (isSelf) {
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        text = "(Текущий)",
+                                        text = stringResource(R.string.ui_save_current_tag),
                                         color = colors.text3,
                                         fontFamily = WatermelonMono,
                                         fontSize = 10.sp
@@ -844,7 +851,7 @@ private fun DuplicateSaveStateDialog(
                             }
 
                             Text(
-                                text = if (slot.exists) "Перезаписать" else "Свободно",
+                                text = stringResource(if (slot.exists) R.string.ui_save_overwrite else R.string.ui_save_free),
                                 color = if (slot.exists) colors.green else colors.text2,
                                 fontFamily = WatermelonMono,
                                 fontSize = 10.sp,

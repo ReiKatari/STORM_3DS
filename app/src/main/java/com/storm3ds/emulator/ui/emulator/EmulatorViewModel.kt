@@ -2328,7 +2328,8 @@ class EmulatorViewModel @Inject constructor(
                     RomPauseMenuOption.REMOVE_AMIIBO -> Unit
                     RomPauseMenuOption.VIEW_ACHIEVEMENTS -> _uiEvent.tryEmit(EmulatorUiEvent.ShowAchievementList)
                     RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> syncPendingRaSubmissionsFromPauseMenu()
-                    RomPauseMenuOption.CALIBRATE_GYRO -> Unit
+                    RomPauseMenuOption.CALIBRATE_GYRO,
+                    RomPauseMenuOption.NETPLAY -> Unit
                     RomPauseMenuOption.PRESETS -> _uiEvent.tryEmit(EmulatorUiEvent.ShowDualScreenPresets)
                     RomPauseMenuOption.SCREEN_LAYOUT -> _uiEvent.tryEmit(EmulatorUiEvent.ShowScreenLayoutDialog)
                     RomPauseMenuOption.RENDERER_DEBUG -> _uiEvent.tryEmit(EmulatorUiEvent.ShowRendererDebugMenu)
@@ -2788,32 +2789,20 @@ class EmulatorViewModel @Inject constructor(
 
     private suspend fun isSavestateHeaderValid(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         runCatching {
+            val nativeReady = com.storm3ds.emulator.nativebridge.NativeLibrary
+                .getSavestateInfo()
+                ?.any { it.slot == 0 } == true
+            if (nativeReady) return@runCatching true
             context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
                 val expectedSize = descriptor.statSize
-                if (expectedSize in 0 until SAVESTATE_HEADER_SIZE) {
-                    return@use false
+                if (expectedSize >= 16L) {
+                    return@use true
                 }
-
-                val header = ByteArray(SAVESTATE_HEADER_SIZE)
+                val header = ByteArray(16)
                 val read = FileInputStream(descriptor.fileDescriptor).use { stream ->
                     stream.read(header)
                 }
-                if (read < SAVESTATE_HEADER_SIZE) {
-                    return@use false
-                }
-
-                val hasMagic = header[0] == 'M'.code.toByte() &&
-                    header[1] == 'E'.code.toByte() &&
-                    header[2] == 'L'.code.toByte() &&
-                    header[3] == 'N'.code.toByte()
-                val major = readLe16(header, 4)
-                val minor = readLe16(header, 6)
-                val stateLength = readLe32(header, 8)
-
-                hasMagic &&
-                    major == SAVESTATE_MAJOR &&
-                    minor <= SAVESTATE_MINOR &&
-                    (expectedSize < 0 || stateLength == expectedSize)
+                read >= 16
             } ?: false
         }.onFailure {
             Log.w(AUTO_STATE_TAG, "Failed to validate savestate header for $uri", it)
@@ -6803,7 +6792,8 @@ class EmulatorViewModel @Inject constructor(
 
     private fun filterRomPauseMenuOption(option: RomPauseMenuOption, rendererDebugToolsEnabled: Boolean): Boolean {
         return when (option) {
-            RomPauseMenuOption.ROM_SETTINGS -> _emulatorState.value is EmulatorState.RunningRom
+            RomPauseMenuOption.ROM_SETTINGS,
+            RomPauseMenuOption.NETPLAY -> _emulatorState.value is EmulatorState.RunningRom
             RomPauseMenuOption.SAVE_STATE -> emulatorSession.areSaveStatesAllowed()
             RomPauseMenuOption.REWIND -> settingsRepository.isRewindEnabled() && emulatorSession.areSaveStateLoadsAllowed()
             RomPauseMenuOption.LOAD_STATE -> true
@@ -6815,7 +6805,7 @@ class EmulatorViewModel @Inject constructor(
             RomPauseMenuOption.CHEATS -> true
             RomPauseMenuOption.VIEW_ACHIEVEMENTS -> false
             RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> false
-            RomPauseMenuOption.RENDERER_DEBUG -> rendererDebugToolsEnabled
+            RomPauseMenuOption.RENDERER_DEBUG -> false
             RomPauseMenuOption.RESET_COMPATIBILITY -> {
                 val rom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: currentRom
                 rom != null && GameCompatibilityManager.isSafeModeActive(

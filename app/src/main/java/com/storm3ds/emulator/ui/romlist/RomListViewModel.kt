@@ -76,8 +76,14 @@ class RomListViewModel @Inject constructor(
                 _boxArtByUri.update { current -> cached + current.filterValues { it.isNotEmpty() } }
             }
             boxArtRepository.coverUpdates.collect { (uri, url) ->
-                _boxArtByUri.update { current ->
-                    if (url != null) current + (uri to url) else current - uri
+                if (uri.isEmpty()) {
+                    _boxArtByUri.update { current -> current.filterValues { it.isNotEmpty() } }
+                    val toRetry = romsWithParents.value.map { it.rom }.take(60)
+                    toRetry.forEach { requestBoxArt(it) }
+                } else {
+                    _boxArtByUri.update { current ->
+                        if (url != null) current + (uri to url) else current - uri
+                    }
                 }
             }
         }
@@ -393,7 +399,13 @@ class RomListViewModel @Inject constructor(
     }
 
     fun cycleFilter(forward: Boolean) {
-        val order = RomFilter.values()
+        val order = arrayOf(
+            RomFilter.ALL,
+            RomFilter.FAVORITES,
+            RomFilter.RECENTLY_PLAYED,
+            RomFilter.UNPLAYED,
+            RomFilter.HAS_SAVES,
+        )
         val idx = order.indexOf(_filter.value).coerceAtLeast(0)
         val next = if (forward) (idx + 1) % order.size else (idx - 1 + order.size) % order.size
         _filter.value = order[next]

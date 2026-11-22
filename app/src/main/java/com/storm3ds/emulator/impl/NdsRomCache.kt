@@ -13,6 +13,7 @@ import com.storm3ds.emulator.domain.model.rom.Rom
 import com.storm3ds.emulator.domain.repositories.SettingsRepository
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.Date
 
 class NdsRomCache(private val context: Context, private val settingsRepository: SettingsRepository) {
@@ -52,15 +53,25 @@ class NdsRomCache(private val context: Context, private val settingsRepository: 
         return result
     }
 
+    private fun romCacheHash(uri: Uri): String {
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(Charsets.UTF_8))
+        return bytes.take(8).joinToString("") { "%02x".format(it) }
+    }
+
     fun getCachedRomFile(rom: Rom, forUse: Boolean = false): Uri? {
-        val romHash = rom.uri.hashCode().toString()
+        val romHash = romCacheHash(rom.uri)
+        val legacyHash = rom.uri.hashCode().toString()
         val romCacheDir = getRomCacheDir()
         if (romCacheDir == null || !romCacheDir.isDirectory) {
             return null
         }
 
-        val matching = romCacheDir.listFiles()?.firstOrNull { file ->
+        val files = romCacheDir.listFiles()
+        val matching = files?.firstOrNull { file ->
             file.isFile && (file.name == romHash || file.name.startsWith("$romHash."))
+        } ?: files?.firstOrNull { file ->
+            file.isFile && (file.name == legacyHash || file.name.startsWith("$legacyHash."))
         }
         return if (matching != null && matching.length() > 0L) {
             if (forUse) {
@@ -81,7 +92,7 @@ class NdsRomCache(private val context: Context, private val settingsRepository: 
             throw CouldNotCreateRomCacheDirectoryException()
         }
 
-        val romHash = rom.uri.hashCode().toString()
+        val romHash = romCacheHash(rom.uri)
         val cleanExt = extension?.lowercase()?.trim()?.removePrefix(".")?.takeIf { it.isNotEmpty() }
         val targetName = if (cleanExt != null) "$romHash.$cleanExt" else romHash
         val tempCachedFile = File(romCacheDir, "${TEMP_FILE_NAME}_${romHash}_${System.nanoTime()}")

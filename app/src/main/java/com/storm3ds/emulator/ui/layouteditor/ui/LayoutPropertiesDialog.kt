@@ -90,7 +90,7 @@ fun LayoutPropertiesDialog(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                text = "Параметры и ориентация макета",
+                                text = stringResource(R.string.ui_layout_props_title),
                                 color = colors.text3,
                                 fontFamily = WatermelonMono,
                                 fontSize = 11.sp,
@@ -225,14 +225,14 @@ fun LayoutPropertiesDialog(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Индивидуальная прозрачность",
+                                    text = stringResource(R.string.ui_layout_custom_opacity),
                                     color = colors.text,
                                     fontFamily = SpaceGrotesk,
                                     fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Medium,
                                 )
                                 Text(
-                                    text = if (useCustomOpacity) "Настроить прозрачность кнопок для этого макета" else "Использовать общую прозрачность из настроек",
+                                    text = stringResource(if (useCustomOpacity) R.string.ui_layout_custom_opacity_on else R.string.ui_layout_custom_opacity_off),
                                     color = colors.text3,
                                     fontFamily = WatermelonMono,
                                     fontSize = 11.sp,

@@ -7,7 +7,12 @@
 #include <memory>
 #include <vector>
 
+#include <array>
+#include "common/file_derived.h"
+#include "common/file_util.h"
 #include "common/string_util.h"
+#include "common/tar_file.h"
+#include "core/file_sys/cia_container.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/fs/archive.h"
 #include "core/loader/loader.h"
@@ -44,7 +49,49 @@ GameInfoData* GetNewGameInfoData(const std::string& path) {
 
     if (!loader || result != Loader::ResultStatus::Success) {
         GameInfoData* gid = new GameInfoData();
-        memset(&gid->smdh, 0, sizeof(Loader::SMDH));
+        std::memset(&gid->smdh, 0, sizeof(Loader::SMDH));
+        if (FileUtil::Exists(path)) {
+            std::unique_ptr<FileUtil::IOFileBase> in_file =
+                std::make_unique<FileUtil::IOFile>(path, "rb");
+            if (in_file && in_file->IsOpen()) {
+                bool is_bundle = false;
+                if (auto tar = FileUtil::TarArchive::OpenTarArchive(in_file->OpenCopy())) {
+                    std::string picked;
+                    for (const auto& f : tar->GetFileList()) {
+                        if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+                            picked = f.name;
+                            if (f.name.find("00040000") != std::string::npos) {
+                                break;
+                            }
+                        }
+                    }
+                    if (!picked.empty()) {
+                        in_file = tar->OpenSubFile(picked);
+                        is_bundle = true;
+                    } else {
+                        in_file.reset();
+                    }
+                }
+                bool is_zcia = false;
+                if (in_file && in_file->IsGood() &&
+                    FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(in_file.get()).has_value()) {
+                    in_file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+                    is_zcia = true;
+                }
+                FileSys::CIAContainer container;
+                if (in_file && in_file->IsGood() &&
+                    container.Load(in_file.get()) == Loader::ResultStatus::Success) {
+                    const auto& tmd = container.GetTitleMetadata();
+                    gid->title_id = tmd.GetTitleID();
+                    gid->is_encrypted = tmd.HasEncryptedContent(container.GetHeader());
+                    gid->loaded = true;
+                    gid->file_type = is_bundle ? "BCIA" : (is_zcia ? "ZCIA" : "CIA");
+                    if (container.GetSMDH()) {
+                        std::memcpy(&gid->smdh, container.GetSMDH().get(), sizeof(Loader::SMDH));
+                    }
+                }
+            }
+        }
         return gid;
     }
 
@@ -73,6 +120,40 @@ GameInfoData* GetNewGameInfoData(const std::string& path) {
     gid->is_insertable = loader->GetFileType() == Loader::FileType::CCI;
 
     return gid;
+}
+
+std::string PickSmdhField(const Loader::SMDH* smdh, bool publisher) {
+    static constexpr std::array<Loader::SMDH::TitleLanguage, 12> kOrder = {
+        Loader::SMDH::TitleLanguage::English,
+        Loader::SMDH::TitleLanguage::Russian,
+        Loader::SMDH::TitleLanguage::Japanese,
+        Loader::SMDH::TitleLanguage::French,
+        Loader::SMDH::TitleLanguage::German,
+        Loader::SMDH::TitleLanguage::Spanish,
+        Loader::SMDH::TitleLanguage::Italian,
+        Loader::SMDH::TitleLanguage::Dutch,
+        Loader::SMDH::TitleLanguage::Portuguese,
+        Loader::SMDH::TitleLanguage::Korean,
+        Loader::SMDH::TitleLanguage::SimplifiedChinese,
+        Loader::SMDH::TitleLanguage::TraditionalChinese,
+    };
+    for (const auto lang : kOrder) {
+        const auto& entry = smdh->titles[static_cast<std::size_t>(lang)];
+        if (publisher) {
+            std::u16string raw{reinterpret_cast<const char16_t*>(entry.publisher.data()),
+                               entry.publisher.size()};
+            if (auto nul = raw.find(u'\0'); nul != std::u16string::npos) raw.resize(nul);
+            std::string utf8 = Common::UTF16ToUTF8(raw);
+            if (!utf8.empty()) return utf8;
+        } else {
+            std::u16string raw{reinterpret_cast<const char16_t*>(entry.long_title.data()),
+                               entry.long_title.size()};
+            if (auto nul = raw.find(u'\0'); nul != std::u16string::npos) raw.resize(nul);
+            std::string utf8 = Common::UTF16ToUTF8(raw);
+            if (!utf8.empty()) return utf8;
+        }
+    }
+    return "";
 }
 
 } // namespace
@@ -108,14 +189,7 @@ jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getTitle(JNIEnv* 
     if (!smdh->IsValid()) {
         return ToJString(env, "");
     }
-
-    Loader::SMDH::TitleLanguage language = Loader::SMDH::TitleLanguage::English;
-
-    // Get the title from SMDH in UTF-16 format
-    std::u16string title{reinterpret_cast<char16_t*>(
-        smdh->titles[static_cast<std::size_t>(language)].long_title.data())};
-
-    return ToJString(env, Common::UTF16ToUTF8(title).data());
+    return ToJString(env, PickSmdhField(smdh, false));
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getCompany(JNIEnv* env, jobject obj) {
@@ -123,15 +197,7 @@ jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getCompany(JNIEnv
     if (!smdh->IsValid()) {
         return ToJString(env, "");
     }
-
-    Loader::SMDH::TitleLanguage language = Loader::SMDH::TitleLanguage::English;
-
-    // Get the Publisher's name from SMDH in UTF-16 format
-    char16_t* publisher;
-    publisher = reinterpret_cast<char16_t*>(
-        smdh->titles[static_cast<std::size_t>(language)].publisher.data());
-
-    return ToJString(env, Common::UTF16ToUTF8(publisher).data());
+    return ToJString(env, PickSmdhField(smdh, true));
 }
 
 jlong Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getTitleID(JNIEnv* env, jobject obj) {
@@ -180,15 +246,26 @@ jintArray Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getIcon(JNIEnv*
         return nullptr;
     }
 
-    // Always get a 48x48(large) icon
+    // Always get a 48x48(large) icon and convert RGB565 -> ARGB_8888
     std::vector<u16> icon_data = smdh->GetIcon(true);
     if (icon_data.empty()) {
         return nullptr;
     }
 
-    jintArray icon = env->NewIntArray(static_cast<jsize>(icon_data.size() / 2));
-    env->SetIntArrayRegion(icon, 0, env->GetArrayLength(icon),
-                           reinterpret_cast<jint*>(icon_data.data()));
+    std::vector<jint> argb_pixels(icon_data.size());
+    for (std::size_t i = 0; i < icon_data.size(); ++i) {
+        const u16 px = icon_data[i];
+        const u32 r5 = (px >> 11) & 0x1F;
+        const u32 g6 = (px >> 5) & 0x3F;
+        const u32 b5 = px & 0x1F;
+        const u32 r = (r5 << 3) | (r5 >> 2);
+        const u32 g = (g6 << 2) | (g6 >> 4);
+        const u32 b = (b5 << 3) | (b5 >> 2);
+        argb_pixels[i] = static_cast<jint>(0xFF000000u | (r << 16) | (g << 8) | b);
+    }
+
+    jintArray icon = env->NewIntArray(static_cast<jsize>(argb_pixels.size()));
+    env->SetIntArrayRegion(icon, 0, env->GetArrayLength(icon), argb_pixels.data());
 
     return icon;
 }

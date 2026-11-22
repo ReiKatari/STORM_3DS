@@ -123,6 +123,7 @@ fun RomBrowserScreen(
     onBootFirmwareDs: () -> Unit,
     onBootFirmwareDsi: () -> Unit,
     onOpenSingleRom: () -> Unit = {},
+    onInstallCia: () -> Unit = {},
     onRandomRom: () -> Unit = {},
     onCheckUpdates: () -> Unit = {},
     onOpenSettings: () -> Unit,
@@ -335,6 +336,7 @@ fun RomBrowserScreen(
                     onBootFirmwareDs = onBootFirmwareDs,
                     onBootFirmwareDsi = onBootFirmwareDsi,
                     onOpenSingleRom = onOpenSingleRom,
+                    onInstallCia = onInstallCia,
                     onRandomRom = onRandomRom,
                     onRefresh = handleRefreshWithScrollReset,
                     onCheckUpdates = onCheckUpdates,
@@ -1159,12 +1161,12 @@ private fun EmptyState(filter: RomFilter, isScanning: Boolean = false) {
             )
         } else {
             val msg = when (filter) {
-                RomFilter.ALL -> stringResource(R.string.no_roms_found)
                 RomFilter.FAVORITES -> stringResource(R.string.rom_no_favorites)
-                RomFilter.DS_ONLY -> stringResource(R.string.rom_filter_ds_empty)
-                RomFilter.DSI_ENHANCED_ONLY -> stringResource(R.string.rom_filter_dsi_enhanced_empty)
-                RomFilter.DSIWARE_ONLY -> stringResource(R.string.rom_filter_dsiware_empty)
-                RomFilter.WITH_RETRO_ACHIEVEMENTS -> stringResource(R.string.rom_filter_retro_achievements_empty)
+                RomFilter.DS_ONLY,
+                RomFilter.DSI_ENHANCED_ONLY,
+                RomFilter.DSIWARE_ONLY,
+                RomFilter.WITH_RETRO_ACHIEVEMENTS,
+                RomFilter.ALL -> stringResource(R.string.no_roms_found)
                 RomFilter.RECENTLY_PLAYED,
                 RomFilter.UNPLAYED,
                 RomFilter.HAS_SAVES -> stringResource(R.string.no_roms_found)

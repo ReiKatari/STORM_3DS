@@ -504,7 +504,7 @@
         <item>Compute</item>
     </string-array>
         <string-array name="video_internal_resolution_options">
-        <item>1x native (400x240)</item>
+        <item>@string/video_res_1x_native</item>
         <item>2x (800x480)</item>
         <item>3x (1200x720)</item>
         <item>4x (1600x960)</item>

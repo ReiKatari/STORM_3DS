@@ -56,33 +56,47 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
     }
 
     override fun getNdsEntryStreamInFileStream(fileStream: InputStream): RomFileStream? {
-        if (fileStream !is FileInputStream) {
-            runCatching { fileStream.close() }
-            return null
-        }
-
         val maxMemoryLimitKb = calculateMaxMemoryLimitKb(
             deviceMemoryBytes = getDeviceMemoryBytes(),
             maxHeapBytes = Runtime.getRuntime().maxMemory()
         )
 
         var sevenZFile: SevenZFile? = null
+        var tempArchiveFile: File? = null
         var returned = false
         return try {
-            sevenZFile = SevenZFile.Builder()
-                .setMaxMemoryLimitKb(maxMemoryLimitKb)
-                .setSeekableByteChannel(fileStream.channel)
-                .get()
+            sevenZFile = if (fileStream is FileInputStream) {
+                SevenZFile.Builder()
+                    .setMaxMemoryLimitKb(maxMemoryLimitKb)
+                    .setSeekableByteChannel(fileStream.channel)
+                    .get()
+            } else {
+                val tmp = File.createTempFile("storm3ds_7z_", ".7z", context.cacheDir)
+                tempArchiveFile = tmp
+                tmp.outputStream().use { out -> fileStream.copyTo(out, 65536) }
+                runCatching { fileStream.close() }
+                SevenZFile.Builder()
+                    .setMaxMemoryLimitKb(maxMemoryLimitKb)
+                    .setFile(tmp)
+                    .get()
+            }
 
             val ndsEntry = getNdsEntryInFile(sevenZFile) ?: return null
-            val entryStream = SevenZEntryInputStream(sevenZFile.getInputStream(ndsEntry), sevenZFile, fileStream)
-            val romFileStream = RomFileStream(entryStream, SizeUnit.Bytes(ndsEntry.size))
+            val ext = ndsEntry.name.substringAfterLast('.', "3ds").lowercase()
+            val entryStream = SevenZEntryInputStream(
+                sevenZFile.getInputStream(ndsEntry),
+                sevenZFile,
+                fileStream,
+                tempArchiveFile,
+            )
+            val romFileStream = RomFileStream(entryStream, SizeUnit.Bytes(ndsEntry.size), ext)
             returned = true
             romFileStream
         } finally {
             if (!returned) {
                 runCatching { sevenZFile?.close() }
                 runCatching { fileStream.close() }
+                runCatching { tempArchiveFile?.delete() }
             }
         }
     }
@@ -109,6 +123,7 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
         stream: InputStream,
         private val sevenZFile: SevenZFile,
         private val fileStream: InputStream,
+        private val tempArchiveFile: File? = null,
     ) : FilterInputStream(stream) {
         override fun close() {
             try {
@@ -123,6 +138,8 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
                         fileStream.close()
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to close 7z file stream", e)
+                    } finally {
+                        runCatching { tempArchiveFile?.delete() }
                     }
                 }
             }

@@ -305,9 +305,9 @@
     </string-array>
 
     <string-array name="video_ai_upscale_scale_options">
-        <item>2x (512×384)</item>
-        <item>4x (1024×768 - HD)</item>
-        <item>8x (2048×1536 - Ultra HD)</item>
+        <item>@string/video_ai_scale_2x</item>
+        <item>@string/video_ai_scale_4x</item>
+        <item>@string/video_ai_scale_8x</item>
     </string-array>
 
     <string-array name="video_ai_upscale_scale_values">
@@ -317,21 +317,25 @@
     </string-array>
 
     <string-array name="video_console_skin_type_options">
-        <item>Nintendo 3DS Lite (Matte Black)</item>
-        <item>Nintendo 3DS Lite (Polar White)</item>
-        <item>Nintendo 3DS Lite (Crimson Red)</item>
-        <item>Nintendo 3DS XL (Midnight Blue)</item>
-        <item>Nintendo 3DS (Aqua Blue)</item>
-        <item>New Nintendo 3DS XL (Cosmo Black)</item>
+        <item>@string/video_skin_type_aurora</item>
+        <item>@string/video_skin_type_cosmo_black</item>
+        <item>@string/video_skin_type_aqua_blue</item>
+        <item>@string/video_skin_type_flare_red</item>
+        <item>@string/video_skin_type_galaxy</item>
+        <item>@string/video_skin_type_hyrule_gold</item>
+        <item>@string/video_skin_type_snes</item>
+        <item>@string/video_skin_type_obsidian_pro</item>
     </string-array>
 
     <string-array name="video_console_skin_type_values">
-        <item>ds_lite_black</item>
-        <item>ds_lite_white</item>
-        <item>crimson_red</item>
-        <item>dsi_xl_blue</item>
-        <item>n3ds_aqua</item>
-        <item>n3ds_black</item>
+        <item>aurora_auto_theme</item>
+        <item>classic_3ds_cosmo_black</item>
+        <item>classic_3ds_aqua_blue</item>
+        <item>classic_3ds_flare_red</item>
+        <item>new_3ds_xl_galaxy</item>
+        <item>new_3ds_xl_hyrule_gold</item>
+        <item>new_3ds_xl_snes</item>
+        <item>storm_3ds_obsidian_pro</item>
     </string-array>
 
     <string-array name="translator_tts_voice_engine_options">
@@ -347,11 +351,11 @@
     </string-array>
 
     <string-array name="resolution_hud_position_options">
-        <item>Hidden</item>
-        <item>Top-left corner</item>
-        <item>Top-right corner</item>
-        <item>Bottom-left corner</item>
-        <item>Bottom-right corner</item>
+        <item>@string/res_hud_pos_hidden</item>
+        <item>@string/res_hud_pos_top_left</item>
+        <item>@string/res_hud_pos_top_right</item>
+        <item>@string/res_hud_pos_bottom_left</item>
+        <item>@string/res_hud_pos_bottom_right</item>
     </string-array>
 
     <string-array name="resolution_hud_position_values">
@@ -419,7 +423,7 @@
     </string-array>
 
     <string-array name="app_language_options">
-        <item>🌐 System Default / По умолчанию</item>
+        <item>@string/app_language_system_default</item>
         <item>🇷🇺 Русский</item>
         <item>🇬🇧 English</item>
         <item>🇩🇪 Deutsch</item>
@@ -521,12 +525,12 @@
 
     <string-array name="video_vulkan_3d_depth_mode_options">
         <item>@string/video_vulkan_3d_depth_mode_off</item>
-        <item>Side-by-Side</item>
-        <item>Side-by-Side (Full)</item>
+        <item>@string/video_vulkan_3d_depth_mode_sbs</item>
+        <item>@string/video_vulkan_3d_depth_mode_sbs_full</item>
         <item>@string/video_vulkan_3d_depth_mode_anaglyph</item>
-        <item>Interlaced</item>
-        <item>Reverse Interlaced</item>
-        <item>Cardboard VR</item>
+        <item>@string/video_vulkan_3d_depth_mode_interlaced</item>
+        <item>@string/video_vulkan_3d_depth_mode_reverse_interlaced</item>
+        <item>@string/video_vulkan_3d_depth_mode_cardboard_vr</item>
         <item>@string/video_vulkan_3d_depth_mode_gyro</item>
     </string-array>
     <string-array name="video_vulkan_3d_depth_mode_values">
@@ -556,13 +560,13 @@
     </string-array>
 
     <string-array name="cpu_clock_percentage_options">
-        <item>25% (Battery Saver)</item>
-        <item>50%</item>
-        <item>75%</item>
-        <item>100% (Native 3DS)</item>
-        <item>125%</item>
-        <item>150%</item>
-        <item>200% (Overclock)</item>
+        <item>@string/cpu_clock_25</item>
+        <item>@string/cpu_clock_50</item>
+        <item>@string/cpu_clock_75</item>
+        <item>@string/cpu_clock_100</item>
+        <item>@string/cpu_clock_125</item>
+        <item>@string/cpu_clock_150</item>
+        <item>@string/cpu_clock_200</item>
     </string-array>
     <string-array name="cpu_clock_percentage_values">
         <item>25</item>
@@ -575,14 +579,14 @@
     </string-array>
 
     <string-array name="region_value_options">
-        <item>Auto-select</item>
-        <item>Japan (JPN)</item>
-        <item>USA</item>
-        <item>Europe (EUR)</item>
-        <item>Australia (AUS)</item>
-        <item>China (CHN)</item>
-        <item>Korea (KOR)</item>
-        <item>Taiwan (TWN)</item>
+        <item>@string/pref_3ds_region_auto</item>
+        <item>@string/pref_3ds_region_jpn</item>
+        <item>@string/pref_3ds_region_usa</item>
+        <item>@string/pref_3ds_region_eur</item>
+        <item>@string/pref_3ds_region_aus</item>
+        <item>@string/pref_3ds_region_chn</item>
+        <item>@string/pref_3ds_region_kor</item>
+        <item>@string/pref_3ds_region_twn</item>
     </string-array>
     <string-array name="region_value_values">
         <item>-1</item>
@@ -596,20 +600,22 @@
     </string-array>
 
     <string-array name="system_language_options">
-        <item>Japanese</item>
-        <item>English</item>
-        <item>French</item>
-        <item>German</item>
-        <item>Italian</item>
-        <item>Spanish</item>
-        <item>Simplified Chinese</item>
-        <item>Korean</item>
-        <item>Dutch</item>
-        <item>Portuguese</item>
-        <item>Russian</item>
-        <item>Traditional Chinese</item>
+        <item>@string/pref_3ds_lang_system_default</item>
+        <item>@string/pref_3ds_lang_jp</item>
+        <item>@string/pref_3ds_lang_en</item>
+        <item>@string/pref_3ds_lang_fr</item>
+        <item>@string/pref_3ds_lang_de</item>
+        <item>@string/pref_3ds_lang_it</item>
+        <item>@string/pref_3ds_lang_es</item>
+        <item>@string/pref_3ds_lang_zh_cn</item>
+        <item>@string/pref_3ds_lang_ko</item>
+        <item>@string/pref_3ds_lang_nl</item>
+        <item>@string/pref_3ds_lang_pt</item>
+        <item>@string/pref_3ds_lang_ru</item>
+        <item>@string/pref_3ds_lang_zh_tw</item>
     </string-array>
     <string-array name="system_language_values">
+        <item>-1</item>
         <item>0</item>
         <item>1</item>
         <item>2</item>
@@ -625,12 +631,12 @@
     </string-array>
 
     <string-array name="texture_filter_options">
-        <item>None</item>
-        <item>Anime4K Ultrafast</item>
-        <item>Bicubic</item>
-        <item>ScaleForce</item>
-        <item>xBRZ Freescale</item>
-        <item>MMPX</item>
+        <item>@string/pref_3ds_tex_filter_none</item>
+        <item>@string/pref_3ds_tex_filter_anime4k</item>
+        <item>@string/pref_3ds_tex_filter_bicubic</item>
+        <item>@string/pref_3ds_tex_filter_scaleforce</item>
+        <item>@string/pref_3ds_tex_filter_xbrz</item>
+        <item>@string/pref_3ds_tex_filter_mmpx</item>
     </string-array>
     <string-array name="texture_filter_values">
         <item>0</item>

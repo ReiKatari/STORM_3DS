@@ -32,19 +32,9 @@ class InputProcessor(
         private const val SLOT2_RAW_ANALOG_PRIORITY_MS = 150L
         private val slot2XAxisFallbackCodes = intArrayOf(
             MotionEvent.AXIS_X,
-            MotionEvent.AXIS_HAT_X,
-            MotionEvent.AXIS_Z,
-            MotionEvent.AXIS_RX,
-            MotionEvent.AXIS_LTRIGGER,
-            MotionEvent.AXIS_RTRIGGER,
         )
         private val slot2YAxisFallbackCodes = intArrayOf(
             MotionEvent.AXIS_Y,
-            MotionEvent.AXIS_HAT_Y,
-            MotionEvent.AXIS_RY,
-            MotionEvent.AXIS_RZ,
-            MotionEvent.AXIS_BRAKE,
-            MotionEvent.AXIS_GAS,
         )
         private val r2Axes = intArrayOf(
             MotionEvent.AXIS_RTRIGGER,
@@ -64,6 +54,8 @@ class InputProcessor(
             Input.Y,
             Input.L,
             Input.R,
+            Input.ZL,
+            Input.ZR,
         )
     }
 
@@ -296,7 +288,7 @@ class InputProcessor(
                 val threshold = if (isHatAxis) 0.5f else maxOf(analogDeadzone, 0.15f)
 
                 if (axisState.shouldToggleFor(newValue = clampedValue, threshold = threshold)) {
-                    resolveAxisInput(axis.axisCode, axis.direction)?.let { input ->
+                    resolveAxisInput(motionEvent, axis.axisCode, axis.direction)?.let { input ->
                         if (axisState.active) {
                             axisState.active = false
                             dispatchInputReleased(input, fromController = true)
@@ -334,12 +326,13 @@ class InputProcessor(
         }
     }
 
-    private fun resolveAxisInput(axisCode: Int, direction: InputConfig.Assignment.Axis.Direction): Input? {
+    private fun resolveAxisInput(motionEvent: MotionEvent, axisCode: Int, direction: InputConfig.Assignment.Axis.Direction): Input? {
         val direct = controllerConfiguration.axisToInput(axisCode, direction)
         if (direct != null) return direct
 
         if (direction == InputConfig.Assignment.Axis.Direction.POSITIVE) {
-            if (axisCode in r2Axes) {
+            val isStickAxis = (axisCode == MotionEvent.AXIS_Z || axisCode == MotionEvent.AXIS_RZ) && isBilateralAxis(motionEvent, axisCode)
+            if (!isStickAxis && axisCode in r2Axes) {
                 for (altAxis in r2Axes) {
                     val altInput = controllerConfiguration.axisToInput(altAxis, direction)
                     if (altInput != null) return altInput
@@ -347,7 +340,7 @@ class InputProcessor(
                 val keyInput = controllerConfiguration.keyToInput(KeyEvent.KEYCODE_BUTTON_R2)
                 if (keyInput != null) return keyInput
             }
-            if (axisCode in l2Axes) {
+            if (!isStickAxis && axisCode in l2Axes) {
                 for (altAxis in l2Axes) {
                     val altInput = controllerConfiguration.axisToInput(altAxis, direction)
                     if (altInput != null) return altInput
@@ -557,16 +550,18 @@ class InputProcessor(
         val analogX = if (mappedX.absoluteValue < deadzone) 0f else mappedX
         val analogY = if (mappedY.absoluteValue < deadzone) 0f else mappedY
         dispatchSlot2AnalogInput(analogX, analogY)
-        // Map physical controller right analog stick -> New 3DS C-Stick
+        // Map physical controller right analog stick -> New 3DS C-Stick (guarding AXIS_Z/RZ when unipolar triggers)
+        val cStickPrefX = if (isBilateralAxis(motionEvent, MotionEvent.AXIS_Z)) MotionEvent.AXIS_Z else MotionEvent.AXIS_RX
+        val cStickPrefY = if (isBilateralAxis(motionEvent, MotionEvent.AXIS_RZ)) MotionEvent.AXIS_RZ else MotionEvent.AXIS_RY
         val rawCStickX = resolveSlot2AxisValue(
             motionEvent = motionEvent,
-            preferredAxisCode = MotionEvent.AXIS_Z,
-            fallbackAxisCodes = intArrayOf(MotionEvent.AXIS_RX),
+            preferredAxisCode = cStickPrefX,
+            fallbackAxisCodes = if (cStickPrefX == MotionEvent.AXIS_Z) intArrayOf(MotionEvent.AXIS_RX) else intArrayOf(),
         ).coerceIn(-1f, 1f)
         val rawCStickY = resolveSlot2AxisValue(
             motionEvent = motionEvent,
-            preferredAxisCode = MotionEvent.AXIS_RZ,
-            fallbackAxisCodes = intArrayOf(MotionEvent.AXIS_RY),
+            preferredAxisCode = cStickPrefY,
+            fallbackAxisCodes = if (cStickPrefY == MotionEvent.AXIS_RZ) intArrayOf(MotionEvent.AXIS_RY) else intArrayOf(),
         ).coerceIn(-1f, 1f)
         val cX = if (rawCStickX.absoluteValue < deadzone) 0f else rawCStickX
         val cY = if (rawCStickY.absoluteValue < deadzone) 0f else rawCStickY
@@ -613,6 +608,17 @@ class InputProcessor(
             }
         }
         return bestAxisValue
+    }
+
+    private fun isBilateralAxis(motionEvent: MotionEvent, axisCode: Int): Boolean {
+        val device = motionEvent.device ?: return false
+        val range = device.getMotionRange(axisCode, motionEvent.source)
+            ?: device.getMotionRange(axisCode, InputDevice.SOURCE_CLASS_JOYSTICK)
+            ?: device.getMotionRange(axisCode, InputDevice.SOURCE_JOYSTICK)
+            ?: device.getMotionRange(axisCode, InputDevice.SOURCE_GAMEPAD)
+            ?: device.getMotionRange(axisCode)
+            ?: return false
+        return range.min < -0.5f
     }
 
     private fun deviceSupportsAxis(motionEvent: MotionEvent, axisCode: Int): Boolean {

@@ -48,4 +48,12 @@ data class RomConfigUiModel(
     val globalVulkanDriverDisplayName: String = "System GPU",
     val availableVulkanDrivers: List<Pair<String?, String>> = emptyList(),
     val isCustomVulkanDriverSupported: Boolean = true,
+    val isNew3ds: Boolean? = null,
+    val globalIsNew3ds: Boolean = true,
+    val cpuClockPercentage: Int? = null,
+    val globalCpuClockPercentage: Int = 100,
+    val render3dMode: Int? = null,
+    val globalRender3dMode: Int = 0,
+    val render3dFactor: Int? = null,
+    val globalRender3dFactor: Int = 50,
 )

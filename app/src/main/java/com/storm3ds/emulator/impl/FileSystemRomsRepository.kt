@@ -162,7 +162,7 @@ class FileSystemRomsRepository(
         val defaultNdsFolder = File(extRoot, "GAMES/HANDHELDS/Nintendo 3DS")
         if (defaultNdsFolder.exists() && defaultNdsFolder.isDirectory) {
             settingsRepository.addRomSearchDirectory(
-                "content://com.android.externalstorage.documents/tree/primary%3AGAMES%2FHANDHELDS%2FNintendo%20DS".toUri()
+                "content://com.android.externalstorage.documents/tree/primary%3AGAMES%2FHANDHELDS%2FNintendo%203DS".toUri()
             )
         }
     }
@@ -804,20 +804,8 @@ class FileSystemRomsRepository(
             }
 
             val fixedCachedRoms = validCachedRoms.map { rom ->
-                val gc0 = rom.gameCode.firstOrNull()
-                val isDsiFile = rom.fileName.endsWith(".dsi", ignoreCase = true) ||
-                    rom.uri.path?.endsWith(".dsi", ignoreCase = true) == true ||
-                    rom.isInstalledDsiWareShortcut ||
-                    rom.installedDsiWareTitleId != null ||
-                    gc0 == 'K' || gc0 == 'H' ||
-                    (!rom.isDsiEnhanced && gc0 == '4')
-                if (isDsiFile && (!rom.isDsiWareTitle || rom.config.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT)) {
-                    val updatedConfig = if (rom.config.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
-                        rom.config.copy(runtimeConsoleType = com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DSi)
-                    } else {
-                        rom.config
-                    }
-                    rom.copy(isDsiWareTitle = true, isDsiEnhanced = false, config = updatedConfig)
+                if (rom.isDsiWareTitle || rom.isDsiEnhanced || rom.installedDsiWareTitleId != null) {
+                    rom.copy(isDsiWareTitle = false, isDsiEnhanced = false, installedDsiWareTitleId = null)
                 } else {
                     rom
                 }

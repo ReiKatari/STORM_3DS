@@ -21,7 +21,7 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.pref_about, rootKey)
 
-        val vName = (runCatching { requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName }.getOrNull() ?: "1.1.0")
+        val vName = (runCatching { requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName }.getOrNull() ?: com.storm3ds.emulator.BuildConfig.VERSION_NAME)
             .removePrefix("v")
             .removePrefix("V")
         findPreference<Preference>("about_version")?.summary = vName
@@ -74,7 +74,7 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             if (clipboard != null) {
-                val clip = ClipData.newPlainText("STORM 3DS Diagnostics", diagnosticsText)
+                val clip = ClipData.newPlainText(getString(R.string.about_diagnostics_title), diagnosticsText)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(
                     requireContext(),
@@ -148,7 +148,7 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         runCatching {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         }.onFailure {
-            Toast.makeText(ctx, "No browser app installed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, getString(R.string.about_no_browser_toast), Toast.LENGTH_SHORT).show()
         }
     }
 

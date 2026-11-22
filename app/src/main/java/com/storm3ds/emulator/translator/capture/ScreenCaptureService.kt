@@ -381,8 +381,8 @@ class ScreenCaptureService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("STORM 3DS Screen Translator")
-            .setContentText("Screen translation active")
+            .setContentTitle(getString(R.string.translator_notif_title))
+            .setContentText(getString(R.string.translator_notif_text))
             .setSmallIcon(R.drawable.ic_translate)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

@@ -348,25 +348,16 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         listOf(
             "audio_mute_on_fast_forward",
-            "audio_interpolation",
-            "audio_bitrate",
+            "3ds_audio_stretch",
             "volume",
             "audio_latency",
-            "audio_dsp_preset",
-            "audio_dsp_test",
-            "audio_soft_limiter_enabled",
-            "audio_bass_boost_enabled",
-            "audio_spatial_audio_enabled",
-            "audio_reverb_enabled",
         ).forEach { key ->
             findPreference<Preference>(key)?.isVisible = soundOn
         }
 
-        findPreference<Preference>("audio_bass_boost_strength")?.let { pref ->
-            val showStrength = soundOn && bassOn
-            pref.isVisible = showStrength
-            pref.isEnabled = showStrength
-        }
+        findPreference<Preference>("pref_cat_dsp_effects")?.isVisible = false
+        findPreference<Preference>("audio_interpolation")?.isVisible = false
+        findPreference<Preference>("audio_bitrate")?.isVisible = false
 
         val isDeviceMic = micVal.equals("device", ignoreCase = true)
         agcNoiseGatePreference?.let { pref ->

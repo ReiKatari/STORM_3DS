@@ -33,7 +33,7 @@
     <string name="v793_ra_login_required">Включено • Требуется вход</string>
     <string name="v793_ra_not_connected">Не подключено</string>
     <string name="v793_summary_cheat_engine">Чит-движок</string>
-    <string name="v793_summary_cheat_db">Jusrcheat: 4 079 игр</string>
+    <string name="v793_summary_cheat_db">База Gateway 3DS и встроенных читов</string>
     <string name="v793_summary_tts">Озвучка</string>
     <string name="v793_status_enabled">Включен</string>
     <string name="v793_general_pause_summary_fmt">Скрыто пунктов: %1$d • Порядок: %2$s</string>

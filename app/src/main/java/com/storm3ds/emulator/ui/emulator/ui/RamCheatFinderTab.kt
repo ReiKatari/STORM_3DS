@@ -95,21 +95,28 @@ private fun formatRamValue(value: Long, bitness: RamBitness, isHex: Boolean): St
 }
 
 private fun formatActionReplayCode(vaddr: Long, bitness: RamBitness, value: Long): String {
+    val offsetBase = vaddr and 0xF0000000L
     val cleanAddr = vaddr and 0x0FFFFFFFL
-    val addressHex = String.format("%07X", cleanAddr)
-    return when (bitness) {
+    val addressHex = String.format(java.util.Locale.US, "%07X", cleanAddr)
+    val writeLine = when (bitness) {
         RamBitness.WORD -> {
-            val valHex = String.format("%08X", value and 0xFFFFFFFFL)
+            val valHex = String.format(java.util.Locale.US, "%08X", value and 0xFFFFFFFFL)
             "0$addressHex $valHex"
         }
         RamBitness.SHORT -> {
-            val valHex = String.format("%04X", value and 0xFFFFL)
+            val valHex = String.format(java.util.Locale.US, "%04X", value and 0xFFFFL)
             "1$addressHex 0000$valHex"
         }
         RamBitness.BYTE -> {
-            val valHex = String.format("%02X", value and 0xFFL)
+            val valHex = String.format(java.util.Locale.US, "%02X", value and 0xFFL)
             "2$addressHex 000000$valHex"
         }
+    }
+    return if (offsetBase != 0L) {
+        val baseHex = String.format(java.util.Locale.US, "%08X", offsetBase)
+        "D3000000 $baseHex\n$writeLine"
+    } else {
+        writeLine
     }
 }
 

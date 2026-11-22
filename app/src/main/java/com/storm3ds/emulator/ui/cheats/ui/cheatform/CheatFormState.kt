@@ -37,7 +37,7 @@ class CheatFormState(
         return CheatSubmissionForm(
             name = cheatName.text.trim(),
             description = cheatDescription.text.trim(),
-            code = cheatCode.text.trim().replace('\n', ' '),
+            code = cheatCode.text.replace("\r\n", "\n").trim(),
         )
     }
 

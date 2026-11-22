@@ -31,11 +31,20 @@
                 app:min="0"
                 android:max="512" />
 
+        <SwitchPreference
+                android:key="3ds_audio_stretch"
+                android:title="@string/pref_3ds_audio_stretch_title"
+                android:summary="@string/pref_3ds_audio_stretch_summary"
+                android:dependency="sound_enabled"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
         <ListPreference
                 android:key="audio_interpolation"
                 android:title="@string/interpolation"
                 android:dependency="sound_enabled"
                 android:summary="%s"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
                 android:entries="@array/audio_interpolation_options"
                 android:entryValues="@array/audio_interpolation_values"
@@ -46,6 +55,7 @@
                 android:title="@string/bitrate"
                 android:dependency="sound_enabled"
                 android:summary="%s"
+                app:isPreferenceVisible="false"
                 app:iconSpaceReserved="false"
                 android:entries="@array/audio_bitrate_options"
                 android:entryValues="@array/audio_bitrate_values"
@@ -66,6 +76,7 @@
     <PreferenceCategory
             android:key="pref_cat_dsp_effects"
             android:title="@string/pref_cat_dsp_effects"
+            app:isPreferenceVisible="false"
             app:iconSpaceReserved="false">
 
         <Preference

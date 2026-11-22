@@ -191,7 +191,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
             ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#E6DC2626")
             ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#E617255A")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#B31E293B")
-            else -> Color.parseColor("#E6232730")
+            else -> ButtonThemeManager.paletteFor(style).housingBg
         }
         val pressedBg = when (style) {
             ButtonColorStyle.CLASSIC_WHITE -> Color.parseColor("#E6E2E8F0")
@@ -219,7 +219,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
             ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#E6991B1B")
             ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#E60C1538")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#CC0F172A")
-            else -> Color.parseColor("#E61A3A4D")
+            else -> ButtonThemeManager.paletteFor(style).thumbDark
         }
         val normalStroke = when (style) {
             ButtonColorStyle.CLASSIC_WHITE -> Color.parseColor("#80CBD5E1")
@@ -248,7 +248,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
             ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#99FFFFFF")
             ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#80CBD5E1")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#80BAE6FD")
-            else -> Color.parseColor("#66FFFFFF")
+            else -> ButtonThemeManager.paletteFor(style).housingStroke
         }
         val glowColor = when (style) {
             ButtonColorStyle.CLASSIC_WHITE -> Color.parseColor("#6638BDF8")
@@ -277,7 +277,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
             ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#66EF4444")
             ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#66CBD5E1")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#667DD3FC")
-            else -> Color.parseColor("#6600E5FF")
+            else -> (ButtonThemeManager.paletteFor(style).accentGlow and 0x00FFFFFF) or 0x66000000
         }
         val activeStroke = when (style) {
             ButtonColorStyle.CLASSIC_WHITE -> Color.parseColor("#0284C7")
@@ -306,7 +306,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
             ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#FFFFFF")
             ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#E2E8F0")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#7DD3FC")
-            else -> Color.parseColor("#FF00E5FF")
+            else -> ButtonThemeManager.paletteFor(style).accentGlow
         }
 
         strokePaint.color = normalStroke
@@ -425,7 +425,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
                     ButtonColorStyle.ANIMAL_LEAF -> Color.parseColor("#064E3B")
                     ButtonColorStyle.MONSTER_HUNTER_FORGE -> Color.parseColor("#FB923C")
                     ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#BAE6FD")
-                    else -> Color.parseColor("#00E5FF")
+                    else -> ButtonThemeManager.paletteFor(style).accentGlow
                 }
                 iconPaint.color = activeTint
                 textPaint.color = activeTint
@@ -436,7 +436,7 @@ class ModernSingleButtonView @JvmOverloads constructor(
                 val normalTint = when (style) {
                     ButtonColorStyle.CLASSIC_WHITE, ButtonColorStyle.WII_CRYSTAL, ButtonColorStyle.SWITCH_OLED -> Color.parseColor("#0F172A")
                     ButtonColorStyle.ANIMAL_LEAF -> Color.parseColor("#064E3B")
-                    else -> Color.parseColor("#F0F4F8")
+                    else -> ButtonThemeManager.paletteFor(style).labelText
                 }
                 iconPaint.color = normalTint
                 textPaint.color = normalTint

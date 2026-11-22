@@ -120,6 +120,10 @@ class RomDetailsViewModel @Inject constructor(
                     globalVulkanDriverDisplayName = overrides.activeVulkanDriverLabel,
                     availableVulkanDrivers = overrides.availableVulkanDrivers,
                     isCustomVulkanDriverSupported = overrides.isCustomVulkanSupported,
+                    globalIsNew3ds = overrides.isNew3ds,
+                    globalCpuClockPercentage = overrides.cpuClockPercentage,
+                    globalRender3dMode = overrides.render3dMode,
+                    globalRender3dFactor = overrides.render3dFactor,
                 )
             }.collect {
                 uiStateFlow.value = RomConfigUiState.Ready(it)
@@ -186,6 +190,10 @@ class RomDetailsViewModel @Inject constructor(
             is RomConfigUpdateEvent.Arm9OverclockUpdate -> currentRomConfig.copy(arm9Overclock = event.arm9Overclock)
             is RomConfigUpdateEvent.FastForwardSpeedMultiplierUpdate -> currentRomConfig.copy(fastForwardSpeedMultiplier = event.speedMultiplier)
             is RomConfigUpdateEvent.CustomVulkanDriverUpdate -> currentRomConfig.copy(customVulkanDriverName = event.customVulkanDriverName)
+            is RomConfigUpdateEvent.IsNew3dsUpdate -> currentRomConfig.copy(isNew3ds = event.isNew3ds)
+            is RomConfigUpdateEvent.CpuClockPercentageUpdate -> currentRomConfig.copy(cpuClockPercentage = event.cpuClockPercentage)
+            is RomConfigUpdateEvent.Render3dModeUpdate -> currentRomConfig.copy(render3dMode = event.render3dMode)
+            is RomConfigUpdateEvent.Render3dFactorUpdate -> currentRomConfig.copy(render3dFactor = event.render3dFactor)
             is RomConfigUpdateEvent.ResetToDefaults -> {
                 val base = if (_rom.value.isDsiWareTitle) RomConfig.forDsiWareTitle() else RomConfig.default()
                 if (event.preserveCustomName) {
@@ -237,9 +245,18 @@ class RomDetailsViewModel @Inject constructor(
         val activeVulkanDriverLabel: String,
         val availableVulkanDrivers: List<Pair<String?, String>>,
         val isCustomVulkanSupported: Boolean,
+        val isNew3ds: Boolean,
+        val cpuClockPercentage: Int,
+        val render3dMode: Int,
+        val render3dFactor: Int,
     )
 
     private fun readGlobalRuntimeOverrides(): GlobalRuntimeOverrides {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+        val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
+        val cpuClockPercentage = (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull()?.coerceIn(25, 200) ?: 100
+        val render3dMode = settingsRepository.getVulkan3dDepthMode()
+        val render3dFactor = settingsRepository.getVulkan3dDepthStrength()
         val customVulkanSupported = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.isSupported(context)
         val systemLabel = context.getString(com.storm3ds.emulator.R.string.rom_config_vulkan_driver_system)
         val globalLabel = context.getString(com.storm3ds.emulator.R.string.rom_config_vulkan_driver_global)
@@ -262,6 +279,10 @@ class RomDetailsViewModel @Inject constructor(
             activeVulkanDriverLabel = activeDriverLabel,
             availableVulkanDrivers = driverOptions,
             isCustomVulkanSupported = customVulkanSupported,
+            isNew3ds = isNew3ds,
+            cpuClockPercentage = cpuClockPercentage,
+            render3dMode = render3dMode,
+            render3dFactor = render3dFactor,
         )
     }
 
@@ -276,6 +297,10 @@ class RomDetailsViewModel @Inject constructor(
             "video_vulkan_custom_driver_name",
             "video_vulkan_custom_driver_dir",
             "video_vulkan_custom_driver_display_name",
+            "3ds_is_new_3ds",
+            "3ds_cpu_clock_percentage",
+            "video_vulkan_3d_depth_mode",
+            "video_vulkan_3d_depth_strength",
         )
         trySend(readGlobalRuntimeOverrides())
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->

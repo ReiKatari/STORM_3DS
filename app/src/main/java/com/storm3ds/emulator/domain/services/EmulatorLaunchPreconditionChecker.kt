@@ -84,9 +84,14 @@ class EmulatorLaunchPreconditionChecker(
             settingsRepository.setCurrentVideoRenderer(fallbackRenderer)
         }
 
-        val configurationDirResult = configurationDirectoryVerifier.checkConsoleConfigurationDirectory(consoleType)
-        if (configurationDirResult.status != ConfigurationDirResult.Status.VALID) {
-            return FirmwareLaunchPreconditionCheckResult.BiosConfigurationIncorrect(configurationDirResult)
+        com.storm3ds.emulator.NativeCoreLoader.load()
+        val homePath = runCatching {
+            com.storm3ds.emulator.nativebridge.NativeLibrary.getHomeMenuPath(-1)
+        }.getOrDefault("")
+        if (homePath.isBlank()) {
+            return FirmwareLaunchPreconditionCheckResult.BiosConfigurationIncorrect(
+                ConfigurationDirResult(consoleType, ConfigurationDirResult.Status.INVALID, emptyArray(), emptyArray())
+            )
         }
 
         return FirmwareLaunchPreconditionCheckResult.Success(consoleType)

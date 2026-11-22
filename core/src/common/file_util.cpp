@@ -168,7 +168,7 @@ bool Exists(const std::string& filename) {
     int result = _wstat64(Common::UTF8ToUTF16W(copy).c_str(), &file_info);
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
     int result;
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !copy.starts_with("content://")) {
         struct stat file_info;
         result = stat(AndroidUtils::TranslateFilePath(copy).c_str(), &file_info);
     } else {
@@ -197,7 +197,7 @@ bool IsDirectory(const std::string& filename) {
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
     struct stat file_info;
     int result;
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !copy.starts_with("content://")) {
         result = stat(AndroidUtils::TranslateFilePath(copy).c_str(), &file_info);
     } else {
         return AndroidUtils::IsDirectory(filename);
@@ -260,7 +260,7 @@ bool Delete(const std::string& filepath) {
 
     return false;
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !filepath.starts_with("content://")) {
         if (unlink(AndroidUtils::TranslateFilePath(filepath).c_str()) == -1) {
             LOG_ERROR(Common_Filesystem, "unlink failed on {}: {}", filepath, GetLastErrorMsg());
             return false;
@@ -294,7 +294,7 @@ bool CreateDir(const std::string& path) {
     LOG_ERROR(Common_Filesystem, "CreateDirectory failed on {}: {}", path, error);
     return false;
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !path.starts_with("content://")) {
         if (mkdir(AndroidUtils::TranslateFilePath(path).c_str(), 0755) == 0)
             return true;
 
@@ -397,7 +397,7 @@ bool DeleteDir(const std::string& filename) {
     if (::RemoveDirectoryW(Common::UTF8ToUTF16W(filename).c_str()))
         return true;
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !filename.starts_with("content://")) {
         if (rmdir(AndroidUtils::TranslateFilePath(filename).c_str()) == 0)
             return true;
     } else {
@@ -421,7 +421,8 @@ bool Rename(const std::string& srcFullPath, const std::string& destFullPath) {
         return true;
     }
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !srcFullPath.starts_with("content://") &&
+        !destFullPath.starts_with("content://")) {
         if (rename(AndroidUtils::TranslateFilePath(srcFullPath).c_str(),
                    AndroidUtils::TranslateFilePath(destFullPath).c_str()) == 0) {
             return true;
@@ -496,7 +497,8 @@ bool Copy(const std::string& srcFilename, const std::string& destFilename) {
     };
 
 #if defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !srcFilename.starts_with("content://") &&
+        !destFilename.starts_with("content://")) {
         return copy_files(AndroidUtils::TranslateFilePath(srcFilename),
                           AndroidUtils::TranslateFilePath(destFilename));
     } else {
@@ -526,7 +528,7 @@ u64 GetSize(const std::string& filename) {
     struct _stat64 buf;
     if (_wstat64(Common::UTF8ToUTF16W(filename).c_str(), &buf) == 0)
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !filename.starts_with("content://")) {
         if (stat(AndroidUtils::TranslateFilePath(filename).c_str(), &buf) == 0) {
             return buf.st_size;
         }
@@ -608,7 +610,7 @@ std::optional<std::vector<std::string>> ListDirectoryEntries(const std::string& 
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
 
 std::optional<std::vector<std::string>> ListDirectoryEntries(const std::string& directory) {
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !directory.starts_with("content://")) {
         std::vector<std::string> entries;
 
         DIR* dirp = opendir(AndroidUtils::TranslateFilePath(directory).c_str());
@@ -1364,7 +1366,7 @@ bool IOFile::Open() {
     m_good = m_file != nullptr;
 
 #elif defined(ANDROID) && !defined(HAVE_LIBRETRO_VFS)
-    if (AndroidUtils::CanUseRawFS()) {
+    if (AndroidUtils::CanUseRawFS() && !filename.starts_with("content://")) {
         m_file = FOPEN(AndroidUtils::TranslateFilePath(filename).c_str(), openmode.c_str());
     } else {
         // Check whether filepath is startsWith content

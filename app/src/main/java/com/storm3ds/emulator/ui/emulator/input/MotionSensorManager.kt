@@ -91,9 +91,9 @@ class MotionSensorManager(
     private val maxStationarySamples = 80
     private var lastAccel = floatArrayOf(0f, 0f, 0f)
 
-    // Virtual Touchscreen Cursor (NDS bottom screen: 256x192)
-    private var virtualTouchX = 128f
-    private var virtualTouchY = 96f
+    // Virtual Touchscreen Cursor (Nintendo 3DS bottom screen: 320x240)
+    private var virtualTouchX = 160f
+    private var virtualTouchY = 120f
     private var isTouchingScreen = false
 
     // D-Pad tracking
@@ -153,8 +153,8 @@ class MotionSensorManager(
     }
 
     fun recenterTouchCursor() {
-        virtualTouchX = 128f
-        virtualTouchY = 96f
+        virtualTouchX = 160f
+        virtualTouchY = 120f
     }
 
     fun calibrateCenter() {
@@ -354,9 +354,9 @@ class MotionSensorManager(
 
         when (gyroMode) {
             GyroMode.TOUCH_AIM -> {
-                // Map pitch/roll deltas to DS touch screen bounds
-                virtualTouchX = (virtualTouchX - deltaX).coerceIn(0f, 255f)
-                virtualTouchY = (virtualTouchY - deltaY).coerceIn(0f, 191f)
+                // Map pitch/roll deltas to 3DS bottom touch screen bounds (320x240)
+                virtualTouchX = (virtualTouchX - deltaX).coerceIn(0f, 319f)
+                virtualTouchY = (virtualTouchY - deltaY).coerceIn(0f, 239f)
 
                 if (abs(deltaX) > 0.02f || abs(deltaY) > 0.02f) {
                     MelonEmulator.onScreenTouch(virtualTouchX.toInt(), virtualTouchY.toInt())

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24種類のボイス（文脈とキャラクターに応じたニューラル自動割り当て）</item>
+        <item>🎙️ ドミトリー（ニューラル・バリトン）</item>
+        <item>🎙️ エレナ（ニューラル・ソプラノ）</item>
+        <item>🗡️ 若き勇者（明るいテノール）</item>
+        <item>🦇 ダークナイト / バットマン（渋いバス）</item>
+        <item>👹 ボス / 暴君 / クッパ（重厚なバス）</item>
+        <item>🃏 ジョーカー / トリックスター（狂気的なテノール）</item>
+        <item>💀 深淵の悪魔 / ドラキュラ（重低音バス）</item>
+        <item>📜 賢者 / 教授（かすれ声）</item>
+        <item>👦 少年 / 相棒 / ルーク・トライトン（澄んだ声）</item>
+        <item>👧 少女 / 綾里春美（優しく幼い声）</item>
+        <item>👑 姫 / ゼルダ女王（気品ある声）</item>
+        <item>💰 商人 / たぬきち（明るく商売熱心）</item>
+        <item>🛡️ 衛兵 / 隊長（厳格で威厳ある声）</item>
+        <item>🤖 ロボット / サイボーグ / ポケモン図鑑（合成音声）</item>
+        <item>📖 ナレーター / 記録者（落ち着いた声）</item>
+        <item>🎀 ツンデレ / 狩魔冥（高飛車なソプラノ）</item>
+        <item>🤫 謎の囁き / シャドウ（神秘的）</item>
+        <item>✨ 陽気な妖精 / ナビィ（お茶目な高アルト）</item>
+        <item>🏴‍☠️ 海賊船長（荒々しい唸りバス）</item>
+        <item>🔬 マッドサイエンティスト / Dr.ワイリー（風変わり）</item>
+        <item>🎩 紳士 / レイトン / 成歩堂龍一（上品で落ち着いた声）</item>
+        <item>👻 幽霊 / ファントム（幻想的なエコー）</item>
+        <item>⚔️ 高潔な騎士 / メタナイト（凛としたバリトン）</item>
+        <item>🕊️ 女神 / 天使パルテナ（神聖で澄んだ声）</item>
+    </string-array>
+</resources>

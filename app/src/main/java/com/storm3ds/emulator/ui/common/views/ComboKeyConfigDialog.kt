@@ -1,5 +1,7 @@
 package com.storm3ds.emulator.ui.common.views
 
+import com.storm3ds.emulator.R
+import androidx.compose.ui.res.stringResource
 import android.app.Dialog
 import android.content.Context
 import androidx.compose.foundation.background
@@ -108,8 +110,8 @@ private fun ComboKeyConfigContent(
     val isValid = selectedList.size in 2..4
 
     SettingsDialogScaffold(
-        title = "Combo Key C$slotIndex",
-        subtitle = "Select 2-4 inputs to trigger simultaneously",
+        title = stringResource(R.string.combo_key_title_fmt, slotIndex),
+        subtitle = stringResource(R.string.combo_key_subtitle),
         icon = Icons.Filled.Bolt,
         onDismiss = onDismiss,
     ) {
@@ -136,7 +138,7 @@ private fun ComboKeyConfigContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = if (selectedList.isEmpty()) "None selected" else selectedList.joinToString(" + ") { it.name },
+                    text = if (selectedList.isEmpty()) stringResource(R.string.combo_key_none_selected) else selectedList.joinToString(" + ") { it.name },
                     color = if (isValid) colors.green else colors.text2,
                     fontFamily = WatermelonMono,
                     fontSize = 13.sp,
@@ -245,7 +247,7 @@ private fun ComboKeyConfigContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Clear",
+                        text = stringResource(R.string.combo_key_clear),
                         color = colors.text2,
                         fontFamily = SpaceGrotesk,
                         fontSize = 14.sp,
@@ -265,7 +267,7 @@ private fun ComboKeyConfigContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (isValid) "Save Combo" else "Pick 2-4 Keys",
+                        text = stringResource(if (isValid) R.string.combo_key_save else R.string.combo_key_pick_range),
                         color = if (isValid) colors.bg else colors.text3,
                         fontFamily = SpaceGrotesk,
                         fontSize = 14.sp,

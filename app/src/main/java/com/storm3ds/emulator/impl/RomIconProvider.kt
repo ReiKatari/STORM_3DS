@@ -84,8 +84,7 @@ class RomIconProvider(private val context: Context, private val romFileProcessor
     }
 
     private fun resolveGameCode(rom: Rom): String {
-        if (rom.gameCode.isNotBlank()) return rom.gameCode
-        return runCatching { RomProcessor.readGameCode(context, rom.uri) }.getOrDefault("")
+        return rom.gameCode
     }
 
     private fun getCandidateKeys(rom: Rom): List<String> {

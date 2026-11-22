@@ -18,6 +18,7 @@ class ScreenshotFrameBufferProvider {
     }
 
     fun getScreenshot(): Bitmap {
+        com.storm3ds.emulator.MelonEmulator.consumeLatestScreenshotBitmap()?.let { return it }
         val frameBuffer = ensureBufferIsReady()
 
         val pixels = IntArray(SCREEN_WIDTH * SCREEN_HEIGHT)

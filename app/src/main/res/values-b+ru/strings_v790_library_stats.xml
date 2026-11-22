@@ -7,9 +7,9 @@
     <string name="rom_config_overclock_default">По умолчанию</string>
     <string name="rom_config_speed_multiplier">Скорость перемотки</string>
     <string name="rom_config_speed_unlimited">Без ограничений</string>
-    <string name="rom_config_vulkan_driver">Драйвер Vulkan GPU</string>
+    <string name="rom_config_vulkan_driver">Драйвер ГП Vulkan</string>
     <string name="rom_config_vulkan_driver_global">Глобальный драйвер</string>
-    <string name="rom_config_vulkan_driver_system">Системный драйвер GPU</string>
+    <string name="rom_config_vulkan_driver_system">Системный драйвер ГП</string>
     <string name="rom_filter_unplayed">Не запускались</string>
     <string name="rom_filter_recently_played">Недавно играли</string>
     <string name="rom_filter_has_saves">С сохранениями</string>

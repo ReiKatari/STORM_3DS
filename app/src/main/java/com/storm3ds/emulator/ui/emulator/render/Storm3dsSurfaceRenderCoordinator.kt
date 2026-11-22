@@ -19,6 +19,12 @@ class Storm3dsSurfaceRenderCoordinator(
         @Volatile
         var lastBottomRect: Rect? = null
             private set
+        @Volatile
+        var lastHybridBottomRect: Rect? = null
+            private set
+        @Volatile
+        var lastSecondaryBottomRect: Rect? = null
+            private set
     }
 
     private var mainSurfaceView: EmulatorSurfaceView? = null
@@ -59,11 +65,17 @@ class Storm3dsSurfaceRenderCoordinator(
         config: VulkanPresentationConfig?,
         background: RuntimeBackground,
     ) {
-        if (stopped || config == null || surface !== mainSurfaceView) return
-        val top = config.topScreenRect
-        val bot = config.bottomScreenRect
-        lastTopRect = top
-        lastBottomRect = bot
+        if (stopped || config == null) return
+        if (surface === secondarySurfaceView) {
+            lastSecondaryBottomRect = config.bottomScreenRect ?: config.hybridBottomScreenRect
+            return
+        }
+        if (surface !== mainSurfaceView) return
+        val top = config.topScreenRect ?: config.hybridTopScreenRect
+        val bot = config.bottomScreenRect ?: config.hybridBottomScreenRect
+        lastTopRect = config.topScreenRect
+        lastBottomRect = config.bottomScreenRect
+        lastHybridBottomRect = config.hybridBottomScreenRect
         val isPortrait = NativeLibrary.isPortraitMode()
         NativeLibrary.setCustomScreenLayout(
             isPortrait = isPortrait,

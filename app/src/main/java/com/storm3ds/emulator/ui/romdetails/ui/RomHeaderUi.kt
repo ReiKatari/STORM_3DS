@@ -437,8 +437,8 @@ fun RomTechPassportCard(
         }
     }
     val saveStatusLabel = when (hasSaveData) {
-        true -> if (isRu) "НАЙДЕН" else "FOUND"
-        false -> if (isRu) "НЕТ .SAV" else "NONE"
+        true -> stringResource(R.string.ui_rom_hdr_sav_found)
+        false -> stringResource(R.string.ui_rom_hdr_sav_none)
         null -> "..."
     }
 
@@ -477,7 +477,7 @@ fun RomTechPassportCard(
                         .background(colors.green),
                 )
                 Text(
-                    text = if (isRu) "ТЕХНИЧЕСКИЙ ПАСПОРТ И СТАТУС" else "TECHNICAL SPECS AND STATUS",
+                    text = stringResource(R.string.ui_rom_hdr_specs_title),
                     color = Color.White.copy(alpha = 0.9f),
                     fontFamily = SpaceGrotesk,
                     fontSize = 10.5.sp,
@@ -505,17 +505,17 @@ fun RomTechPassportCard(
                 modifier = Modifier.weight(1f),
             )
             RomInfoChip(
-                label = if (isRu) "ПЛАТФОРМА" else "PLATFORM",
+                label = stringResource(R.string.ui_rom_hdr_platform),
                 value = platformStr,
                 modifier = Modifier.weight(1f),
             )
             RomInfoChip(
-                label = if (isRu) "ФОРМАТ" else "FORMAT",
+                label = stringResource(R.string.ui_rom_hdr_format),
                 value = fileExt,
                 modifier = Modifier.weight(0.8f),
             )
             RomInfoChip(
-                label = if (isRu) "СТАТУС .SAV" else "SAVE STATUS",
+                label = stringResource(R.string.ui_rom_hdr_save_status),
                 value = saveStatusLabel,
                 modifier = Modifier.weight(1f),
             )
@@ -542,13 +542,13 @@ fun RomTechPassportCard(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                             val clip = ClipData.newPlainText("GameCode", "$gameCodeStr (${rom.fileName})")
                             clipboard?.setPrimaryClip(clip)
-                            Toast.makeText(context, if (isRu) "GameCode $gameCodeStr скопирован!" else "GameCode copied!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.ui_rom_hdr_code_copied_fmt, gameCodeStr), Toast.LENGTH_SHORT).show()
                         }
                         .padding(vertical = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (isRu) "Скопировать GameCode" else "Copy GameCode",
+                        text = stringResource(R.string.ui_rom_hdr_copy_code),
                         color = colors.green,
                         fontFamily = SpaceGrotesk,
                         fontSize = 11.sp,
@@ -568,7 +568,7 @@ fun RomTechPassportCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (isRu) "Открыть обложку" else "View Cover",
+                        text = stringResource(R.string.ui_rom_hdr_view_cover),
                         color = Color.White,
                         fontFamily = SpaceGrotesk,
                         fontSize = 11.sp,
@@ -740,7 +740,7 @@ fun RomHeroVertical(
                 SaveActionsButton(size = 44.dp, onSendSaveFile = onSendSaveFile, onImportSaveFile = onImportSaveFile, modifier = Modifier.weight(1f))
                 QuickActionTile(
                     icon = Icons.Filled.Image,
-                    label = if (isRu) "Обложка" else "Cover",
+                    label = stringResource(R.string.ui_rom_hdr_cover_btn),
                     tint = Color.White,
                     onClick = { showFullScreenCover = true },
                     modifier = Modifier.weight(1.2f),

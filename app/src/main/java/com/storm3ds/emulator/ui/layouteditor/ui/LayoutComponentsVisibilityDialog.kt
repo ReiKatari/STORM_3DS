@@ -100,6 +100,10 @@ private val COMPONENT_GROUPS = listOf(
 
             LayoutComponent.DPAD,
 
+            LayoutComponent.CIRCLE_PAD,
+
+            LayoutComponent.C_STICK,
+
             LayoutComponent.BUTTONS,
 
             LayoutComponent.BUTTON_START,
@@ -109,6 +113,12 @@ private val COMPONENT_GROUPS = listOf(
             LayoutComponent.BUTTON_L,
 
             LayoutComponent.BUTTON_R,
+
+            LayoutComponent.BUTTON_ZL,
+
+            LayoutComponent.BUTTON_ZR,
+
+            LayoutComponent.BUTTON_HOME,
 
             LayoutComponent.BUTTON_HINGE,
 
@@ -155,6 +165,12 @@ private val COMPONENT_GROUPS = listOf(
             LayoutComponent.BUTTON_LOCK_ROTATION,
 
             LayoutComponent.BUTTON_TRANSLATE,
+
+            LayoutComponent.SLIDER_3D_DEPTH,
+
+            LayoutComponent.BUTTON_COMBO_1,
+
+            LayoutComponent.BUTTON_COMBO_2,
 
         ),
 
@@ -280,7 +296,7 @@ fun LayoutComponentsVisibilityDialog(
 
                             Text(
 
-                                text = "Включение и скрытие элементов на экране",
+                                text = stringResource(R.string.ui_layout_vis_dialog_title),
 
                                 color = colors.text3,
 
@@ -412,9 +428,9 @@ fun LayoutComponentsVisibilityDialog(
 
                                 val name = when (component) {
 
-                                    LayoutComponent.DPAD -> "Крестовина (D-Pad) / Левый стик"
+                                    LayoutComponent.DPAD -> stringResource(R.string.ui_layout_dpad_or_stick)
 
-                                    LayoutComponent.BUTTON_TOGGLE_ANALOG_STICK -> "Сменить D-Pad / Стик"
+                                    LayoutComponent.BUTTON_TOGGLE_ANALOG_STICK -> stringResource(R.string.ui_layout_toggle_dpad_stick)
 
                                     else -> stringResource(getLayoutComponentName(component))
 
@@ -424,67 +440,67 @@ fun LayoutComponentsVisibilityDialog(
 
                                 val description = when (component) {
 
-                                    LayoutComponent.TOP_SCREEN -> "Основной верхний экран Nintendo 3DS"
+                                    LayoutComponent.TOP_SCREEN -> stringResource(R.string.ui_layout_comp_top_screen)
 
-                                    LayoutComponent.BOTTOM_SCREEN -> "Нижний сенсорный экран Nintendo 3DS"
+                                    LayoutComponent.BOTTOM_SCREEN -> stringResource(R.string.ui_layout_comp_bottom_screen)
 
-                                    LayoutComponent.HYBRID_SCREEN -> "Основной большой экран с миниатюрой второго экрана сбоку"
+                                    LayoutComponent.HYBRID_SCREEN -> stringResource(R.string.ui_layout_comp_hybrid_screen)
 
-                                    LayoutComponent.DPAD -> "Крестовина управления (D-Pad) или аналоговый стик"
+                                    LayoutComponent.DPAD -> stringResource(R.string.ui_layout_comp_dpad)
 
-                                    LayoutComponent.BUTTONS -> "Основные кнопки действия (A, B, X, Y)"
+                                    LayoutComponent.BUTTONS -> stringResource(R.string.ui_layout_comp_abxy)
 
-                                    LayoutComponent.BUTTON_START -> "Кнопка Start (Пауза и меню в игре)"
+                                    LayoutComponent.BUTTON_START -> stringResource(R.string.ui_layout_comp_start)
 
-                                    LayoutComponent.BUTTON_SELECT -> "Кнопка Select"
+                                    LayoutComponent.BUTTON_SELECT -> stringResource(R.string.ui_layout_comp_select)
 
-                                    LayoutComponent.BUTTON_L -> "Левый шифт (L)"
+                                    LayoutComponent.BUTTON_L -> stringResource(R.string.ui_layout_comp_l)
 
-                                    LayoutComponent.BUTTON_R -> "Правый шифт (R)"
+                                    LayoutComponent.BUTTON_R -> stringResource(R.string.ui_layout_comp_r)
 
-                                    LayoutComponent.BUTTON_HINGE -> "Имитация закрытия крышки консоли"
+                                    LayoutComponent.BUTTON_HINGE -> stringResource(R.string.ui_layout_comp_hinge)
 
-                                    LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE -> "Включение и отключение ускоренной перемотки (Fast Forward)"
+                                    LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE -> stringResource(R.string.ui_layout_comp_ff)
 
-                                    LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> "Скрыть или показать виртуальные кнопки на экране"
+                                    LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT -> stringResource(R.string.ui_layout_comp_soft_input)
 
-                                    LayoutComponent.BUTTON_RESET -> "Сброс и перезапуск текущей игры"
+                                    LayoutComponent.BUTTON_RESET -> stringResource(R.string.ui_layout_comp_reset)
 
-                                    LayoutComponent.BUTTON_PAUSE -> "Приостановка и возобновление эмуляции"
+                                    LayoutComponent.BUTTON_PAUSE -> stringResource(R.string.ui_layout_comp_pause)
 
-                                    LayoutComponent.BUTTON_SWAP_SCREENS -> "Мгновенное переключение верхнего и нижнего экранов местами"
+                                    LayoutComponent.BUTTON_SWAP_SCREENS -> stringResource(R.string.ui_layout_comp_swap)
 
-                                    LayoutComponent.BUTTON_QUICK_SAVE -> "Быстрое сохранение состояния в текущий слот"
+                                    LayoutComponent.BUTTON_QUICK_SAVE -> stringResource(R.string.ui_layout_comp_qsave)
 
-                                    LayoutComponent.BUTTON_QUICK_LOAD -> "Быстрая загрузка состояния из текущего слота"
+                                    LayoutComponent.BUTTON_QUICK_LOAD -> stringResource(R.string.ui_layout_comp_qload)
 
-                                    LayoutComponent.BUTTON_REWIND -> "Перемотка игрового процесса назад во времени"
+                                    LayoutComponent.BUTTON_REWIND -> stringResource(R.string.ui_layout_comp_rewind)
 
-                                    LayoutComponent.BUTTON_MICROPHONE_TOGGLE -> "Активация микрофона (шум или голос)"
+                                    LayoutComponent.BUTTON_MICROPHONE_TOGGLE -> stringResource(R.string.ui_layout_comp_mic)
 
-                                    LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS -> "Панель дополнительных быстрых кнопок"
+                                    LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS -> stringResource(R.string.ui_layout_comp_extra)
 
-                                    LayoutComponent.BUTTON_LOCK_ROTATION -> "Фиксация ориентации экрана (портретная или альбомная)"
+                                    LayoutComponent.BUTTON_LOCK_ROTATION -> stringResource(R.string.ui_layout_comp_rot_lock)
 
-                                    LayoutComponent.BUTTON_TRANSLATE -> "Экранный переводчик текста и диалогов"
+                                    LayoutComponent.BUTTON_TRANSLATE -> stringResource(R.string.ui_layout_comp_translate)
 
-                                    LayoutComponent.BUTTON_TOGGLE_ANALOG_STICK -> "Переключение между D-Pad и аналоговым стиком"
+                                    LayoutComponent.BUTTON_TOGGLE_ANALOG_STICK -> stringResource(R.string.ui_layout_comp_toggle_stick)
 
-                                    LayoutComponent.CIRCLE_PAD -> "Аналоговый стик Nintendo 3DS (Circle Pad)"
+                                    LayoutComponent.CIRCLE_PAD -> stringResource(R.string.ui_layout_comp_circle_pad)
 
-                                    LayoutComponent.C_STICK -> "Правый микро-стик New Nintendo 3DS (C-Stick)"
+                                    LayoutComponent.C_STICK -> stringResource(R.string.ui_layout_comp_c_stick)
 
-                                    LayoutComponent.SLIDER_3D_DEPTH -> "Слайдер глубины стереоскопического 3D"
+                                    LayoutComponent.SLIDER_3D_DEPTH -> stringResource(R.string.ui_layout_comp_3d_slider)
 
-                                    LayoutComponent.BUTTON_ZL -> "Дополнительный левый шифт New 3DS (ZL)"
+                                    LayoutComponent.BUTTON_ZL -> stringResource(R.string.ui_layout_comp_zl)
 
-                                    LayoutComponent.BUTTON_ZR -> "Дополнительный правый шифт New 3DS (ZR)"
+                                    LayoutComponent.BUTTON_ZR -> stringResource(R.string.ui_layout_comp_zr)
 
-                                    LayoutComponent.BUTTON_HOME -> "Системная кнопка HOME"
+                                    LayoutComponent.BUTTON_HOME -> stringResource(R.string.ui_layout_comp_home)
 
-                                    LayoutComponent.BUTTON_COMBO_1 -> "Программируемая макро-кнопка Комбо 1"
+                                    LayoutComponent.BUTTON_COMBO_1 -> stringResource(R.string.ui_layout_comp_combo1)
 
-                                    LayoutComponent.BUTTON_COMBO_2 -> "Программируемая макро-кнопка Комбо 2"
+                                    LayoutComponent.BUTTON_COMBO_2 -> stringResource(R.string.ui_layout_comp_combo2)
 
                                 }
 

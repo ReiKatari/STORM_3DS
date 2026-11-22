@@ -165,6 +165,7 @@ class RomListFragment : Fragment() {
                         onBootFirmwareDs = { (activity as? RomListActivity)?.bootFirmware(com.storm3ds.emulator.domain.model.ConsoleType.DS) },
                         onBootFirmwareDsi = { (activity as? RomListActivity)?.bootFirmware(com.storm3ds.emulator.domain.model.ConsoleType.DSi) },
                         onOpenSingleRom = { (activity as? RomListActivity)?.openSingleRom() },
+                        onInstallCia = { (activity as? RomListActivity)?.openCiaInstaller() },
                         onRandomRom = { (activity as? RomListActivity)?.launchRandomRom() },
                         onCheckUpdates = { (activity as? RomListActivity)?.checkForUpdatesManually() },
                         onOpenSettings = { (activity as? RomListActivity)?.openSettings() },

@@ -71,7 +71,6 @@ class MelonDSApplication : Application(), Configuration.Provider {
                     val logsDir = File(rootBase, "logs").apply { mkdirs() }
                     val cheatsDir = File(rootBase, "cheats").apply { mkdirs() }
                     val screenshotsDir = File(rootBase, "screenshots").apply { mkdirs() }
-                    val dldiDir = File(rootBase, "dldi").apply { mkdirs() }
 
                     // Clean up old /Download/STORM 3DS LOGS folder
                     val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
@@ -101,16 +100,12 @@ class MelonDSApplication : Application(), Configuration.Provider {
                         }
                     }
 
-                    // Clean up duplicate/stray files in all bios directories if they exist
-                    val dsDir = File(rootBase, "bios/ds")
-                    val dsiDir = File(rootBase, "bios/dsi")
+                    // Clean up duplicate/stray files in 3DS sysdata/bios directory if it exists
                     val biosDir = File(rootBase, "bios")
-                    listOf(dsDir, dsiDir, biosDir).forEach { bDir ->
-                        if (bDir.exists() && bDir.isDirectory) {
-                            bDir.listFiles()?.forEach { f ->
-                                if (f.name.contains(" (") && f.name.endsWith(").bin")) {
-                                    f.delete()
-                                }
+                    if (biosDir.exists() && biosDir.isDirectory) {
+                        biosDir.listFiles()?.forEach { f ->
+                            if (f.name.contains(" (") && f.name.endsWith(").bin")) {
+                                f.delete()
                             }
                         }
                     }
@@ -162,13 +157,6 @@ class MelonDSApplication : Application(), Configuration.Provider {
                             oldShaders.copyRecursively(shadersDir, overwrite = false)
                             oldShaders.deleteRecursively()
                         }
-                        val oldNandBackup = File(context.filesDir, "nand_golden_backup.bin")
-                        val newNandBackup = File(dsiDir, "nand_golden_backup.bin")
-                        if (oldNandBackup.isFile && oldNandBackup.length() > 0L && !newNandBackup.exists()) {
-                            dsiDir.mkdirs()
-                            oldNandBackup.copyTo(newNandBackup, overwrite = false)
-                        }
-                        if (oldNandBackup.exists()) oldNandBackup.delete()
                     }
 
                     // Purge legacy internal system directories so deleted files are NEVER resurrected
@@ -256,90 +244,14 @@ class MelonDSApplication : Application(), Configuration.Provider {
                         }
                     }
 
-                    // Auto-cleanup stale nds-bootstrap error/offset caches on external storage without touching saves
-                    val externalStorage = android.os.Environment.getExternalStorageDirectory()
-                    val ndsBootstrapDir = File(externalStorage, "_nds/nds-bootstrap")
-                    if (ndsBootstrapDir.exists() && ndsBootstrapDir.isDirectory) {
-                        listOf(File(ndsBootstrapDir, "fatTableCache"), File(ndsBootstrapDir, "patchOffsetCache"), File(ndsBootstrapDir, "ramDumps")).forEach { cacheFolder ->
-                            if (cacheFolder.exists() && cacheFolder.isDirectory) {
-                                cacheFolder.listFiles()?.forEach { cFile ->
-                                    if (cFile.isFile && (cFile.length() == 0L || cFile.lastModified() < now - 86_400_000L)) {
-                                        cFile.delete()
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Extract embedded BIOS files ONLY if user hasn't blocked BIOS downloads and hasn't configured custom BIOS paths
-                    val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
-                    val isBiosDownloadBlocked = prefs.getBoolean("block_bios_download", false)
-                    val currentDs = prefs.getStringSet("bios_dir", null)?.firstOrNull()
-                    val currentDsi = prefs.getStringSet("dsi_bios_dir", null)?.firstOrNull()
-
-                    val isCustomDs = currentDs != null &&
-                            !currentDs.contains("data/user/0") &&
-                            !currentDs.contains("files/bios") &&
-                            !currentDs.contains("STORM 3DS/bios")
-                    val isCustomDsi = currentDsi != null &&
-                            !currentDsi.contains("data/user/0") &&
-                            !currentDsi.contains("files/bios") &&
-                            !currentDsi.contains("STORM 3DS/bios")
-
-                    if (!isBiosDownloadBlocked && !isCustomDs && !isCustomDsi && (currentDs == null || currentDsi == null)) {
-                        dsDir.mkdirs()
-                        dsiDir.mkdirs()
-                        biosDir.mkdirs()
-
-                        val copyAssetFile = { assetPath: String, targetFile: File ->
-                            if (!targetFile.exists() || targetFile.length() == 0L) {
-                                runCatching {
-                                    context.assets.open(assetPath).use { input ->
-                                        targetFile.outputStream().use { output ->
-                                            input.copyTo(output)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        copyAssetFile("bios/ds/bios7.bin", File(dsDir, "bios7.bin"))
-                        copyAssetFile("bios/ds/bios9.bin", File(dsDir, "bios9.bin"))
-                        copyAssetFile("bios/ds/firmware.bin", File(dsDir, "firmware.bin"))
-
-                        copyAssetFile("bios/dsi/bios7.bin", File(dsiDir, "bios7.bin"))
-                        copyAssetFile("bios/dsi/bios9.bin", File(dsiDir, "bios9.bin"))
-                        copyAssetFile("bios/dsi/firmware.bin", File(dsiDir, "firmware.bin"))
-
-                        val nandFile = File(dsiDir, "nand.bin")
-                        if (nandFile.exists() && (nandFile.length() == 251658240L || nandFile.length() < 1024 * 1024L)) {
-                            runCatching { nandFile.delete() }
-                        }
-
-                        val hasDsBios = File(dsDir, "bios7.bin").let { it.exists() && it.length() > 0 } &&
-                                File(dsDir, "bios9.bin").let { it.exists() && it.length() > 0 } &&
-                                File(dsDir, "firmware.bin").let { it.exists() && it.length() > 0 }
-                        val hasDsiBios = File(dsiDir, "bios7.bin").let { it.exists() && it.length() > 0 } ||
-                                File(dsiDir, "bios7i.bin").let { it.exists() && it.length() > 0 } ||
-                                File(dsiDir, "dsi_bios7.bin").let { it.exists() && it.length() > 0 }
-
-                        if (hasDsBios && (currentDs == null || currentDs.contains("data/user/0") || currentDs.contains("files/bios"))) {
-                            prefs.edit().putStringSet("bios_dir", setOf(android.net.Uri.fromFile(dsDir).toString())).apply()
-                        } else if (!hasDsBios && currentDs != null && (currentDs.contains("STORM%20DS/bios") || currentDs.contains("STORM 3DS/bios") || currentDs.contains("files/bios"))) {
-                            prefs.edit().remove("bios_dir").apply()
-                        }
-
-                        if (hasDsiBios && (currentDsi == null || currentDsi.contains("data/user/0") || currentDsi.contains("files/bios"))) {
-                            prefs.edit().putStringSet("dsi_bios_dir", setOf(android.net.Uri.fromFile(dsiDir).toString())).apply()
-                        } else if (!hasDsiBios && currentDsi != null && (currentDsi.contains("STORM%20DS/bios") || currentDsi.contains("STORM 3DS/bios") || currentDsi.contains("files/bios"))) {
-                            prefs.edit().remove("dsi_bios_dir").apply()
-                        }
-
-                        if (!hasDsBios && !hasDsiBios && !isCustomDs && !isCustomDsi) {
-                            prefs.edit().putBoolean("use_custom_bios", false).apply()
-                        } else if (!prefs.contains("use_custom_bios")) {
-                            prefs.edit().putBoolean("use_custom_bios", hasDsBios || isCustomDs).apply()
-                        }
+                    // Ensure 3DS sysdata directory exists for user keys (boot9.bin / aes_keys.txt / seeddb.bin)
+                    File(rootBase, "sysdata").apply { mkdirs() }
+                    // Auto-extract bundled 3DS slang shader presets if not yet installed
+                    runCatching {
+                        com.storm3ds.emulator.impl.RetroArchShaderLibraryManager(
+                            context.applicationContext,
+                            androidx.preference.PreferenceManager.getDefaultSharedPreferences(context.applicationContext),
+                        ).ensureBundledShadersExtracted()
                     }
                     lastMigrationTime = System.currentTimeMillis()
                 } catch (e: Throwable) {
@@ -367,7 +279,7 @@ class MelonDSApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         appContext = this
         super.onCreate()
-        runCatching { System.setProperty("http.agent", "melonDS/0.9.5") }
+        runCatching { System.setProperty("http.agent", "STORM_3DS/${BuildConfig.VERSION_NAME}") }
         installCrashHandler()
         runCatching { giveLibrashaderACacheDirectory() }
         runCatching { settingsBackupManager.initializeMirror() }

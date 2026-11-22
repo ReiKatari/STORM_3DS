@@ -116,8 +116,18 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             (getLayoutComponentView(LayoutComponent.C_STICK)?.view as? com.storm3ds.emulator.ui.common.views.ModernCStickView)?.onAxisChanged = { x, y ->
                 com.storm3ds.emulator.MelonEmulator.setCStickAxis(x, y)
             }
-            (getLayoutComponentView(LayoutComponent.SLIDER_3D_DEPTH)?.view as? com.storm3ds.emulator.ui.common.views.Modern3dDepthSliderView)?.onDepthChanged = { depth ->
-                com.storm3ds.emulator.MelonEmulator.setVulkanDepth3DStrength(depth)
+            (getLayoutComponentView(LayoutComponent.SLIDER_3D_DEPTH)?.view as? com.storm3ds.emulator.ui.common.views.Modern3dDepthSliderView)?.apply {
+                val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+                val initialDepth = sp.getString("video_vulkan_3d_depth_strength", null)?.toIntOrNull()
+                    ?: sp.getInt("3ds_depth_factor", 50)
+                setDepth(initialDepth.coerceIn(0, 100))
+                onDepthChanged = { depth ->
+                    com.storm3ds.emulator.MelonEmulator.setVulkanDepth3DStrength(depth)
+                    sp.edit()
+                        .putInt("3ds_depth_factor", depth.coerceIn(0, 100))
+                        .putString("video_vulkan_3d_depth_strength", depth.coerceIn(0, 100).toString())
+                        .apply()
+                }
             }
             wireComboComponent(LayoutComponent.BUTTON_COMBO_1, 1, it, enableHapticFeedback)
             wireComboComponent(LayoutComponent.BUTTON_COMBO_2, 2, it, enableHapticFeedback)
@@ -139,9 +149,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         }
 
         getLayoutComponentViews().forEach {
-            if (it.component == LayoutComponent.BUTTON_TRANSLATE) {
-                it.view.visibility = View.GONE
-            } else if (!it.component.isScreen()) {
+            if (!it.component.isScreen()) {
                 it.view.apply {
                     alpha = inputAlpha
                 }
@@ -157,10 +165,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         areExtraButtonsVisible = !areExtraButtonsVisible
         getLayoutComponentViews().forEach { compView ->
             val c = compView.component
-            if (c == LayoutComponent.BUTTON_TRANSLATE) {
-                compView.view.visibility = View.GONE
-                return@forEach
-            }
+            // Treat BUTTON_TRANSLATE uniformly as an optional extra utility button
             val isCore = c == LayoutComponent.DPAD || c == LayoutComponent.BUTTONS ||
                     c == LayoutComponent.BUTTON_L || c == LayoutComponent.BUTTON_R ||
                     c == LayoutComponent.BUTTON_START || c == LayoutComponent.BUTTON_SELECT ||
@@ -206,8 +211,13 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
                         LayoutComponent.DPAD,
                         LayoutComponent.BUTTON_L,
                         LayoutComponent.BUTTON_R,
+                        LayoutComponent.BUTTON_ZL,
+                        LayoutComponent.BUTTON_ZR,
                         LayoutComponent.BUTTON_START,
-                        LayoutComponent.BUTTON_SELECT
+                        LayoutComponent.BUTTON_SELECT,
+                        LayoutComponent.BUTTON_HOME,
+                        LayoutComponent.CIRCLE_PAD,
+                        LayoutComponent.C_STICK
                     )
                 }
             }

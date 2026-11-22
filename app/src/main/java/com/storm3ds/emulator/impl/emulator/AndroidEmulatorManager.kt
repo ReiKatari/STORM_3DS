@@ -350,6 +350,11 @@ class AndroidEmulatorManager(
     }
 
     private suspend fun isRealDsiWareTitle(rom: Rom): Boolean {
+        val ext = rom.fileName.substringAfterLast('.', "").lowercase()
+        if (ext in com.storm3ds.emulator.domain.model.ThreeDS.NATIVE_3DS_EXTENSIONS ||
+            ext in com.storm3ds.emulator.domain.model.ThreeDS.ARCHIVE_EXTENSIONS) {
+            return false
+        }
         if (rom.isInstalledDsiWareShortcut || rom.installedDsiWareTitleId != null || rom.uri.scheme == Rom.INSTALLED_DSIWARE_URI_SCHEME || rom.fileName.endsWith(".dsi", ignoreCase = true) || rom.uri.path?.endsWith(".dsi", ignoreCase = true) == true) {
             return true
         }

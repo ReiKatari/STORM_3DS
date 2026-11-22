@@ -53,6 +53,7 @@ private:
     };
     std::atomic<PresentingState> presenting_state{};
 
+    bool owns_context{true};
     bool surface_current{};
 
     std::mutex frame_mutex;

@@ -258,19 +258,19 @@ class InputSetupViewModel @Inject constructor(
             ),
             Input.A to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_B),
-                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_A)
+                InputConfig.Assignment.None
             ),
             Input.B to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_A),
-                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_B)
+                InputConfig.Assignment.None
             ),
             Input.X to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_Y),
-                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_X)
+                InputConfig.Assignment.None
             ),
             Input.Y to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_X),
-                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_Y)
+                InputConfig.Assignment.None
             ),
             Input.L to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_L1),
@@ -279,6 +279,14 @@ class InputSetupViewModel @Inject constructor(
             Input.R to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_R1),
                 InputConfig.Assignment.None
+            ),
+            Input.ZL to Pair(
+                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_L2),
+                InputConfig.Assignment.Axis(null, MotionEvent.AXIS_LTRIGGER, InputConfig.Assignment.Axis.Direction.POSITIVE)
+            ),
+            Input.ZR to Pair(
+                InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_R2),
+                InputConfig.Assignment.Axis(null, MotionEvent.AXIS_RTRIGGER, InputConfig.Assignment.Axis.Direction.POSITIVE)
             ),
             Input.START to Pair(
                 InputConfig.Assignment.Key(null, KeyEvent.KEYCODE_BUTTON_START),

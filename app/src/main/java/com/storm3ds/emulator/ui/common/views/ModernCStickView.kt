@@ -349,11 +349,10 @@ class ModernCStickView @JvmOverloads constructor(
                 Color.parseColor("#FFFACC15"), Color.parseColor("#FFA16207"),
                 Color.parseColor("#FFFDE047"), Color.parseColor("#FF0F172A"),
             )
-            else -> CStickColors(
-                Color.parseColor("#40111318"), Color.parseColor("#66FFFFFF"),
-                Color.parseColor("#FF64748B"), Color.parseColor("#FF1E293B"),
-                Color.parseColor("#FF00E5FF"), Color.parseColor("#FFF0F4F8"),
-            )
+            else -> {
+                val p = ButtonThemeManager.paletteFor(style)
+                CStickColors(p.housingBg, p.housingStroke, p.thumbLight, p.thumbDark, p.accentGlow, p.labelText)
+            }
         }
     }
 }

@@ -111,8 +111,11 @@ private val CONSOLE_INPUTS = setOf(
     Input.Y,
     Input.L,
     Input.R,
+    Input.ZL,
+    Input.ZR,
     Input.START,
     Input.SELECT,
+    Input.HOME,
 )
 
 @Composable
@@ -686,8 +689,11 @@ private fun getInputName(input: Input): String? {
         Input.DOWN -> R.string.input_down
         Input.L -> R.string.input_l
         Input.R -> R.string.input_r
+        Input.ZL -> R.string.input_zl
+        Input.ZR -> R.string.input_zr
         Input.START -> R.string.input_start
         Input.SELECT -> R.string.input_select
+        Input.HOME -> R.string.input_home
         Input.HINGE -> R.string.input_lid
         Input.PAUSE -> R.string.input_pause
         Input.FAST_FORWARD -> R.string.input_fast_forward

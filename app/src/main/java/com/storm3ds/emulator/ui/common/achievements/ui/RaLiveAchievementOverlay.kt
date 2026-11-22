@@ -1,5 +1,7 @@
 package com.storm3ds.emulator.ui.common.achievements.ui
 
+import com.storm3ds.emulator.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -112,7 +114,7 @@ fun RaLiveAchievementOverlay(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "ДОСТИЖЕНИЕ РАЗБЛОКИРОВАНО",
+                                text = stringResource(R.string.ui_achievement_unlocked_banner),
                                 color = Color(0xFFFACC15),
                                 fontFamily = WatermelonMono,
                                 fontSize = 8.5.sp,

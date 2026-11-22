@@ -7,6 +7,7 @@ import android.view.View
 import com.storm3ds.emulator.MelonEmulator.onScreenRelease
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.Point
+import com.storm3ds.emulator.domain.model.ThreeDS
 import kotlin.math.roundToInt
 
 class TouchscreenInputHandler(
@@ -126,21 +127,23 @@ class TouchscreenInputHandler(
     }
 
     private fun mapRawCoordsToDsPoint(rawX: Float, rawY: Float, viewWidth: Int, viewHeight: Int): Point {
-        val safeWidth = if (viewWidth > 0) viewWidth.toFloat() else 256f
-        val safeHeight = if (viewHeight > 0) viewHeight.toFloat() else 192f
+        val targetW = ThreeDS.BOTTOM_SCREEN_WIDTH
+        val targetH = ThreeDS.BOTTOM_SCREEN_HEIGHT
+        val safeWidth = if (viewWidth > 0) viewWidth.toFloat() else targetW.toFloat()
+        val safeHeight = if (viewHeight > 0) viewHeight.toFloat() else targetH.toFloat()
 
         val rect = viewRectProvider?.invoke()
         if (rect == null || rect.width() <= 0f || rect.height() <= 0f) {
-            touchPoint.x = ((rawX / safeWidth) * 256f).roundToInt().coerceIn(0, 255)
-            touchPoint.y = ((rawY / safeHeight) * 192f).roundToInt().coerceIn(0, 191)
+            touchPoint.x = ((rawX / safeWidth) * targetW).roundToInt().coerceIn(0, targetW - 1)
+            touchPoint.y = ((rawY / safeHeight) * targetH).roundToInt().coerceIn(0, targetH - 1)
             return touchPoint
         }
 
-        val normalizedX = ((rawX - rect.left) / rect.width() * 256f)
-        val normalizedY = ((rawY - rect.top) / rect.height() * 192f)
+        val normalizedX = ((rawX - rect.left) / rect.width() * targetW)
+        val normalizedY = ((rawY - rect.top) / rect.height() * targetH)
 
-        touchPoint.x = normalizedX.roundToInt().coerceIn(0, 255)
-        touchPoint.y = normalizedY.roundToInt().coerceIn(0, 191)
+        touchPoint.x = normalizedX.roundToInt().coerceIn(0, targetW - 1)
+        touchPoint.y = normalizedY.roundToInt().coerceIn(0, targetH - 1)
         return touchPoint
     }
 }

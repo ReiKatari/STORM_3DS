@@ -602,6 +602,10 @@ class SharedPreferencesSettingsRepository(
             useJit = if (safeProfile?.disableJit == true) false else globalConfiguration.useJit,
             enable3dWidescreen = globalConfiguration.enable3dWidescreen && widescreenAllowed,
             enable60FpsPatch = globalConfiguration.enable60FpsPatch && fpsPatchAllowed,
+            isNew3dsOverride = romConfig.isNew3ds,
+            cpuClockPercentageOverride = romConfig.cpuClockPercentage,
+            render3dModeOverride = romConfig.render3dMode,
+            render3dFactorOverride = romConfig.render3dFactor,
             rendererConfiguration = buildRomRendererConfiguration(
                 baseConfiguration = globalConfiguration.rendererConfiguration,
                 romConfig = romConfig,
@@ -2687,22 +2691,34 @@ class SharedPreferencesSettingsRepository(
             return 0
         }
         return when (preferences.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()) {
-            "gyro_parallax" -> 1
-            "anaglyph" -> 2
-            "sbs_xr" -> 3
+            "sbs_xr" -> 1
+            "sbs_full" -> 2
+            "anaglyph" -> 3
+            "interlaced" -> 4
+            "reverse_interlaced" -> 5
+            "cardboard_vr" -> 6
+            "gyro_parallax" -> 7
             else -> 0
         }
     }
 
     override fun setVulkan3dDepthMode(mode: Int) {
-        val str = when (mode) {
-            1 -> "gyro_parallax"
-            2 -> "anaglyph"
-            3 -> "sbs_xr"
+        val clamped = mode.coerceIn(0, 7)
+        val str = when (clamped) {
+            1 -> "sbs_xr"
+            2 -> "sbs_full"
+            3 -> "anaglyph"
+            4 -> "interlaced"
+            5 -> "reverse_interlaced"
+            6 -> "cardboard_vr"
+            7 -> "gyro_parallax"
             else -> "off"
         }
-        preferences.edit { putString("video_vulkan_3d_depth_mode", str) }
-        runCatching { MelonEmulator.setVulkanDepth3DMode(mode) }
+        preferences.edit {
+            putString("video_vulkan_3d_depth_mode", str)
+            putInt("3ds_render_mode", clamped)
+        }
+        runCatching { MelonEmulator.setVulkanDepth3DMode(clamped) }
     }
 
     override fun getVulkan3dDepthStrength(): Int {
@@ -2711,7 +2727,10 @@ class SharedPreferencesSettingsRepository(
 
     override fun setVulkan3dDepthStrength(strength: Int) {
         val clamped = strength.coerceIn(0, 100)
-        preferences.edit { putString("video_vulkan_3d_depth_strength", clamped.toString()) }
+        preferences.edit {
+            putString("video_vulkan_3d_depth_strength", clamped.toString())
+            putInt("3ds_depth_factor", clamped)
+        }
         runCatching { MelonEmulator.setVulkanDepth3DStrength(clamped) }
     }
 

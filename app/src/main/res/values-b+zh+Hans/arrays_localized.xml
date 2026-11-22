@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="button_color_theme_options">
+        <item>Nintendo 3DS（水波蓝）</item>
+        <item>Nintendo 3DS 经典版（金属灰）</item>
+        <item>Nintendo 3DS Lite（纯白）</item>
+        <item>Nintendo Famicom / NES（金色与栗红）</item>
+        <item>Nintendo Game Boy（DMG 复古灰与梅紫）</item>
+        <item>Nintendo Game Boy Advance（冰川靛蓝）</item>
+        <item>Nintendo GameCube（靛蓝与绿/红）</item>
+        <item>Nintendo Super Famicom / SNES（四色经典）</item>
+        <item>Nintendo Switch 霓虹（红与蓝）</item>
+        <item>Nintendo Switch OLED（哑光白）</item>
+        <item>Nintendo Virtual Boy（激光红与虚空黑）</item>
+        <item>Nintendo Wii（晶莹白与蓝）</item>
+        <item>Nintendo Wii U（深岩灰与青）</item>
+        <item>STORM 复古街机（经典街机 / 四色）</item>
+        <item>STORM 极光光谱（四色柔彩 / 浅色）</item>
+        <item>STORM 赛博霓虹（青色与深色）</item>
+        <item>STORM 赛博朋克 2077（霓虹 / 多彩）</item>
+        <item>STORM 寒霜冰川（冰晶渐变 / 浅色）</item>
+        <item>STORM 哥特深红（宝石红与碳黑）</item>
+        <item>STORM 矩阵翡翠（霓虹绿）</item>
+        <item>STORM 午夜紫晶（深紫）</item>
+        <item>STORM 皇家鎏金（金色与黑曜石）</item>
+        <item>STORM 樱花绽放（樱花粉 / 浅色）</item>
+        <item>STORM 炽阳聚变（太阳光谱 / 浅色）</item>
+        <item>New Nintendo 3DS SFC（彩色 ABXY 按键）</item>
+        <item>STORM 赛博 3D（全息青翠）</item>
+        <item>塞尔达 海拉鲁限定版（皇家金与翡翠绿）</item>
+        <item>密特罗德 萨姆斯面甲（深红与琥珀 LED）</item>
+        <item>New 3DS XL 银河限定版（深紫与洋红）</item>
+        <item>动物森友会 叶子（淡薄荷绿与奶白）</item>
+        <item>怪物猎人 熔炉（黑曜石与炽热余烬）</item>
+        <item>宝可梦 精灵球（亮面绯红与纯白）</item>
+        <item>女神异闻录 天鹅绒房间（午夜钴蓝与银）</item>
+        <item>水晶棱镜 3D（烟熏外壳与冰蓝微光）</item>
+    </string-array>
+    <string-array name="external_display_mode_options">
+        <item>镜像显示</item>
+        <item>STORM 3DS</item>
+    </string-array>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24 种语音（根据语境与角色自动神经网络分配）</item>
+        <item>🎙️ 德米特里（神经男中音）</item>
+        <item>🎙️ 叶莲娜（神经女高音）</item>
+        <item>🗡️ 少年勇者（清亮男高音）</item>
+        <item>🦇 黑暗骑士 / 蝙蝠侠（沙哑男低音）</item>
+        <item>👹 Boss / 暴君 / 库巴（沉重男低音）</item>
+        <item>🃏 小丑 / 诡术师（癫狂男高音）</item>
+        <item>💀 深渊恶魔 / 德古拉（极深男低音）</item>
+        <item>📜 睿智长者 / 教授（苍老沙哑）</item>
+        <item>👦 少年 / 伙伴 / 路克（清澈）</item>
+        <item>👧 少女 / 绫里春美（柔和稚嫩）</item>
+        <item>👑 公主 / 塞尔达女王（高贵威严）</item>
+        <item>💰 商人 / 狸克（热情开朗）</item>
+        <item>🛡️ 卫兵 / 队长（威严冷峻）</item>
+        <item>🤖 机器人 / 改造人 / 宝可梦图鉴（电子合成）</item>
+        <item>📖 旁白 / 编年史官（温润磁性）</item>
+        <item>🎀 傲娇 / 狩魔冥（傲慢女高音）</item>
+        <item>🤫 神秘低语 / 暗影（幽秘）</item>
+        <item>✨ 活泼妖精 / 娜薇（俏皮高女中音）</item>
+        <item>🏴‍☠️ 海盗船长（粗犷咆哮男低音）</item>
+        <item>🔬 疯狂科学家 / 威利博士（古怪）</item>
+        <item>🎩 绅士 / 雷顿 / 成步堂龙一（儒雅沉稳）</item>
+        <item>👻 幽灵 / 幻影（空灵回响）</item>
+        <item>⚔️ 高洁骑士 / 魅塔骑士（坚定男中音）</item>
+        <item>🕊️ 女神 / 天使帕露蒂娜（神圣清澈）</item>
+    </string-array>
+</resources>

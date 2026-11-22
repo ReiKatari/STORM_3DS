@@ -572,7 +572,7 @@
   <string-array name="gba_slot_options">
     <item>Нет</item>
     <item>GBA ROM</item>
-    <item>Rumble Pak</item>
+    <item>Вибромодуль (Rumble Pak)</item>
     <item>Расширение памяти</item>
     <item>Аналоговый ввод</item>
   </string-array>
@@ -596,7 +596,7 @@
     <item>Compute</item>
   </string-array>
       <string-array name="video_internal_resolution_options">
-        <item>1x оригинал (400x240)</item>
+        <item>@string/video_res_1x_native</item>
         <item>2x (800x480)</item>
         <item>3x (1200x720)</item>
         <item>4x (1600x960)</item>
@@ -775,7 +775,7 @@
   <string name="category_roms">Папки и список игр</string>
   <string name="category_roms_summary">Директории поиска, отображение обложек и кэш</string>
   <string name="category_system">Система 3DS</string>
-  <string name="category_system_summary">New 3DS, частота CPU, регион, JIT и ключи</string>
+  <string name="category_system_summary">New 3DS, частота ЦП, регион, JIT и ключи</string>
   <string name="category_video">Видео и графика</string>
   <string name="category_video_summary">Графический движок, разрешение 3D, Vulkan и шейдеры</string>
   <string name="category_audio">Звуковые настройки</string>
@@ -881,7 +881,7 @@
   <string name="generate_new_mac_address">Сгенерировать новый MAC-адрес</string>
   <string name="generate_new_mac_address_description">Обновить MAC-адрес сетевого адаптера</string>
   <string name="enable_jit">Включить JIT-компилятор</string>
-  <string name="enable_jit_summary">Динамическая рекомпиляция CPU для максимальной скорости</string>
+  <string name="enable_jit_summary">Динамическая рекомпиляция ЦП для максимальной скорости</string>
   <string name="enable_storm_compiler">ARM11 JIT-компилятор (Dynarmic)</string>
   <string name="enable_storm_compiler_summary">Динамическая рекомпиляция ARM11 для высокой скорости игр 3DS.</string>
   <string name="jit_not_supported">JIT не поддерживается на данном устройстве</string>
@@ -925,11 +925,11 @@
   <string name="external_layout_backup_error">Ошибка экспорта внутреннего макета</string>
   <string name="threaded_rendering">Многопоточный рендеринг</string>
   <string name="fps_counter_position">Позиция счетчика FPS</string>
-  <string name="threaded_rendering_summary">Использовать дополнительные потоки CPU для графики</string>
+  <string name="threaded_rendering_summary">Использовать дополнительные потоки ЦП для графики</string>
   <string name="video_vulkan_fastpath_enabled">Vulkan Fast-Path</string>
   <string name="video_vulkan_fastpath_enabled_summary">Ускоренная обработка команд Vulkan</string>
   <string name="video_vulkan_fastpath_warning_title">Предупреждение Vulkan Fast-Path</string>
-  <string name="video_vulkan_fastpath_warning_message">Быстрый путь Vulkan может вызвать артефакты на некоторых GPU.</string>
+  <string name="video_vulkan_fastpath_warning_message">Быстрый путь Vulkan может вызвать артефакты на некоторых ГП.</string>
   <string name="video_vulkan_fastpath_enable_action">Включить</string>
   <string name="video_hacks">Графические хаки и оптимизации</string>
   <string name="video_renderer_debug_tools_enabled">Инструменты отладки рендерера</string>
@@ -1388,7 +1388,7 @@
     <string name="wfc_custom_dns_title">Основной DNS-сервер WFC</string>
     <string name="wfc_custom_dns_summary">IP-адрес DNS для сетевого мультиплеера Nintendo WFC</string>
     <string name="cheats_download_online">Скачать базу чит-кодов (онлайн)</string>
-    <string name="cheats_download_online_summary">Автоматически загрузить актуальную базу usrcheat.dat с читами для всех игр NDS</string>
+    <string name="cheats_download_online_summary">Автоматически загрузить актуальную базу читов Gateway для всех игр Nintendo 3DS</string>
     <string name="cheats_download_success">База чит-кодов успешно обновлена и подключена</string>
     <string name="video_ai_upscale_title">AI-Upscale 2D-спрайтов (Anime4K / NPU)</string>
     <string name="video_ai_upscale_summary">Нейросетевое сглаживание и увеличение резкости 2D-спрайтов и шрифтов</string>
@@ -1464,7 +1464,7 @@
     <string name="card_style_3d_boxart">3D Boxart (Объемные боксы)</string>
 
     <!-- JIT Overclock  and  CPU Tuning -->
-    <string name="arm9_overclock_title">Частота CPU ARM9 (разгон)</string>
+    <string name="arm9_overclock_title">Частота ЦП ARM9 (разгон)</string>
     <string name="arm9_overclock_summary">Разгон виртуального процессора для устранения просадок FPS в тяжелых 3D-играх</string>
     <string name="arm9_overclock_1x">67 МГц (по умолчанию / 1x)</string>
     <string name="arm9_overclock_2x">133 МГц (режим DSi / 2x)</string>
@@ -1510,7 +1510,7 @@
     <string name="rewind_status_disabled">Функция перемотки отключена</string>
     <string name="rewind_save_interval">Интервал сохранения</string>
     <string name="rewind_history_depth">Глубина истории</string>
-    <string name="rewind_memory_estimate">Оценочный расход RAM: ~%1$d МБ (макс. снимков: %2$d)</string>
+    <string name="rewind_memory_estimate">Оценочный расход ОЗУ: ~%1$d МБ (макс. снимков: %2$d)</string>
     <string name="seconds_short">%d сек.</string>
     <string name="firmware_birthday_format">Формат: день / месяц</string>
     <string name="day_label">День</string>

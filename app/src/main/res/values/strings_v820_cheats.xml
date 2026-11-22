@@ -23,7 +23,7 @@
     <string name="cheats_search_games_available">Games in database: %1$d</string>
     <string name="cheats_search_results_count">Results shown: %1$d</string>
     <string name="cheats_search_cheats_count">Cheats: %1$d</string>
-    <string name="cheats_search_db_empty">The cheat database is empty. Download usrcheat.dat online or import a local file first.</string>
+    <string name="cheats_search_db_empty">The cheat database is empty for this search. Import a Gateway .txt / .xml cheat file or enable bundled 3DS cheats first.</string>
     <string name="cheats_search_no_results">No games matched your query.</string>
     <string name="cheats_clear_database_title">Clear cheat database</string>
     <string name="cheats_clear_database_summary">Delete all imported databases, games, folders and cheats</string>

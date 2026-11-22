@@ -337,11 +337,12 @@ class ModernDpadView @JvmOverloads constructor(
                 wellStrokePaint.color = Color.parseColor("#667DD3FC")
             }
             else -> {
-                bodyPaint.color = Color.parseColor("#E6232730")
-                bevelLightPaint.color = Color.parseColor("#66FFFFFF")
-                centerDishPaint.color = Color.parseColor("#CC1A1C22")
-                wellPaint.color = Color.parseColor("#330F1117")
-                wellStrokePaint.color = Color.parseColor("#33FFFFFF")
+                val p = ButtonThemeManager.paletteFor(style)
+                bodyPaint.color = p.thumbDark
+                bevelLightPaint.color = p.housingStroke
+                centerDishPaint.color = p.housingBg
+                wellPaint.color = p.housingBg
+                wellStrokePaint.color = p.housingStroke
             }
         }
 
@@ -469,7 +470,7 @@ class ModernDpadView @JvmOverloads constructor(
                     ButtonColorStyle.POKEMON_POKEBALL -> Color.parseColor("#66EF4444")
                     ButtonColorStyle.PERSONA_VELVET -> Color.parseColor("#66CBD5E1")
                     ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#667DD3FC")
-                    else -> Color.parseColor("#6600E5FF")
+                    else -> (ButtonThemeManager.paletteFor(style).accentGlow and 0x00FFFFFF) or 0x66000000
                 }
                 activeGlowPaint.color = glowCol
                 activeGlowPaint.alpha = (glow * 180).toInt()
@@ -507,7 +508,7 @@ class ModernDpadView @JvmOverloads constructor(
             ButtonColorStyle.METROID_VISOR -> Color.parseColor("#FBBF24")
             ButtonColorStyle.MONSTER_HUNTER_FORGE -> Color.parseColor("#FB923C")
             ButtonColorStyle.CRYSTAL_PRISM_3D -> Color.parseColor("#BAE6FD")
-            else -> Color.parseColor("#F0F4F8")
+            else -> ButtonThemeManager.paletteFor(style).labelText
         }
 
         drawArrow(canvas, cx, cy - arrowDist, arrowSize, 0f)

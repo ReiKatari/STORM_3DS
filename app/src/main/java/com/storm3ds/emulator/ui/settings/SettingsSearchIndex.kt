@@ -68,12 +68,9 @@ class SettingsSearchIndex(private val context: Context) {
         ScreenDescriptor(R.xml.pref_video, VideoPreferencesFragment::class.java.name, R.string.category_video, R.drawable.ic_video),
         ScreenDescriptor(R.xml.pref_audio, AudioPreferencesFragment::class.java.name, R.string.category_audio, R.drawable.ic_audio),
         ScreenDescriptor(R.xml.pref_input, InputPreferencesFragment::class.java.name, R.string.input, R.drawable.ic_input),
-        ScreenDescriptor(R.xml.pref_retroachievements, RetroAchievementsPreferencesFragment::class.java.name, R.string.retroachievements, R.drawable.ic_trophy),
         ScreenDescriptor(R.xml.pref_cheats, CheatsPreferencesFragment::class.java.name, R.string.cheats, R.drawable.ic_cheat),
         ScreenDescriptor(R.xml.pref_translator, TranslatorPreferencesFragment::class.java.name, R.string.category_translator, R.drawable.ic_translate),
         ScreenDescriptor(R.xml.pref_about, AboutPreferencesFragment::class.java.name, R.string.about_app_title, R.drawable.ic_info),
-        ScreenDescriptor(R.xml.pref_custom_firmware, CustomFirmwarePreferencesFragment::class.java.name, R.string.custom_bios_firmware, R.drawable.ic_firmware),
-        ScreenDescriptor(R.xml.pref_internal_firmware_settings, FirmwarePreferencesFragment::class.java.name, R.string.internal_firmware_settings, R.drawable.ic_firmware),
         ScreenDescriptor(R.xml.pref_main, MainPreferencesFragment::class.java.name, R.string.settings, R.drawable.ic_settings),
     )
 
@@ -93,20 +90,32 @@ class SettingsSearchIndex(private val context: Context) {
             try {
                 var eventType = parser.eventType
                 var currentCategory: String? = null
+                var currentCategoryVisible = true
 
                 while (eventType != XmlPullParser.END_DOCUMENT) {
                     if (eventType == XmlPullParser.START_TAG) {
                         val tagName = parser.name
                         if (tagName == "PreferenceCategory") {
+                            currentCategory = null
+                            currentCategoryVisible = true
                             for (i in 0 until parser.attributeCount) {
-                                if (parser.getAttributeName(i) == "title") {
-                                    val resId = parser.getAttributeResourceValue(i, 0)
-                                    currentCategory = if (resId != 0) {
-                                        runCatching { context.getString(resId) }.getOrNull()
-                                    } else {
-                                        parser.getAttributeValue(i)
+                                when (parser.getAttributeName(i)) {
+                                    "title" -> {
+                                        val resId = parser.getAttributeResourceValue(i, 0)
+                                        currentCategory = if (resId != 0) {
+                                            runCatching { context.getString(resId) }.getOrNull()
+                                        } else {
+                                            parser.getAttributeValue(i)
+                                        }
                                     }
-                                    break
+                                    "isPreferenceVisible" -> {
+                                        val resId = parser.getAttributeResourceValue(i, 0)
+                                        currentCategoryVisible = if (resId != 0) {
+                                            runCatching { context.resources.getBoolean(resId) }.getOrDefault(true)
+                                        } else {
+                                            parser.getAttributeBooleanValue(i, true)
+                                        }
+                                    }
                                 }
                             }
                         } else if (tagName != "PreferenceScreen") {
@@ -147,7 +156,7 @@ class SettingsSearchIndex(private val context: Context) {
                                 }
                             }
 
-                            if (isVisible && !title.isNullOrBlank() && !key.isNullOrBlank()) {
+                            if (currentCategoryVisible && isVisible && !title.isNullOrBlank() && !key.isNullOrBlank()) {
                                 val uniqueKey = "${screen.fragmentClass}::$key"
                                 if (!seenKeys.contains(uniqueKey)) {
                                     seenKeys.add(uniqueKey)

@@ -261,9 +261,6 @@ class ExternalPresentation(
         hybridOnTop: Boolean,
     ): VulkanPresentationConfig? {
         val rendererConfiguration = currentRendererConfiguration ?: return null
-        if (rendererConfiguration.renderer != VideoRenderer.VULKAN) {
-            return null
-        }
 
         val (surfaceWidth, surfaceHeight) = surfaceView.getCurrentSurfaceSize()
         val (resolvedTopScreenRect, resolvedBottomScreenRect) = resolveVulkanScreenRects(

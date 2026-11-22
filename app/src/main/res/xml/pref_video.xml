@@ -436,6 +436,7 @@
 
     <PreferenceCategory
             android:key="video_hacks_category"
+            app:isPreferenceVisible="false"
             android:title="@string/video_hacks"
             app:iconSpaceReserved="false">
 

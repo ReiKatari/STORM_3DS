@@ -55,6 +55,14 @@ data class RomConfigDto(
     val fastForwardSpeedMultiplier: Float? = null,
     @SerializedName("customVulkanDriverName")
     val customVulkanDriverName: String? = null,
+    @SerializedName("isNew3ds")
+    val isNew3ds: Boolean? = null,
+    @SerializedName("cpuClockPercentage")
+    val cpuClockPercentage: Int? = null,
+    @SerializedName("render3dMode")
+    val render3dMode: Int? = null,
+    @SerializedName("render3dFactor")
+    val render3dFactor: Int? = null,
 ) {
 
     companion object {
@@ -82,6 +90,10 @@ data class RomConfigDto(
                 romConfig.arm9Overclock,
                 romConfig.fastForwardSpeedMultiplier,
                 romConfig.customVulkanDriverName,
+                romConfig.isNew3ds,
+                romConfig.cpuClockPercentage,
+                romConfig.render3dMode,
+                romConfig.render3dFactor,
             )
         }
     }
@@ -110,6 +122,10 @@ data class RomConfigDto(
             arm9Overclock = arm9Overclock,
             fastForwardSpeedMultiplier = fastForwardSpeedMultiplier,
             customVulkanDriverName = customVulkanDriverName,
+            isNew3ds = isNew3ds,
+            cpuClockPercentage = cpuClockPercentage,
+            render3dMode = render3dMode,
+            render3dFactor = render3dFactor,
         )
     }
 }

@@ -347,10 +347,8 @@ object PlayStatsStore {
 
     fun isDsiGame(gameCode: String, displayName: String): Boolean {
         val upperCode = gameCode.trim().uppercase(Locale.US)
-        val firstChar = upperCode.firstOrNull()
-        val codeMatch = firstChar == 'T' || firstChar == 'H' || firstChar == 'K'
-        val nameMatch = displayName.contains("DSi", ignoreCase = true)
-        return codeMatch || nameMatch
+        val lowerName = displayName.lowercase(Locale.US)
+        return upperCode == "HB3DS" || lowerName.contains(".3dsx") || lowerName.contains("homebrew")
     }
 
     private fun toDayNumber(epochMs: Long): Long {
@@ -458,12 +456,12 @@ object PlayStatsStore {
                 0f
             }
             val avg = item.playTimeMs / item.launchCount.coerceAtLeast(1)
-            val dsi = isDsiGame(item.gameCode, item.displayName)
+            val isHomebrew = isDsiGame(item.gameCode, item.displayName) || item.uriString.lowercase(Locale.US).endsWith(".3dsx")
             item.copy(
                 sharePercent = share,
                 avgSessionMs = avg,
-                isDsi = dsi,
-                platformLabel = if (dsi) "DSi" else "NDS",
+                isDsi = isHomebrew,
+                platformLabel = if (isHomebrew) "3DS HB" else "3DS",
             )
         }
 
@@ -833,7 +831,7 @@ object PlayStatsStore {
         val sessions = dao.getAllSessions()
         val appVersion = runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrNull() ?: "8.6.0"
+        }.getOrNull() ?: com.storm3ds.emulator.BuildConfig.VERSION_NAME
 
         val rootObj = JSONObject().apply {
             put("app", "STORM 3DS")
@@ -920,7 +918,7 @@ object PlayStatsStore {
         val sessions = dao.getAllSessions()
         val appVersion = runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrNull() ?: "8.6.0"
+        }.getOrNull() ?: com.storm3ds.emulator.BuildConfig.VERSION_NAME
 
         val exportDir = File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS/exports").apply { mkdirs() }
         val targetDir = if (exportDir.exists() && exportDir.canWrite()) exportDir else File(context.filesDir, "exports").apply { mkdirs() }
@@ -936,7 +934,7 @@ object PlayStatsStore {
         sb.append("Biorhythm,Morning (min),Afternoon (min),Evening (min),Night (min),Peak Period\n")
         sb.append("Minutes,${summary.timeOfDay.morningMs / 60000L},${summary.timeOfDay.afternoonMs / 60000L},${summary.timeOfDay.eveningMs / 60000L},${summary.timeOfDay.nightMs / 60000L},\"${summary.timeOfDay.peakPeriod.name}\"\n\n")
 
-        sb.append("Platform,Nintendo 3DS Time (min),Nintendo 3DS Games,Nintendo 3DSi Time (min),Nintendo 3DSi Games,DSi Share (%)\n")
+        sb.append("Platform,Nintendo 3DS Time (min),Nintendo 3DS Games,3DS Homebrew Time (min),3DS Homebrew Games,Homebrew Share (%)\n")
         sb.append("Summary,${summary.platformBreakdown.ndsPlayTimeMs / 60000L},${summary.platformBreakdown.ndsGamesCount},${summary.platformBreakdown.dsiPlayTimeMs / 60000L},${summary.platformBreakdown.dsiGamesCount},${String.format(Locale.US, "%.1f", summary.platformBreakdown.dsiSharePercent)}\n\n")
 
         sb.append("Type,ROM Name,Game Code,Platform,Duration (ms),Duration (min),Share (%),Launches,Avg Session (min),Last Played Date,Started At\n")

@@ -63,8 +63,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.storm3ds.emulator.R
+import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
 import com.storm3ds.emulator.common.cheats.EmbeddedActionReplayCheats
-import com.storm3ds.emulator.common.network.SharedOkHttpClient
+import com.storm3ds.emulator.nativebridge.NativeLibrary
+import com.storm3ds.emulator.nativebridge.model.GameInfo
 import com.storm3ds.emulator.di.entrypoint.CheatsEntryPoint
 import com.storm3ds.emulator.domain.model.Cheat
 import com.storm3ds.emulator.domain.model.CheatFolder
@@ -119,7 +121,11 @@ fun RomCheatsUi(
             val effectiveTitle = parsedInfo?.gameTitle?.takeIf { it.isNotBlank() }
                 ?: romDisplayName(rom)
 
-            EmbeddedActionReplayCheats.populateIfEmpty(database, effectiveCode, effectiveTitle, checksum)
+            if (effectiveCode.length == 16) {
+                BundledMmjCheatsLoader.populate3dsCheatsIfEmpty(context, database, effectiveCode, effectiveTitle)
+            } else {
+                EmbeddedActionReplayCheats.populateIfEmpty(database, effectiveCode, effectiveTitle, checksum)
+            }
 
             var foundGame = if (parsedInfo != null) {
                 cheatsRepository.findGameForRom(parsedInfo)
@@ -185,33 +191,52 @@ fun RomCheatsUi(
     val importCheatsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             coroutineScope.launch(Dispatchers.IO) {
-                cheatsRepository.importCheats(uri)
-                // Also copy imported file to STORM 3DS/cheats/ for persistence
-                runCatching {
-                    val rootBase = File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS")
-                    val cheatsDir = File(rootBase, "cheats").apply { mkdirs() }
-                    val fileName = runCatching {
-                        androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.name
-                    }.getOrNull() ?: "usrcheat.dat"
-                    val targetName = when {
-                        fileName.endsWith(".dat", ignoreCase = true) -> "usrcheat.dat"
-                        fileName.endsWith(".xml", ignoreCase = true) -> "cheat.xml"
-                        fileName.endsWith(".zip", ignoreCase = true) -> "cheats.zip"
-                        else -> "usrcheat.dat"
+                val fileName = runCatching {
+                    androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.name
+                }.getOrNull() ?: "cheats.txt"
+                val rootBase = File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS")
+                val cheatsDir = File(rootBase, "cheats").apply { mkdirs() }
+                if (fileName.endsWith(".txt", ignoreCase = true)) {
+                    val textContent = runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull().orEmpty()
+                    val parsed = BundledMmjCheatsLoader.parseGatewayTxt(textContent)
+                    val activeCode = (romInfo?.gameCode?.takeIf { it.isNotBlank() } ?: extractDsiCode(rom)).uppercase()
+                    val saveName = if (fileName.substringBefore('.').length >= 16) fileName
+                        else if (activeCode.length == 16) "${activeCode}.txt"
+                        else fileName
+                    if (textContent.isNotBlank()) {
+                        runCatching { File(cheatsDir, saveName).writeText(textContent) }
                     }
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        val target = File(cheatsDir, targetName)
-                        FileOutputStream(target).use { output ->
-                            input.copyTo(output)
+                    if (parsed.isNotEmpty()) {
+                        val existing = database.gameDao().findGameByCode(activeCode)
+                        BundledMmjCheatsLoader.insertParsedCheats(
+                            database = database,
+                            titleIdHex = activeCode.ifBlank { fileName.substringBefore('.').uppercase() },
+                            gameTitle = romDisplayName(rom),
+                            entries = parsed.map { it.copy(folder = "Gateway 3DS ($saveName)") },
+                            existingGameId = existing?.id,
+                        )
+                    }
+                } else {
+                    cheatsRepository.importCheats(uri)
+                    runCatching {
+                        val targetName = when {
+                            fileName.endsWith(".dat", ignoreCase = true) -> "usrcheat.dat"
+                            fileName.endsWith(".xml", ignoreCase = true) -> "cheat.xml"
+                            fileName.endsWith(".zip", ignoreCase = true) -> "cheats.zip"
+                            else -> fileName
                         }
-                        if (targetName == "usrcheat.dat") {
-                            val prefs = context.getSharedPreferences("storm_cheats_auto_import", android.content.Context.MODE_PRIVATE)
-                            prefs.edit().putString("usrcheat_auto_import_sig", "${target.length()}_${target.lastModified()}").apply()
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            val target = File(cheatsDir, targetName)
+                            FileOutputStream(target).use { output ->
+                                input.copyTo(output)
+                            }
                         }
                     }
                 }
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Импорт чит-базы в STORM 3DS/cheats/ успешно выполнен!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.ui_rom_cheats_saved_toast), Toast.LENGTH_SHORT).show()
                 }
                 refreshCheats()
             }
@@ -224,85 +249,39 @@ fun RomCheatsUi(
         coroutineScope.launch(Dispatchers.IO) {
             val effectiveCode = romInfo?.gameCode?.takeIf { it.isNotBlank() } ?: extractDsiCode(rom)
             val effectiveTitle = romInfo?.gameTitle?.takeIf { it.isNotBlank() } ?: romDisplayName(rom)
-
-            // 1. First ensure embedded/offline cheats are populated in database
-            val populated = EmbeddedActionReplayCheats.populateIfEmpty(database, effectiveCode, effectiveTitle)
-
-            // 2. Try online mirror download of full usrcheat.dat
-            var downloaded = false
-            val candidateUrls = listOf(
-                "https://raw.githubusercontent.com/3song/Hacking-DeadSkullzJr-s-NDS-i--Cheat-Databases/main/Cheat%20Databases/usrcheat.dat",
-                "https://ghfast.top/https://raw.githubusercontent.com/3song/Hacking-DeadSkullzJr-s-NDS-i--Cheat-Databases/main/Cheat%20Databases/usrcheat.dat",
-                "https://gh-proxy.com/https://raw.githubusercontent.com/3song/Hacking-DeadSkullzJr-s-NDS-i--Cheat-Databases/main/Cheat%20Databases/usrcheat.dat",
-                "https://ghproxy.net/https://raw.githubusercontent.com/3song/Hacking-DeadSkullzJr-s-NDS-i--Cheat-Databases/main/Cheat%20Databases/usrcheat.dat",
-            )
-
-            val client = SharedOkHttpClient.instance.newBuilder()
-                .followRedirects(true)
-                .followSslRedirects(true)
-                .connectTimeout(12, TimeUnit.SECONDS)
-                .readTimeout(40, TimeUnit.SECONDS)
-                .callTimeout(180, TimeUnit.SECONDS)
-                .build()
-
-            val rootBase = File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS")
-            val cheatsDir = File(rootBase, "cheats").apply { mkdirs() }
-            val targetCheatFile = File(cheatsDir, "usrcheat.dat")
-            val tempCheatFile = File(cheatsDir, "usrcheat.dat.tmp")
-
-            for (url in candidateUrls) {
-                try {
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                        .build()
-
-                    client.newCall(request).execute().use { response ->
-                        val body = response.body
-                        if (response.isSuccessful && body != null) {
-                            var totalBytes = 0L
-                            body.byteStream().use { input ->
-                                FileOutputStream(tempCheatFile).use { fos ->
-                                    val buffer = ByteArray(32 * 1024)
-                                    while (true) {
-                                        val read = input.read(buffer)
-                                        if (read <= 0) break
-                                        fos.write(buffer, 0, read)
-                                        totalBytes += read
-                                    }
-                                    fos.flush()
-                                }
+            val populated3ds = BundledMmjCheatsLoader.populate3dsCheatsIfEmpty(context, database, effectiveCode, effectiveTitle)
+            var totalSynced = 0
+            runCatching {
+                context.assets.list("cheats").orEmpty()
+                    .filter { it.endsWith(".txt", ignoreCase = true) }
+                    .forEach { fileName ->
+                        val tid = fileName.substringBefore('.').uppercase()
+                        if (tid.length >= 16) {
+                            val entries = context.assets.open("cheats/$fileName").bufferedReader().use {
+                                BundledMmjCheatsLoader.parseGatewayTxt(it.readText())
                             }
-                            if (totalBytes > 0L) {
-                                if (targetCheatFile.exists()) targetCheatFile.delete()
-                                if (!tempCheatFile.renameTo(targetCheatFile)) {
-                                    tempCheatFile.copyTo(targetCheatFile, overwrite = true)
-                                    tempCheatFile.delete()
-                                }
-                                cheatsRepository.importCheats(Uri.fromFile(targetCheatFile))
-                                val prefs = context.getSharedPreferences("storm_cheats_auto_import", android.content.Context.MODE_PRIVATE)
-                                prefs.edit().putString("usrcheat_auto_import_sig", "${targetCheatFile.length()}_${targetCheatFile.lastModified()}").apply()
-                                downloaded = true
-                            } else {
-                                tempCheatFile.delete()
+                            if (entries.isNotEmpty()) {
+                                val existing = database.gameDao().findGameByCode(tid)
+                                val inserted = BundledMmjCheatsLoader.insertParsedCheats(
+                                    database = database,
+                                    titleIdHex = tid,
+                                    gameTitle = if (tid == effectiveCode) effectiveTitle else "3DS ($tid)",
+                                    entries = entries.map { it.copy(folder = "Gateway 3DS ($tid)") },
+                                    existingGameId = existing?.id,
+                                )
+                                if (inserted > 0) totalSynced += inserted
                             }
                         }
                     }
-                    if (downloaded) break
-                } catch (_: Throwable) {
-                    runCatching { tempCheatFile.delete() }
-                }
             }
-
             withContext(Dispatchers.Main) {
                 isDownloadingDb = false
-                if (downloaded) {
-                    Toast.makeText(context, "База читов (usrcheat.dat) сохранена в STORM 3DS/cheats/ и подключена!", Toast.LENGTH_LONG).show()
-                } else if (populated) {
-                    Toast.makeText(context, "Чит-коды Action Replay успешно подключены!", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "База читов проверена и синхронизирована.", Toast.LENGTH_SHORT).show()
+                val msg = when {
+                    totalSynced > 0 -> context.getString(R.string.ui_rom_cheats_synced_fmt, totalSynced)
+                    populated3ds -> context.getString(R.string.ui_rom_cheats_bundled_ok)
+                    else -> context.getString(R.string.ui_rom_cheats_db_checked)
                 }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 refreshCheats()
             }
         }
@@ -340,7 +319,7 @@ fun RomCheatsUi(
                             modifier = Modifier.size(26.dp).padding(end = 8.dp)
                         )
                         Text(
-                            text = if (displayGameCode.isNotBlank()) "ACTION REPLAY ЧИТЫ ($displayGameCode)" else "ACTION REPLAY ЧИТЫ",
+                            text = if (displayGameCode.isNotBlank()) stringResource(R.string.ui_rom_cheats_title_code_fmt, displayGameCode) else stringResource(R.string.ui_rom_cheats_title_plain),
                             fontFamily = SpaceGrotesk,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
@@ -349,7 +328,7 @@ fun RomCheatsUi(
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Официальные чит-коды для выбранной игры. Включение читов применяется мгновенно при запуске эмулятора.",
+                        text = stringResource(R.string.ui_rom_cheats_desc),
                         fontFamily = WatermelonMono,
                         fontSize = 9.5.sp,
                         color = Color.White.copy(alpha = 0.75f)
@@ -373,7 +352,7 @@ fun RomCheatsUi(
                                 Icon(Icons.Filled.UploadFile, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.size(6.dp))
                                 Text(
-                                    text = "Импорт чит-базы (.dat, .xml, .zip)",
+                                    text = stringResource(R.string.ui_rom_cheats_import_btn),
                                     fontFamily = SpaceGrotesk,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -399,7 +378,7 @@ fun RomCheatsUi(
                                 }
                                 Spacer(Modifier.size(6.dp))
                                 Text(
-                                    text = if (isDownloadingDb) "Обновление..." else "Обновить базу читов",
+                                    text = stringResource(if (isDownloadingDb) R.string.ui_rom_cheats_updating else R.string.ui_rom_cheats_update_db_btn),
                                     fontFamily = SpaceGrotesk,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -463,7 +442,7 @@ fun RomCheatsUi(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "ЧИТ-КОДЫ ДЛЯ ДАННОЙ ИГРЫ НЕ НАЙДЕНЫ",
+                            text = stringResource(R.string.ui_rom_cheats_empty_title),
                             fontFamily = SpaceGrotesk,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
@@ -471,7 +450,7 @@ fun RomCheatsUi(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "В базе пока нет читов для ${romDisplayName(rom)}${if (displayGameCode.isNotBlank()) " [$displayGameCode]" else ""}.\nНажмите «Импорт usrcheat.dat» или «Обновить базу читов», чтобы подключить Action Replay.",
+                            text = stringResource(R.string.ui_rom_cheats_empty_hint_fmt, "${romDisplayName(rom)}${if (displayGameCode.isNotBlank()) " [$displayGameCode]" else ""}"),
                             fontFamily = WatermelonMono,
                             fontSize = 9.5.sp,
                             color = Color(0xFF64748B),
@@ -667,6 +646,26 @@ private fun extractCodeFromName(name: String, hashFallback: String = ""): String
 }
 
 private fun parseRomInfoDeep(context: android.content.Context, rom: Rom): RomInfo? {
+    // 1. Prefer Nintendo 3DS 16-hex Title ID via native resolver / GameInfo / CIA header
+    val cleanCode = rom.gameCode.trim().uppercase().removePrefix("0X")
+    if (cleanCode.length == 16 && cleanCode.all { it in '0'..'9' || it in 'A'..'F' }) {
+        val sum = cleanCode.takeLast(8).toUIntOrNull(16) ?: 0u
+        return RomInfo(cleanCode, sum, rom.name, rom.name, isDsiWareTitle = false)
+    }
+    runCatching {
+        val path = NativeLibrary.resolveNativeOrContentPath(rom.uri)
+        if (path.isNotBlank()) {
+            val tid = if (rom.fileName.endsWith(".cia", ignoreCase = true) || rom.fileName.endsWith(".zcia", ignoreCase = true)) {
+                NativeLibrary.getCiaTitleId(path)
+            } else {
+                GameInfo(path).getTitleID()
+            }
+            if (tid != 0L) {
+                val tidHex = String.format(java.util.Locale.US, "%016X", tid)
+                return RomInfo(tidHex, (tid and 0xFFFFFFFFL).toUInt(), rom.name, rom.name, isDsiWareTitle = false)
+            }
+        }
+    }
     if (rom.isInstalledDsiWareShortcut) {
         val code = extractDsiCode(rom)
         val checksum = (rom.installedDsiWareTitleId ?: 0L).toUInt()

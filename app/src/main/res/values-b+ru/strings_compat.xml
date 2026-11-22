@@ -10,7 +10,7 @@
     <string name="compat_touch_dpad_mode_enabled">Режим кнопок направлений включён</string>
     <string name="compat_slot2_addon_title">Аксессуар Slot-2 (GBA)</string>
     <string name="compat_slot2_addon_disabled">Отключён</string>
-    <string name="compat_slot2_addon_rumble_pak">Rumble Pak (вибропакет DS)</string>
+    <string name="compat_slot2_addon_rumble_pak">Вибромодуль (Rumble Pak)</string>
     <string name="compat_slot2_addon_memory_expansion">Memory Expansion Pak (8 МБ ОЗУ)</string>
     <string name="compat_slot2_addon_solar_sensor">Solar Sensor (датчик солнца Boktai)</string>
     <string name="compat_slot2_addon_motion_pak">Motion Pak (гироскоп и акселерометр)</string>

@@ -430,16 +430,20 @@ class ModernCirclePadView @JvmOverloads constructor(
                 grooveDark = Color.parseColor("#5500E676"),
                 glow = Color.parseColor("#8000E676"),
             )
-            else -> PadPalette(
-                wellBg = Color.parseColor("#33111318"),
-                wellRim = Color.parseColor("#4DFFFFFF"),
-                tickColor = Color.parseColor("#66FFFFFF"),
-                capTop = Color.parseColor("#FF64748B"),
-                capBottom = Color.parseColor("#FF1E293B"),
-                dishFill = Color.parseColor("#FF334155"),
-                grooveDark = Color.parseColor("#4D000000"),
-                glow = Color.parseColor("#8000E5FF"),
-            )
+            else -> {
+                val p = ButtonThemeManager.paletteFor(style)
+                val glowArg = (p.accentGlow and 0x00FFFFFF) or 0x80000000.toInt()
+                PadPalette(
+                    wellBg = p.housingBg,
+                    wellRim = p.housingStroke,
+                    tickColor = p.housingStroke,
+                    capTop = p.thumbLight,
+                    capBottom = p.thumbDark,
+                    dishFill = p.thumbDark,
+                    grooveDark = p.housingStroke,
+                    glow = glowArg,
+                )
+            }
         }
     }
 }

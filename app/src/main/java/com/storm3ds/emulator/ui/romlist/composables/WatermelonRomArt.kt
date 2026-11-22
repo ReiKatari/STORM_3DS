@@ -82,10 +82,13 @@ fun romGradient(title: String): Brush {
     return Brush.linearGradient(colors = listOf(start, end))
 }
 
-fun romPlatformLabel(rom: Rom): String = when {
-    rom.isDsiWareTitle || rom.isInstalledDsiWareShortcut -> "DSiWare"
-    rom.isDsiEnhanced -> "DSi"
-    else -> "DS"
+fun romPlatformLabel(rom: Rom): String {
+    val ext = rom.fileName.substringAfterLast('.', "").lowercase()
+    return when {
+        ext in setOf("cia", "zcia", "bcia") -> "3DS CIA"
+        ext in setOf("3dsx", "elf", "axf", "z3dsx") -> "3DS HB"
+        else -> "3DS"
+    }
 }
 
 fun resolveRomRegionBadge(rom: Rom): Pair<String, String>? {
@@ -129,7 +132,7 @@ fun resolveRomRegionBadge(rom: Rom): Pair<String, String>? {
             return "🌐" to "WLD"
         }
     }
-    return "🌐" to "DS"
+    return "🌐" to "3DS"
 }
 
 private fun String.containsAny(vararg terms: String): Boolean {
@@ -196,8 +199,8 @@ fun PlatformBadge(
     fontSize: TextUnit = 8.sp,
 ) {
     val (bgColor, fgColor) = when (text) {
-        "DSiWare" -> Color(0xFF6200EA).copy(alpha = 0.70f) to Color(0xFFE1BEE7)
-        "DSi" -> Color(0xFF00695C).copy(alpha = 0.75f) to Color(0xFF80E27E)
+        "3DS CIA" -> Color(0xFF6200EA).copy(alpha = 0.75f) to Color(0xFFE1BEE7)
+        "3DS HB" -> Color(0xFF00695C).copy(alpha = 0.75f) to Color(0xFF80E27E)
         else -> Color.Black.copy(alpha = 0.55f) to Color.White
     }
     Box(
@@ -301,31 +304,13 @@ fun getGameTdbCover3dUrl(rom: Rom): String? {
         fourthChar == 'P' || fourthChar == 'X' || fourthChar == 'Y' || fourthChar == 'Z' || fourthChar == 'D' || fourthChar == 'F' || fourthChar == 'I' || fourthChar == 'S' || fourthChar == 'U' -> "EN"
         else -> "US"
     }
-    val url = if (!code.startsWith("NDS", true)) "https://art.gametdb.com/ds/box/$region/$code.png" else null
-    return if (url != null && !isFailedCoverUrl(url)) url else null
+    // Skip DS GameTDB endpoints on 3DS titles (Title IDs are 16-hex, not 4-char DS serials)
+    if (code.length != 4 || code.startsWith("0004") || code.startsWith("NDS", true)) return null
+    return null
 }
 
 fun getGameTdbCover2dUrl(rom: Rom): String? {
-    val code = when {
-        rom.gameCode.isNotBlank() && rom.gameCode.length == 4 && rom.gameCode.all { it.isLetterOrDigit() } -> rom.gameCode.uppercase()
-        rom.name.length == 4 && rom.name.all { it.isLetterOrDigit() } -> rom.name.uppercase()
-        else -> null
-    } ?: return null
-
-    val clean = rom.fileName.uppercase()
-    val fourthChar = code.getOrNull(3)?.uppercaseChar()
-    val region = when {
-        fourthChar == 'E' -> "US"
-        fourthChar == 'J' -> "JA"
-        fourthChar == 'K' -> "KO"
-        clean.contains("JAP") || clean.contains("JPN") || clean.contains("(J)") -> "JA"
-        clean.contains("EUR") || clean.contains("(E)") -> "EN"
-        clean.contains("USA") || clean.contains("(U)") -> "US"
-        fourthChar == 'P' || fourthChar == 'X' || fourthChar == 'Y' || fourthChar == 'Z' || fourthChar == 'D' || fourthChar == 'F' || fourthChar == 'I' || fourthChar == 'S' || fourthChar == 'U' -> "EN"
-        else -> "US"
-    }
-    val url = if (!code.startsWith("NDS", true)) "https://art.gametdb.com/ds/coverM/$region/$code.jpg" else null
-    return if (url != null && !isFailedCoverUrl(url)) url else null
+    return null
 }
 
 @Composable

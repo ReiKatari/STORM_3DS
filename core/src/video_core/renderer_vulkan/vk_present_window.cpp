@@ -153,6 +153,11 @@ PresentWindow::PresentWindow(Frontend::EmuWindow& emu_window_, const Instance& i
 }
 
 PresentWindow::~PresentWindow() {
+    {
+        std::scoped_lock lock{recreate_surface_mutex};
+        shutting_down = true;
+    }
+    recreate_surface_cv.notify_all();
     scheduler.Finish();
     const vk::Device device = instance.GetDevice();
     // If the window is destroyed before the next_surface is
@@ -354,7 +359,14 @@ void PresentWindow::NotifySurfaceChanged() {
     // skip creating the surface again as that would cause a
     // vulkan ErrorNativeWindowInUseKHR.
     void* const render_surface = emu_window.GetWindowInfo().render_surface;
+    if (render_surface == nullptr) {
+        last_render_surface = nullptr;
+        surface_needs_recreate = false;
+        return;
+    }
     if (render_surface == last_render_surface) {
+        surface_needs_recreate = true;
+        recreate_surface_cv.notify_one();
         return;
     }
     last_render_surface = render_surface;
@@ -367,6 +379,7 @@ void PresentWindow::NotifySurfaceChanged() {
     }
 
     next_surface = CreateSurface(instance.GetInstance(), emu_window);
+    surface_needs_recreate = true;
     recreate_surface_cv.notify_one();
 #endif
 }
@@ -376,13 +389,23 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
 #ifdef ANDROID
         {
             std::unique_lock lock{recreate_surface_mutex};
-            recreate_surface_cv.wait(lock, [this]() { return surface != next_surface; });
-            surface = next_surface;
+            recreate_surface_cv.wait(lock, [this]() {
+                return surface != next_surface || surface_needs_recreate || shutting_down;
+            });
+            if (shutting_down) {
+                return;
+            }
+            if (surface != next_surface) {
+                surface = next_surface;
+            }
+            surface_needs_recreate = false;
         }
 #endif
         std::scoped_lock submit_lock{scheduler.submit_mutex};
         graphics_queue.waitIdle();
-        swapchain.Create(frame->width, frame->height, surface, low_refresh_rate);
+        if (surface) {
+            swapchain.Create(frame->width, frame->height, surface, low_refresh_rate);
+        }
     };
 
 #ifndef ANDROID
@@ -398,6 +421,9 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
 
     while (!swapchain.AcquireNextImage()) {
         recreate_swapchain();
+        if (shutting_down) {
+            return;
+        }
     }
 
     const vk::Image swapchain_image = swapchain.Image();

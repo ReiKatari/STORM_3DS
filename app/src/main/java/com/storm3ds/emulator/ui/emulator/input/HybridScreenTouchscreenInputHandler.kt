@@ -6,6 +6,7 @@ import android.view.View
 import com.storm3ds.emulator.MelonEmulator.onScreenRelease
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.Point
+import com.storm3ds.emulator.domain.model.ThreeDS
 import kotlin.math.roundToInt
 
 class HybridScreenTouchscreenInputHandler(inputListener: IInputListener) : BaseInputHandler(inputListener) {
@@ -145,11 +146,13 @@ class HybridScreenTouchscreenInputHandler(inputListener: IInputListener) : BaseI
     }
 
     private fun mapRawCoordsToDsPoint(rawX: Float, rawY: Float, viewWidth: Int, viewHeight: Int, bottomScreenTop: Float): Point {
-        val safeWidth = if (viewWidth > 0) viewWidth.toFloat() else 256f
+        val targetW = ThreeDS.BOTTOM_SCREEN_WIDTH
+        val targetH = ThreeDS.BOTTOM_SCREEN_HEIGHT
+        val safeWidth = if (viewWidth > 0) viewWidth.toFloat() else targetW.toFloat()
         val bottomScreenHeight = (viewHeight - bottomScreenTop).coerceAtLeast(1f)
 
-        touchPoint.x = ((rawX / safeWidth) * 256f).roundToInt().coerceIn(0, 255)
-        touchPoint.y = (((rawY - bottomScreenTop) / bottomScreenHeight) * 192f).roundToInt().coerceIn(0, 191)
+        touchPoint.x = ((rawX / safeWidth) * targetW).roundToInt().coerceIn(0, targetW - 1)
+        touchPoint.y = (((rawY - bottomScreenTop) / bottomScreenHeight) * targetH).roundToInt().coerceIn(0, targetH - 1)
         return touchPoint
     }
 }

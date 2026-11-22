@@ -412,8 +412,11 @@ class LayoutEditorView(context: Context, attrs: AttributeSet?) : LayoutView(cont
         pushUndoSnapshot()
         val baseWidth = when (component) {
             LayoutComponent.DPAD, LayoutComponent.BUTTONS -> context.dpToPixels(140f).toInt()
-            LayoutComponent.BUTTON_L, LayoutComponent.BUTTON_R -> context.dpToPixels(56f).toInt()
-            LayoutComponent.BUTTON_SELECT, LayoutComponent.BUTTON_START -> context.dpToPixels(54f).toInt()
+            LayoutComponent.CIRCLE_PAD -> context.dpToPixels(110f).toInt()
+            LayoutComponent.C_STICK -> context.dpToPixels(68f).toInt()
+            LayoutComponent.SLIDER_3D_DEPTH -> context.dpToPixels(44f).toInt()
+            LayoutComponent.BUTTON_L, LayoutComponent.BUTTON_R, LayoutComponent.BUTTON_ZL, LayoutComponent.BUTTON_ZR -> context.dpToPixels(56f).toInt()
+            LayoutComponent.BUTTON_SELECT, LayoutComponent.BUTTON_START, LayoutComponent.BUTTON_HOME -> context.dpToPixels(54f).toInt()
             LayoutComponent.TOP_SCREEN, LayoutComponent.BOTTOM_SCREEN -> (width * 0.5f).toInt().coerceAtLeast(defaultComponentWidth)
             else -> context.dpToPixels(40f).toInt()
         }

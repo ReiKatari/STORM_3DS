@@ -19,24 +19,27 @@ object MiiSelector {
             synchronized(finishLock) { finishLock.notifyAll() }
             return
         }
-        data = MiiSelectorData(0L, 0)
-        val items = config.miiNames
+        val items = arrayOf("Standard Mii") + config.miiNames
         val adapter = ArrayAdapter(activity, android.R.layout.select_dialog_singlechoice, items)
-        val initialIdx = config.initiallySelectedMiiIndex.toInt().coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        var selectedIdx = config.initiallySelectedMiiIndex.toInt().coerceIn(0, items.lastIndex)
+        data = MiiSelectorData(0L, selectedIdx)
         val builder = MaterialAlertDialogBuilder(activity)
-            .setTitle(config.title ?: "Select Mii")
-            .setSingleChoiceItems(adapter, initialIdx) { dialog, which ->
-                data = MiiSelectorData(0L, which)
+            .setTitle(config.title?.takeIf { it.isNotBlank() } ?: "Select Mii")
+            .setSingleChoiceItems(adapter, selectedIdx) { _, which ->
+                selectedIdx = which.coerceIn(0, items.lastIndex)
+            }
+            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+                data = MiiSelectorData(0L, selectedIdx)
                 dialog.dismiss()
                 synchronized(finishLock) { finishLock.notifyAll() }
             }
             .setOnCancelListener {
-                data = MiiSelectorData(if (config.enableCancelButton) 1L else 0L, initialIdx)
+                data = MiiSelectorData(if (config.enableCancelButton) 1L else 0L, selectedIdx)
                 synchronized(finishLock) { finishLock.notifyAll() }
             }
         if (config.enableCancelButton) {
             builder.setNegativeButton(android.R.string.cancel) { dialog, _ ->
-                data = MiiSelectorData(1L, initialIdx)
+                data = MiiSelectorData(1L, selectedIdx)
                 dialog.dismiss()
                 synchronized(finishLock) { finishLock.notifyAll() }
             }

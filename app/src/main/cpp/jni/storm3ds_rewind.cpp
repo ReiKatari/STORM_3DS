@@ -2,11 +2,16 @@
 // Licensed under GPLv3 or any later version
 #include <chrono>
 #include <deque>
+#include <functional>
 #include <mutex>
 #include <vector>
 #include <jni.h>
 #include "common/common_types.h"
 #include "core/core.h"
+
+namespace StormBridge {
+bool ExecuteOnEmuThread(std::function<bool(Core::System&)> fn);
+} // namespace StormBridge
 
 namespace {
 
@@ -48,12 +53,20 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_cle
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_captureRewindSnapshot(
     JNIEnv*, jobject) {
-    auto& system = Core::System::GetInstance();
-    if (!system.IsPoweredOn()) {
-        return JNI_FALSE;
-    }
-    std::vector<u8> buf = system.SaveStateBuffer();
-    if (buf.empty()) {
+    std::vector<u8> buf;
+    const bool captured = StormBridge::ExecuteOnEmuThread([&buf](Core::System& sys) {
+        if (!sys.IsPoweredOn()) {
+            return false;
+        }
+        try {
+            buf = sys.SaveStateBuffer();
+            return !buf.empty();
+        } catch (...) {
+            buf.clear();
+            return false;
+        }
+    });
+    if (!captured || buf.empty()) {
         return JNI_FALSE;
     }
     const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -92,7 +105,16 @@ JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary
             g_rewind_ring.pop_back();
         }
     }
-    return system.LoadStateBuffer(std::move(target_buf)) ? JNI_TRUE : JNI_FALSE;
+    return StormBridge::ExecuteOnEmuThread([buf = std::move(target_buf)](Core::System& sys) mutable {
+        if (!sys.IsPoweredOn()) {
+            return false;
+        }
+        try {
+            return sys.LoadStateBuffer(std::move(buf));
+        } catch (...) {
+            return false;
+        }
+    }) ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jlongArray JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getRewindTimelineTimestamps(

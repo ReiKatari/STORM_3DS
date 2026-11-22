@@ -105,6 +105,7 @@ fun WatermelonLibraryHeader(
     onBootFirmwareDs: () -> Unit,
     onBootFirmwareDsi: () -> Unit,
     onOpenSingleRom: () -> Unit = {},
+    onInstallCia: () -> Unit = {},
     onRandomRom: () -> Unit = {},
     onRefresh: () -> Unit,
     onCheckUpdates: () -> Unit = {},
@@ -240,6 +241,9 @@ fun WatermelonLibraryHeader(
                     DropdownMenu(expanded = overflowOpen, onDismissRequest = { overflowOpen = false }) {
                         DropdownMenuItem(onClick = { overflowOpen = false; onOpenSingleRom() }) {
                             Text(stringResource(R.string.action_open_single_rom))
+                        }
+                        DropdownMenuItem(onClick = { overflowOpen = false; onInstallCia() }) {
+                            Text(stringResource(R.string.action_install_cia))
                         }
                         DropdownMenuItem(onClick = { overflowOpen = false; onRandomRom() }) {
                             Text(stringResource(R.string.rom_list_random_rom))
@@ -574,7 +578,7 @@ fun ContinuePlayingShelf(
             ) {
                 Icon(
                     imageVector = if (isCollapsed) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
-                    contentDescription = if (isCollapsed) "Развернуть" else "Свернуть",
+                    contentDescription = stringResource(if (isCollapsed) R.string.ui_rom_browser_expand else R.string.ui_rom_browser_collapse),
                     tint = colors.text2,
                     modifier = Modifier.size(18.dp),
                 )
@@ -1087,7 +1091,7 @@ fun CompactLandscapeSidebar(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Всего игр: $totalRoms",
+            text = stringResource(R.string.ui_rom_browser_total_fmt, totalRoms),
             color = colors.text2,
             fontFamily = WatermelonMono,
             fontSize = 11.sp,
@@ -1101,7 +1105,7 @@ fun CompactLandscapeSidebar(
                 .padding(horizontal = 12.dp, vertical = 7.dp),
         ) {
             Text(
-                text = "★ Избранное",
+                text = stringResource(R.string.ui_rom_browser_favorites),
                 color = if (filter == RomFilter.FAVORITES) Color.White else colors.text2,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,

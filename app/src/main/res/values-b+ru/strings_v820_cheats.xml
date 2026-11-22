@@ -11,7 +11,7 @@
     <string name="cheats_search_games_available">Игр в базе: %1$d</string>
     <string name="cheats_search_results_count">Найдено записей: %1$d</string>
     <string name="cheats_search_cheats_count">Читов: %1$d</string>
-    <string name="cheats_search_db_empty">База читов пуста. Сначала скачайте usrcheat.dat онлайн или импортируйте локальный файл.</string>
+    <string name="cheats_search_db_empty">База читов пуста. Сначала импортируйте файл читов .txt (Gateway) / .xml или откройте встроенные 3DS читы в игре.</string>
     <string name="cheats_search_no_results">По вашему запросу игры не найдены.</string>
     <string name="cheats_clear_database_title">Очистить базу читов</string>
     <string name="cheats_clear_database_summary">Удалить все импортированные базы, игры, папки и читы</string>

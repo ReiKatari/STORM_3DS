@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="audio_bitrate_options">
+        <item>Auto</item>
+        <item>10-Bit</item>
+        <item>16-Bit</item>
+    </string-array>
+    <string-array name="audio_interpolation_options">
+        <item>Keine</item>
+        <item>Linear</item>
+        <item>Kosinus</item>
+        <item>Kubisch</item>
+    </string-array>
+    <string-array name="audio_latency_options">
+        <item>Niedrig (Langsamer)</item>
+        <item>Mittel</item>
+        <item>Hoch (Schneller)</item>
+    </string-array>
+    <string-array name="background_portrait_mode_options">
+        <item>Strecken</item>
+        <item>Mittig einpassen</item>
+        <item>Oben einpassen</item>
+        <item>Links einpassen</item>
+        <item>Unten einpassen</item>
+        <item>Rechts einpassen</item>
+    </string-array>
+    <string-array name="button_color_theme_options">
+        <item>Nintendo 3DS (Cosmo Aqua Blue)</item>
+        <item>Nintendo 3DS Classic (Metallgrau)</item>
+        <item>Nintendo 3DS Lite (Reinweiß)</item>
+        <item>Nintendo Famicom / NES (Gold und Weinrot)</item>
+        <item>Nintendo Game Boy (DMG Retro-Grau und Pflaume)</item>
+        <item>Nintendo Game Boy Advance (Glacier Indigo)</item>
+        <item>Nintendo GameCube (Indigo und Grün/Rot)</item>
+        <item>Nintendo Super Famicom / SNES (Vier Farben)</item>
+        <item>Nintendo Switch Neon (Rot und Blau)</item>
+        <item>Nintendo Switch OLED (Mattweiß)</item>
+        <item>Nintendo Virtual Boy (Laserrot und Schwarz)</item>
+        <item>Nintendo Wii (Kristallweiß und Blau)</item>
+        <item>Nintendo Wii U (Dunkelschiefer und Cyan)</item>
+        <item>STORM Arcade Retro (Klassischer Automat / 4 Farben)</item>
+        <item>STORM Aurora Spectrum (Vier Pastellfarben / Hell)</item>
+        <item>STORM Cyber Neon (Cyan und Dunkel)</item>
+        <item>STORM Cyberpunk 2077 (Neon / Mehrfarbig)</item>
+        <item>STORM Frost Glacier (Eisverlauf / Hell)</item>
+        <item>STORM Gothic Crimson (Rubinrot und Karbon)</item>
+        <item>STORM Matrix Emerald (Neongrün)</item>
+        <item>STORM Midnight Amethyst (Tiefviolett)</item>
+        <item>STORM Royal Gold (Gold und Obsidian)</item>
+        <item>STORM Sakura Blossom (Kirschblüte / Hell)</item>
+        <item>STORM Solar Fusion (Sonnenspektrum / Hell)</item>
+        <item>New Nintendo 3DS SFC (Farbige ABXY)</item>
+        <item>STORM Cyber 3D (Holografisches Cyan-Smaragd)</item>
+        <item>Zelda Hyrule Edition (Königsgold und Smaragd)</item>
+        <item>Metroid Samus Visor (Karmesin und Bernstein-LED)</item>
+        <item>New 3DS XL Galaxy (Tiefviolett und Magenta)</item>
+        <item>Animal Crossing Leaf (Pastellminze und Creme)</item>
+        <item>Monster Hunter Forge (Obsidian und Glühende Glut)</item>
+        <item>Pokemon PokeBall (Glänzendes Karmesin und Weiß)</item>
+        <item>Persona Velvet Room (Mitternachtskobalt und Silber)</item>
+        <item>Crystal Prism 3D (Rauchgehäuse und Eisschimmer)</item>
+    </string-array>
+    <string-array name="dsi_camera_source_options">
+        <item>Schwarzer Bildschirm</item>
+        <item>Physische Kameras</item>
+        <item>Statisches Bild</item>
+    </string-array>
+    <string-array name="external_display_mode_options">
+        <item>Spiegeln</item>
+        <item>STORM 3DS</item>
+    </string-array>
+    <string-array name="fast_forward_speed_multiplier_options">
+        <item>Unbegrenzt</item>
+        <item>1.5x</item>
+        <item>2x</item>
+        <item>3x</item>
+        <item>4x</item>
+        <item>8x</item>
+    </string-array>
+    <string-array name="firmware_settings_language_options">
+        <item>Englisch</item>
+        <item>Französisch</item>
+        <item>Deutsch</item>
+        <item>Italienisch</item>
+        <item>Spanisch</item>
+        <item>Japanisch</item>
+    </string-array>
+    <string-array name="fps_counter_position_options">
+        <item>Ausgeblendet</item>
+        <item>Oben links</item>
+        <item>Oben mittig</item>
+        <item>Oben rechts</item>
+        <item>Unten links</item>
+        <item>Unten mittig</item>
+        <item>Unten rechts</item>
+    </string-array>
+    <string-array name="frame_limit_speed_multiplier_options">
+        <item>1.0x</item>
+        <item>0.75x</item>
+        <item>0.5x</item>
+        <item>0.25x</item>
+    </string-array>
+    <string-array name="game_runtime_console_type_options">
+        <item>Standard</item>
+        <item>@string/console_ds</item>
+        <item>@string/console_dsi</item>
+    </string-array>
+    <string-array name="game_runtime_mic_source_options">
+        <item>Standard</item>
+        <item>Keine</item>
+        <item>Pusten</item>
+        <item>Gerätemikrofon</item>
+    </string-array>
+    <string-array name="gba_slot_options">
+        <item>Keine</item>
+        <item>GBA-ROM</item>
+        <item>Rumble Pak</item>
+        <item>Speichererweiterung</item>
+        <item>Analoge Eingabe</item>
+    </string-array>
+    <string-array name="layout_orientation_options">
+        <item>System folgen</item>
+        <item>Hochformat</item>
+        <item>Querformat</item>
+    </string-array>
+    <string-array name="mic_source_options">
+        <item>Keine</item>
+        <item>Pusten</item>
+        <item>Gerätemikrofon</item>
+    </string-array>
+    <string-array name="rom_icon_filtering_options">
+        <item>Keine (Pixelig)</item>
+        <item>Linear (Weich)</item>
+    </string-array>
+    <string-array name="rom_input_mode_options">
+        <item>@string/use_global_preference</item>
+        <item>Benutzerdefiniert</item>
+    </string-array>
+    <string-array name="save_state_locations">
+        <item>Speicherdatei-Ordner</item>
+        <item>ROM-Ordner</item>
+        <item>Interner Ordner</item>
+        <item>Benutzerdefiniert</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_descriptions">
+        <item>Die Bildschirmsteuerung ist immer sichtbar, wie im aktuellen Eingabelayout festgelegt.</item>
+        <item>Wenn ein Controller verbunden ist, werden Konsolentasten (A B X Y, Steuerkreuz, L, R, Start und Select) ausgeblendet. Andere Tasten im aktuellen Layout bleiben sichtbar.</item>
+        <item>Wenn ein Controller verbunden ist, werden alle diesem Controller zugewiesenen Eingaben ausgeblendet. Andere Eingaben im aktuellen Layout ohne Zuweisung bleiben sichtbar.</item>
+        <item>Die Bildschirmsteuerung ist immer unsichtbar, unabhängig von den Tasten im aktuellen Eingabelayout.</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_options">
+        <item>Immer sichtbar</item>
+        <item>Konsolentasten bei verbundenem Controller ausblenden</item>
+        <item>Zugewiesene Eingaben bei verbundenem Controller ausblenden</item>
+        <item>Immer unsichtbar</item>
+    </string-array>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24 Stimmen (Automatische neuronale Zuweisung nach Kontext und Figur)</item>
+        <item>🎙️ Dmitry (Neuronaler Bariton)</item>
+        <item>🎙️ Elena (Neuronaler Sopran)</item>
+        <item>🗡️ Junger Held (Heller Tenor)</item>
+        <item>🦇 Dunkler Ritter / Batman (Rauer Bass)</item>
+        <item>👹 Boss / Tyrann / Bowser (Schwerer Bass)</item>
+        <item>🃏 Joker / Trickster (Manischer Tenor)</item>
+        <item>💀 Abgrunddämon / Dracula (Tiefer Bass)</item>
+        <item>📜 Weiser Ältester / Professor (Heiser)</item>
+        <item>👦 Junge / Gefährte / Luke Triton (Klar)</item>
+        <item>👧 Junges Mädchen / Pearl Fey (Sanft und jugendlich)</item>
+        <item>👑 Prinzessin / Königin Zelda (Hoheitlich)</item>
+        <item>💰 Händler / Tom Nook (Eifrig und fröhlich)</item>
+        <item>🛡️ Wache / Hauptmann (Streng und gebieterisch)</item>
+        <item>🤖 Roboter / Cyborg / Pokedex (Synthetisch)</item>
+        <item>📖 Erzähler / Chronist (Samtig)</item>
+        <item>🎀 Tsundere / Franziska (Hochmütiger Sopran)</item>
+        <item>🤫 Geheimnisvolles Flüstern / Schatten (Mystisch)</item>
+        <item>✨ Fröhliche Fee / Navi (Verspielter hoher Alt)</item>
+        <item>🏴‍☠️ Piratenkapitän (Brummiger knurrender Bass)</item>
+        <item>🔬 Verrückter Wissenschaftler / Dr. Wily (Exzentrisch)</item>
+        <item>🎩 Gentleman / Layton / Wright (Vornehm)</item>
+        <item>👻 Geist / Phantom (Ätherisches Echo)</item>
+        <item>⚔️ Edler Ritter / Meta Knight (Fester Bariton)</item>
+        <item>🕊️ Göttin / Engel Palutena (Heiliger Kristallklang)</item>
+    </string-array>
+    <string-array name="video_filtering_options">
+        <item>Keine</item>
+        <item>Linear</item>
+        <item>2xBR</item>
+        <item>HQ2X</item>
+        <item>HQ4X</item>
+        <item>Quilez</item>
+        <item>LCD</item>
+        <item>Scanlines</item>
+        <item>Scale2x</item>
+        <item>KI-Upscaling (Anime4K)</item>
+        <item>RetroArch (.slangp)</item>
+    </string-array>
+    <string-array name="video_renderer_options">
+        <item>Software</item>
+        <item>OpenGL</item>
+        <item>Vulkan</item>
+        <item>Compute</item>
+    </string-array>
+</resources>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="v791_jusrcheat_tab_game_cheats">Game cheats</string>
-    <string name="v791_jusrcheat_tab_all_games">Jusrcheat (all games)</string>
+    <string name="v791_jusrcheat_tab_all_games">All Games (3DS DB)</string>
     <string name="v791_jusrcheat_search_hint">Search game or code (e.g. Assassin, VACE)...</string>
     <string name="v791_jusrcheat_filter_all">All</string>
     <string name="v791_jusrcheat_filter_similar">Related regions</string>
@@ -14,7 +14,7 @@
     <string name="v791_jusrcheat_btn_attach_folder">Attach folder</string>
     <string name="v791_jusrcheat_attached_success">Cheat successfully enabled for this game</string>
     <string name="v791_jusrcheat_no_games_found">No games found</string>
-    <string name="v791_jusrcheat_browser_title">Jusrcheat - All games and regions (usrcheat.dat)</string>
+    <string name="v791_jusrcheat_browser_title">3DS Cheat Database - All Games and Gateway Codes</string>
     <string name="v791_jusrcheat_edit_cheat_title">Edit cheat</string>
     <string name="v791_jusrcheat_add_cheat_title">Add new cheat</string>
     <string name="v791_jusrcheat_cheat_name">Cheat name</string>
@@ -26,6 +26,6 @@
     <string name="v791_jusrcheat_export_success">Database usrcheat.dat successfully saved</string>
     <string name="v791_jusrcheat_one_hot_badge">One-hot</string>
     <string name="v791_jusrcheat_master_code">Master code</string>
-    <string name="v791_jusrcheat_open_browser_btn">Browse all games and regions (Jusrcheat)</string>
-    <string name="v791_jusrcheat_db_stats">4,079 games and regions in usrcheat.dat</string>
+    <string name="v791_jusrcheat_open_browser_btn">Browse Gateway / 3DS Cheat Database</string>
+    <string name="v791_jusrcheat_db_stats">Gateway 3DS &amp; bundled cheat database</string>
 </resources>

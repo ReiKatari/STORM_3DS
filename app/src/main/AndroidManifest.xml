@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-feature android:name="android.hardware.camera.any" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -104,22 +105,39 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
+                <data android:host="*" />
                 <data android:mimeType="*/*" />
-                <data android:pathPattern=".*\\.3ds" />
-                <data android:pathPattern=".*\\.cci" />
-                <data android:pathPattern=".*\\.cxi" />
-                <data android:pathPattern=".*\\.app" />
-                <data android:pathPattern=".*\\.cia" />
-                <data android:pathPattern=".*\\.3dsx" />
-                <data android:pathPattern=".*\\.elf" />
-                <data android:pathPattern=".*\\.axf" />
-                <data android:pathPattern=".*\\.zcci" />
-                <data android:pathPattern=".*\\.zcxi" />
-                <data android:pathPattern=".*\\.zcia" />
-                <data android:pathPattern=".*\\.z3dsx" />
-                <data android:pathPattern=".*\\.bcci" />
-                <data android:pathPattern=".*\\.bcxi" />
-                <data android:pathPattern=".*\\.bcia" />
+                <data android:pathPattern=".*\.3ds" />
+                <data android:pathPattern=".*\.3DS" />
+                <data android:pathPattern=".*\.cci" />
+                <data android:pathPattern=".*\.CCI" />
+                <data android:pathPattern=".*\.cxi" />
+                <data android:pathPattern=".*\.CXI" />
+                <data android:pathPattern=".*\.app" />
+                <data android:pathPattern=".*\.APP" />
+                <data android:pathPattern=".*\.cia" />
+                <data android:pathPattern=".*\.CIA" />
+                <data android:pathPattern=".*\.3dsx" />
+                <data android:pathPattern=".*\.3DSX" />
+                <data android:pathPattern=".*\.elf" />
+                <data android:pathPattern=".*\.ELF" />
+                <data android:pathPattern=".*\.axf" />
+                <data android:pathPattern=".*\.AXF" />
+                <data android:pathPattern=".*\.zcci" />
+                <data android:pathPattern=".*\.zcxi" />
+                <data android:pathPattern=".*\.zcia" />
+                <data android:pathPattern=".*\.z3dsx" />
+                <data android:pathPattern=".*\.bcci" />
+                <data android:pathPattern=".*\.bcxi" />
+                <data android:pathPattern=".*\.bcia" />
+                <data android:pathPattern=".*\.artic" />
+                <data android:pathPattern=".*\.ARTIC" />
+                <data android:pathPattern=".*\.zip" />
+                <data android:pathPattern=".*\.ZIP" />
+                <data android:pathPattern=".*\.7z" />
+                <data android:pathPattern=".*\.7Z" />
+                <data android:pathPattern=".*\.rar" />
+                <data android:pathPattern=".*\.RAR" />
             </intent-filter>
         </activity>
         <activity

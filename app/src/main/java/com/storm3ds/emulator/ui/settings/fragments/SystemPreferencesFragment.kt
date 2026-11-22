@@ -265,13 +265,11 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
         val wfcServerPref = findPreference<ListPreference>("system_wfc_server")
         val wfcCustomDnsPref = findPreference<androidx.preference.EditTextPreference>("system_wfc_custom_dns")
         val wfcTestPref = findPreference<Preference>("system_wfc_test_connection")
-        val updateCustomDnsVisibility = { serverVal: String? ->
-            val isCustom = serverVal == "custom"
-            wfcCustomDnsPref?.isVisible = isCustom
-            wfcCustomDnsPref?.isEnabled = isCustom
-            val hasServer = !serverVal.isNullOrBlank() && serverVal != "none"
-            wfcTestPref?.isVisible = hasServer
-            wfcTestPref?.isEnabled = hasServer
+        val updateCustomDnsVisibility = { _: String? ->
+            // Legacy DS WFC settings stay hidden in Nintendo 3DS builds
+            wfcServerPref?.isVisible = false
+            wfcCustomDnsPref?.isVisible = false
+            wfcTestPref?.isVisible = false
         }
         updateCustomDnsVisibility(wfcServerPref?.value)
         wfcServerPref?.setOnPreferenceChangeListener { _, newValue ->
@@ -322,6 +320,11 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
 
         findPreference<Preference>("system_share_app_log")?.setOnPreferenceClickListener {
             shareSystemLogFiles()
+            true
+        }
+
+        findPreference<Preference>("system_3ds_setup")?.setOnPreferenceClickListener {
+            com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(requireActivity())
             true
         }
     }
@@ -464,6 +467,9 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
     }
 
     private fun updateBiosStatusSummary() {
+        findPreference<Preference>("custom_bios_firmware")?.isVisible = false
+        return
+        @Suppress("UNREACHABLE_CODE")
         lifecycleScope.launch(Dispatchers.IO) {
             val statusPair = runCatching {
                 val dsResult = configurationDirectoryVerifier.checkDsConfigurationDirectory()

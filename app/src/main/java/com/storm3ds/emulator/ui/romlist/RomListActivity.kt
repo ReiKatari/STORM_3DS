@@ -38,6 +38,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.noties.markwon.Markwon
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.storm3ds.emulator.BuildConfig
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.databinding.ActivityRomListBinding
 import com.storm3ds.emulator.domain.model.ConsoleType
@@ -75,6 +76,7 @@ class RomListActivity : AppCompatActivity() {
 
     val openSingleRomLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
+            val vm = viewModel
             lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 try {
                     contentResolver.takePersistableUriPermission(
@@ -89,7 +91,7 @@ class RomListActivity : AppCompatActivity() {
                         )
                     } catch (_: Throwable) {}
                 }
-                val rom = viewModel.getRomAtUri(uri)
+                val rom = vm.getRomAtUri(uri)
                 if (rom != null) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         emulatorLauncherValidatorDelegate.validateRom(rom)
@@ -107,6 +109,86 @@ class RomListActivity : AppCompatActivity() {
         openSingleRomLauncher.launch(arrayOf("*/*"))
     }
 
+    val installCiaLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            enqueueCiaInstall(uri)
+        }
+    }
+
+    fun openCiaInstaller() {
+        installCiaLauncher.launch(arrayOf("*/*"))
+    }
+
+    private fun enqueueCiaInstall(uri: android.net.Uri) {
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val workId = com.storm3ds.emulator.nativebridge.utils.CiaInstallWorker.enqueueInstallAndReturnId(
+                applicationContext,
+                arrayOf(uri.toString())
+            )
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                Toast.makeText(this@RomListActivity, R.string.cia_installing_progress, Toast.LENGTH_SHORT).show()
+                androidx.work.WorkManager.getInstance(applicationContext)
+                    .getWorkInfoByIdLiveData(workId)
+                    .observe(this@RomListActivity) { info ->
+                        if (info == null) return@observe
+                        when (info.state) {
+                            androidx.work.WorkInfo.State.SUCCEEDED -> {
+                                Toast.makeText(this@RomListActivity, R.string.cia_install_notification_success_title, Toast.LENGTH_LONG).show()
+                                viewModel.refreshRoms()
+                            }
+                            androidx.work.WorkInfo.State.FAILED -> {
+                                val err = info.outputData.getString(com.storm3ds.emulator.nativebridge.utils.CiaInstallWorker.KEY_ERROR_STATUS)
+                                val msg = if (!err.isNullOrBlank()) {
+                                    "${getString(R.string.cia_install_notification_error_title)} ($err)"
+                                } else {
+                                    getString(R.string.cia_install_notification_error_title)
+                                }
+                                Toast.makeText(this@RomListActivity, msg, Toast.LENGTH_LONG).show()
+                            }
+                            else -> Unit
+                        }
+                    }
+            }
+        }
+    }
+
+    private fun handleIncomingViewIntent(incomingIntent: Intent?) {
+        if (incomingIntent?.action != Intent.ACTION_VIEW) return
+        val uri = incomingIntent.data ?: return
+        incomingIntent.action = null
+        val docName = runCatching {
+            androidx.documentfile.provider.DocumentFile.fromSingleUri(this, uri)?.name
+        }.getOrNull().orEmpty().ifBlank { uri.lastPathSegment.orEmpty() }
+        val lower = docName.lowercase()
+        if (lower.endsWith(".cia") || lower.endsWith(".zcia") || lower.endsWith(".bcia")) {
+            enqueueCiaInstall(uri)
+            return
+        }
+        val vm = viewModel
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val rom = vm.getRomAtUri(uri)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (rom != null) {
+                    emulatorLauncherValidatorDelegate.validateRom(rom)
+                } else {
+                    Toast.makeText(this@RomListActivity, R.string.rom_launch_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingViewIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         com.storm3ds.emulator.ui.theme.AppThemeManager.applyEdgeToEdgeTheme(this)
@@ -116,6 +198,8 @@ class RomListActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.hide()
         applyImmersiveMode()
+        // Materialize ViewModelLazy on Main before any Dispatchers.IO intent worker touches it.
+        viewModel.hashCode()
 
         fun applyLaunchTransition() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -197,7 +281,7 @@ class RomListActivity : AppCompatActivity() {
                         is ManualUpdateResult.UpToDate -> {
                             val curVer = runCatching {
                                 packageManager.getPackageInfo(packageName, 0).versionName
-                            }.getOrNull() ?: "8.6.0"
+                            }.getOrNull() ?: BuildConfig.VERSION_NAME
                             AlertDialog.Builder(this@RomListActivity)
                                 .setTitle(R.string.v800_update_up_to_date_title)
                                 .setMessage(getString(R.string.v800_update_up_to_date_msg, curVer))
@@ -219,6 +303,7 @@ class RomListActivity : AppCompatActivity() {
                 }
             }
         }
+        handleIncomingViewIntent(intent)
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
@@ -350,6 +435,10 @@ class RomListActivity : AppCompatActivity() {
                 launchFirmware(ConsoleType.DSi)
                 return true
             }
+            R.id.action_install_cia -> {
+                openCiaInstaller()
+                return true
+            }
             R.id.action_random_rom -> {
                 launchRandomRom()
                 return true
@@ -443,8 +532,8 @@ class RomListActivity : AppCompatActivity() {
     private fun showProdUpdateAvailableDialog(update: AppUpdate) {
         val currentVersionStr = runCatching {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            pInfo.versionName ?: "1.0.0"
-        }.getOrDefault("1.0.0")
+            pInfo.versionName ?: BuildConfig.VERSION_NAME
+        }.getOrDefault(BuildConfig.VERSION_NAME)
 
         val newVersionStr = getReadableVersionString(update.newVersion)
         val message = markwon.toMarkdown(update.description)

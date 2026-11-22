@@ -8,6 +8,7 @@ import androidx.core.content.getSystemService
 import com.storm3ds.emulator.domain.model.Rect
 import com.storm3ds.emulator.domain.model.SCREEN_HEIGHT
 import com.storm3ds.emulator.domain.model.SCREEN_WIDTH
+import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.consoleAspectRatio
 import com.storm3ds.emulator.domain.model.layout.Insets
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
@@ -130,26 +131,32 @@ class DefaultLayoutProvider(
         val spacing4dp = screenUnitsConverter.dpToPixels(4f).toInt()
 
         var screenWidth = safeWidth
-        var screenHeight = (safeWidth / consoleAspectRatio).toInt()
+        var screenHeight = (safeWidth / ThreeDS.TOP_SCREEN_ASPECT_RATIO).toInt()
 
         val screenComponents = if (singleScreenComponent == null) {
             var screenMargin = 0
             if (screenHeight * 2 > safeHeight) {
-                screenWidth = (safeHeight / 2 * consoleAspectRatio).toInt()
                 screenHeight = safeHeight / 2
-                screenMargin = (safeWidth - screenWidth) / 2
+                screenWidth = (screenHeight * ThreeDS.TOP_SCREEN_ASPECT_RATIO).toInt()
+                screenMargin = ((safeWidth - screenWidth) / 2).coerceAtLeast(0)
             }
 
             val topScreenView = Rect(safeLeft + screenMargin, safeTop, screenWidth, screenHeight)
-            val bottomScreenView = Rect(safeLeft + screenMargin, safeTop + screenHeight, screenWidth, screenHeight)
+            val bottomW = (screenHeight * ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(safeWidth)
+            val bottomH = (bottomW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(screenHeight)
+            val bottomX = safeLeft + ((safeWidth - bottomW) / 2).coerceAtLeast(0)
+            val bottomScreenView = Rect(bottomX, safeTop + screenHeight, bottomW, bottomH)
 
             arrayOf(
                 PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(bottomScreenView, LayoutComponent.BOTTOM_SCREEN),
             )
         } else {
-            // Align screen to the top of the safe area
-            val screenArea = Rect(safeLeft, safeTop, screenWidth, screenHeight)
+            val ratio = if (singleScreenComponent == LayoutComponent.BOTTOM_SCREEN) ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO else ThreeDS.TOP_SCREEN_ASPECT_RATIO
+            val singleW = safeWidth
+            val singleH = (singleW / ratio).toInt().coerceAtMost(safeHeight)
+            val finalW = (singleH * ratio).toInt().coerceAtMost(safeWidth)
+            val screenArea = Rect(safeLeft + (safeWidth - finalW) / 2, safeTop, finalW, singleH)
             arrayOf(PositionedLayoutComponent(screenArea, singleScreenComponent))
         }
 
@@ -162,6 +169,9 @@ class DefaultLayoutProvider(
         }
 
         val dpadView = Rect(safeLeft, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
+        val circlePadSize = screenUnitsConverter.dpToPixels(108f).toInt()
+        val circlePadY = (dpadView.y - circlePadSize - spacing4dp * 2).coerceAtLeast(safeTop)
+        val circlePadView = Rect(safeLeft + (largeButtonsSize - circlePadSize) / 2, circlePadY, circlePadSize, circlePadSize)
         val buttonsView = Rect(width - safeRight - largeButtonsSize, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
 
         val selectStartWidth = screenUnitsConverter.dpToPixels(54f).toInt()
@@ -173,6 +183,7 @@ class DefaultLayoutProvider(
             listOf(
                 *screenComponents,
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(circlePadView, LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, utilityButtonsTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth, utilityButtonsTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -223,8 +234,12 @@ class DefaultLayoutProvider(
                 (safeHeight - screenHeight) / 2
             }
 
-            val topScreenView = Rect(safeLeft + horizontalMargin, safeTop + verticalMargin, screenWidth, screenHeight)
-            val bottomScreenView = Rect(safeLeft + horizontalMargin + screenWidth, safeTop + verticalMargin, screenWidth, screenHeight)
+            val bottomW = (screenHeight * ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(screenWidth)
+            val bottomH = (bottomW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(screenHeight)
+            val combinedW = screenWidth + bottomW
+            val alignedLeft = safeLeft + ((safeWidth - combinedW) / 2).coerceAtLeast(0)
+            val topScreenView = Rect(alignedLeft, safeTop + verticalMargin, screenWidth, screenHeight)
+            val bottomScreenView = Rect(alignedLeft + screenWidth, safeTop + verticalMargin + (screenHeight - bottomH) / 2, bottomW, bottomH)
 
             arrayOf(
                 PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
@@ -237,6 +252,9 @@ class DefaultLayoutProvider(
         }
 
         val dpadView = Rect(safeLeft, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
+        val circlePadSize = screenUnitsConverter.dpToPixels(108f).toInt()
+        val circlePadY = (dpadView.y - circlePadSize - spacing4dp * 2).coerceAtLeast(safeTop + lrHeight + spacing4dp)
+        val circlePadView = Rect(safeLeft + (largeButtonsSize - circlePadSize) / 2, circlePadY, circlePadSize, circlePadSize)
         val buttonsView = Rect(width - safeRight - largeButtonsSize, height - safeBottom - largeButtonsSize, largeButtonsSize, largeButtonsSize)
         val selectStartWidth = screenUnitsConverter.dpToPixels(54f).toInt()
         val selectStartHeight = screenUnitsConverter.dpToPixels(32f).toInt()
@@ -245,6 +263,7 @@ class DefaultLayoutProvider(
             listOf(
                 *screenComponents,
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(circlePadView, LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -290,7 +309,9 @@ class DefaultLayoutProvider(
         }
 
         val topScreenView = Rect(safeLeft + screenMargin, mainFold.foldBounds.y - screenHeight, screenWidth, screenHeight)
-        val bottomScreenView = Rect(safeLeft + screenMargin, mainFold.foldBounds.bottom, screenWidth, screenHeight)
+        val foldBottomW = (screenHeight * ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(safeWidth)
+        val foldBottomH = (foldBottomW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(screenHeight)
+        val bottomScreenView = Rect(safeLeft + (safeWidth - foldBottomW) / 2, mainFold.foldBounds.bottom, foldBottomW, foldBottomH)
         val gripSpacing = screenUnitsConverter.dpToPixels(8f).toInt()
         val dpadView = Rect(safeLeft + gripSpacing, height - safeBottom - largeButtonsSize - gripSpacing, largeButtonsSize, largeButtonsSize)
         val buttonsView = Rect(width - safeRight - largeButtonsSize - gripSpacing, height - safeBottom - largeButtonsSize - gripSpacing, largeButtonsSize, largeButtonsSize)
@@ -305,6 +326,7 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(bottomScreenView, LayoutComponent.BOTTOM_SCREEN),
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(Rect(dpadView.x, (dpadView.y - dpadView.width * 3 / 4 - 8).coerceAtLeast(safeTop), dpadView.width * 3 / 4, dpadView.width * 3 / 4), LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft + gripSpacing, mainFold.foldBounds.bottom + gripSpacing, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth - gripSpacing, mainFold.foldBounds.bottom + gripSpacing, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -376,6 +398,7 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(topScreenView, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(bottomScreenView, LayoutComponent.BOTTOM_SCREEN),
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(Rect(dpadView.x, (dpadView.y - dpadView.width * 3 / 4 - 8).coerceAtLeast(safeTop), dpadView.width * 3 / 4, dpadView.width * 3 / 4), LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft + gripSpacing, safeTop + gripSpacing, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth - gripSpacing, safeTop + gripSpacing, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -464,7 +487,7 @@ class DefaultLayoutProvider(
         val mainRect = Rect(safeLeft, safeTop + mainVMargin, mainW, mainH)
 
         val subW = ((safeWidth - mainW) - 16).coerceAtLeast(100)
-        val subH = (subW / consoleAspectRatio).toInt().coerceAtMost(safeHeight)
+        val subH = (subW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(safeHeight)
         val subX = safeLeft + safeWidth - subW
         val subY = safeTop
         val subRect = Rect(subX, subY, subW, subH)
@@ -477,6 +500,7 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(mainRect, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(subRect, LayoutComponent.BOTTOM_SCREEN),
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(Rect(dpadView.x, (dpadView.y - dpadView.width * 3 / 4 - 8).coerceAtLeast(safeTop + lrHeight + spacing4dp), dpadView.width * 3 / 4, dpadView.width * 3 / 4), LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -525,6 +549,7 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(screenRect, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(Rect(0, 0, 0, 0), LayoutComponent.BOTTOM_SCREEN),
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(Rect(dpadView.x, (dpadView.y - dpadView.width * 3 / 4 - 8).coerceAtLeast(safeTop + lrHeight + spacing4dp), dpadView.width * 3 / 4, dpadView.width * 3 / 4), LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R),
@@ -563,6 +588,7 @@ class DefaultLayoutProvider(
                 PositionedLayoutComponent(screenRect, LayoutComponent.TOP_SCREEN),
                 PositionedLayoutComponent(Rect(0, 0, 0, 0), LayoutComponent.BOTTOM_SCREEN),
                 PositionedLayoutComponent(dpadView, LayoutComponent.DPAD),
+                PositionedLayoutComponent(Rect(dpadView.x, (dpadView.y - dpadView.width * 3 / 4 - 8).coerceAtLeast(safeTop + lrHeight + spacing4dp), dpadView.width * 3 / 4, dpadView.width * 3 / 4), LayoutComponent.CIRCLE_PAD),
                 PositionedLayoutComponent(buttonsView, LayoutComponent.BUTTONS),
                 PositionedLayoutComponent(Rect(safeLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L),
                 PositionedLayoutComponent(Rect(width - safeRight - lrWidth, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R),

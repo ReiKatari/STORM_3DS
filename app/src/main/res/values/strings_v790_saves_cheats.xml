@@ -12,5 +12,5 @@
     <string name="ra_sync_queue_empty">No pending offline achievements to submit</string>
     <string name="ra_sync_queue_syncing">Syncing queue...</string>
     <string name="cheat_import_dat_success">DAT cheat database successfully imported</string>
-    <string name="cheat_import_supported_formats">Supports XML, DAT (usrcheat.dat) and ZIP archives</string>
+    <string name="cheat_import_supported_formats">Supports Gateway TXT, XML and ZIP cheat archives</string>
 </resources>

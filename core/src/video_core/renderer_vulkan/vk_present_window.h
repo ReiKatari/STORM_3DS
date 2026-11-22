@@ -100,6 +100,8 @@ private:
     bool vsync_enabled{};
     bool blit_supported;
     bool use_present_thread{true};
+    bool surface_needs_recreate{false};
+    bool shutting_down{false};
     void* last_render_surface{};
     VideoCore::StormLibrashader librashader;
 };

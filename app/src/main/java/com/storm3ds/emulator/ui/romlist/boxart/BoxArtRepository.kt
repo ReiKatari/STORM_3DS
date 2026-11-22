@@ -374,6 +374,8 @@ class BoxArtRepository @Inject constructor(
                             tmpIndex.delete()
                         }
                         indexEntries = parseIndex(content)
+                        memoryCache.entries.removeIf { it.value == NO_MATCH }
+                        _coverUpdates.emit("" to null)
                     }
                 } else {
                     lastIndexDownloadFailure = System.currentTimeMillis()

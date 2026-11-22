@@ -123,9 +123,10 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
             val compilerEnabled = prefs.getBoolean("enable_storm_compiler", true)
             val cpuPct = prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100"
-            val modelStr = if (isNew3ds) "New 3DS" else "Old 3DS"
-            val jitStr = "JIT: ${getString(if (compilerEnabled) R.string.on else R.string.off)}"
-            pref.summary = "$modelStr • $jitStr • CPU $cpuPct%"
+            val modelStr = getString(if (isNew3ds) R.string.pref_model_new_3ds else R.string.pref_model_old_3ds)
+            val jitStr = getString(R.string.pref_summary_jit, getString(if (compilerEnabled) R.string.on else R.string.off))
+            val cpuStr = getString(R.string.pref_summary_cpu_clock, cpuPct)
+            pref.summary = "$modelStr • $jitStr • $cpuStr"
         }
 
         // 5. Video (renderer, resolution scale, filtering, console skin)
@@ -236,7 +237,7 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             val memInfo = android.app.ActivityManager.MemoryInfo()
             actManager?.getMemoryInfo(memInfo)
             val totalRamGb = memInfo.totalMem / (1024 * 1024 * 1024.0)
-            val ramStr = String.format(java.util.Locale.US, "%.1f GB", totalRamGb)
+            val ramStr = String.format(java.util.Locale.getDefault(), getString(R.string.pref_ram_gb_format), totalRamGb)
 
             pref.summary = "STORM 3DS $vName • Android ${android.os.Build.VERSION.RELEASE} • $abi • $model • $ramStr"
         }

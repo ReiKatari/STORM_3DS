@@ -87,7 +87,7 @@ fun GameListScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Сохранённые (${(games as? CheatsScreenUiState.Ready)?.data?.size ?: 0})",
+                        text = stringResource(R.string.ui_saved_games_count_fmt, (games as? CheatsScreenUiState.Ready)?.data?.size ?: 0),
                         color = if (activeTab == 0) colors.green else colors.text2,
                         fontFamily = SpaceGrotesk,
                         fontSize = 12.sp,

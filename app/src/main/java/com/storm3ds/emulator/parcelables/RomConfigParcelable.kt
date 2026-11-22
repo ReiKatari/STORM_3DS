@@ -43,6 +43,10 @@ class RomConfigParcelable : Parcelable {
             arm9Overclock = parcel.readNullableInt(),
             fastForwardSpeedMultiplier = parcel.readNullableFloat(),
             customVulkanDriverName = parcel.readString(),
+            isNew3ds = parcel.readNullableBoolean(),
+            cpuClockPercentage = parcel.readNullableInt(),
+            render3dMode = parcel.readNullableInt(),
+            render3dFactor = parcel.readNullableInt(),
         )
     }
 
@@ -69,6 +73,10 @@ class RomConfigParcelable : Parcelable {
         dest.writeNullableInt(romConfig.arm9Overclock)
         dest.writeNullableFloat(romConfig.fastForwardSpeedMultiplier)
         dest.writeString(romConfig.customVulkanDriverName)
+        dest.writeNullableBoolean(romConfig.isNew3ds)
+        dest.writeNullableInt(romConfig.cpuClockPercentage)
+        dest.writeNullableInt(romConfig.render3dMode)
+        dest.writeNullableInt(romConfig.render3dFactor)
     }
 
     override fun describeContents(): Int {

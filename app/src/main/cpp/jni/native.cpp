@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <chrono>
 #include <codecvt>
+#include <functional>
+#include <mutex>
 #include <thread>
 #include <dlfcn.h>
 
@@ -43,6 +45,7 @@
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/fs/archive.h"
 #include "core/hle/service/nfc/nfc.h"
+#include "core/hle/kernel/kernel.h"
 #include "core/hw/unique_data.h"
 #include "core/loader/loader.h"
 #include "core/savestate.h"
@@ -105,6 +108,46 @@ std::mutex paused_mutex;
 std::mutex running_mutex;
 std::condition_variable running_cv;
 
+std::mutex emu_task_mutex;
+std::condition_variable emu_task_done_cv;
+bool emu_task_pending{false};
+bool emu_task_result{false};
+std::function<bool(Core::System&)> emu_task_fn;
+std::atomic<bool> has_emu_task{false};
+std::atomic<bool> step_single_frame{false};
+std::atomic<bool> in_emu_loop{false};
+
+bool ExecuteOnEmuThreadImpl(std::function<bool(Core::System&)> fn) {
+    Core::System& system{Core::System::GetInstance()};
+    if (stop_run.load() || !in_emu_loop.load() || !system.IsPoweredOn()) {
+        return false;
+    }
+    if (std::this_thread::get_id() == system.GetCoreLoopThreadId()) {
+        return fn(system);
+    }
+    std::unique_lock lock{emu_task_mutex};
+    emu_task_done_cv.wait(lock, [] { return !emu_task_pending || stop_run.load() || !in_emu_loop.load(); });
+    if (stop_run.load() || !in_emu_loop.load() || !system.IsPoweredOn()) {
+        return false;
+    }
+    emu_task_fn = std::move(fn);
+    emu_task_pending = true;
+    has_emu_task.store(true, std::memory_order_release);
+    {
+        std::lock_guard plock{paused_mutex};
+    }
+    running_cv.notify_all();
+    const bool done = emu_task_done_cv.wait_for(
+        lock, std::chrono::seconds(4),
+        [] { return !emu_task_pending || stop_run.load() || !in_emu_loop.load(); });
+    if (!done) {
+        emu_task_pending = false;
+        has_emu_task.store(false, std::memory_order_release);
+        return false;
+    }
+    return !stop_run.load() && emu_task_result;
+}
+
 // Guards the lifetime of s_surface/s_secondary_surface and the (re)creation of the
 // EmuWindow_Android and renderer objects that consume them. Android may destroy or replace the
 // Surface passed to us (on rotation, or if the fragment hosting the SurfaceView is torn
@@ -134,12 +177,23 @@ std::shared_ptr<Network::AnnounceMultiplayerSession> announce_multiplayer_sessio
 
 static jobject ToJavaCoreError(Core::System::ResultStatus result) {
     static const std::map<Core::System::ResultStatus, const char*> CoreErrorNameMap{
+        {Core::System::ResultStatus::Success, "Success"},
+        {Core::System::ResultStatus::ErrorNotInitialized, "ErrorNotInitialized"},
+        {Core::System::ResultStatus::ErrorGetLoader, "ErrorGetLoader"},
+        {Core::System::ResultStatus::ErrorSystemMode, "ErrorSystemMode"},
+        {Core::System::ResultStatus::ErrorLoader, "ErrorLoader"},
+        {Core::System::ResultStatus::ErrorLoader_ErrorEncrypted, "ErrorLoaderErrorEncrypted"},
+        {Core::System::ResultStatus::ErrorLoader_ErrorInvalidFormat, "ErrorLoaderErrorInvalidFormat"},
+        {Core::System::ResultStatus::ErrorLoader_ErrorGbaTitle, "ErrorLoaderErrorGBATitle"},
+        {Core::System::ResultStatus::ErrorLoader_ErrorPatches, "ErrorLoaderErrorPatches"},
+        {Core::System::ResultStatus::ErrorLoader_ErrorPatchesInvalidTitle, "ErrorLoaderErrorPatchesInvalidTitle"},
         {Core::System::ResultStatus::ErrorSystemFiles, "ErrorSystemFiles"},
         {Core::System::ResultStatus::ErrorSavestate, "ErrorSavestate"},
         {Core::System::ResultStatus::ErrorArticDisconnected, "ErrorArticDisconnected"},
         {Core::System::ResultStatus::ErrorN3DSApplication, "ErrorN3DSApplication"},
         {Core::System::ResultStatus::ErrorCoreExceptionRaised, "ErrorCoreExceptionRaised"},
         {Core::System::ResultStatus::ErrorSavestateBuildMismatch, "ErrorSavestateBuildMismatch"},
+        {Core::System::ResultStatus::ShutdownRequested, "ShutdownRequested"},
         {Core::System::ResultStatus::ErrorShaderCacheCrash, "ErrorShaderCacheCrash"},
         {Core::System::ResultStatus::ErrorUnknown, "ErrorUnknown"},
     };
@@ -213,6 +267,9 @@ static void TryShutdown() {
 
     system.Shutdown();
     system.EjectCartridge();
+    inserted_cartridge.clear();
+    pause_emulation = false;
+    step_single_frame = false;
 
     window.reset();
     if (secondary_window) {
@@ -229,15 +286,23 @@ static bool CheckMicPermission() {
 }
 
 static void WaitForEmulationSurfaces(std::unique_lock<std::recursive_mutex>& surface_lock) {
-    surface_cv.wait_for(surface_lock, std::chrono::seconds(2),
-                        [] { return s_secondary_surface != nullptr; });
-    surface_cv.wait(surface_lock, [] { return s_surface != nullptr; });
+    surface_cv.wait(surface_lock, [] { return s_surface != nullptr || stop_run.load(); });
+}
+
+static std::once_flag s_log_init_once;
+static void EnsureLoggingInitialized() {
+    std::call_once(s_log_init_once, []() {
+        Common::Log::Initialize();
+        Common::Log::Start();
+        LOG_INFO(Frontend, "Logging backend initialised");
+    });
 }
 
 static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     // Citra core only supports a single running instance
     std::scoped_lock lock(running_mutex);
 
+    EnsureLoggingInitialized();
     LOG_INFO(Frontend, "Azahar starting...");
 
     MicroProfileOnThreadCreate("EmuThread");
@@ -253,6 +318,8 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
         system.InsertCartridge(inserted_cartridge);
     }
 
+    stop_run = false;
+
     // Acquired for the whole window/renderer construction below (and released again once
     // system.Load() has finished setting up the renderer), so that a concurrent
     // surfaceChanged/surfaceDestroyed callback from the UI thread cannot release or replace
@@ -260,25 +327,16 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     std::unique_lock<std::recursive_mutex> surface_lock(surface_mutex);
 
     WaitForEmulationSurfaces(surface_lock);
+    if (stop_run.load() || !s_surface) {
+        return Core::System::ResultStatus::ShutdownRequested;
+    }
 
-    // We also need to lock the surface mutex when System::Init() is called.
-    // This is because save state saving and loading may call System::Init
-    // on its own which does GPU reinitialization.
-    // This is why a recursive mutex is needed, as System::Load() also calls
-    // System::Init() which in this RunCitra() function would result in a deadlock.
     system.RegisterOnInitCallback([](bool init_start) {
         if (init_start) {
             surface_mutex.lock();
-            // A savestate load re-enters here later, well after surface_lock in RunCitra() has
-            // already been released. If a rotation destroyed s_surface just before this callback
-            // acquired the lock, wait here for surfaceChanged() to hand us a new one rather than
-            // proceeding into CreateSurface() with a null window. During the very first call
-            // (initial boot) this never actually blocks, since surfaceChanged/surfaceDestroyed
-            // cannot run concurrently here, this same thread still holds surface_lock above
-            // for the whole boot sequence.
-            if (!s_surface) {
+            if (!s_surface && !stop_run.load()) {
                 std::unique_lock<std::recursive_mutex> wait_lock(surface_mutex, std::adopt_lock);
-                surface_cv.wait(wait_lock, [] { return s_surface != nullptr; });
+                surface_cv.wait(wait_lock, [] { return s_surface != nullptr || stop_run.load(); });
                 wait_lock.release();
             }
         } else {
@@ -377,9 +435,6 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
         return load_result;
     }
 
-    stop_run = false;
-    pause_emulation = false;
-
     LoadDiskCacheProgress(VideoCore::LoadCallbackStage::Prepare, 0, 0, "");
 
     system.GPU().ApplyPerProgramSettings(program_id);
@@ -398,9 +453,47 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
 
     system.RegisterCoreLoopThreadId();
 
+    const auto process_pending_emu_task = [&]() {
+        if (!has_emu_task.load(std::memory_order_acquire)) {
+            return;
+        }
+        std::function<bool(Core::System&)> local_fn;
+        {
+            std::scoped_lock tlock{emu_task_mutex};
+            if (!emu_task_pending) {
+                has_emu_task.store(false, std::memory_order_release);
+                return;
+            }
+            local_fn = std::move(emu_task_fn);
+        }
+        bool res = false;
+        if (local_fn && system.IsPoweredOn()) {
+            res = local_fn(system);
+        }
+        {
+            std::scoped_lock tlock{emu_task_mutex};
+            emu_task_result = res;
+            emu_task_pending = false;
+            has_emu_task.store(false, std::memory_order_release);
+        }
+        emu_task_done_cv.notify_all();
+    };
+
+    in_emu_loop = true;
+    SCOPE_EXIT({
+        in_emu_loop = false;
+        has_emu_task.store(false, std::memory_order_release);
+        emu_task_done_cv.notify_all();
+    });
+
     // Start running emulation
     while (!stop_run) {
-        if (!pause_emulation) {
+        process_pending_emu_task();
+        if (stop_run) {
+            break;
+        }
+        const bool stepping = step_single_frame.exchange(false);
+        if (!pause_emulation || stepping) {
             const auto result = system.RunLoop();
             if (result == Core::System::ResultStatus::Success) {
                 continue;
@@ -428,8 +521,14 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
             Settings::values.volume = 0;
 
             std::unique_lock pause_lock{paused_mutex};
-            running_cv.wait(pause_lock, [] { return !pause_emulation || stop_run; });
-            window->PollEvents();
+            running_cv.wait(pause_lock, [] {
+                return !pause_emulation || stop_run ||
+                       has_emu_task.load(std::memory_order_acquire) ||
+                       step_single_frame.load(std::memory_order_acquire);
+            });
+            if (window) {
+                window->PollEvents();
+            }
         }
     }
 
@@ -450,16 +549,21 @@ void InitializeGpuDriver(const std::string& hook_lib_dir, const std::string& cus
         file_redirect_dir_ = file_redirect_dir.c_str();
     }
 
+    const char* tmp_lib_dir =
+        (android_get_device_api_level() < 29 && !file_redirect_dir.empty())
+            ? file_redirect_dir.c_str()
+            : nullptr;
+
     // Try to load a custom driver.
     if (custom_driver_name.size()) {
         handle = adrenotools_open_libvulkan(
-            RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, nullptr, hook_lib_dir.c_str(),
+            RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, tmp_lib_dir, hook_lib_dir.c_str(),
             custom_driver_dir.c_str(), custom_driver_name.c_str(), file_redirect_dir_, nullptr);
     }
 
     // Try to load the system driver.
     if (!handle) {
-        handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, nullptr, hook_lib_dir.c_str(),
+        handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, tmp_lib_dir, hook_lib_dir.c_str(),
                                             nullptr, nullptr, file_redirect_dir_, nullptr);
     }
 
@@ -567,8 +671,13 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_surfaceDestroyed([[ma
     if (s_surface != nullptr) {
         ANativeWindow_release(s_surface);
         s_surface = nullptr;
+        bool notify = false;
         if (window) {
-            window->OnSurfaceChanged(s_surface);
+            notify = window->OnSurfaceChanged(s_surface);
+        }
+        auto& system = Core::System::GetInstance();
+        if (notify && system.IsPoweredOn()) {
+            system.GPU().Renderer().NotifySurfaceChanged(false);
         }
     }
 }
@@ -618,7 +727,19 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_areKeysAvailable(
 jstring Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getHomeMenuPath(JNIEnv* env,
                                                                 [[maybe_unused]] jobject obj,
                                                                 jint region) {
-    const std::string path = Core::GetHomeMenuNcchPath(region);
+    if (region < 0) {
+        for (u32 r = 0; r < 7; ++r) {
+            const std::string path = Core::GetHomeMenuNcchPath(r);
+            if (FileUtil::Exists(path)) {
+                return ToJString(env, path);
+            }
+        }
+        return ToJString(env, "");
+    }
+    if (region >= 7) {
+        return ToJString(env, "");
+    }
+    const std::string path = Core::GetHomeMenuNcchPath(static_cast<u32>(region));
     if (FileUtil::Exists(path)) {
         return ToJString(env, path);
     }
@@ -880,6 +1001,8 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_stopEmulation([[maybe
         secondary_window->StopPresenting();
     }
     running_cv.notify_all();
+    surface_cv.notify_all();
+    emu_task_done_cv.notify_all();
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_isRunning([[maybe_unused]] JNIEnv* env,
@@ -889,6 +1012,9 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_isRunning([[maybe
 
 jlong Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getRunningTitleId([[maybe_unused]] JNIEnv* env,
                                                                 [[maybe_unused]] jobject obj) {
+    if (!Core::System::GetInstance().IsPoweredOn()) {
+        return 0;
+    }
     u64 title_id{};
     Core::System::GetInstance().GetAppLoader().ReadProgramId(title_id);
     return static_cast<jlong>(title_id);
@@ -898,11 +1024,15 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onGamePadEvent([[
                                                                 [[maybe_unused]] jobject obj,
                                                                 [[maybe_unused]] jstring j_device,
                                                                 jint j_button, jint action) {
+    auto* handler = InputManager::ButtonHandler();
+    if (!handler) {
+        return JNI_FALSE;
+    }
     bool consumed{};
     if (action) {
-        consumed = InputManager::ButtonHandler()->PressKey(j_button);
+        consumed = handler->PressKey(j_button);
     } else {
-        consumed = InputManager::ButtonHandler()->ReleaseKey(j_button);
+        consumed = handler->ReleaseKey(j_button);
     }
 
     return static_cast<jboolean>(consumed);
@@ -911,6 +1041,10 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onGamePadEvent([[
 jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onGamePadMoveEvent(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj, [[maybe_unused]] jstring j_device,
     jint axis, jfloat x, jfloat y) {
+    auto* handler = InputManager::AnalogHandler();
+    if (!handler) {
+        return JNI_FALSE;
+    }
     // Clamp joystick movement to supported minimum and maximum
     // Citra uses an inverted y axis sent by the frontend
     x = std::clamp(x, -1.f, 1.f);
@@ -924,20 +1058,26 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onGamePadMoveEven
         x /= r;
         y /= r;
     }
-    return static_cast<jboolean>(InputManager::AnalogHandler()->MoveJoystick(axis, x, y));
+    return static_cast<jboolean>(handler->MoveJoystick(axis, x, y));
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onGamePadAxisEvent(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj, [[maybe_unused]] jstring j_device,
     jint axis_id, jfloat axis_val) {
-    return static_cast<jboolean>(
-        InputManager::ButtonHandler()->AnalogButtonEvent(axis_id, axis_val));
+    auto* handler = InputManager::ButtonHandler();
+    if (!handler) {
+        return JNI_FALSE;
+    }
+    return static_cast<jboolean>(handler->AnalogButtonEvent(axis_id, axis_val));
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchEvent([[maybe_unused]] JNIEnv* env,
                                                               [[maybe_unused]] jobject obj,
                                                               jfloat x, jfloat y,
                                                               jboolean pressed) {
+    if (!window) {
+        return JNI_FALSE;
+    }
     return static_cast<jboolean>(
         window->OnTouchEvent(static_cast<int>(x + 0.5), static_cast<int>(y + 0.5), pressed));
 }
@@ -945,7 +1085,9 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchEvent([[ma
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchMoved([[maybe_unused]] JNIEnv* env,
                                                           [[maybe_unused]] jobject obj, jfloat x,
                                                           jfloat y) {
-    window->OnTouchMoved((int)x, (int)y);
+    if (window) {
+        window->OnTouchMoved(static_cast<int>(x + 0.5f), static_cast<int>(y + 0.5f));
+    }
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onSecondaryTouchEvent([[maybe_unused]] JNIEnv* env,
@@ -963,7 +1105,7 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onSecondaryTouchMoved
                                                                    [[maybe_unused]] jobject obj,
                                                                    jfloat x, jfloat y) {
     if (secondary_window) {
-        secondary_window->OnTouchMoved((int)x, (int)y);
+        secondary_window->OnTouchMoved(static_cast<int>(x + 0.5f), static_cast<int>(y + 0.5f));
     }
 }
 
@@ -997,19 +1139,19 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getIsSystemTitle(
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_createConfigFile([[maybe_unused]] JNIEnv* env,
                                                               [[maybe_unused]] jobject obj) {
+    EnsureLoggingInitialized();
     Config{};
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_createLogFile([[maybe_unused]] JNIEnv* env,
                                                            [[maybe_unused]] jobject obj) {
-    Common::Log::Initialize();
-    Common::Log::Start();
-    LOG_INFO(Frontend, "Logging backend initialised");
+    EnsureLoggingInitialized();
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_logUserDirectory(JNIEnv* env,
                                                               [[maybe_unused]] jobject obj,
                                                               jstring j_path) {
+    EnsureLoggingInitialized();
     std::string_view path = env->GetStringUTFChars(j_path, 0);
     LOG_INFO(Frontend, "User directory path: {}", path);
     env->ReleaseStringUTFChars(j_path, path.data());
@@ -1017,6 +1159,7 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_logUserDirectory(JNIE
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_reloadSettings([[maybe_unused]] JNIEnv* env,
                                                             [[maybe_unused]] jobject obj) {
+    EnsureLoggingInitialized();
     Core::System& system{Core::System::GetInstance()};
     u64 program_id{};
     if (system.IsPoweredOn()) {
@@ -1103,9 +1246,8 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_removeAmiibo([[maybe_
     nfc->RemoveAmiibo();
 }
 
-// init multiplayer class
-JNIEXPORT void JNICALL
-Java_com_storm3ds_emulator_nativebridge_NativeLibrary_initMultiplayer(JNIEnv* env, [[maybe_unused]] jobject obj) {
+static void EnsureMultiplayerInitialized() {
+    EnsureLoggingInitialized();
     if (multiplayer) {
         return;
     }
@@ -1118,8 +1260,18 @@ Java_com_storm3ds_emulator_nativebridge_NativeLibrary_initMultiplayer(JNIEnv* en
     multiplayer->NetworkInit();
 }
 
+// init multiplayer class
+JNIEXPORT void JNICALL
+Java_com_storm3ds_emulator_nativebridge_NativeLibrary_initMultiplayer(JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+}
+
 JNIEXPORT jobjectArray JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayGetPublicRooms(
     JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return ToJStringArray(env, {});
+    }
     return ToJStringArray(env, multiplayer->NetPlayGetPublicRooms());
 }
 
@@ -1127,6 +1279,10 @@ JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayMana
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring ipaddress, jint port, jstring username,
     jstring preferedGameName, jlong preferedGameId, jstring password, jstring room_name,
     jint max_players) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return static_cast<jint>(-1);
+    }
     return static_cast<jint>(multiplayer->NetPlayCreateRoom(
         GetJString(env, ipaddress), port, GetJString(env, username),
         GetJString(env, preferedGameName), preferedGameId, GetJString(env, password),
@@ -1136,57 +1292,101 @@ JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayMana
 JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayJoinRoom(
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring ipaddress, jint port, jstring username,
     jstring password) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return static_cast<jint>(-1);
+    }
     return static_cast<jint>(multiplayer->NetPlayJoinRoom(
         GetJString(env, ipaddress), port, GetJString(env, username), GetJString(env, password)));
 }
 
 JNIEXPORT jobjectArray JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayRoomInfo(
     JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return ToJStringArray(env, {});
+    }
     return ToJStringArray(env, multiplayer->NetPlayRoomInfo());
 }
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayIsJoined(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return JNI_FALSE;
+    }
     return multiplayer->NetPlayIsJoined();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayIsHostedRoom(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return JNI_FALSE;
+    }
     return multiplayer->NetPlayIsHostedRoom();
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlaySendMessage(
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring msg) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return;
+    }
     multiplayer->NetPlaySendMessage(GetJString(env, msg));
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayKickUser(
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return;
+    }
     multiplayer->NetPlayKickUser(GetJString(env, username));
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayLeaveRoom(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return;
+    }
     multiplayer->NetPlayLeaveRoom();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayIsModerator(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return JNI_FALSE;
+    }
     return multiplayer->NetPlayIsModerator();
 }
 
 JNIEXPORT jobjectArray JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayGetBanList(
     JNIEnv* env, [[maybe_unused]] jobject obj) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return ToJStringArray(env, {});
+    }
     return ToJStringArray(env, multiplayer->NetPlayGetBanList());
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayBanUser(
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return;
+    }
     multiplayer->NetPlayBanUser(GetJString(env, username));
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_utils_NetPlayManager_netPlayUnbanUser(
     JNIEnv* env, [[maybe_unused]] jobject obj, jstring username) {
+    EnsureMultiplayerInitialized();
+    if (!multiplayer) {
+        return;
+    }
     multiplayer->NetPlayUnbanUser(GetJString(env, username));
 }
 
@@ -1195,8 +1395,15 @@ JNIEXPORT jobject JNICALL Java_com_storm3ds_emulator_nativebridge_utils_CiaInsta
     std::string path = GetJString(env, jpath);
     Service::AM::InstallStatus res = Service::AM::InstallCIA(
         path, [env, jobj](std::size_t total_bytes_read, std::size_t file_size) {
+            constexpr jint MAX_PROGRESS = 10000;
+            const jint scaled_progress =
+                file_size > 0
+                    ? static_cast<jint>(std::min<u64>(
+                          MAX_PROGRESS,
+                          (static_cast<u64>(total_bytes_read) * MAX_PROGRESS) / file_size))
+                    : 0;
             env->CallVoidMethod(jobj, IDCache::GetCiaInstallHelperSetProgress(),
-                                static_cast<jint>(file_size), static_cast<jint>(total_bytes_read));
+                                scaled_progress, MAX_PROGRESS);
         });
 
     return IDCache::GetJavaCiaInstallStatus(res);
@@ -1236,14 +1443,72 @@ jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getSavestateI
     return array;
 }
 
+static bool RunSaveStateSyncImpl(jint slot) {
+    return ExecuteOnEmuThreadImpl([slot](Core::System& sys) {
+        int retries = 0;
+        while (sys.KernelRunning() && sys.Kernel().AreAsyncOperationsPending() && retries < 30) {
+            if (sys.RunLoop() == Core::System::ResultStatus::ShutdownRequested) {
+                return false;
+            }
+            ++retries;
+        }
+        try {
+            sys.SaveState(static_cast<u32>(slot));
+            return true;
+        } catch (const std::exception& e) {
+            LOG_ERROR(Frontend, "Error saving state to slot {}: {}", slot, e.what());
+            return false;
+        }
+    });
+}
+
+static bool RunLoadStateSyncImpl(jint slot) {
+    return ExecuteOnEmuThreadImpl([slot](Core::System& sys) {
+        int retries = 0;
+        while (sys.KernelRunning() && sys.Kernel().AreAsyncOperationsPending() && retries < 30) {
+            if (sys.RunLoop() == Core::System::ResultStatus::ShutdownRequested) {
+                return false;
+            }
+            ++retries;
+        }
+        try {
+            sys.LoadState(static_cast<u32>(slot));
+            return true;
+        } catch (const std::exception& e) {
+            LOG_ERROR(Frontend, "Error loading state from slot {}: {}", slot, e.what());
+            return false;
+        }
+    });
+}
+
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_saveState([[maybe_unused]] JNIEnv* env,
                                                        [[maybe_unused]] jobject obj, jint slot) {
-    Core::System::GetInstance().SendSignal(Core::System::Signal::Save, slot);
+    RunSaveStateSyncImpl(slot);
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_loadState([[maybe_unused]] JNIEnv* env,
                                                        [[maybe_unused]] jobject obj, jint slot) {
-    Core::System::GetInstance().SendSignal(Core::System::Signal::Load, slot);
+    RunLoadStateSyncImpl(slot);
+}
+
+jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_saveStateSync(
+    [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj, jint slot) {
+    return RunSaveStateSyncImpl(slot) ? JNI_TRUE : JNI_FALSE;
+}
+
+jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_loadStateSync(
+    [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj, jint slot) {
+    return RunLoadStateSyncImpl(slot) ? JNI_TRUE : JNI_FALSE;
+}
+
+jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_stepSingleFrame(
+    [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
+    if (stop_run.load() || !in_emu_loop.load() || !Core::System::GetInstance().IsPoweredOn()) {
+        return JNI_FALSE;
+    }
+    step_single_frame.store(true, std::memory_order_release);
+    running_cv.notify_all();
+    return JNI_TRUE;
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_logDeviceInfo([[maybe_unused]] JNIEnv* env,
@@ -1287,11 +1552,16 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStart(
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStop(JNIEnv* env, jobject obj) {
-    play_time_manager->Stop();
+    if (play_time_manager) {
+        play_time_manager->Stop();
+    }
 }
 
 jlong Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerGetPlayTime(JNIEnv* env, jobject obj,
                                                                          jlong title_id) {
+    if (!play_time_manager) {
+        return 0;
+    }
     return static_cast<jlong>(play_time_manager->GetPlayTime(title_id));
 }
 
@@ -1374,4 +1644,7 @@ namespace StormBridge {
 EmuWindow_Android* GetPrimaryWindow() { return window.get(); }
 EmuWindow_Android* GetSecondaryWindow() { return secondary_window.get(); }
 std::recursive_mutex& GetSurfaceMutex() { return surface_mutex; }
+bool ExecuteOnEmuThread(std::function<bool(Core::System&)> fn) {
+    return ExecuteOnEmuThreadImpl(std::move(fn));
+}
 } // namespace StormBridge

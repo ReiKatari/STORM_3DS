@@ -139,6 +139,9 @@ object NativeLibrary {
     external fun getSavestateInfo(): Array<SaveStateInfo>?
     external fun saveState(slot: Int)
     external fun loadState(slot: Int)
+    external fun saveStateSync(slot: Int): Boolean
+    external fun loadStateSync(slot: Int): Boolean
+    external fun stepSingleFrame(): Boolean
     external fun logDeviceInfo()
     private external fun compressFileNative(inputPath: String?, outputPath: String): Int
     private external fun decompressFileNative(inputPath: String?, outputPath: String): Int
@@ -196,8 +199,10 @@ object NativeLibrary {
     external fun createBundleNative(outPath: String, mainFile: String, deps: Array<String>): Int
     external fun setLogFilterAndRegex(filter: String, regex: String)
     external fun setMicrophoneEnabled(enabled: Boolean)
+    external fun setMicrophoneInputType(inputType: Int)
     external fun setAudioMuted(muted: Boolean)
     external fun installCiaSimple(path: String): Int
+    external fun getCiaTitleId(path: String): Long
 
     data class InstalledGame(val path: String, val mediaType: GameMediaType)
 
@@ -226,8 +231,7 @@ object NativeLibrary {
     fun loadStateIfAvailable(slot: Int): Boolean {
         val states = getSavestateInfo() ?: return false
         if (states.any { it.slot == slot }) {
-            loadState(slot)
-            return true
+            return loadStateSync(slot)
         }
         return false
     }
@@ -236,8 +240,30 @@ object NativeLibrary {
         sEmulationActivity = WeakReference(activity)
     }
 
-    fun clearEmulationActivity() {
-        sEmulationActivity.clear()
+    fun clearEmulationActivity(activity: FragmentActivity? = null) {
+        if (activity == null || sEmulationActivity.get() === activity) {
+            sEmulationActivity.clear()
+        }
+    }
+
+    fun resolveNativeOrContentPath(uri: Uri): String {
+        if (uri.scheme == "file") {
+            val path = uri.path.orEmpty()
+            return if (path.isNotBlank()) "!$path" else uri.toString()
+        }
+        val uriStr = uri.toString()
+        val direct = File(uriStr)
+        if (direct.exists() && direct.canRead()) {
+            return "!${direct.absolutePath}"
+        }
+        val native = runCatching { getNativePath(uri) }.getOrDefault("")
+        if (native.isNotBlank()) {
+            val f = File(native)
+            if (f.exists() && f.canRead()) {
+                return "!${f.absolutePath}"
+            }
+        }
+        return uriStr
     }
 
     fun cameraPermissionResult(granted: Boolean) {
@@ -343,7 +369,9 @@ object NativeLibrary {
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             return true
         }
-        activity.requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CODE_NATIVE_CAMERA)
+        activity.runOnUiThread {
+            activity.requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CODE_NATIVE_CAMERA)
+        }
         synchronized(cameraPermissionLock) { runCatching { cameraPermissionLock.wait() } }
         return cameraPermissionGranted
     }
@@ -355,7 +383,9 @@ object NativeLibrary {
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             return true
         }
-        activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_NATIVE_MIC)
+        activity.runOnUiThread {
+            activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_CODE_NATIVE_MIC)
+        }
         synchronized(micPermissionLock) { runCatching { micPermissionLock.wait() } }
         return micPermissionGranted
     }
@@ -401,7 +431,7 @@ object NativeLibrary {
     @JvmStatic
     fun openContentUri(path: String, openMode: String): Int =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.openContentUri(path, openMode)
+            runCatching { NativeBridgeHost.documentsTree.openContentUri(path, openMode) }.getOrDefault(-1)
         } else {
             FileUtil.openContentUri(path, openMode)
         }
@@ -410,7 +440,7 @@ object NativeLibrary {
     @JvmStatic
     fun getFilesName(path: String): Array<String?> =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.getFilesName(path)
+            runCatching { NativeBridgeHost.documentsTree.getFilesName(path) }.getOrDefault(emptyArray())
         } else {
             FileUtil.getFilesName(path)
         }
@@ -457,7 +487,7 @@ object NativeLibrary {
     @JvmStatic
     fun getSize(path: String): Long =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.getFileSize(path)
+            runCatching { NativeBridgeHost.documentsTree.getFileSize(path) }.getOrDefault(0L)
         } else {
             FileUtil.getFileSize(path)
         }
@@ -474,7 +504,7 @@ object NativeLibrary {
     @JvmStatic
     fun fileExists(path: String): Boolean =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.exists(path)
+            File(path).exists() || runCatching { NativeBridgeHost.documentsTree.exists(path) }.getOrDefault(false)
         } else {
             FileUtil.exists(path)
         }
@@ -483,7 +513,7 @@ object NativeLibrary {
     @JvmStatic
     fun isDirectory(path: String): Boolean =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.isDirectory(path)
+            File(path).isDirectory || runCatching { NativeBridgeHost.documentsTree.isDirectory(path) }.getOrDefault(false)
         } else {
             FileUtil.isDirectory(path)
         }
@@ -492,7 +522,7 @@ object NativeLibrary {
     @JvmStatic
     fun copyFile(sourcePath: String, destinationParentPath: String, destinationFilename: String): Boolean =
         if (FileUtil.isNativePath(sourcePath) && FileUtil.isNativePath(destinationParentPath)) {
-            NativeBridgeHost.documentsTree.copyFile(sourcePath, destinationParentPath, destinationFilename)
+            runCatching { NativeBridgeHost.documentsTree.copyFile(sourcePath, destinationParentPath, destinationFilename) }.getOrDefault(false)
         } else {
             FileUtil.copyFile(Uri.parse(sourcePath), Uri.parse(destinationParentPath), destinationFilename)
         }
@@ -524,7 +554,7 @@ object NativeLibrary {
     @JvmStatic
     fun deleteDocument(path: String): Boolean =
         if (FileUtil.isNativePath(path)) {
-            NativeBridgeHost.documentsTree.deleteDocument(path)
+            runCatching { NativeBridgeHost.documentsTree.deleteDocument(path) }.getOrDefault(false)
         } else {
             FileUtil.deleteDocument(path)
         }
@@ -548,8 +578,8 @@ object NativeLibrary {
         ErrorCoreExceptionRaised(14, R.string.core_error_core_exception_raised),
         ErrorSavestateBuildMismatch(15, R.string.core_error_savestate_build_mismatch),
         ShutdownRequested(16, R.string.core_error_shutdown_requested),
-        ErrorUnknown(17, R.string.core_error_unknown),
-        ErrorShaderCacheCrash(18, R.string.core_error_shader_cache_crash);
+        ErrorShaderCacheCrash(17, R.string.core_error_shader_cache_crash),
+        ErrorUnknown(18, R.string.core_error_unknown);
 
         companion object {
             fun fromInt(value: Int): CoreError = entries.find { it.value == value } ?: ErrorUnknown
@@ -564,6 +594,7 @@ object NativeLibrary {
         ErrorAborted,
         ErrorInvalid,
         ErrorEncrypted,
+        ErrorCannotCheckBundle,
         Cancelled
     }
 

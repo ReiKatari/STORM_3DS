@@ -1,5 +1,6 @@
 package com.storm3ds.emulator.ui.romdetails.ui
 
+import com.storm3ds.emulator.R
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -88,7 +89,7 @@ fun FullScreenCoverDialog(
 
                 if (bitmap == null) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Не удалось загрузить изображение", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ui_cover_load_failed), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -116,7 +117,7 @@ fun FullScreenCoverDialog(
 
                 if (outputStream == null) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Ошибка сохранения: не удалось открыть файл", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ui_cover_save_open_failed), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
@@ -126,18 +127,18 @@ fun FullScreenCoverDialog(
                 }
                 if (!compressed) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Ошибка сохранения изображения", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ui_cover_save_failed), Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Обложка сохранена: $filename", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.ui_cover_saved_fmt, filename), Toast.LENGTH_SHORT).show()
                     showFormatSelector = false
                 }
             } catch (e: Throwable) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Ошибка сохранения: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.ui_cover_save_error_fmt, e.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }

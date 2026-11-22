@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.storm3ds.emulator.R
+import com.storm3ds.emulator.nativebridge.NativeLibrary
 import com.storm3ds.emulator.common.Permission
 import com.storm3ds.emulator.common.contracts.FilePickerContract
 import com.storm3ds.emulator.domain.model.VideoFiltering
@@ -116,14 +117,12 @@ private fun Loading(modifier: Modifier) {
 }
 
 
-enum class RomConfigCategory(val titleRu: String, val titleEn: String) {
-    ALL("Все разделы", "All Sections"),
-    GRAPHICS_VULKAN("Графика и Vulkan", "Graphics and Vulkan"),
-    SCREENS_LAYOUT("Экраны и корпус", "Screens and Layout"),
-    AUDIO_CONTROLS("Управление и звук", "Controls and Audio"),
-    SYSTEM_CPU("Скорость и имя", "Speed and Name");
-
-    fun title(isRu: Boolean): String = if (isRu) titleRu else titleEn
+enum class RomConfigCategory(@androidx.annotation.StringRes val titleRes: Int) {
+    ALL(R.string.ui_rom_cfg_cat_all),
+    GRAPHICS_VULKAN(R.string.ui_rom_cfg_cat_gfx),
+    SCREENS_LAYOUT(R.string.ui_rom_cfg_cat_screens),
+    AUDIO_CONTROLS(R.string.ui_rom_cfg_cat_audio),
+    SYSTEM_CPU(R.string.ui_rom_cfg_cat_cpu);
 }
 
 @Composable
@@ -152,6 +151,10 @@ private fun Content(
     val arm9OverclockDialogState = rememberSingleChoiceDialogState<Int?>()
     val fastForwardSpeedDialogState = rememberSingleChoiceDialogState<Float?>()
     val customVulkanDriverDialogState = rememberSingleChoiceDialogState<String?>()
+    val isNew3dsDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val cpuClockDialogState = rememberSingleChoiceDialogState<Int?>()
+    val render3dModeDialogState = rememberSingleChoiceDialogState<Int?>()
+    val render3dFactorDialogState = rememberSingleChoiceDialogState<Int?>()
     val retroArchPresetPathDialogState = rememberTextInputDialogState()
     val retroArchParametersDialogState = rememberTextInputDialogState()
 
@@ -181,6 +184,24 @@ private fun Content(
     val videoFilteringOptions = stringArrayResource(id = R.array.video_filtering_options)
     val translatorLangEntries = stringArrayResource(id = R.array.translator_source_lang_options)
     val translatorLangValues = stringArrayResource(id = R.array.translator_source_lang_values)
+    val depthModeOptions = stringArrayResource(id = R.array.video_vulkan_3d_depth_mode_options)
+    val depthModeIntValues = listOf(0, 7, 3, 1, 2, 4, 5, 6)
+    val depthStrengthValues = listOf(0, 25, 50, 75, 100)
+    val cpuClockValues = listOf(50, 75, 100, 125, 150, 200)
+    fun depthModeLabelForInt(modeInt: Int): String {
+        val idx = when (modeInt) {
+            NativeLibrary.StereoMode.OFF.nativeValue -> 0
+            NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue -> 1
+            NativeLibrary.StereoMode.ANAGLYPH.nativeValue -> 2
+            NativeLibrary.StereoMode.SIDE_BY_SIDE.nativeValue -> 3
+            NativeLibrary.StereoMode.SIDE_BY_SIDE_FULL.nativeValue -> 4
+            NativeLibrary.StereoMode.INTERLACED.nativeValue -> 5
+            NativeLibrary.StereoMode.REVERSE_INTERLACED.nativeValue -> 6
+            NativeLibrary.StereoMode.CARDBOARD_VR.nativeValue -> 7
+            else -> 0
+        }
+        return depthModeOptions.getOrNull(idx) ?: depthModeOptions.firstOrNull().orEmpty()
+    }
     val useGlobal = stringResource(R.string.use_global_preference)
     val activityManager = context.getSystemService(ActivityManager::class.java)
     val supportsOpenGlRenderer = (activityManager?.deviceConfigurationInfo?.reqGlEsVersion ?: 0) >= GLES_3_2
@@ -258,8 +279,10 @@ private fun Content(
         if (romConfig.dualScreenPreset != null) count++
         if (romConfig.layoutId != null) count++
         if (romConfig.translatorSourceLang != null) count++
-        if (romConfig.useHgEngineFix) count++
-        if (romConfig.gbaSlotConfig.type != RomGbaSlotConfigUiModel.Type.None) count++
+        if (romConfig.isNew3ds != null) count++
+        if (romConfig.cpuClockPercentage != null) count++
+        if (romConfig.render3dMode != null) count++
+        if (romConfig.render3dFactor != null) count++
         count
     }
 
@@ -313,9 +336,9 @@ private fun Content(
                 Column {
                     Text(
                         text = if (activeOverridesCount > 0) {
-                            if (isRu) "Активных настроек: $activeOverridesCount" else "Custom Overrides: $activeOverridesCount"
+                            stringResource(R.string.ui_rom_cfg_active_fmt, activeOverridesCount)
                         } else {
-                            if (isRu) "Используются глобальные настройки" else "Using Global Defaults"
+                            stringResource(R.string.ui_rom_cfg_using_defaults)
                         },
                         color = colors.text,
                         fontFamily = SpaceGrotesk,
@@ -324,9 +347,9 @@ private fun Content(
                     )
                     Text(
                         text = if (activeOverridesCount > 0) {
-                            if (isRu) "Параметры переопределены специально для этой игры" else "Settings overridden specifically for this game"
+                            stringResource(R.string.ui_rom_cfg_overridden_desc)
                         } else {
-                            if (isRu) "Все параметры наследуются из главного меню" else "All settings inherited from main preferences"
+                            stringResource(R.string.ui_rom_cfg_inherited_desc)
                         },
                         color = colors.text3,
                         fontSize = 11.sp,
@@ -361,7 +384,7 @@ private fun Content(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = cat.title(isRu),
+                        text = stringResource(cat.titleRes),
                         color = if (isSelected) colors.green else colors.text2,
                         fontSize = 11.5.sp,
                         fontFamily = SpaceGrotesk,
@@ -412,6 +435,53 @@ private fun Content(
                     },
                 )
             }
+        }
+        }
+
+        if (showSystemCpu) {
+        ConfigSection(title = stringResource(R.string.pref_3ds_hardware_cat)) {
+            val globalNew3dsLabel = stringResource(if (romConfig.globalIsNew3ds) R.string.on else R.string.off)
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_new3ds_title),
+                value = when (romConfig.isNew3ds) {
+                    null -> useGlobalWithValue(globalNew3dsLabel)
+                    true -> stringResource(R.string.on)
+                    false -> stringResource(R.string.off)
+                },
+                showDivider = false,
+                onClick = {
+                    isNew3dsDialogState.show(
+                        title = context.getString(R.string.pref_3ds_new3ds_title),
+                        items = listOf(null, true, false),
+                        labelOf = {
+                            when (it) {
+                                null -> useGlobalWithValue(globalNew3dsLabel)
+                                true -> context.getString(R.string.on)
+                                false -> context.getString(R.string.off)
+                            }
+                        },
+                        selected = romConfig.isNew3ds,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.IsNew3dsUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_cpu_clock_title),
+                value = romConfig.cpuClockPercentage?.let { "$it%" }
+                    ?: useGlobalWithValue("${romConfig.globalCpuClockPercentage}%"),
+                showDivider = true,
+                onClick = {
+                    cpuClockDialogState.show(
+                        title = context.getString(R.string.pref_3ds_cpu_clock_title),
+                        items = listOf(null) + cpuClockValues,
+                        labelOf = {
+                            it?.let { "$it%" } ?: useGlobalWithValue("${romConfig.globalCpuClockPercentage}%")
+                        },
+                        selected = romConfig.cpuClockPercentage,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.CpuClockPercentageUpdate(it)) },
+                    )
+                },
+            )
         }
         }
 
@@ -514,12 +584,7 @@ private fun Content(
                     )
                 },
             )
-            ConfigToggleRow(
-                title = stringResource(R.string.label_rom_config_hg_engine_fix),
-                isOn = romConfig.useHgEngineFix,
-                showDivider = true,
-                onToggle = { onConfigUpdate(RomConfigUpdateEvent.UseHgEngineFixUpdate(it)) },
-            )
+
         }
         }
 
@@ -629,6 +694,52 @@ private fun Content(
                         labelOf = { filtering -> filtering?.let { videoFilteringOptions.getOrNull(it.ordinal) ?: it.name } ?: useGlobalWithValue(globalVideoFilteringLabel) },
                         selected = selectedFiltering,
                         onSelect = { onConfigUpdate(RomConfigUpdateEvent.VideoFilteringUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.video_vulkan_3d_depth_mode_title),
+                value = romConfig.render3dMode?.let { depthModeLabelForInt(it) }
+                    ?: useGlobalWithValue(depthModeLabelForInt(romConfig.globalRender3dMode)),
+                showDivider = true,
+                onClick = {
+                    val orderedModes = listOf(
+                        null,
+                        NativeLibrary.StereoMode.OFF.nativeValue,
+                        NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue,
+                        NativeLibrary.StereoMode.ANAGLYPH.nativeValue,
+                        NativeLibrary.StereoMode.SIDE_BY_SIDE.nativeValue,
+                        NativeLibrary.StereoMode.SIDE_BY_SIDE_FULL.nativeValue,
+                        NativeLibrary.StereoMode.INTERLACED.nativeValue,
+                        NativeLibrary.StereoMode.REVERSE_INTERLACED.nativeValue,
+                        NativeLibrary.StereoMode.CARDBOARD_VR.nativeValue,
+                    )
+                    render3dModeDialogState.show(
+                        title = context.getString(R.string.video_vulkan_3d_depth_mode_title),
+                        items = orderedModes,
+                        labelOf = { m ->
+                            m?.let { depthModeLabelForInt(it) }
+                                ?: useGlobalWithValue(depthModeLabelForInt(romConfig.globalRender3dMode))
+                        },
+                        selected = romConfig.render3dMode,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.Render3dModeUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.video_vulkan_3d_depth_strength_title),
+                value = romConfig.render3dFactor?.let { "$it%" }
+                    ?: useGlobalWithValue("${romConfig.globalRender3dFactor}%"),
+                showDivider = true,
+                onClick = {
+                    render3dFactorDialogState.show(
+                        title = context.getString(R.string.video_vulkan_3d_depth_strength_title),
+                        items = listOf(null) + depthStrengthValues,
+                        labelOf = { f ->
+                            f?.let { "$it%" } ?: useGlobalWithValue("${romConfig.globalRender3dFactor}%")
+                        },
+                        selected = romConfig.render3dFactor,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.Render3dFactorUpdate(it)) },
                     )
                 },
             )
@@ -911,6 +1022,10 @@ private fun Content(
     SingleChoiceDialog(arm9OverclockDialogState)
     SingleChoiceDialog(fastForwardSpeedDialogState)
     SingleChoiceDialog(customVulkanDriverDialogState)
+    SingleChoiceDialog(isNew3dsDialogState)
+    SingleChoiceDialog(cpuClockDialogState)
+    SingleChoiceDialog(render3dModeDialogState)
+    SingleChoiceDialog(render3dFactorDialogState)
     TextInputDialog(
         title = stringResource(R.string.video_retroarch_shader_preset_title),
         dialogState = retroArchPresetPathDialogState,
@@ -953,9 +1068,9 @@ private fun PreviewRomConfigUi() {
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(0.dp),
             rom = Rom(
-                name = "Professor Layton and the Unwound Future",
-                developerName = "Nontendo",
-                fileName = "layton.nds",
+                name = "Super Mario 3D Land",
+                developerName = "Nintendo",
+                fileName = "mario_3d_land.3ds",
                 uri = Uri.EMPTY,
                 parentTreeUri = Uri.EMPTY,
                 config = RomConfig(),

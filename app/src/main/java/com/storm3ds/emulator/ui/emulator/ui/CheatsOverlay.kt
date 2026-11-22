@@ -129,7 +129,23 @@ fun CheatsOverlay(
     suspend fun reloadCurrentCheatsSuspend() {
         isLoading = true
         val (resolvedGame, loadedFolders, loadedFolderCheats) = withContext(Dispatchers.IO) {
-            val foundGame = cheatsRepository.findGameForRom(romInfo)
+            val db = com.storm3ds.emulator.di.entrypoint.CheatsEntryPoint.resolve(context).database()
+            val liveTid = com.storm3ds.emulator.MelonEmulator.getCurrentTitleId()
+            val candidateTid = when {
+                romInfo.gameCode.trim().length == 16 -> romInfo.gameCode.trim().uppercase()
+                liveTid != 0L -> String.format(java.util.Locale.US, "%016X", liveTid)
+                else -> ""
+            }
+            if (candidateTid.length == 16) {
+                com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader.populate3dsCheatsIfEmpty(
+                    context = context,
+                    database = db,
+                    titleIdHex = candidateTid,
+                    gameTitle = romInfo.gameTitle.ifBlank { romInfo.gameName },
+                )
+            }
+            val foundGame = (if (candidateTid.length == 16) cheatsRepository.findGameForRom(romInfo.copy(gameCode = candidateTid)) else null)
+                ?: cheatsRepository.findGameForRom(romInfo)
             if (foundGame != null) {
                 val gameFolders = cheatsRepository.getAllGameCheats(foundGame).firstOrNull() ?: emptyList()
                 val folderCheats = coroutineScope {
@@ -267,7 +283,7 @@ fun CheatsOverlay(
                                             .padding(horizontal = 6.dp, vertical = 2.dp),
                                     ) {
                                         Text(
-                                            text = "$enabledCheatsCount АКТИВНО",
+                                            text = stringResource(R.string.ui_cheats_active_fmt, enabledCheatsCount),
                                             color = colors.green,
                                             fontFamily = WatermelonMono,
                                             fontSize = 9.sp,
@@ -330,7 +346,7 @@ fun CheatsOverlay(
                                     hardcoreDismissed = true
                                     reloadCurrentCheats()
                                     onCheatsUpdated()
-                                    Toast.makeText(context, "Режим Softcore включён. Чит-коды активированы!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.ui_cheats_softcore_enabled_toast), Toast.LENGTH_SHORT).show()
                                 }
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
@@ -344,14 +360,14 @@ fun CheatsOverlay(
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Активен режим Hardcore - читы заблокированы",
+                                        text = stringResource(R.string.ui_cheats_hardcore_locked),
                                         color = colors.text,
                                         fontFamily = SpaceGrotesk,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                     )
                                     Text(
-                                        text = "Нажмите здесь, чтобы переключить в Softcore и разрешить чит-коды",
+                                        text = stringResource(R.string.ui_cheats_tap_unlock_softcore),
                                         color = colors.text2,
                                         fontFamily = SpaceGrotesk,
                                         fontSize = 10.5.sp,
@@ -495,7 +511,7 @@ fun CheatsOverlay(
                                                                     fontSize = 13.sp
                                                                 )
                                                                 Text(
-                                                                    text = "${crGame.totalCheatsCount} кодов доступно для подключения",
+                                                                    text = stringResource(R.string.ui_cheats_available_fmt, crGame.totalCheatsCount),
                                                                     color = colors.green,
                                                                     fontFamily = WatermelonMono,
                                                                     fontSize = 10.sp
@@ -574,7 +590,7 @@ fun CheatsOverlay(
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
-                                                        text = "Чит-коды для этой игры не найдены в базе.\nОткройте вкладку «Jusrcheat (все игры)», чтобы выбрать коды из 4079 игр!",
+                                                        text = stringResource(R.string.ui_cheats_not_found_hint),
                                                         color = colors.text3,
                                                         fontFamily = SpaceGrotesk,
                                                         fontSize = 13.sp,

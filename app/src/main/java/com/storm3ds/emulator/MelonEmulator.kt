@@ -73,12 +73,23 @@ object MelonEmulator {
     @Volatile private var depth3dMode: Int = 0
     @Volatile private var depth3dStrength: Int = 0
     @Volatile private var currentSpeedMultiplier: Double = 100.0
+    @Volatile private var configuredFastForwardMultiplier: Float = -1.0f
+    @Volatile private var slowMotionMultiplier: Float = 1.0f
     @Volatile private var fastForwardActive: Boolean = false
     @Volatile private var muteOnFastForward: Boolean = false
     @Volatile private var touchDown: Boolean = false
+    @Volatile var captureFrameBitmapCallback: (() -> Bitmap?)? = null
+    @Volatile private var latestScreenshotBitmap: Bitmap? = null
+    private val rewindScreenshots = java.util.ArrayDeque<ByteBuffer>()
     private val rewindExecutor = Executors.newSingleThreadScheduledExecutor()
     private var rewindTask: ScheduledFuture<*>? = null
     private val diagnosticBuf = StringBuilder()
+
+    fun consumeLatestScreenshotBitmap(): Bitmap? {
+        val bmp = latestScreenshotBitmap
+        latestScreenshotBitmap = null
+        return bmp
+    }
 
     fun setupEmulator(
         emulatorConfiguration: EmulatorConfiguration,
@@ -89,9 +100,9 @@ object MelonEmulator {
         currentConfig = emulatorConfiguration
         val userDir = NativeBridgeHost.resolveUserDirectoryPath()
         NativeLibrary.setUserDirectory(userDir)
-        NativeLibrary.createConfigFile()
         NativeLibrary.createLogFile()
         NativeLibrary.logUserDirectory(userDir)
+        NativeLibrary.createConfigFile()
         NativeLibrary.playTimeManagerInit()
         NativeLibrary.initMultiplayer()
         rewindEnabledFlag = emulatorConfiguration.rewindEnabled
@@ -106,8 +117,8 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.use_virtual_sd(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
 
-        val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
-        val cpuClock = (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull()?.coerceIn(25, 200) ?: 100
+        val isNew3ds = cfg.isNew3dsOverride ?: prefs.getBoolean("3ds_is_new_3ds", true)
+        val cpuClock = (cfg.cpuClockPercentageOverride ?: (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull() ?: 100).coerceIn(25, 200)
         val regionVal = (prefs.getString("3ds_region_value", "-1") ?: "-1").toIntOrNull() ?: -1
         val regionFree = prefs.getBoolean("3ds_apply_region_free", true)
         NativeLibrary.addDefaultSetting(SettingKeys.is_new_3ds(), if (isNew3ds) "1" else "0")
@@ -141,7 +152,7 @@ object MelonEmulator {
         val spirvOpt = prefs.getBoolean("3ds_spirv_opt", true)
         val disableRightEye = prefs.getBoolean("3ds_disable_right_eye", false)
 
-        val videoDepthKey = prefs.getString("video_vulkan_3d_depth_mode", "off")
+        val videoDepthKey = prefs.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()
         val modeFromVideo = when (videoDepthKey) {
             "sbs_xr" -> NativeLibrary.StereoMode.SIDE_BY_SIDE.nativeValue
             "sbs_full" -> NativeLibrary.StereoMode.SIDE_BY_SIDE_FULL.nativeValue
@@ -152,28 +163,46 @@ object MelonEmulator {
             "gyro_parallax" -> NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue
             else -> 0
         }
-        val render3dMode = if (prefs.contains("3ds_render_mode")) {
-            prefs.getInt("3ds_render_mode", modeFromVideo).coerceIn(0, 7)
-        } else {
+        val baseRender3dMode = if (prefs.contains("video_vulkan_3d_depth_mode")) {
             modeFromVideo
-        }
-        val depthFromVideo = prefs.getString("video_vulkan_3d_depth_strength", "0")?.toIntOrNull() ?: 0
-        val factor3d = if (prefs.contains("3ds_depth_factor")) {
-            prefs.getInt("3ds_depth_factor", depthFromVideo).coerceIn(0, 100)
         } else {
-            depthFromVideo.coerceIn(0, 100)
+            prefs.getInt("3ds_render_mode", modeFromVideo).coerceIn(0, 7)
+        }
+        val render3dMode = (cfg.render3dModeOverride ?: baseRender3dMode).coerceIn(0, 7)
+        val depthFromVideo = prefs.getString("video_vulkan_3d_depth_strength", "50")?.toIntOrNull()?.coerceIn(0, 100) ?: 50
+        val baseFactor3d = if (prefs.contains("video_vulkan_3d_depth_strength")) {
+            depthFromVideo
+        } else {
+            prefs.getInt("3ds_depth_factor", depthFromVideo).coerceIn(0, 100)
+        }
+        val factor3d = (cfg.render3dFactorOverride ?: baseFactor3d).coerceIn(0, 100)
+        val whichDisplay = if (render3dMode == 0) "0" else "2"
+        depth3dMode = render3dMode
+
+        configuredFastForwardMultiplier = cfg.fastForwardSpeedMultiplier
+        slowMotionMultiplier = cfg.frameLimitSpeedMultiplier.coerceIn(0.1f, 2.0f)
+        val initialLimitPct = (slowMotionMultiplier * 100.0).toInt().coerceIn(10, 200)
+        val inputType = when (cfg.micSource) {
+            com.storm3ds.emulator.domain.model.MicSource.NONE -> 0
+            com.storm3ds.emulator.domain.model.MicSource.DEVICE -> 1
+            com.storm3ds.emulator.domain.model.MicSource.BLOW -> 2
         }
 
+        NativeLibrary.addDefaultSetting(SettingKeys.use_frame_limit(), "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.frame_limit(), initialLimitPct.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.input_type(), inputType.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.skip_slow_draw(), if (skipSlowDraw) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.skip_texture_copy(), if (skipTexCopy) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.shaders_accurate_mul(), if (accurateMul) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.enable_audio_stretching(), if (audioStretch) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.optimize_spirv_output(), if (spirvOpt) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.render_3d(), render3dMode.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.render_3d_which_display(), whichDisplay)
         NativeLibrary.addDefaultSetting(SettingKeys.factor_3d(), factor3d.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.disable_right_eye_render(), if (disableRightEye) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.volume(), (cfg.volume.coerceIn(0, 512) / 256f).coerceIn(0f, 1f).toString())
         NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), if (cfg.soundEnabled) "1" else "0")
+        runCatching { NativeLibrary.setMicrophoneInputType(inputType) }
 
         val pretendoEnabled = prefs.getBoolean("3ds_pretendo_enabled", false)
         NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
@@ -203,11 +232,39 @@ object MelonEmulator {
             NativeLibrary.setLogFilterAndRegex(logFilter, logRegex)
         }
 
-        val sysLang = (prefs.getString("3ds_system_language", "1") ?: "1").toIntOrNull()?.coerceIn(0, 11) ?: 1
+        val rawSysLang = (prefs.getString("3ds_system_language", "-1") ?: "-1").toIntOrNull() ?: -1
+        val sysLang = if (rawSysLang in 0..11) rawSysLang else resolveDevice3dsSystemLanguage()
         runCatching {
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.load()
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.setSystemLanguage(sysLang)
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.save()
+        }
+    }
+
+    internal fun resolveDevice3dsSystemLanguage(locale: java.util.Locale? = null): Int {
+        val target = locale
+            ?: runCatching {
+                androidx.appcompat.app.AppCompatDelegate.getApplicationLocales()
+                    .takeIf { !it.isEmpty }
+                    ?.get(0)
+            }.getOrNull()
+            ?: java.util.Locale.getDefault()
+        val lang = target.language.lowercase(java.util.Locale.ROOT)
+        val country = target.country.uppercase(java.util.Locale.ROOT)
+        val script = target.script
+        return when (lang) {
+            "ja" -> 0
+            "en" -> 1
+            "fr" -> 2
+            "de" -> 3
+            "it" -> 4
+            "es" -> 5
+            "zh" -> if (script.equals("Hant", ignoreCase = true) || country in setOf("TW", "HK", "MO")) 11 else 6
+            "ko" -> 7
+            "nl" -> 8
+            "pt" -> 9
+            "ru", "uk", "be", "kk" -> 10
+            else -> 1
         }
     }
 
@@ -217,20 +274,21 @@ object MelonEmulator {
         if (tid != 0L) {
             runCatching {
                 CheatEngine.loadCheatFile(tid)
+                if (cheats.isEmpty()) {
+                    return@runCatching
+                }
                 val existing = CheatEngine.getCheats()
                 for (i in existing.indices.reversed()) {
                     CheatEngine.removeCheat(i)
                 }
-                if (cheats.isNotEmpty()) {
-                    for (cheat in cheats) {
-                        if (!cheat.enabled) continue
-                        val gatewayCode = formatDSOrGatewayCheat(cheat.code)
-                        val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
-                        nc.setEnabled(true)
-                        CheatEngine.addCheat(nc)
-                    }
-                    CheatEngine.saveCheatFile(tid)
+                for (cheat in cheats) {
+                    val gatewayCode = formatDSOrGatewayCheat(cheat.code)
+                    if (gatewayCode.isBlank()) continue
+                    val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
+                    nc.setEnabled(cheat.enabled)
+                    CheatEngine.addCheat(nc)
                 }
+                CheatEngine.saveCheatFile(tid)
             }
         }
     }
@@ -265,28 +323,56 @@ object MelonEmulator {
         if (nativePath.isBlank()) {
             return LoadResult.NDS_FAILED
         }
-        var titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
-        val ext = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
+        val lowerCandidate = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
+            .joinToString(" ").lowercase()
+        if (lowerCandidate.contains(".artic")) {
+            val articUrl = runCatching {
+                val rawFile = nativePath.removePrefix("!")
+                val txt = if (File(rawFile).isFile) {
+                    File(rawFile).readText()
+                } else {
+                    NativeBridgeHost.appContext.contentResolver.openInputStream(romUri)?.bufferedReader()?.use { it.readText() }.orEmpty()
+                }
+                txt.lineSequence().map { it.trim() }.firstOrNull {
+                    it.startsWith("articbase://") || it.startsWith("articinio://") || it.startsWith("articinin://")
+                }
+            }.getOrNull()
+            if (articUrl.isNullOrBlank()) {
+                return LoadResult.NDS_FAILED
+            }
+            nativePath = articUrl
+        }
+
+        val ciaExt = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
             .firstNotNullOfOrNull { candidate ->
                 candidate.substringBefore('?').substringAfterLast('.', "").lowercase()
                     .takeIf { it in setOf("cia", "zcia", "bcia") }
             } ?: ""
-        if (ext in setOf("cia", "zcia", "bcia")) {
+        var titleId = if (ciaExt.isNotEmpty()) {
+            runCatching { NativeLibrary.getCiaTitleId(nativePath) }.getOrDefault(0L)
+        } else {
+            runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
+        }
+
+        if (ciaExt.isNotEmpty()) {
+            val prePaths = runCatching { NativeLibrary.getInstalledGamePaths().map { it.path }.toSet() }.getOrDefault(emptySet())
             val installStatus = runCatching { NativeLibrary.installCiaSimple(nativePath) }.getOrDefault(-1)
             if (installStatus != 0) {
                 return LoadResult.NDS_FAILED
             }
+            val postGames = runCatching { NativeLibrary.getInstalledGamePaths() }.getOrDefault(emptyArray())
             val tidHex = if (titleId != 0L) String.format("%016x", titleId) else ""
-            val installedPath = runCatching {
-                NativeLibrary.getInstalledGamePaths().firstOrNull { game ->
-                    tidHex.isEmpty() || game.path.contains(tidHex, ignoreCase = true)
-                }?.path
-            }.getOrNull()
-            if (!installedPath.isNullOrBlank()) {
-                nativePath = installedPath
-                titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(titleId)
+            val installedPath = when {
+                tidHex.isNotEmpty() -> postGames.firstOrNull { it.path.contains(tidHex, ignoreCase = true) }?.path
+                else -> postGames.firstOrNull { it.path !in prePaths }?.path
             }
+            if (installedPath.isNullOrBlank()) {
+                return LoadResult.NDS_FAILED
+            }
+            nativePath = installedPath
+            titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(titleId)
         }
+
         currentRomPath = nativePath
         currentTitleId = titleId
         if (currentTitleId != 0L) {
@@ -295,6 +381,12 @@ object MelonEmulator {
             if (prefs.getBoolean("3ds_auto_profiles_enabled", true)) {
                 com.storm3ds.emulator.impl.profiles.GameProfilesRepository.findForTitleId(NativeBridgeHost.appContext, tidHex)?.let { profile ->
                     com.storm3ds.emulator.impl.profiles.GameProfilesRepository.applyProfile(profile)
+                    currentConfig?.let { cfg ->
+                        val useVulkan = cfg.rendererConfiguration.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN
+                        val resScale = cfg.rendererConfiguration.internalResolutionScaling.coerceIn(1, 10)
+                        NativeLibrary.addDefaultSetting(SettingKeys.graphics_api(), if (useVulkan) "2" else "1")
+                        NativeLibrary.addDefaultSetting(SettingKeys.resolution_factor(), resScale.toString())
+                    }
                     NativeLibrary.reloadSettings()
                 }
             }
@@ -315,12 +407,7 @@ object MelonEmulator {
     }
 
     private fun resolveUriToNativePath(uri: Uri): String {
-        if (uri.scheme == "file") return uri.path.orEmpty()
-        val raw = uri.toString()
-        if (File(raw).exists()) return raw
-        val fromBridge = runCatching { NativeLibrary.getNativePath(uri) }.getOrDefault("")
-        if (fromBridge.isNotBlank() && File(fromBridge).exists()) return fromBridge
-        return raw
+        return NativeLibrary.resolveNativeOrContentPath(uri)
     }
 
     @JvmStatic
@@ -357,9 +444,22 @@ object MelonEmulator {
         rewindTask?.cancel(false)
         if (!rewindEnabledFlag) return
         val interval = rewindPeriodSec.toLong().coerceIn(2L, 30L)
+        synchronized(rewindScreenshots) { rewindScreenshots.clear() }
         rewindTask = rewindExecutor.scheduleAtFixedRate({
             if (NativeLibrary.isRunning()) {
-                runCatching { NativeLibrary.captureRewindSnapshot() }
+                val captured = runCatching { NativeLibrary.captureRewindSnapshot() }.getOrDefault(false)
+                if (captured) {
+                    val shotBuf = runCatching {
+                        bitmapToRewindBuffer(captureFrameBitmapCallback?.invoke())
+                    }.getOrNull() ?: ByteBuffer.allocateDirect(256 * 384 * 4)
+                    val total = runCatching { NativeLibrary.getRewindTimelineTimestamps().size }.getOrDefault(0)
+                    synchronized(rewindScreenshots) {
+                        rewindScreenshots.addLast(shotBuf)
+                        while (total > 0 && rewindScreenshots.size > total) {
+                            rewindScreenshots.removeFirst()
+                        }
+                    }
+                }
             }
         }, interval, interval, TimeUnit.SECONDS)
     }
@@ -408,7 +508,12 @@ object MelonEmulator {
 
     fun getFPS(): Float {
         val stats = runCatching { NativeLibrary.getPerfStats() }.getOrNull() ?: return 0f
-        return stats.getOrElse(2) { 0.0 }.toFloat()
+        return stats.getOrElse(0) { 0.0 }.toFloat()
+    }
+
+    fun getEmulationSpeedPercent(): Float {
+        val stats = runCatching { NativeLibrary.getPerfStats() }.getOrNull() ?: return 0f
+        return (stats.getOrElse(2) { 0.0 } * 100.0).toFloat()
     }
 
     fun getCurrentRenderer(): Int =
@@ -422,7 +527,7 @@ object MelonEmulator {
         runCatching { NativeLibrary.unPauseEmulation() }
     }
 
-    fun debugStepFrame(): Boolean = false
+    fun debugStepFrame(): Boolean = runCatching { NativeLibrary.stepSingleFrame() }.getOrDefault(false)
 
     fun resetEmulation() {
         val rom = currentRomPath
@@ -443,19 +548,74 @@ object MelonEmulator {
 
     fun saveState(path: Uri): Boolean {
         val slot = extractSlotFromUri(path)
-        NativeLibrary.saveState(slot)
+        val ok = runCatching { NativeLibrary.saveStateSync(slot) }.getOrDefault(false)
+        if (!ok) return false
+        mirrorCstToSaf(slot, path)
         return true
     }
 
     fun loadState(path: Uri): Boolean {
         val slot = extractSlotFromUri(path)
-        return NativeLibrary.loadStateIfAvailable(slot)
+        if (NativeLibrary.loadStateIfAvailable(slot)) {
+            return true
+        }
+        if (mirrorSafToCst(slot, path)) {
+            return NativeLibrary.loadStateIfAvailable(slot)
+        }
+        return false
+    }
+
+    private fun resolveCstFileForSlot(slot: Int): File? {
+        val tid = if (currentTitleId != 0L) currentTitleId else runCatching { NativeLibrary.getRunningTitleId() }.getOrDefault(0L)
+        if (tid == 0L) return null
+        val userDir = NativeBridgeHost.resolveUserDirectoryPath()
+        val statesDir = File(userDir, "states")
+        val tidHex = String.format(java.util.Locale.US, "%016X", tid)
+        val exact = File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, slot))
+        if (exact.isFile) return exact
+        return statesDir.listFiles()?.firstOrNull {
+            it.isFile && it.name.startsWith(tidHex, ignoreCase = true) && it.name.endsWith(".%02d.cst".format(java.util.Locale.US, slot))
+        } ?: exact
+    }
+
+    private fun mirrorCstToSaf(slot: Int, safUri: Uri) {
+        runCatching {
+            val cstFile = resolveCstFileForSlot(slot) ?: return
+            if (!cstFile.isFile || cstFile.length() == 0L) return
+            val cr = NativeBridgeHost.appContext.contentResolver
+            val out = runCatching { cr.openOutputStream(safUri, "wt") }.getOrNull()
+                ?: runCatching { cr.openOutputStream(safUri, "w") }.getOrNull()
+                ?: return
+            out.use { o -> cstFile.inputStream().use { i -> i.copyTo(o) } }
+        }
+    }
+
+    private fun mirrorSafToCst(slot: Int, safUri: Uri): Boolean {
+        return runCatching {
+            val cstFile = resolveCstFileForSlot(slot) ?: return@runCatching false
+            val cr = NativeBridgeHost.appContext.contentResolver
+            val input = cr.openInputStream(safUri) ?: return@runCatching false
+            input.use { i ->
+                val head = ByteArray(16)
+                val n = i.read(head)
+                if (n <= 0) return@runCatching false
+                cstFile.parentFile?.mkdirs()
+                cstFile.outputStream().use { o ->
+                    o.write(head, 0, n)
+                    i.copyTo(o)
+                }
+            }
+            cstFile.length() > 0L
+        }.getOrDefault(false)
     }
 
     private fun extractSlotFromUri(uri: Uri): Int {
         val name = uri.lastPathSegment.orEmpty()
-        if (name.contains("autosave", ignoreCase = true) || name.contains("periodic", ignoreCase = true)) {
-            return NativeLibrary.SAVESTATE_SLOT_COUNT - 1
+        if (name.contains("periodic", ignoreCase = true)) {
+            return 9
+        }
+        if (name.contains("autosave", ignoreCase = true)) {
+            return 10
         }
         val match = Regex("""(\d+)""").findAll(name).lastOrNull()?.groupValues?.get(1)?.toIntOrNull()
         return (match ?: 1).coerceIn(0, NativeLibrary.SAVESTATE_SLOT_COUNT - 1)
@@ -476,52 +636,97 @@ object MelonEmulator {
         }
     }
 
+    private fun bitmapToRewindBuffer(bmp: Bitmap?): ByteBuffer {
+        val buf = ByteBuffer.allocateDirect(256 * 384 * 4)
+        if (bmp == null) return buf
+        val scaled = Bitmap.createScaledBitmap(bmp, 256, 384, true)
+        val pixels = IntArray(256 * 384)
+        scaled.getPixels(pixels, 0, 256, 0, 0, 256, 384)
+        for (px in pixels) {
+            buf.put(((px ushr 16) and 0xFF).toByte())
+            buf.put(((px ushr 8) and 0xFF).toByte())
+            buf.put((px and 0xFF).toByte())
+            buf.put(0xFF.toByte())
+        }
+        buf.rewind()
+        if (scaled !== bmp) scaled.recycle()
+        return buf
+    }
+
     fun getRewindWindow(): RewindWindow {
         val timestamps = runCatching { NativeLibrary.getRewindTimelineTimestamps() }.getOrElse { LongArray(0) }
         val total = timestamps.size
-        val stepFrames = rewindPeriodSec.coerceAtLeast(1) * 60
-        val currentFrame = total * stepFrames
+        val nowMs = System.currentTimeMillis()
+        val baseMs = timestamps.firstOrNull() ?: nowMs
+        val currentRelMs = (nowMs - baseMs).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         val states = ArrayList<RewindSaveState>(total)
         val emptyBuf = ByteBuffer.allocateDirect(4)
-        val emptyShot = ByteBuffer.allocateDirect(256 * 384 * 4)
+        val fallbackShot = ByteBuffer.allocateDirect(256 * 384 * 4)
+        val shots = synchronized(rewindScreenshots) { rewindScreenshots.toList() }
         for (i in timestamps.indices.reversed()) {
             val stepsBack = (total - i).toLong()
-            val frame = (i * stepFrames).coerceAtLeast(0)
+            val frameMs = (timestamps[i] - baseMs).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+            val shotIdx = shots.size - (total - i)
+            val shot = shots.getOrNull(shotIdx) ?: fallbackShot
+            shot.rewind()
             states.add(
                 RewindSaveState(
                     buffer = emptyBuf,
                     bufferContentSize = stepsBack,
-                    screenshotBuffer = emptyShot,
-                    frame = frame,
+                    screenshotBuffer = shot,
+                    frame = frameMs,
                 )
             )
         }
-        return RewindWindow(currentEmulationFrame = currentFrame, rewindStates = states)
+        return RewindWindow(currentEmulationFrame = currentRelMs, rewindStates = states, useMilliseconds = true)
     }
 
+    @Volatile
+    private var touchIsSecondary: Boolean = false
+
     fun onScreenTouch(x: Int, y: Int) {
-        val rect = com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastBottomRect
-        val sx: Float
+        val primaryRect = com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastBottomRect
+            ?: com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastHybridBottomRect
+        val secondaryRect = com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastSecondaryBottomRect
+        val useSecondary = (primaryRect == null || primaryRect.width <= 0 || primaryRect.height <= 0) &&
+            secondaryRect != null && secondaryRect.width > 0 && secondaryRect.height > 0
+        val rect = if (useSecondary) secondaryRect else primaryRect
+        val rawSx: Float
         val sy: Float
         if (rect != null && rect.width > 0 && rect.height > 0) {
-            sx = rect.x + (x.coerceIn(0, 255) / 256f) * rect.width
-            sy = rect.y + (y.coerceIn(0, 191) / 192f) * rect.height
+            rawSx = rect.x + (x.coerceIn(0, 319) / 320f) * rect.width
+            sy = rect.y + (y.coerceIn(0, 239) / 240f) * rect.height
         } else {
-            sx = x.toFloat()
-            sy = y.toFloat()
+            rawSx = x.coerceIn(0, 319).toFloat()
+            sy = y.coerceIn(0, 239).toFloat()
         }
+        val sx = if (!useSecondary && depth3dMode == 1) rawSx * 0.5f else rawSx
+        touchIsSecondary = useSecondary
         if (!touchDown) {
             touchDown = true
-            NativeLibrary.onTouchEvent(sx, sy, true)
+            if (useSecondary) {
+                NativeLibrary.onSecondaryTouchEvent(sx, sy, true)
+            } else {
+                NativeLibrary.onTouchEvent(sx, sy, true)
+            }
         } else {
-            NativeLibrary.onTouchMoved(sx, sy)
+            if (useSecondary) {
+                NativeLibrary.onSecondaryTouchMoved(sx, sy)
+            } else {
+                NativeLibrary.onTouchMoved(sx, sy)
+            }
         }
     }
 
     fun onScreenRelease() {
         if (touchDown) {
             touchDown = false
-            NativeLibrary.onTouchEvent(0f, 0f, false)
+            if (touchIsSecondary) {
+                NativeLibrary.onSecondaryTouchEvent(0f, 0f, false)
+            } else {
+                NativeLibrary.onTouchEvent(0f, 0f, false)
+            }
+            touchIsSecondary = false
         }
     }
 
@@ -568,12 +773,25 @@ object MelonEmulator {
         setCirclePadAxis(x, y)
     }
 
-    fun takeScreenshot(): Boolean = true
+    fun takeScreenshot(): Boolean {
+        val captured = runCatching { captureFrameBitmapCallback?.invoke() }.getOrNull()
+        if (captured != null) {
+            latestScreenshotBitmap = captured
+        }
+        return true
+    }
 
     fun setFastForwardEnabled(enabled: Boolean) {
         fastForwardActive = enabled
         if (enabled) {
-            NativeLibrary.setTemporaryFrameLimit(currentSpeedMultiplier.coerceAtLeast(200.0))
+            val limit = if (configuredFastForwardMultiplier < 0f) {
+                0.0
+            } else {
+                (configuredFastForwardMultiplier * 100.0).coerceIn(100.0, 1600.0)
+            }
+            NativeLibrary.setTemporaryFrameLimit(limit)
+        } else if (slowMotionMultiplier < 0.99f) {
+            NativeLibrary.setTemporaryFrameLimit((slowMotionMultiplier * 100.0).coerceIn(10.0, 200.0))
         } else {
             NativeLibrary.disableTemporaryFrameLimit()
         }
@@ -586,8 +804,15 @@ object MelonEmulator {
     }
 
     fun setFrameLimitSpeedMultiplier(multiplier: Float) {
-        currentSpeedMultiplier = (multiplier * 100.0).coerceIn(10.0, 500.0)
-        NativeLibrary.setTemporaryFrameLimit(currentSpeedMultiplier)
+        slowMotionMultiplier = multiplier.coerceIn(0.1f, 2.0f)
+        currentSpeedMultiplier = (slowMotionMultiplier * 100.0).coerceIn(10.0, 500.0)
+        if (!fastForwardActive) {
+            if (slowMotionMultiplier in 0.99f..1.01f) {
+                NativeLibrary.disableTemporaryFrameLimit()
+            } else {
+                NativeLibrary.setTemporaryFrameLimit(currentSpeedMultiplier)
+            }
+        }
     }
 
     fun setMicrophoneEnabled(enabled: Boolean) {
@@ -604,6 +829,8 @@ object MelonEmulator {
     }
 
     fun startLanHost(playerName: String, maxPlayers: Int): Boolean {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
         return NetPlayManager.netPlayCreateRoom(
             "0.0.0.0",
             24872,
@@ -617,18 +844,35 @@ object MelonEmulator {
     }
 
     fun startLanClient(playerName: String, hostIp: String): Boolean {
-        return NetPlayManager.netPlayJoinRoom(hostIp, 24872, playerName.ifBlank { "Player" }, "") == 0
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        val trimmed = hostIp.trim()
+        val lastColon = trimmed.lastIndexOf(':')
+        val parsedHost = if (lastColon > 0 && trimmed.indexOf(':') == lastColon) trimmed.substring(0, lastColon) else trimmed
+        val parsedPort = if (lastColon > 0 && trimmed.indexOf(':') == lastColon) trimmed.substring(lastColon + 1).toIntOrNull() ?: 24872 else 24872
+        return NetPlayManager.netPlayJoinRoom(parsedHost, parsedPort, playerName.ifBlank { "Player" }, "") == 0
     }
 
     fun stopLanSession() {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
         runCatching { NetPlayManager.netPlayLeaveRoom() }
     }
 
-    fun startLanDiscovery(): Boolean = true
+    fun startLanDiscovery(): Boolean {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return true
+    }
+
     fun stopLanDiscovery() {}
 
     fun getLanDiscoveredSessions(): Array<String> {
-        return NetPlayManager.getPublicRooms().map { "${it.name}|${it.ip}:${it.port}|${it.members.size}/${it.maxPlayers}" }.toTypedArray()
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return runCatching {
+            NetPlayManager.getPublicRooms().map { "${it.name}|${it.ip}:${it.port}|${it.members.size}/${it.maxPlayers}" }.toTypedArray()
+        }.getOrDefault(emptyArray())
     }
 
     @JvmStatic fun setVulkanCompositorMode(mode: Int) {}

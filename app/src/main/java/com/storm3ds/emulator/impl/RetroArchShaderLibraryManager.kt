@@ -78,6 +78,9 @@ class RetroArchShaderLibraryManager @Inject constructor(
             File(context.filesDir, "retroarch-shaders")
         }
     }
+    @Volatile
+    private var bundledSeedAttempted: Boolean = false
+
     private val installedRoot: File get() = File(shaderRoot, "installed")
     private val manifestFile: File get() = File(shaderRoot, "installed.json")
     private val downloadFile: File get() {
@@ -86,8 +89,62 @@ class RetroArchShaderLibraryManager @Inject constructor(
         return File(cacheDir, "shaders_slang.zip.part")
     }
 
+    @Synchronized
+    fun ensureBundledShadersExtracted(): Boolean {
+        val existingPreset = if (installedRoot.isDirectory) {
+            installedRoot.walkTopDown().any { it.isFile && it.name.endsWith(".slangp", ignoreCase = true) }
+        } else {
+            false
+        }
+        if (existingPreset) {
+            bundledSeedAttempted = true
+            return true
+        }
+        if (bundledSeedAttempted) return false
+        bundledSeedAttempted = true
+        return runCatching {
+            val bundledFiles = context.assets.list("shaders").orEmpty()
+                .filter { it.endsWith(".slang", ignoreCase = true) || it.endsWith(".slangp", ignoreCase = true) }
+            if (bundledFiles.isEmpty()) return@runCatching false
+
+            val presetDir = File(installedRoot, "3ds-presets").apply { mkdirs() }
+            if (!presetDir.isDirectory || !presetDir.canWrite()) return@runCatching false
+
+            var copiedBytes = 0L
+            var copiedCount = 0
+            for (assetName in bundledFiles) {
+                val outFile = File(presetDir, assetName)
+                if (!outFile.isFile || outFile.length() == 0L) {
+                    context.assets.open("shaders/$assetName").use { input ->
+                        FileOutputStream(outFile).use { output ->
+                            copiedBytes += input.copyTo(output)
+                        }
+                    }
+                } else {
+                    copiedBytes += outFile.length()
+                }
+                copiedCount++
+            }
+            if (!manifestFile.isFile) {
+                val json = JSONObject().apply {
+                    put("sourceUrl", "bundled://assets/shaders")
+                    put("remoteContentLength", copiedBytes)
+                    put("installedAtMillis", System.currentTimeMillis())
+                    put("installedBytes", copiedBytes)
+                    put("fileCount", copiedCount)
+                    put("rootSubdirectory", "3ds-presets")
+                }
+                manifestFile.parentFile?.mkdirs()
+                manifestFile.writeText(json.toString())
+            }
+            bumpLibraryVersion()
+            true
+        }.getOrDefault(false)
+    }
+
     val libraryRoot: File?
         get() {
+            ensureBundledShadersExtracted()
             if (!installedRoot.isDirectory) {
                 return null
             }

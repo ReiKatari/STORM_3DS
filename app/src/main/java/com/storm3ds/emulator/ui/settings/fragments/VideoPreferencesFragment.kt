@@ -233,38 +233,37 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         highResRendererPreferences.apply {
             add(internalResolutionPreference)
-            add(findPreference("video_hacks_category")!!)
-            add(findPreference("video_debug_3d_clear_magenta")!!)
         }
 
-        rendererDebugPreferences.apply {
-            add(findPreference("video_hacks_category")!!)
-            add(findPreference("video_renderer_debug_tools_enabled")!!)
-            add(findPreference("video_renderer_debug_bgobj_enabled")!!)
-            add(findPreference("video_renderer_debug_latch_trace_enabled")!!)
-        }
+        // Keep legacy DS GPU hacks and DS color/LCD options hidden in Nintendo 3DS
+        findPreference<Preference>("video_hacks_category")?.isVisible = false
+        listOf(
+            "video_vulkan_fastpath_enabled",
+            "video_vulkan_compositor_mode",
+            "video_vulkan_thick_edges",
+            "video_vulkan_compat_autoselect",
+            "video_vulkan_ssao",
+            "video_ds_color_profile",
+            "video_ds_lcd_grid",
+            "video_ds_hinge_gap",
+            "video_widescreen_3d",
+            "video_60fps_patch",
+            "video_drs_enabled",
+            "video_ai_upscale_enabled",
+            "video_ai_upscale_scale",
+        ).forEach { findPreference<Preference>(it)?.isVisible = false }
 
+        // Azahar supports stereoscopic 3D depth modes on both Vulkan and OpenGL ES
         vulkanRendererPreferences.apply {
-            add(vulkanFastPathPreference)
-            // Consumed only by Vulkan code (VulkanRuntimeControls -> GPU3D_Vulkan / VulkanOutput / VulkanSurfacePresenter).
             listOf(
-                "video_vulkan_compositor_mode",
-                "video_vulkan_thick_edges",
-                "video_vulkan_compat_autoselect",
                 "video_vulkan_3d_depth_mode",
                 "video_vulkan_3d_depth_strength",
-                "video_vulkan_ssao",
-                "video_ds_color_profile",
-                "video_ds_lcd_grid",
-            ).forEach { key -> findPreference<Preference>(key)?.let { add(it) } }
-        }
-
-        coverageFixPreferences.apply {
-            add(findPreference("video_conservative_coverage_enabled")!!)
-            add(findPreference("video_conservative_coverage_px")!!)
-            add(findPreference("video_conservative_coverage_apply_repeat")!!)
-            add(findPreference("video_conservative_coverage_apply_clamp")!!)
-            add(findPreference("video_conservative_coverage_depth_bias")!!)
+            ).forEach { key ->
+                findPreference<Preference>(key)?.let { pref ->
+                    pref.isVisible = true
+                    add(pref)
+                }
+            }
         }
 
         findPreference<SwitchPreference>("video_renderer_debug_tools_enabled")?.setOnPreferenceChangeListener { _, newValue ->
@@ -1266,8 +1265,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 rendererDebugPreferences.forEach {
                     it.isVisible = true
                 }
+                // Stereoscopic 3D depth controls work on OpenGL ES too
                 vulkanRendererPreferences.forEach {
-                    it.isVisible = false
+                    it.isVisible = (it.key == "video_vulkan_3d_depth_mode" || it.key == "video_vulkan_3d_depth_strength")
                 }
             }
             VideoRenderer.COMPUTE -> {
@@ -1356,11 +1356,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             strengthPref.isEnabled = depthActive
         }
 
-        val aiUpscaleOn = findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked == true
-        findPreference<Preference>("video_ai_upscale_scale")?.let { scalePref ->
-            scalePref.isVisible = aiUpscaleOn
-            scalePref.isEnabled = aiUpscaleOn
-        }
+        findPreference<Preference>("video_hacks_category")?.isVisible = false
+        findPreference<Preference>("video_ai_upscale_enabled")?.isVisible = false
+        findPreference<Preference>("video_ai_upscale_scale")?.isVisible = false
     }
 
     private fun updateFilteringPreferences(
@@ -1405,12 +1403,8 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             aiSwitch.summary = getString(R.string.video_ai_upscale_summary)
         }
 
-        findPreference<ListPreference>("video_ai_upscale_scale")?.let { aiUpscalePref ->
-            val aiEnabled = findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked == true
-            aiUpscalePref.isVisible = aiEnabled
-            aiUpscalePref.isEnabled = aiEnabled
-            updateListPreferenceSummary(aiUpscalePref)
-        }
+        findPreference<Preference>("video_ai_upscale_enabled")?.isVisible = false
+        findPreference<Preference>("video_ai_upscale_scale")?.isVisible = false
 
         updateShaderPickerPreferences(
             renderer = renderer,

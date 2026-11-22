@@ -1,5 +1,6 @@
 package com.storm3ds.emulator.ui.emulator.savestate
 
+import com.storm3ds.emulator.R
 import android.content.Context
 import android.content.SharedPreferences
 
@@ -23,43 +24,44 @@ object SmartSaveStateHelper {
         }
     }
 
-    fun generateAutoBookmarkTag(gameTitle: String?, slot: Int): String {
+    fun generateAutoBookmarkTag(gameTitle: String?, slot: Int, context: Context? = null): String {
         val title = gameTitle?.lowercase() ?: ""
+        fun tr(resId: Int, fallback: String): String = context?.getString(resId) ?: fallback
         return when {
             title.contains("pokemon") || title.contains("heartgold") || title.contains("soulsilver") -> when (slot % 4) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "🏛️ Покецентр / Лига"
-                2 -> "⚔️ Битва с лидером гима"
-                else -> "🌲 Маршрут / Исследование"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_pokemon_center, "🏛️ PokeCenter / League")
+                2 -> tr(R.string.ui_bookmark_pokemon_gym, "⚔️ Gym Leader Battle")
+                else -> tr(R.string.ui_bookmark_pokemon_route, "🌲 Route / Exploration")
             }
             title.contains("mario") -> when (slot % 4) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "🏰 Замок Боузера"
-                2 -> "🍄 Мир испытаний"
-                else -> "🚩 Контрольная точка"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_mario_bowser, "🏰 Bowser's Castle")
+                2 -> tr(R.string.ui_bookmark_mario_world, "🍄 Challenge World")
+                else -> tr(R.string.ui_bookmark_mario_checkpoint, "🚩 Checkpoint")
             }
             title.contains("zelda") -> when (slot % 4) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "⚔️ Босс подземелья"
-                2 -> "🗝️ Храм / Загадка"
-                else -> "⛵ Морское плавание"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_zelda_boss, "⚔️ Dungeon Boss")
+                2 -> tr(R.string.ui_bookmark_zelda_temple, "🗝️ Temple / Puzzle")
+                else -> tr(R.string.ui_bookmark_zelda_sea, "⛵ Sea Voyage")
             }
             title.contains("batman") -> when (slot % 4) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "🦇 Готэм: Битва с боссом"
-                2 -> "🌃 Логово суперзлодея"
-                else -> "⚡ Ночной патруль"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_batman_boss, "🦇 Gotham: Boss Fight")
+                2 -> tr(R.string.ui_bookmark_batman_lair, "🌃 Villain's Lair")
+                else -> tr(R.string.ui_bookmark_batman_patrol, "⚡ Night Patrol")
             }
             title.contains("castlevania") -> when (slot % 4) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "🩸 Тронный зал / Замок"
-                2 -> "🦇 Врата бессмертия"
-                else -> "🗝️ Потайная комната"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_castlevania_throne, "🩸 Throne Room / Castle")
+                2 -> tr(R.string.ui_bookmark_castlevania_gate, "🦇 Gates of Immortality")
+                else -> tr(R.string.ui_bookmark_castlevania_secret, "🗝️ Secret Room")
             }
             else -> when (slot % 3) {
-                0 -> "⭐ Быстрое сохранение"
-                1 -> "⚔️ Битва с боссом"
-                else -> "📍 Точка сюжета"
+                0 -> tr(R.string.ui_bookmark_quick_save, "⭐ Quick Save")
+                1 -> tr(R.string.ui_bookmark_generic_boss, "⚔️ Boss Battle")
+                else -> tr(R.string.ui_bookmark_generic_story, "📍 Story Point")
             }
         }
     }

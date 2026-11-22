@@ -48,7 +48,10 @@
 -keep class com.storm3ds.emulator.domain.model.layout.BackgroundMode { *; }
 -keep class com.storm3ds.emulator.ui.emulator.rewind.model.RewindSaveState { *; }
 -keep class com.storm3ds.emulator.ui.emulator.rewind.model.RewindWindow { *; }
--keep class com.storm3ds.emulator.ui.settings.fragments.**
+-keep class com.storm3ds.emulator.ui.settings.fragments.** { *; }
+-keepclassmembers class com.storm3ds.emulator.ui.emulator.EmulatorActivity {
+    kotlin.Lazy viewModel$delegate;
+}
 -keep class com.storm3ds.emulator.common.UriFileHandler {
     public int open(java.lang.String, java.lang.String);
 }

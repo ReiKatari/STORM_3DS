@@ -216,7 +216,7 @@ class TranslatorPreferencesFragment : BasePreferenceFragment(), PreferenceFragme
                 Toast.makeText(requireContext(), R.string.translator_test_voice_playing, Toast.LENGTH_SHORT).show()
                 ttsManagerInstance?.speak(buildTestVoiceSample(effectiveLang, multiDemo), effectiveLang)
             } catch (e: Throwable) {
-                Toast.makeText(requireContext(), e.message ?: "TTS Error", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), e.message ?: getString(R.string.translator_tts_error_default), Toast.LENGTH_SHORT).show()
             }
             true
         }

@@ -132,6 +132,9 @@ static const char* android_config_default_file_content = (BOOST_HANA_STRING(R"(
 # Range is any positive integer (but we suspect 25 - 400 is a good idea) Default is 100
 )") DECLARE_KEY(cpu_clock_percentage) BOOST_HANA_STRING(R"(
 
+# FMV speedhack for video cutscenes (0: Off, 1: On)
+)") DECLARE_KEY(fmv_hack) BOOST_HANA_STRING(R"(
+
 [Renderer]
 # Whether to render using OpenGL
 # 1: OpenGL ES, 2: Vulkan (default)
@@ -148,6 +151,21 @@ static const char* android_config_default_file_content = (BOOST_HANA_STRING(R"(
 # Whether to disable the SPIRV optimizer. Disabling it reduces stutter, but may slightly worsen performance
 # 0: Enabled, 1: Disabled (default)
 )") DECLARE_KEY(disable_spirv_optimizer) BOOST_HANA_STRING(R"(
+
+# SPIR-V shader optimization, validation, and legalization
+)") DECLARE_KEY(optimize_spirv_output) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(spirv_output_validation) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(spirv_output_legalization) BOOST_HANA_STRING(R"(
+
+# Citra MMJ / Borked3DS renderer speedhacks and shader options
+)") DECLARE_KEY(skip_slow_draw) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(skip_texture_copy) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(use_separable_shader) BOOST_HANA_STRING(R"(
+
+# Gyroscope 3D parallax strength and librashader Slang post-processing
+)") DECLARE_KEY(gyro_3d_strength) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(librashader_enabled) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(librashader_preset_path) BOOST_HANA_STRING(R"(
 
 # Whether to use hardware shaders to emulate 3DS shaders
 # 0: Software, 1 (default): Hardware
@@ -373,6 +391,9 @@ static const char* android_config_default_file_content = (BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(custom_bottom_y) BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(custom_bottom_width) BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(custom_bottom_height) BOOST_HANA_STRING(R"(
+
+# Enable STORM custom touch/screen layout coordinates (0: Off, 1: On)
+)") DECLARE_KEY(storm_custom_layout_enabled) BOOST_HANA_STRING(R"(
 
 # Orientation option for the emulator
 # 2 (default): Automatic

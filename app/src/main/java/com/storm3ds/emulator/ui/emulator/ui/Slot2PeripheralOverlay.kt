@@ -461,7 +461,7 @@ private fun PaddleControllerOverlay(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "◀  ПОВОРОТ КОЛЕСА PADDLE  ▶",
+                    text = stringResource(R.string.ui_slot2_paddle_turn),
                     color = colors.text2,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,

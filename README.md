@@ -6,12 +6,12 @@
 
 <p align="center">
   <strong>Продвинутый гибридный эмулятор Nintendo 3DS для Android (Vulkan + OpenGL ES 3.2 + интерфейс STORM)</strong><br />
-  Версия <code>1.1.0</code> | Архитектуры: <code>arm64-v8a</code> и <code>x86_64</code> | Лицензия: <code>GPL-3.0-or-later</code>
+  Версия <code>1.2.0</code> | Архитектуры: <code>arm64-v8a</code> и <code>x86_64</code> | Лицензия: <code>GPL-3.0-or-later</code>
 </p>
 
 <p align="center">
   <a href="https://github.com/ReiKatari/STORM_3DS">GitHub Repository</a> -
-  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.1.0">Релиз STORM 3DS 1.1.0</a> -
+  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.2.0">Релиз STORM 3DS 1.2.0</a> -
   <a href="https://stormgamesworld.ru/programs?repo=STORM_3DS">Страница на STORM GAMES WORLD</a>
 </p>
 
@@ -38,7 +38,7 @@
 - **Встроенные пресеты шейдеров (`.slangp` + `.slang`)**: `lcd-3ds`, `crt-scanlines`, `sharp-bilinear`, `vibrant-hd`, `grayscale-pocket`.
 - **Текстуры и масштабирование**: внутреннее разрешение `1x..10x`, текстурные фильтры (`Anime4K`, `Bicubic`, `ScaleForce`, `xBRZ`, `MMPX`), асинхронная компиляция шейдеров, загрузка/дамп HD-текстур (`custom_textures`, `dump_textures`, `preload_textures`).
 - **Citra MMJ Speedhacks**: FMV Core Downcount Hack, Skip Slow Draw, Skip CPU Texture Copy, Accurate Shader Multiplication, Audio Time Stretching, Separable Shaders.
-- **Управление драйверами AdrenoTools / Turnip** (в основной сборке `STORM_3DS_1.1.0.apk`) и профиль совместимости со стоковыми драйверами GPU (в `STORM_3DS_1.1.0_LEGACY.apk`).
+- **Управление драйверами AdrenoTools / Turnip** (`STORM_ENABLE_ADRENOTOOLS=ON`) и адаптивный профиль совместимости Vulkan/GLES в `STORM_3DS_1.2.0.apk`.
 
 ### 3. Продвинутый движок стереоскопического 3D
 - **7 активных режимов вывода 3D** (`StereoRenderOption`): `Side-by-Side`, `Side-by-Side Full`, `Anaglyph (Dubois)`, `Interlaced`, `Reverse Interlaced`, `Cardboard VR` и фирменный **`Gyro Parallax`** (`vulkan_present_gyro.frag` / `opengl_present_gyro.frag`), реагирующий на наклон устройства.
@@ -49,16 +49,15 @@
 - **Оригинальная геометрия экранов 3DS**: верхний экран строго `5:3` (`400x240`), нижний сенсорный экран строго `4:3` (`320x240`), редактор макетов с прямой синхронизацией в C++ (`setCustomScreenLayout`) и поддержкой второго внешнего дисплея (`SecondaryDisplay`).
 - **Нативные 3DS-элементы управления**: аналоговый `Circle Pad`, мини-стик `C-Stick` (включая маппинг правого стика геймпада), кнопки `ZL`, `ZR`, `HOME`, слайдер 3D глубины и программируемые макро-кнопки **`Combo 1` / `Combo 2`**.
 - **10 новых 3DS-стилей кнопок** (34 стиля всего) и **30 консольных скинов Nintendo 3DS / 2DS / STORM** плюс **3D-анимация раскрытия раскладушки 3DS** при запуске игры (`Console3DBootScreen`).
-- **Инструменты и 3DS-система**: режим `New 3DS`, разгон CPU (`25%..200%`), регион/язык системы, живой экранный переводчик **ML Kit OCR + TTS** (`PixelCopy`), нативный C++ поиск читов в памяти (**RAM Cheat Finder**) + встроенная база MMJ на 123 игры с прямым импортом + `3dstdb`, асинхронный Zstd-буфер перемотки (**Auto-Timeline Rewind**), 29 авто-профилей игр по Title ID, загрузка/снятие **Amiibo** в меню паузы, **Artic Base**, **Pretendo / Nimbus** (`api.pretendo.cc`), **NetPlay**, фильтрация логов по regex и `Storm3dsForegroundService`.
+- **Инструменты и 3DS-система**: режим `New 3DS`, разгон ЦП (`25%..200%`), автоопределение языка системы 3DS по языку устройства, регион системы, живой экранный переводчик **ML Kit OCR + TTS** (`PixelCopy`), нативный C++ поиск читов в памяти (**RAM Cheat Finder**) + встроенная база MMJ на 123 игры с прямым импортом + `3dstdb`, асинхронный Zstd-буфер перемотки (**Auto-Timeline Rewind**), 29 авто-профилей игр по Title ID, загрузка/снятие **Amiibo** в меню паузы, **Artic Base**, **Pretendo / Nimbus** (`api.pretendo.cc`), **NetPlay**, фильтрация логов по regex и `Storm3dsForegroundService`.
 
 ---
 
-## Версии релиза 1.1.0
+## Релиз 1.2.0
 
 | Файл APK | Назначение | Поддержка Turnip / AdrenoTools |
 | --- | --- | --- |
-| `STORM_3DS_1.1.0.apk` | Основная сборка для смартфонов Snapdragon (Adreno GPU) и современных Android-устройств | Включена (`STORM_ENABLE_ADRENOTOOLS=ON`) |
-| `STORM_3DS_1.1.0_LEGACY.apk` | Сборка повышенной совместимости для устройств без кастомных Adreno-драйверов (Mali, PowerVR, Xclipse, MediaTek, stock Android) | Отключена (`STORM_ENABLE_ADRENOTOOLS=OFF`) |
+| `STORM_3DS_1.2.0.apk` | Единая подписанная универсальная сборка для Android (`arm64-v8a` + `x86_64`) с полной 10-язычной локализацией, исправленным диалогом 3DS-ключей/спидхаков и автоязыком системы 3DS | Включена (`STORM_ENABLE_ADRENOTOOLS=ON`) с адаптивным fallback на системный драйвер |
 
 ---
 
@@ -76,12 +75,11 @@
 git clone --recursive https://github.com/ReiKatari/STORM_3DS.git
 cd STORM_3DS
 
-# Низконагруженная релизная сборка обеих версий
-./gradlew assembleGitHubProdRelease assembleLegacyProdRelease --max-workers=3 -Dorg.gradle.priority=low
+# Низконагруженная релизная сборка
+./gradlew assembleGitHubProdRelease --max-workers=3 -Dorg.gradle.priority=low
 ```
-Готовые подписанные APK сохраняются в папку `releases/`:
-- `releases/STORM_3DS_1.1.0.apk`
-- `releases/STORM_3DS_1.1.0_LEGACY.apk`
+Готовый подписанный APK сохраняется в папку `releases/`:
+- `releases/STORM_3DS_1.2.0.apk`
 
 ---
 

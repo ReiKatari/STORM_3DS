@@ -4,7 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.documentfile.provider.DocumentFile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -71,9 +73,36 @@ fun RomTechnicalInfoDialog(
                 if (rom.uri.scheme == "file") {
                     rom.uri.path?.let { File(it).length() } ?: 0L
                 } else {
-                    context.contentResolver.openFileDescriptor(rom.uri, "r")?.use {
-                        it.statSize
-                    } ?: 0L
+                    val queriedSize = runCatching {
+                        context.contentResolver.query(
+                            rom.uri,
+                            arrayOf(OpenableColumns.SIZE),
+                            null,
+                            null,
+                            null,
+                        )?.use { cursor ->
+                            val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                            if (idx >= 0 && cursor.moveToFirst() && !cursor.isNull(idx)) cursor.getLong(idx) else -1L
+                        } ?: -1L
+                    }.getOrDefault(-1L)
+                    when {
+                        queriedSize > 0L -> queriedSize
+                        else -> {
+                            val afdSize = runCatching {
+                                context.contentResolver.openAssetFileDescriptor(rom.uri, "r")?.use { it.length } ?: -1L
+                            }.getOrDefault(-1L)
+                            if (afdSize > 0L) afdSize
+                            else {
+                                val docSize = runCatching {
+                                    DocumentFile.fromSingleUri(context, rom.uri)?.length() ?: -1L
+                                }.getOrDefault(-1L)
+                                if (docSize > 0L) docSize
+                                else runCatching {
+                                    context.contentResolver.openFileDescriptor(rom.uri, "r")?.use { it.statSize } ?: 0L
+                                }.getOrDefault(0L)
+                            }
+                        }
+                    }
                 }
             }.getOrDefault(0L)
         }
@@ -96,11 +125,11 @@ fun RomTechnicalInfoDialog(
         val minutes = (rom.totalPlayTime.inWholeMinutes % 60)
         val seconds = (rom.totalPlayTime.inWholeSeconds % 60)
         if (hours > 0) {
-            "${hours}ч ${minutes}м"
+            context.getString(R.string.ui_tech_hms_hm_fmt, hours, minutes)
         } else if (minutes > 0) {
-            "${minutes}м ${seconds}с"
+            context.getString(R.string.ui_tech_hms_ms_fmt, minutes, seconds)
         } else {
-            "${seconds}с"
+            context.getString(R.string.ui_tech_hms_s_fmt, seconds)
         }
     }
 
@@ -135,11 +164,11 @@ fun RomTechnicalInfoDialog(
     val copyToClipboard = {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         val textBuilder = StringBuilder()
-        textBuilder.appendLine("STORM 3DS - ТЕХНИЧЕСКИЙ ПАСПОРТ ROM")
+        textBuilder.appendLine(context.getString(R.string.ui_tech_clipboard_header))
         textBuilder.appendLine("========================================")
         textBuilder.appendLine("${context.getString(R.string.rom_info_title_label)}: ${romDisplayName(rom)}")
         if (rom.name != romDisplayName(rom)) {
-            textBuilder.appendLine("Internal Title: ${rom.name}")
+            textBuilder.appendLine(context.getString(R.string.ui_tech_internal_title_fmt, rom.name))
         }
         textBuilder.appendLine("${context.getString(R.string.rom_info_file_name_label)}: ${rom.fileName}")
         textBuilder.appendLine("URI: ${rom.uri}")
@@ -149,8 +178,7 @@ fun RomTechnicalInfoDialog(
         if (rom.gameCode.isNotBlank()) {
             textBuilder.appendLine("${context.getString(R.string.rom_info_game_code_label)}: ${rom.gameCode}")
         }
-        val hashStr = if (rom.retroAchievementsHash.isNotBlank()) rom.retroAchievementsHash.uppercase() else "-"
-        textBuilder.appendLine("CRC32 / RA Hash: $hashStr")
+        textBuilder.appendLine("Format: ${extLower.uppercase().ifBlank { "3DS" }}")
         textBuilder.appendLine("${context.getString(R.string.rom_info_play_time_label)}: $playTimeStr")
         textBuilder.appendLine("${context.getString(R.string.rom_info_last_played_label)}: $lastPlayedStr")
         textBuilder.appendLine("========================================")
@@ -208,12 +236,12 @@ fun RomTechnicalInfoDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             HardwareBadge(
-                                label = "GAME CODE",
-                                value = rom.gameCode.ifBlank { "NTR-XXXX" },
+                                label = stringResource(R.string.ui_tech_title_id_caps),
+                                value = rom.gameCode.ifBlank { "3DS-HOMEBREW" },
                                 isAccent = true,
                             )
                             HardwareBadge(
-                                label = if (isRu) "РАЗМЕР ROM" else "ROM SIZE",
+                                label = stringResource(R.string.ui_tech_rom_size_caps),
                                 value = formattedSize.split(" (").first(),
                             )
                         }
@@ -222,12 +250,12 @@ fun RomTechnicalInfoDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             HardwareBadge(
-                                label = "UNIT CODE",
+                                label = stringResource(R.string.ui_tech_unit_code_caps),
                                 value = unitCodeStr,
                             )
                             HardwareBadge(
-                                label = "CRC32 / HASH",
-                                value = if (rom.retroAchievementsHash.isNotBlank()) rom.retroAchievementsHash.take(10).uppercase() else "-",
+                                label = stringResource(R.string.ui_tech_format_caps),
+                                value = extLower.uppercase().ifBlank { "3DS" },
                             )
                         }
                     }

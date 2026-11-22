@@ -41,5 +41,9 @@ data class EmulatorConfiguration(
         val audioBassBoostStrength: Int = 5,
         val audioSpatialAudioEnabled: Boolean = false,
         val audioReverbEnabled: Boolean = false,
-        val wfcDnsServerIp: String = ""
+        val wfcDnsServerIp: String = "",
+        val isNew3dsOverride: Boolean? = null,
+        val cpuClockPercentageOverride: Int? = null,
+        val render3dModeOverride: Int? = null,
+        val render3dFactorOverride: Int? = null,
 )

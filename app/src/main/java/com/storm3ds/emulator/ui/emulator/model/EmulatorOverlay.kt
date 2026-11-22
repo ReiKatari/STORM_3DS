@@ -17,4 +17,5 @@ enum class EmulatorOverlay {
     SCREEN_LAYOUT_DIALOG,
     SLOW_MOTION_DIALOG,
     LID_CLOSED_OVERLAY,
+    NETPLAY_DIALOG,
 }

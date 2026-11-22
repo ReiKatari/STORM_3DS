@@ -33,7 +33,7 @@
     <string name="v793_ra_login_required">Enabled • Login required</string>
     <string name="v793_ra_not_connected">Not connected</string>
     <string name="v793_summary_cheat_engine">Cheat engine</string>
-    <string name="v793_summary_cheat_db">Jusrcheat: 4,079 games</string>
+    <string name="v793_summary_cheat_db">Gateway 3DS &amp; bundled cheat database</string>
     <string name="v793_summary_tts">TTS</string>
     <string name="v793_status_enabled">Enabled</string>
     <string name="v793_general_pause_summary_fmt">Hidden items: %1$d • Order: %2$s</string>

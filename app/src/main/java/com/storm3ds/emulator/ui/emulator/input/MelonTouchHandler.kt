@@ -107,6 +107,8 @@ class MelonTouchHandler(
             Input.Y,
             Input.L,
             Input.R,
+            Input.ZL,
+            Input.ZR,
         )
     }
 }

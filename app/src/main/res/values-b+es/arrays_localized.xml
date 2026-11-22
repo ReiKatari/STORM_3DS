@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="button_color_theme_options">
+        <item>Nintendo 3DS (Azul Cosmo Aqua)</item>
+        <item>Nintendo 3DS Clásico (Gris metálico)</item>
+        <item>Nintendo 3DS Lite (Blanco puro)</item>
+        <item>Nintendo Famicom / NES (Dorado y granate)</item>
+        <item>Nintendo Game Boy (Gris retro DMG y ciruela)</item>
+        <item>Nintendo Game Boy Advance (Índigo glaciar)</item>
+        <item>Nintendo GameCube (Índigo y verde/rojo)</item>
+        <item>Nintendo Super Famicom / SNES (Cuatro colores)</item>
+        <item>Nintendo Switch Neón (Rojo y azul)</item>
+        <item>Nintendo Switch OLED (Blanco mate)</item>
+        <item>Nintendo Virtual Boy (Rojo láser y vacío)</item>
+        <item>Nintendo Wii (Blanco cristal y azul)</item>
+        <item>Nintendo Wii U (Pizarra oscura y cian)</item>
+        <item>STORM Arcade Retro (Recreativa clásica / 4 colores)</item>
+        <item>STORM Aurora Spectrum (Cuatro tonos pastel / Claro)</item>
+        <item>STORM Cyber Neon (Cian y oscuro)</item>
+        <item>STORM Cyberpunk 2077 (Neón / Multicolor)</item>
+        <item>STORM Frost Glacier (Degradado hielo / Claro)</item>
+        <item>STORM Gothic Crimson (Rojo rubí y carbono)</item>
+        <item>STORM Matrix Emerald (Verde neón)</item>
+        <item>STORM Midnight Amethyst (Púrpura profundo)</item>
+        <item>STORM Royal Gold (Dorado y obsidiana)</item>
+        <item>STORM Sakura Blossom (Flor de cerezo / Claro)</item>
+        <item>STORM Solar Fusion (Espectro solar / Claro)</item>
+        <item>New Nintendo 3DS SFC (ABXY de colores)</item>
+        <item>STORM Cyber 3D (Cian-esmeralda holográfico)</item>
+        <item>Zelda Hyrule Edition (Oro real y esmeralda)</item>
+        <item>Metroid Samus Visor (Carmesí y LED ámbar)</item>
+        <item>New 3DS XL Galaxy (Violeta profundo y magenta)</item>
+        <item>Animal Crossing Leaf (Menta pastel y crema)</item>
+        <item>Monster Hunter Forge (Obsidiana y brasa fundida)</item>
+        <item>Pokemon PokeBall (Carmesí brillante y blanco)</item>
+        <item>Persona Velvet Room (Cobalto medianoche y plata)</item>
+        <item>Crystal Prism 3D (Carcasa ahumada y brillo glaciar)</item>
+    </string-array>
+    <string-array name="external_display_mode_options">
+        <item>Duplicar pantalla</item>
+        <item>STORM 3DS</item>
+    </string-array>
+    <string-array name="gba_slot_options">
+        <item>Ninguno</item>
+        <item>ROM de GBA</item>
+        <item>Rumble Pak</item>
+        <item>Expansión de memoria</item>
+        <item>Entrada analógica</item>
+    </string-array>
+    <string-array name="rom_input_mode_options">
+        <item>@string/use_global_preference</item>
+        <item>Personalizado</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_descriptions">
+        <item>Los controles táctiles siempre están visibles, según la disposición de entrada actual.</item>
+        <item>Al conectar un mando, se ocultan los botones de la consola (A B X Y, Cruceta, L, R, Start y Select). El resto de botones de la disposición actual permanecen visibles.</item>
+        <item>Al conectar un mando, se ocultan todas las entradas asignadas a ese mando. El resto de entradas de la disposición actual no asignadas a los mandos conectados permanecen visibles.</item>
+        <item>Los controles táctiles permanecen siempre ocultos, sin importar los botones de la disposición de entrada actual.</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_options">
+        <item>Siempre visibles</item>
+        <item>Ocultar botones de consola al conectar un mando</item>
+        <item>Ocultar entradas asignadas al conectar un mando</item>
+        <item>Siempre ocultos</item>
+    </string-array>
+    <string-array name="theme_options">
+        <item>STORM NIGHT (OLED oscuro)</item>
+        <item>STORM DAY (Claro)</item>
+        <item>STORM MIDNIGHT (Violeta profundo)</item>
+        <item>STORM CYBERPUNK (Cyberpunk 2077)</item>
+        <item>STORM GOTHIC (Negro y rojo)</item>
+        <item>STORM MATRIX (Código cibernético esmeralda)</item>
+        <item>STORM SOLAR (Oro plasma radiante)</item>
+        <item>STORM SAKURA (Flor de cerezo claro)</item>
+    </string-array>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24 voces (Distribución neuronal automática según contexto y personaje)</item>
+        <item>🎙️ Dmitry (Barítono neuronal)</item>
+        <item>🎙️ Elena (Soprano neuronal)</item>
+        <item>🗡️ Joven héroe (Tenor brillante)</item>
+        <item>🦇 Caballero Oscuro / Batman (Bajo grave)</item>
+        <item>👹 Jefe / Tirano / Bowser (Bajo pesado)</item>
+        <item>🃏 Joker / Embaucador (Tenor maníaco)</item>
+        <item>💀 Demonio del abismo / Drácula (Bajo profundo)</item>
+        <item>📜 Sabio anciano / Profesor (Áspero)</item>
+        <item>👦 Chico joven / Compañero / Luke Triton (Claro)</item>
+        <item>👧 Chica joven / Pearl Fey (Suave juvenil)</item>
+        <item>👑 Princesa / Reina Zelda (Regio)</item>
+        <item>💰 Mercader / Tom Nook (Entusiasta y alegre)</item>
+        <item>🛡️ Guardia / Capitán (Severo y autoritario)</item>
+        <item>🤖 Robot / Cíborg / Pokedex (Sintético)</item>
+        <item>📖 Narrador / Cronista (Aterciopelado)</item>
+        <item>🎀 Tsundere / Franziska (Soprano altiva)</item>
+        <item>🤫 Susurro misterioso / Sombra (Místico)</item>
+        <item>✨ Hada alegre / Navi (Contralto agudo juguetón)</item>
+        <item>🏴‍☠️ Capitán pirata (Bajo ronco y gruñón)</item>
+        <item>🔬 Científico loco / Dr. Wily (Excéntrico)</item>
+        <item>🎩 Caballero / Layton / Wright (Refinado)</item>
+        <item>👻 Fantasma / Espectro (Eco etéreo)</item>
+        <item>⚔️ Caballero noble / Meta Knight (Barítono firme)</item>
+        <item>🕊️ Diosa / Ángel Palutena (Cristalino sagrado)</item>
+    </string-array>
+    <string-array name="video_renderer_options">
+        <item>Por software</item>
+        <item>OpenGL</item>
+        <item>Vulkan</item>
+        <item>Cómputo</item>
+    </string-array>
+</resources>

@@ -6,7 +6,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class RewindWindow(
     val currentEmulationFrame: Int,
-    val rewindStates: ArrayList<RewindSaveState>
+    val rewindStates: ArrayList<RewindSaveState>,
+    val useMilliseconds: Boolean = false,
 ) {
 
     companion object {
@@ -14,8 +15,11 @@ class RewindWindow(
     }
 
     fun getDeltaFromEmulationTimeToRewindState(state: RewindSaveState): Duration {
-        val elapsedFrames = currentEmulationFrame - state.frame
-        val elapsedMillis = elapsedFrames.toFloat() / FRAMES_PER_SECOND * 1000
+        val elapsed = (currentEmulationFrame - state.frame).coerceAtLeast(0)
+        if (useMilliseconds) {
+            return elapsed.toLong().milliseconds
+        }
+        val elapsedMillis = elapsed.toFloat() / FRAMES_PER_SECOND * 1000
         return elapsedMillis.toLong().milliseconds
     }
 }

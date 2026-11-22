@@ -1,5 +1,8 @@
 package com.storm3ds.emulator.ui.layouteditor
 
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.storm3ds.emulator.R
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.lifecycle.SavedStateHandle
@@ -39,6 +42,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LayoutEditorViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val layoutsRepository: LayoutsRepository,
     private val backgroundsRepository: BackgroundRepository,
     private val uiLayoutProvider: UILayoutProvider,
@@ -112,9 +116,9 @@ class LayoutEditorViewModel @Inject constructor(
                 val defaultLayout = layoutsRepository.getLayout(LayoutConfiguration.DEFAULT_ID)
                 val newLayout = defaultLayout?.copy(
                     id = null,
-                    name = if (layoutId == LayoutConfiguration.DEFAULT_ID) "Пользовательский (на основе стандарта)" else "Пользовательская раскладка",
+                    name = if (layoutId == LayoutConfiguration.DEFAULT_ID) appContext.getString(R.string.ui_layout_custom_from_default) else appContext.getString(R.string.ui_layout_custom_name),
                     type = LayoutConfiguration.LayoutType.CUSTOM,
-                ) ?: LayoutConfiguration.newCustom().copy(name = "Пользовательская раскладка")
+                ) ?: LayoutConfiguration.newCustom().copy(name = appContext.getString(R.string.ui_layout_custom_name))
                 initialLayoutConfiguration = newLayout
                 layoutResetToken++
                 _hasUnsavedChanges.value = false

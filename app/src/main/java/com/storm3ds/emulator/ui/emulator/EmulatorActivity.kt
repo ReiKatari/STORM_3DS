@@ -289,7 +289,7 @@ class EmulatorActivity : AppCompatActivity() {
             }.getOrDefault(false)
             android.widget.Toast.makeText(
                 this,
-                if (ok) "Amiibo loaded!" else "Failed to load Amiibo (.bin)",
+                getString(if (ok) R.string.amiibo_loaded_toast else R.string.amiibo_load_failed_toast),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
@@ -654,6 +654,7 @@ class EmulatorActivity : AppCompatActivity() {
     private val showPendingSubmissionsDialog = mutableStateOf(false)
     private val showDualScreenPresets = mutableStateOf(false)
     private val showScreenLayoutDialog = mutableStateOf(false)
+    private val showNetplayDialog = mutableStateOf(false)
     private val cheatsOverlayRomInfo = mutableStateOf<com.storm3ds.emulator.domain.model.RomInfo?>(null)
     private var currentScreenLayoutMode: com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode? = null
     private val pauseMenuState = mutableStateOf<com.storm3ds.emulator.ui.emulator.model.PauseMenu?>(null)
@@ -1075,6 +1076,7 @@ class EmulatorActivity : AppCompatActivity() {
                 val isAnyComposeModalOpen = rewindWindow != null ||
                     showDualScreenPresets.value ||
                     showScreenLayoutDialog.value ||
+                    showNetplayDialog.value ||
                     topConsoleNode != null ||
                     showQuickSlotCarousel.value ||
                     saveStatesData != null ||
@@ -1157,6 +1159,31 @@ class EmulatorActivity : AppCompatActivity() {
                             },
                             onResumeGame = { resumeGameDirectly() },
                         )
+                    }
+                    showNetplayDialog.value -> {
+                        val emulatorState by viewModel.emulatorState.collectAsState()
+                        val currentRom = (emulatorState as? EmulatorState.RunningRom)?.rom
+                        if (currentRom != null) {
+                            com.storm3ds.emulator.ui.romdetails.ui.NetplayLobbyDialog(
+                                rom = currentRom,
+                                onDismiss = {
+                                    activeOverlays.removeActiveOverlay(EmulatorOverlay.NETPLAY_DIALOG)
+                                    showNetplayDialog.value = false
+                                    reopenPauseMenu()
+                                },
+                                onJoinRoom = {
+                                    activeOverlays.removeActiveOverlay(EmulatorOverlay.NETPLAY_DIALOG)
+                                    showNetplayDialog.value = false
+                                    resumeGameDirectly()
+                                },
+                            )
+                        } else {
+                            LaunchedEffect(Unit) {
+                                activeOverlays.removeActiveOverlay(EmulatorOverlay.NETPLAY_DIALOG)
+                                showNetplayDialog.value = false
+                                reopenPauseMenu()
+                            }
+                        }
                     }
                     topConsoleNode != null -> {
                         when (val node = topConsoleNode!!) {
@@ -1353,7 +1380,7 @@ class EmulatorActivity : AppCompatActivity() {
                                     val staged = File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "amiibo/${tidHex}_amiibo.bin")
                                     if (staged.isFile) {
                                         val ok = runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(staged.absolutePath) }.getOrDefault(false)
-                                        android.widget.Toast.makeText(this@EmulatorActivity, if (ok) "Staged Amiibo loaded!" else "Amiibo load failed", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(this@EmulatorActivity, getString(if (ok) R.string.amiibo_staged_loaded_toast else R.string.amiibo_load_failed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                         viewModel.resumeEmulator()
                                     } else {
                                         amiiboPickerLauncher.launch(arrayOf("*/*"))
@@ -1363,8 +1390,15 @@ class EmulatorActivity : AppCompatActivity() {
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.REMOVE_AMIIBO) {
                                     dismissPauseMenu()
                                     runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.removeAmiibo() }
-                                    android.widget.Toast.makeText(this@EmulatorActivity, "Amiibo removed", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this@EmulatorActivity, getString(R.string.amiibo_removed_toast), android.widget.Toast.LENGTH_SHORT).show()
                                     viewModel.resumeEmulator()
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.NETPLAY) {
+                                    dismissPauseMenu()
+                                    activeOverlays.addActiveOverlay(EmulatorOverlay.NETPLAY_DIALOG)
+                                    showNetplayDialog.value = true
+                                    requestOverlayHostFocus()
                                     return@PauseMenuOverlay
                                 }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.FRAME_ADVANCE) {
@@ -1514,46 +1548,7 @@ class EmulatorActivity : AppCompatActivity() {
                     }
                 }
 
-                if (
-                    activeSlot2AddonState.value in listOf(3, 5, 6) &&
-                    pauseMenu == null &&
-                    topConsoleNode == null &&
-                    saveStatesData == null &&
-                    rewindWindow == null &&
-                    !showBootAnimation.value
-                ) {
-                    com.storm3ds.emulator.ui.emulator.ui.Slot2PeripheralOverlay(
-                        addonType = activeSlot2AddonState.value,
-                        solarLevel = solarSensorOverrideLevel,
-                        currentLux = peripheralSensorBridge.currentLux.floatValue,
-                        currentSensorBars = peripheralSensorBridge.currentBars.intValue,
-                        onSolarLevelChanged = { level ->
-                            solarSensorOverrideLevel = level
-                            if (level == -2) {
-                                motionSensorManager.solarSensorAutoEnabled = false
-                                peripheralSensorBridge.startLightSensor()
-                            } else if (level == -1) {
-                                peripheralSensorBridge.stopLightSensor()
-                                motionSensorManager.solarSensorAutoEnabled = true
-                                motionSensorManager.startListening()
-                            } else {
-                                peripheralSensorBridge.stopLightSensor()
-                                motionSensorManager.solarSensorAutoEnabled = false
-                                runCatching { MelonEmulator.setSolarSensorLightLevel(level) }
-                            }
-                        },
-                        onGuitarFretStateChanged = { fretIndex, pressed ->
-                            runCatching { MelonEmulator.setGuitarGripKeyState(fretIndex, pressed) }
-                        },
-                        onPaddleAnalogDelta = { deltaX ->
-                            runCatching { MelonEmulator.setSlot2AnalogInput(deltaX, 0f) }
-                        },
-                        onDismissOverlay = {
-                            activeSlot2AddonState.value = 0
-                            runCatching { MelonEmulator.setSlot2AddonType(0) }
-                        },
-                    )
-                }
+                // Nintendo 3DS has no DS Slot-2 accessory port.
 
                 if (isLidClosedState.value) {
                     com.storm3ds.emulator.ui.emulator.ui.ConsoleLidClosedOverlay(
@@ -1955,7 +1950,7 @@ class EmulatorActivity : AppCompatActivity() {
                             lastVulkanCompileProgress = null
                             lastRaLoadStage = null
                             bootIsDsi.value = it.consoleType == com.storm3ds.emulator.domain.model.ConsoleType.DSi
-                            bootRomTitle.value = if (it.consoleType == com.storm3ds.emulator.domain.model.ConsoleType.DSi) "Nintendo 3DSi" else "Nintendo 3DS"
+                            bootRomTitle.value = "Nintendo 3DS"
                             showLoadingState()
                             emulatorLaunchValidatorDelegate.validateFirmware(it.consoleType)
                         }
@@ -1994,7 +1989,7 @@ class EmulatorActivity : AppCompatActivity() {
                             }
                             (it as? EmulatorState.RunningFirmware)?.let { running ->
                                 bootIsDsi.value = running.console == com.storm3ds.emulator.domain.model.ConsoleType.DSi
-                                bootRomTitle.value = if (running.console == com.storm3ds.emulator.domain.model.ConsoleType.DSi) "Nintendo 3DSi" else "Nintendo 3DS"
+                                bootRomTitle.value = "Nintendo 3DS"
                             }
                             bootRomReady.value = true
                             showBootAnimation.value = false
@@ -2417,11 +2412,12 @@ class EmulatorActivity : AppCompatActivity() {
         if (isClosingEmulator) {
             return
         }
+        MelonEmulator.captureFrameBitmapCallback = { captureCurrentSurfaceBitmapSync(maxW = 400, maxH = 240) }
+        frameRenderCoordinator.addSurface(binding.surfaceMain)
         updateDisplays()
         getSystemService<DisplayManager>()?.registerDisplayListener(displayListener, null)
         getSystemService<InputManager>()?.registerInputDeviceListener(connectedControllerManager, null)
         connectedControllerManager.startTrackingControllers()
-        frameRenderCoordinator.addSurface(binding.surfaceMain)
     }
 
     private fun updateDisplays() {
@@ -2606,7 +2602,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
         val gyroEnabled = prefs.getBoolean("input_gyro_aiming_enabled", false)
         val gyroMicEnabled = prefs.getBoolean("input_gyro_mic_enabled", false)
-        val threeDParallaxActive = settingsRepository.getVulkan3dDepthMode() == 1
+        val threeDParallaxActive = settingsRepository.getVulkan3dDepthMode() == com.storm3ds.emulator.nativebridge.NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue
         motionSensorManager.shakeMicEnabled = gyroMicEnabled
         motionSensorManager.threeDParallaxEnabled = threeDParallaxActive
         motionSensorManager.motionPakEnabled = activeSlot2AddonState.value == 4
@@ -3251,12 +3247,23 @@ class EmulatorActivity : AppCompatActivity() {
 
         when (currentScreenLayoutMode) {
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE -> {
-                // 1. Ровная альбомная: 2 экрана в альбомном режиме одинакового размера (Side-by-Side)
-                val sWidth = surfaceW / 2
-                val sHeight = (sWidth / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost(surfaceH)
+                val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
+                val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
+                val firstRatio = if (areScreensSwapped) botAspect else topAspect
+                val secondRatio = if (areScreensSwapped) topAspect else botAspect
+                var sHeight = (surfaceW / (firstRatio + secondRatio)).toInt().coerceAtMost(surfaceH)
+                var w1 = (sHeight * firstRatio).toInt()
+                var w2 = (sHeight * secondRatio).toInt()
+                if (w1 + w2 > surfaceW) {
+                    val scale = surfaceW.toFloat() / (w1 + w2).coerceAtLeast(1)
+                    w1 = (w1 * scale).toInt()
+                    w2 = surfaceW - w1
+                    sHeight = (w1 / firstRatio).toInt().coerceAtMost(surfaceH)
+                }
+                val hMargin = ((surfaceW - (w1 + w2)) / 2).coerceAtLeast(0)
                 val vMargin = ((surfaceH - sHeight) / 2).coerceAtLeast(0)
-                val first = Rect(0, vMargin, sWidth, sHeight)
-                val second = Rect(sWidth, vMargin, sWidth, sHeight)
+                val first = Rect(hMargin, vMargin, w1, sHeight)
+                val second = Rect(hMargin + w1, vMargin, w2, sHeight)
                 binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
                 binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
                 topRect = if (areScreensSwapped) second else first
@@ -3274,8 +3281,9 @@ class EmulatorActivity : AppCompatActivity() {
                     val mainVMargin = ((surfaceH - mainH) / 2).coerceAtLeast(0)
                     val mainRect = Rect(0, mainVMargin, mainW, mainH)
 
+                    val subAspect = if (areScreensSwapped) com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO else com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
                     val subW = ((surfaceW - mainW) - 12).coerceAtLeast(100)
-                    val subH = (subW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost(surfaceH)
+                    val subH = (subW / subAspect).toInt().coerceAtMost(surfaceH)
                     val subX = surfaceW - subW
                     val subY = 8 // прижат к верхнему краю
                     val subRect = Rect(subX, subY, subW, subH)
@@ -3291,8 +3299,9 @@ class EmulatorActivity : AppCompatActivity() {
                     val mainH = (mainW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost((surfaceH * 0.50f).toInt())
                     val mainRect = Rect(0, 0, mainW, mainH)
 
+                    val subAspect = if (areScreensSwapped) com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO else com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
                     val subW = (surfaceW * 0.45f).toInt()
-                    val subH = (subW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
+                    val subH = (subW / subAspect).toInt()
                     val subX = surfaceW - subW - 12
                     val subY = mainH + 12
                     val subRect = Rect(subX, subY, subW, subH)
@@ -3313,26 +3322,34 @@ class EmulatorActivity : AppCompatActivity() {
                     val sideInsetPx = (6f * density).roundToInt()
                     val hingeGapPx = (22f * density).roundToInt()
 
+                    val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
+                    val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
+                    val firstAspect = if (areScreensSwapped) botAspect else topAspect
+                    val secondAspect = if (areScreensSwapped) topAspect else botAspect
                     val availableWidth = (surfaceW - 2 * sideInsetPx).coerceAtLeast(100)
-                    var sWidth = availableWidth
-                    var sHeight = (sWidth / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
+                    var sHeight = (availableWidth / topAspect).toInt()
                     val maxCombinedHeight = surfaceH - topInsetPx - hingeGapPx
                     if (sHeight * 2 > maxCombinedHeight && maxCombinedHeight > 100) {
                         sHeight = maxCombinedHeight / 2
-                        sWidth = (sHeight * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost(availableWidth)
                     }
-                    val leftOffset = sideInsetPx + (availableWidth - sWidth) / 2
-                    val first = Rect(leftOffset, topInsetPx, sWidth, sHeight)
-                    val second = Rect(leftOffset, topInsetPx + sHeight + hingeGapPx, sWidth, sHeight)
+                    val w1 = (sHeight * firstAspect).toInt().coerceAtMost(availableWidth)
+                    val w2 = (sHeight * secondAspect).toInt().coerceAtMost(availableWidth)
+                    val first = Rect(sideInsetPx + (availableWidth - w1) / 2, topInsetPx, w1, sHeight)
+                    val second = Rect(sideInsetPx + (availableWidth - w2) / 2, topInsetPx + sHeight + hingeGapPx, w2, sHeight)
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
                     topRect = if (areScreensSwapped) second else first
                     bottomRect = if (areScreensSwapped) first else second
                 } else {
-                    val sWidth = surfaceW
-                    val sHeight = (sWidth / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost(surfaceH / 2)
-                    val first = Rect(0, 0, sWidth, sHeight)
-                    val second = Rect(0, sHeight, sWidth, sHeight)
+                    val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
+                    val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
+                    val firstAspect = if (areScreensSwapped) botAspect else topAspect
+                    val secondAspect = if (areScreensSwapped) topAspect else botAspect
+                    val sHeight = (surfaceW / topAspect).toInt().coerceAtMost(surfaceH / 2)
+                    val w1 = (sHeight * firstAspect).toInt().coerceAtMost(surfaceW)
+                    val w2 = (sHeight * secondAspect).toInt().coerceAtMost(surfaceW)
+                    val first = Rect((surfaceW - w1) / 2, 0, w1, sHeight)
+                    val second = Rect((surfaceW - w2) / 2, sHeight, w2, sHeight)
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
                     topRect = if (areScreensSwapped) second else first
@@ -3820,9 +3837,6 @@ class EmulatorActivity : AppCompatActivity() {
         hybridOnTop: Boolean,
     ): VulkanPresentationConfig? {
         val rendererConfiguration = currentRuntimeRendererConfiguration ?: return null
-        if (rendererConfiguration.renderer != VideoRenderer.VULKAN) {
-            return null
-        }
 
         val (realW, realH) = resolveActiveMainSurfaceSize()
 
@@ -3969,6 +3983,7 @@ class EmulatorActivity : AppCompatActivity() {
     }
 
     private fun showPauseMenu(pauseMenu: PauseMenu) {
+        showNetplayDialog.value = false
         lastPauseMenu = pauseMenu
         requestOverlayHostFocus()
         activeOverlays.addActiveOverlay(EmulatorOverlay.PAUSE_MENU)
@@ -3981,6 +3996,7 @@ class EmulatorActivity : AppCompatActivity() {
         rewindOverlayState.value = null
         showDualScreenPresets.value = false
         showScreenLayoutDialog.value = false
+        showNetplayDialog.value = false
         showAchievementList.value = false
         cheatsOverlayRomInfo.value = null
         showQuickSlotCarousel.value = false
@@ -4057,43 +4073,14 @@ class EmulatorActivity : AppCompatActivity() {
             add(romSettingsMenuLabel(getString(R.string.microphone_source), menuState.micSourceValue) to {
                 showRomMicSourceDialog(rom.config.runtimeMicSource)
             })
-            if (renderer == VideoRenderer.VULKAN) {
-                add(romSettingsMenuLabel(getString(R.string.video_vulkan_3d_depth_mode_title), vulkan3dDepthModeLabel(settingsRepository.getVulkan3dDepthMode())) to {
-                    showVulkan3dDepthModeChoiceOverlay()
-                })
-                add(romSettingsMenuLabel(getString(R.string.video_vulkan_3d_depth_strength_title), "${settingsRepository.getVulkan3dDepthStrength()}%") to {
-                    showVulkan3dDepthStrengthChoiceOverlay()
-                })
-                val ssaoEnabled = settingsRepository.isVulkanSsaoEnabled()
-                add(romSettingsMenuLabel(getString(R.string.video_vulkan_ssao_title), if (ssaoEnabled) getString(R.string.on) else getString(R.string.off)) to {
-                    settingsRepository.setVulkanSsaoEnabled(!ssaoEnabled)
-                    handler.post { refreshRomSettingsMenuIfOpen() }
-                })
-                add(romSettingsMenuLabel(getString(R.string.video_ds_color_profile_title), displayColorProfileLabel(settingsRepository.getDisplayColorProfile())) to {
-                    showDisplayColorProfileChoiceOverlay()
-                })
-                add(romSettingsMenuLabel(getString(R.string.video_ds_hinge_gap_title), hingeGapLabel(settingsRepository.getHingeGapPixels())) to {
-                    showHingeGapChoiceOverlay()
-                })
-                add(romSettingsMenuLabel(getString(R.string.vulkan_debug_view_mode_title), vulkanDebugViewModeLabel(currentVulkanDebugViewMode)) to {
-                    showVulkanDebugViewModeChoiceOverlay()
-                })
-                add(getString(R.string.vulkan_debug_dump_report) to {
-                    dumpVulkanDebugReportFromMenu()
-                })
-            }
+            add(romSettingsMenuLabel(getString(R.string.video_vulkan_3d_depth_mode_title), vulkan3dDepthModeLabel(settingsRepository.getVulkan3dDepthMode())) to {
+                showVulkan3dDepthModeChoiceOverlay()
+            })
+            add(romSettingsMenuLabel(getString(R.string.video_vulkan_3d_depth_strength_title), "${settingsRepository.getVulkan3dDepthStrength()}%") to {
+                showVulkan3dDepthStrengthChoiceOverlay()
+            })
             add(romSettingsMenuLabel(getString(R.string.video_console_skin_type_title), currentConsoleSkinLabel(prefs)) to {
                 showConsoleSkinChoiceOverlay()
-            })
-            add(romSettingsMenuLabel(getString(R.string.rom_settings_slot2_addon_title), slot2AddonLabel(activeSlot2AddonState.value)) to {
-                showSlot2AddonChoiceOverlay()
-            })
-            add(romSettingsMenuLabel(getString(R.string.rom_settings_solar_sensor_title), solarSensorLabel(solarSensorOverrideLevel)) to {
-                showSolarSensorChoiceOverlay()
-            })
-            val currentSteps = runCatching { MelonEmulator.getIrPedometerStepCount() }.getOrDefault(0).coerceAtLeast(0)
-            add(romSettingsMenuLabel(getString(R.string.rom_settings_ir_pedometer_title), resources.getQuantityString(R.plurals.ir_pedometer_steps, currentSteps, currentSteps)) to {
-                showIrPedometerChoiceOverlay()
             })
         }
 
@@ -4488,12 +4475,8 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         }
     }
 
-    private fun vulkan3dDepthModeLabels(): List<String> = listOf(
-        getString(R.string.video_vulkan_3d_depth_mode_off),
-        getString(R.string.video_vulkan_3d_depth_mode_gyro),
-        getString(R.string.video_vulkan_3d_depth_mode_anaglyph),
-        getString(R.string.video_vulkan_3d_depth_mode_sbs),
-    )
+    private fun vulkan3dDepthModeLabels(): List<String> =
+        resources.getStringArray(R.array.video_vulkan_3d_depth_mode_options).toList()
 
     private fun vulkan3dDepthModeLabel(mode: Int): String {
         val labels = vulkan3dDepthModeLabels()
@@ -4509,10 +4492,11 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
                 labels = labels,
                 selectedIndex = current,
                 onSelect = { which ->
-                    val mode = which.coerceIn(0, 3)
+                    val mode = which.coerceIn(0, 7)
                     settingsRepository.setVulkan3dDepthMode(mode)
-                    motionSensorManager.threeDParallaxEnabled = (mode == 1)
-                    if (mode == 1) {
+                    val parallax = (mode == com.storm3ds.emulator.nativebridge.NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue)
+                    motionSensorManager.threeDParallaxEnabled = parallax
+                    if (parallax) {
                         motionSensorManager.calibrateCenter()
                         motionSensorManager.startListening()
                     }
@@ -4693,9 +4677,9 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
     private fun showIrPedometerChoiceOverlay() {
         val pedometerActive = peripheralSensorBridge.isPedometerActive.value
         val toggleLabel = if (pedometerActive) {
-            getString(R.string.pedometer_real_sensor_title) + " (ВКЛ / ON)"
+            getString(R.string.pedometer_real_sensor_title) + " (" + getString(R.string.on).uppercase() + ")"
         } else {
-            getString(R.string.pedometer_real_sensor_title) + " (ВЫКЛ / OFF)"
+            getString(R.string.pedometer_real_sensor_title) + " (" + getString(R.string.off).uppercase() + ")"
         }
         val labels = listOf(
             toggleLabel,
@@ -4895,7 +4879,7 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
                 }
                 if (showRuntimeButtons) {
                     setNeutralButton(rendererDebugPauseLabel(), null)
-                    setPositiveButton("+1 Frame", null)
+                    setPositiveButton(getString(R.string.frame_advance_plus_1), null)
                 }
             }
             .setOnDismissListener {
@@ -4941,7 +4925,7 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
             .setNegativeButton(R.string.navigate_back, null)
             .apply {
                 setNeutralButton(rendererDebugPauseLabel(), null)
-                setPositiveButton("+1 Frame", null)
+                setPositiveButton(getString(R.string.frame_advance_plus_1), null)
             }
             .setOnDismissListener {
                 activeOverlays.removeActiveOverlay(EmulatorOverlay.PAUSE_MENU)
@@ -6222,7 +6206,7 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
     private fun hasComposeOverlayOpen(): Boolean {
         return pauseMenuState.value != null || saveStatesOverlayState.value != null ||
             consoleOverlayStack.isNotEmpty() || showDualScreenPresets.value ||
-            showScreenLayoutDialog.value || showAchievementList.value ||
+            showScreenLayoutDialog.value || showNetplayDialog.value || showAchievementList.value ||
             cheatsOverlayRomInfo.value != null || showQuickSlotCarousel.value ||
             showSlowMotionSpeedDialog.value ||
             rewindOverlayState.value != null || activeOverlays.hasActiveOverlays()
@@ -6285,6 +6269,31 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         } else {
             viewModel.loadPeriodicAutoSave()
         }
+    }
+
+    private fun captureCurrentSurfaceBitmapSync(maxW: Int? = null, maxH: Int? = null): Bitmap? {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            return null
+        }
+        val surfaceView = binding.surfaceMain
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !surfaceView.holder.surface.isValid || surfaceView.width <= 0 || surfaceView.height <= 0) {
+            return null
+        }
+        val targetW = if (maxW != null && surfaceView.width > maxW) maxW else surfaceView.width
+        val targetH = if (maxH != null && surfaceView.height > maxH) maxH else surfaceView.height
+        val bmp = Bitmap.createBitmap(targetW.coerceAtLeast(1), targetH.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var ok = false
+        runOnUiThread {
+            runCatching {
+                android.view.PixelCopy.request(surfaceView, bmp, { result ->
+                    ok = (result == android.view.PixelCopy.SUCCESS)
+                    latch.countDown()
+                }, handler)
+            }.onFailure { latch.countDown() }
+        }
+        runCatching { latch.await(450L, java.util.concurrent.TimeUnit.MILLISECONDS) }
+        return if (ok) bmp else null
     }
 
     private fun takeCleanScreenshot(resumeAfterCapture: Boolean = false) {
@@ -6673,9 +6682,29 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         return super.dispatchTouchEvent(event)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val granted = grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
+        when (requestCode) {
+            com.storm3ds.emulator.nativebridge.NativeLibrary.REQUEST_CODE_NATIVE_CAMERA -> {
+                com.storm3ds.emulator.nativebridge.NativeLibrary.cameraPermissionResult(granted)
+            }
+            com.storm3ds.emulator.nativebridge.NativeLibrary.REQUEST_CODE_NATIVE_MIC -> {
+                com.storm3ds.emulator.nativebridge.NativeLibrary.micPermissionResult(granted)
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        com.storm3ds.emulator.nativebridge.NativeLibrary.clearEmulationActivity()
+        if (com.storm3ds.emulator.nativebridge.NativeLibrary.sEmulationActivity.get() === this) {
+            MelonEmulator.captureFrameBitmapCallback = null
+        }
+        com.storm3ds.emulator.nativebridge.NativeLibrary.clearEmulationActivity(this)
         runCatching { stopService(Intent(this, Storm3dsForegroundService::class.java)) }
         if (isDebugCaptureReceiverRegistered) {
             runCatching { unregisterReceiver(debugCaptureReceiver) }

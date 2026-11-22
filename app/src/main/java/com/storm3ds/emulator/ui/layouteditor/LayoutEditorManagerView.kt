@@ -33,7 +33,7 @@ import com.storm3ds.emulator.R
 import com.storm3ds.emulator.databinding.ViewLayoutEditorManagerBinding
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.RuntimeBackground
-import com.storm3ds.emulator.domain.model.consoleAspectRatio
+import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
 import com.storm3ds.emulator.extensions.setBackgroundMode
 import com.storm3ds.emulator.impl.dpToPixels
@@ -76,7 +76,8 @@ class LayoutEditorManagerView(
     }
 
     private enum class ScreenAspectRatio(val ratio: Float?) {
-        RATIO_4_3(consoleAspectRatio),
+        RATIO_5_3(ThreeDS.TOP_SCREEN_ASPECT_RATIO),
+        RATIO_4_3(ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO),
         RATIO_16_9(16 / 9f),
         UNRESTRICTED(null)
     }
@@ -100,8 +101,8 @@ class LayoutEditorManagerView(
     private var selectedViewIsScreen = false
     private var selectedViewSupportsAspectRatio = false
     private var selectedScreenComponent: LayoutComponent? = null
-    private var selectedAspectRatio = ScreenAspectRatio.RATIO_4_3
-    private var topAspectRatio = ScreenAspectRatio.RATIO_4_3
+    private var selectedAspectRatio = ScreenAspectRatio.RATIO_5_3
+    private var topAspectRatio = ScreenAspectRatio.RATIO_5_3
     private var bottomAspectRatio = ScreenAspectRatio.RATIO_4_3
     private var updatingAspectSpinner = false
     private var updatingScalingControls = false
@@ -513,6 +514,7 @@ class LayoutEditorManagerView(
         })
 
         val aspectOptions = listOf(
+            resources.getString(R.string.aspect_ratio_5_3),
             resources.getString(R.string.aspect_ratio_4_3),
             resources.getString(R.string.aspect_ratio_16_9),
             resources.getString(R.string.aspect_ratio_unrestricted),
@@ -1312,7 +1314,8 @@ class LayoutEditorManagerView(
         if (w <= 0 || h <= 0) return ScreenAspectRatio.RATIO_4_3
         val ratio = w.toFloat() / h.toFloat()
         return when {
-            kotlin.math.abs(ratio - consoleAspectRatio) < 0.04f -> ScreenAspectRatio.RATIO_4_3
+            kotlin.math.abs(ratio - ThreeDS.TOP_SCREEN_ASPECT_RATIO) < 0.04f -> ScreenAspectRatio.RATIO_5_3
+            kotlin.math.abs(ratio - ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO) < 0.04f -> ScreenAspectRatio.RATIO_4_3
             kotlin.math.abs(ratio - (16f / 9f)) < 0.04f -> ScreenAspectRatio.RATIO_16_9
             else -> ScreenAspectRatio.UNRESTRICTED
         }

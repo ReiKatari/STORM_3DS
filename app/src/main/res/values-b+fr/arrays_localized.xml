@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="button_color_theme_options">
+        <item>Nintendo 3DS (Bleu Lagon Cosmo)</item>
+        <item>Nintendo 3DS Classique (Gris métallisé)</item>
+        <item>Nintendo 3DS Lite (Blanc pur)</item>
+        <item>Nintendo Famicom / NES (Or et bordeaux)</item>
+        <item>Nintendo Game Boy (Gris rétro DMG et prune)</item>
+        <item>Nintendo Game Boy Advance (Indigo glacier)</item>
+        <item>Nintendo GameCube (Indigo et vert/rouge)</item>
+        <item>Nintendo Super Famicom / SNES (Quatre couleurs)</item>
+        <item>Nintendo Switch Néon (Rouge et bleu)</item>
+        <item>Nintendo Switch OLED (Blanc mat)</item>
+        <item>Nintendo Virtual Boy (Rouge laser et néant)</item>
+        <item>Nintendo Wii (Blanc cristal et bleu)</item>
+        <item>Nintendo Wii U (Ardoise foncée et cyan)</item>
+        <item>STORM Arcade Retro (Borne classique / 4 couleurs)</item>
+        <item>STORM Aurora Spectrum (Quatre tons pastel / Clair)</item>
+        <item>STORM Cyber Neon (Cyan et sombre)</item>
+        <item>STORM Cyberpunk 2077 (Néon / Multicolore)</item>
+        <item>STORM Frost Glacier (Dégradé glacial / Clair)</item>
+        <item>STORM Gothic Crimson (Rouge rubis et carbone)</item>
+        <item>STORM Matrix Emerald (Vert néon)</item>
+        <item>STORM Midnight Amethyst (Violet profond)</item>
+        <item>STORM Royal Gold (Or et obsidienne)</item>
+        <item>STORM Sakura Blossom (Fleur de cerisier / Clair)</item>
+        <item>STORM Solar Fusion (Spectre solaire / Clair)</item>
+        <item>New Nintendo 3DS SFC (ABXY colorés)</item>
+        <item>STORM Cyber 3D (Cyan-émeraude holographique)</item>
+        <item>Zelda Hyrule Edition (Or royal et émeraude)</item>
+        <item>Metroid Samus Visor (Cramoisi et LED ambre)</item>
+        <item>New 3DS XL Galaxy (Violet profond et magenta)</item>
+        <item>Animal Crossing Leaf (Menthe pastel et crème)</item>
+        <item>Monster Hunter Forge (Obsidienne et braise fondue)</item>
+        <item>Pokemon PokeBall (Cramoisi brillant et blanc)</item>
+        <item>Persona Velvet Room (Cobalt minuit et argent)</item>
+        <item>Crystal Prism 3D (Coque fumée et lueur glacée)</item>
+    </string-array>
+    <string-array name="external_display_mode_options">
+        <item>Miroir</item>
+        <item>STORM 3DS</item>
+    </string-array>
+    <string-array name="frame_limit_speed_multiplier_options">
+        <item>1.0x</item>
+        <item>0.75x</item>
+        <item>0.5x</item>
+        <item>0.25x</item>
+    </string-array>
+    <string-array name="gba_slot_options">
+        <item>Aucun</item>
+        <item>ROM GBA</item>
+        <item>Rumble Pak</item>
+        <item>Extension mémoire</item>
+        <item>Entrée analogique</item>
+    </string-array>
+    <string-array name="rom_input_mode_options">
+        <item>@string/use_global_preference</item>
+        <item>Personnalisé</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_descriptions">
+        <item>Les commandes tactiles sont toujours visibles, selon la disposition d\'entrée actuelle.</item>
+        <item>Lorsqu\'une manette est connectée, les boutons de la console (A B X Y, Croix, L, R, Start et Select) sont masqués. Les autres boutons de la disposition actuelle restent visibles.</item>
+        <item>Lorsqu\'une manette est connectée, toutes les entrées assignées à cette manette sont masquées. Les autres entrées présentes dans la disposition actuelle qui ne sont pas assignées aux manettes connectées restent visibles.</item>
+        <item>Les commandes tactiles sont toujours masquées, quels que soient les boutons présents dans la disposition d\'entrée actuelle.</item>
+    </string-array>
+    <string-array name="soft_input_behaviour_options">
+        <item>Toujours visibles</item>
+        <item>Masquer les boutons de la console si une manette est connectée</item>
+        <item>Masquer les entrées assignées si une manette est connectée</item>
+        <item>Toujours masqués</item>
+    </string-array>
+    <string-array name="translator_local_voice_model_options">
+        <item>🎭 24 voix (Attribution neuronale automatique selon le contexte et le personnage)</item>
+        <item>🎙️ Dmitry (Baryton neuronal)</item>
+        <item>🎙️ Elena (Soprano neuronal)</item>
+        <item>🗡️ Jeune héros (Ténor clair)</item>
+        <item>🦇 Chevalier Noir / Batman (Basse grave)</item>
+        <item>👹 Boss / Tyran / Bowser (Basse puissante)</item>
+        <item>🃏 Joker / Farceur (Ténor maniaque)</item>
+        <item>💀 Démon des abysses / Dracula (Basse profonde)</item>
+        <item>📜 Sage ancien / Professeur (Éraillé)</item>
+        <item>👦 Jeune garçon / Compagnon / Luke Triton (Clair)</item>
+        <item>👧 Jeune fille / Pearl Fey (Doux et juvénile)</item>
+        <item>👑 Princesse / Reine Zelda (Royal)</item>
+        <item>💰 Marchand / Tom Nook (Enthousiaste et jovial)</item>
+        <item>🛡️ Garde / Capitaine (Sévère et autoritaire)</item>
+        <item>🤖 Robot / Cyborg / Pokedex (Synthétique)</item>
+        <item>📖 Narrateur / Chroniqueur (Velouté)</item>
+        <item>🎀 Tsundere / Franziska (Soprano hautaine)</item>
+        <item>🤫 Murmure mystérieux / Ombre (Mystique)</item>
+        <item>✨ Fée joyeuse / Navi (Alto aigu espiègle)</item>
+        <item>🏴‍☠️ Capitaine pirate (Basse rauque et grondante)</item>
+        <item>🔬 Savant fou / Dr. Wily (Excentrique)</item>
+        <item>🎩 Gentleman / Layton / Wright (Raffiné)</item>
+        <item>👻 Fantôme / Spectre (Écho éthéré)</item>
+        <item>⚔️ Noble chevalier / Meta Knight (Baryton ferme)</item>
+        <item>🕊️ Déesse / Ange Palutena (Cristallin sacré)</item>
+    </string-array>
+    <string-array name="video_renderer_options">
+        <item>Logiciel</item>
+        <item>OpenGL</item>
+        <item>Vulkan</item>
+        <item>Calcul</item>
+    </string-array>
+</resources>

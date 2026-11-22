@@ -13,11 +13,11 @@
     <string name="v792_stats_kpi_avg_session">Средняя сессия</string>
     <string name="v792_stats_kpi_total_launches">Всего запусков</string>
     <string name="v792_stats_kpi_total_time">Общее время</string>
-    <string name="v792_stats_rank_0">Новичок DS</string>
+    <string name="v792_stats_rank_0">Новичок 3DS</string>
     <string name="v792_stats_rank_1">Искатель картриджей</string>
     <string name="v792_stats_rank_2">Мастер двух экранов</string>
     <string name="v792_stats_rank_3">Хранитель стилуса</string>
-    <string name="v792_stats_rank_4">Ветеран DSi</string>
+    <string name="v792_stats_rank_4">Ветеран New 3DS</string>
     <string name="v792_stats_rank_5">Архитектор тактики</string>
     <string name="v792_stats_rank_6">Легенда Nintendo 3DS</string>
     <string name="v792_stats_rank_7">Грандмастер STORM 3DS</string>
@@ -31,8 +31,8 @@
     <string name="v792_stats_chart_empty">Нет активности за выбранный период</string>
     <string name="v792_stats_search_hint">Поиск по играм и коду...</string>
     <string name="v792_stats_filter_platform_all">Все</string>
-    <string name="v792_stats_filter_platform_nds">NDS</string>
-    <string name="v792_stats_filter_platform_dsi">DSi</string>
+    <string name="v792_stats_filter_platform_nds">3DS</string>
+    <string name="v792_stats_filter_platform_dsi">3DS HB</string>
     <string name="v792_stats_sort_time">По времени</string>
     <string name="v792_stats_sort_launches">По запускам</string>
     <string name="v792_stats_sort_recent">Недавние</string>
@@ -48,7 +48,7 @@
     <string name="v792_stats_biorhythm_peak">Пиковое время активности: %1$s</string>
     <string name="v792_stats_platform_title">Распределение по платформам</string>
     <string name="v792_stats_platform_nds_label">Nintendo 3DS</string>
-    <string name="v792_stats_platform_dsi_label">Nintendo 3DS</string>
+    <string name="v792_stats_platform_dsi_label">3DS Homebrew</string>
     <string name="v792_stats_platform_games_count">%1$d игр</string>
     <string name="v792_stats_milestones_title">Этапы и рекорды</string>
     <string name="v792_stats_milestones_unlocked_count">Открыто %1$d из %2$d</string>
@@ -56,7 +56,7 @@
     <string name="v792_stats_ms_in_progress">В процессе</string>
     <string name="v792_stats_ms_first_launch_title">Первый запуск</string>
     <string name="v792_stats_ms_first_launch_desc">Запустите любую игру впервые</string>
-    <string name="v792_stats_ms_5h_title">Любитель DS</string>
+    <string name="v792_stats_ms_5h_title">Любитель 3DS</string>
     <string name="v792_stats_ms_5h_desc">Проведите в играх 5 часов</string>
     <string name="v792_stats_ms_25h_title">Преданный игрок</string>
     <string name="v792_stats_ms_25h_desc">Проведите в играх 25 часов</string>

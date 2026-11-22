@@ -64,12 +64,12 @@ import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -143,6 +143,7 @@ internal fun pauseOptionIcon(option: PauseMenuOption): ImageVector {
         RomPauseMenuOption.VIEW_ACHIEVEMENTS -> Icons.Filled.EmojiEvents
         RomPauseMenuOption.SYNC_RETRO_ACHIEVEMENTS -> Icons.Filled.Refresh
         RomPauseMenuOption.CALIBRATE_GYRO -> Icons.Filled.TouchApp
+        RomPauseMenuOption.NETPLAY -> Icons.Filled.Wifi
         RomPauseMenuOption.PRESETS -> Icons.Filled.Gamepad
         RomPauseMenuOption.SCREEN_LAYOUT, FirmwarePauseMenuOption.SCREEN_LAYOUT -> Icons.Filled.ScreenRotation
         RomPauseMenuOption.ROM_SETTINGS -> Icons.Filled.Tune
@@ -162,21 +163,18 @@ private fun isDestructive(option: PauseMenuOption): Boolean {
 
 private fun needsConfirmation(option: PauseMenuOption): Boolean = isDestructive(option)
 
-private fun formatHoursLabel(duration: Duration): String {
+private fun formatHoursLabel(context: android.content.Context, duration: Duration): String {
     val totalMins = duration.inWholeMinutes
     val h = totalMins / 60
     val m = totalMins % 60
-    return if (h > 0) "${h}ч ${m}м" else "${m}м"
+    return if (h > 0) context.getString(R.string.ui_pause_hours_mins_fmt, h, m) else context.getString(R.string.ui_pause_mins_fmt, m)
 }
 
-
-private enum class PauseMenuCategory(val titleRu: String, val titleEn: String) {
-    STATES_AND_TIME("СОСТОЯНИЯ И ВРЕМЯ", "STATES AND TIME"),
-    SCREEN_AND_CONTROLS("ЭКРАН И УПРАВЛЕНИЕ", "SCREEN AND CONTROLS"),
-    TOOLS_AND_PROFILE("ИНСТРУМЕНТЫ И ПРОФИЛЬ", "TOOLS AND PROFILE"),
-    SYSTEM("СИСТЕМА", "SYSTEM");
-
-    fun title(isRu: Boolean): String = if (isRu) titleRu else titleEn
+private enum class PauseMenuCategory(@androidx.annotation.StringRes val titleRes: Int) {
+    STATES_AND_TIME(R.string.ui_pause_cat_states),
+    SCREEN_AND_CONTROLS(R.string.ui_pause_cat_screen),
+    TOOLS_AND_PROFILE(R.string.ui_pause_cat_tools),
+    SYSTEM(R.string.ui_pause_cat_system);
 }
 
 private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
@@ -197,6 +195,7 @@ private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
         FirmwarePauseMenuOption.SCREEN_LAYOUT -> PauseMenuCategory.SCREEN_AND_CONTROLS
 
         RomPauseMenuOption.ROM_SETTINGS,
+        RomPauseMenuOption.NETPLAY,
         RomPauseMenuOption.CHEATS,
         RomPauseMenuOption.LOAD_AMIIBO,
         RomPauseMenuOption.REMOVE_AMIIBO,
@@ -458,7 +457,7 @@ fun PauseMenuOverlay(
                                         letterSpacing = 0.5.sp,
                                     )
                                 }
-                                val hours = rom?.totalPlayTime?.takeIf { it != Duration.ZERO }?.let { formatHoursLabel(it) }
+                                val hours = rom?.totalPlayTime?.takeIf { it != Duration.ZERO }?.let { formatHoursLabel(context, it) }
                                 if (hours != null) {
                                     Text(
                                         text = hours,
