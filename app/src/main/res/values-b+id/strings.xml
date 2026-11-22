@@ -215,12 +215,12 @@
     <string name="filter">Saring</string>
     <string name="internal_resolution">Resolusi internal</string>
     <string name="renderer">Perender</string>
-    <string name="dsi_camera_source">Sumber kamera DSi</string>
+    <string name="dsi_camera_source">Sumber Kamera Nintendo 3DS</string>
     <string name="external_screen_layout">Tata letak layar eksternal</string>
     <string name="external_display_screen">Layar tampil eksternal</string>
     <string name="external_display_rotate_left">Putar isi layar eksternal ke kiri</string>
     <string name="refresh_external_screen">Segarkan layar eksternal</string>
-    <string name="dsi_camera_image">Gambar kamera DSi</string>
+    <string name="dsi_camera_image">Gambar Statis Kamera 3DS</string>
     <string name="internal_screen_layout">Tata letak layar internal</string>
     <string name="input_refresh_external_screen">Segarkan layar eksternal</string>
     <string name="quick_settings">Pengaturan cepat</string>
@@ -269,7 +269,7 @@
     <string name="import_cheats">Mengimpor curang</string>
     <string name="import_cheats_summary">Mengimpor curang dari berkas basis data untuk membuatnya tersedia. Hanya basis data XML yang didukung untuk sekarang. Curang apa pun yang terpasang sebelumnya akan dihapus.</string>
     <string name="rom_shortcut">Pintasan ROM</string>
-    <string name="firmware_nickname">Nama panggilan</string>
+    <string name="firmware_nickname">Nama Panggilan 3DS</string>
     <string name="firmware_message">Pesan</string>
     <string name="firmware_language">Bahasa</string>
     <string name="firmware_favourite_colour">Warna favorit</string>
@@ -362,7 +362,7 @@
     <string name="aspect_ratio_4_3">4:3 (Asli)</string>
     <string name="aspect_ratio_16_9">16:9 (Layar lebar)</string>
     <string name="aspect_ratio_unrestricted">Tidak terbatas</string>
-    <string name="keep_ds_ratio">Memperhatikan aspek rasio DS</string>
+    <string name="keep_ds_ratio">Pertahankan rasio layar 3DS (5:3 / 4:3)</string>
     <string name="above_other_screen">Di atas layar yang lain</string>
     <string name="center_horizontal">Tengah secara horizontal</string>
     <string name="center_vertical">Tengah secara vertikal</string>
@@ -818,7 +818,7 @@
     <string name="save_internal_config_as_file">Simpan konfigurasi internal sebagai file</string>
     <string name="save_internal_config_as_file_summary">Menjaga STORM 3DS.opts tetap sinkron di direktori file simpanan atau di direktori ROM.</string>
     <string name="system_app_log_file_enabled">Tulis log aplikasi ke folder ROM</string>
-    <string name="system_app_log_file_enabled_summary">Membuat melonDualLog.log di folder ROM pertama dan merekam baris logcat untuk debugging.</string>
+    <string name="system_app_log_file_enabled_summary">Aktif secara bawaan: mencatat STORM_3DS.log di folder STORM 3DS/logs/ untuk diagnostik.</string>
     <string name="system_dldi_sd_card_enabled">Enable DLDI / Homebrew SD</string>
     <string name="system_dldi_sd_card_enabled_summary">Mounts a virtual SD card for DLDI homebrew. Needed by apps like ZXDS.</string>
     <string name="system_dldi_sd_card_dir">DLDI SD folder</string>
@@ -959,7 +959,7 @@
     <string name="layout_auto_rotate">Putar otomatis (sensor)</string>
     <string name="layout_open_editor">Editor tata letak</string>
     <string name="toast_layout_applied">Tata letak: %1$s</string>
-    <string name="input_group_console">Tombol konsol</string>
+    <string name="input_group_console">Kontrol Nintendo 3DS</string>
     <string name="input_group_hotkeys">Tombol pintas dan pintasan</string>
     <string name="use_global_preference_with_value">Gunakan pengaturan global (%1$s)</string>
     <string name="global_controller_mapping">Pemetaan global</string>
@@ -1322,7 +1322,7 @@ Impor ke STORM 3DS?</string>
     <string name="translator_tts_neural_title">TTS neural cloud (kualitas tinggi)</string>
     <string name="translator_tts_neural_summary">Suara aktor yang alami dan ekspresif melalui jaringan saraf streaming</string>
     <string name="video_console_skin_title">3D Animated Console Skin</string>
-    <string name="video_console_skin_summary">Bingkai realistis Nintendo 3DS Lite / DSi XL dengan indikator LED baterai dan Wi-Fi aktif</string>
+    <string name="video_console_skin_summary">Casing autentik Nintendo 3DS / New 3DS XL / 2DS dengan indikator LED</string>
     <string name="video_console_skin_type_title">Model dan warna konsol</string>
     <string name="video_oled_battery_saver_title">Smart OLED Battery Saver</string>
     <string name="video_oled_battery_saver_summary">Menggunakan latar belakang hitam murni dan menonaktifkan skin konsol untuk menghemat daya pada layar OLED</string>

@@ -67,4 +67,14 @@
         <item>⚔️ 高洁骑士 / 魅塔骑士（坚定男中音）</item>
         <item>🕊️ 女神 / 天使帕露蒂娜（神圣清澈）</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>精确模式 (安全)</item>
+        <item>快速模式 (推荐)</item>
+        <item>极速模式 (适合老旧/低配设备)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (快速 / 推荐)</item>
+        <item>LLE (单核精确)</item>
+        <item>LLE 多线程</item>
+    </string-array>
 </resources>

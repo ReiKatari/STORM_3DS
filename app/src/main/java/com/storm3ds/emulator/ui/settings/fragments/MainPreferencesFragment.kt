@@ -118,13 +118,19 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             pref.summary = saveSummary
         }
 
-        // 4. System (New 3DS / Old 3DS, JIT status, CPU clock)
+        // 4. System (New 3DS / Old 3DS, ARM11 JIT mode, CPU clock)
         findPreference<Preference>("settings_home_system")?.let { pref ->
             val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
             val compilerEnabled = prefs.getBoolean("enable_storm_compiler", true)
+            val jitModeVal = prefs.getString("3ds_jit_mode", "1") ?: "1"
             val cpuPct = prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100"
             val modelStr = getString(if (isNew3ds) R.string.pref_model_new_3ds else R.string.pref_model_old_3ds)
-            val jitStr = getString(R.string.pref_summary_jit, getString(if (compilerEnabled) R.string.on else R.string.off))
+            val jitStateStr = if (!compilerEnabled) {
+                getString(R.string.off)
+            } else {
+                getLocalizedEntry(jitModeVal, R.array.jit_perf_mode_values, R.array.jit_perf_mode_options)
+            }
+            val jitStr = getString(R.string.pref_summary_jit, jitStateStr)
             val cpuStr = getString(R.string.pref_summary_cpu_clock, cpuPct)
             pref.summary = "$modelStr • $jitStr • $cpuStr"
         }
@@ -146,7 +152,7 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             pref.summary = "$rendererName • ${resolution}x • $filterName • $skinStr"
         }
 
-        // 6. Audio (volume, interpolation, latency, mic mode)
+        // 6. Audio (volume, 3DS DSP mode, mic mode)
         findPreference<Preference>("settings_home_audio")?.let { pref ->
             val enabled = prefs.getBoolean("sound_enabled", true)
             if (!enabled) {
@@ -154,9 +160,9 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
             } else {
                 val volume = prefs.getInt("volume", 256).coerceIn(0, 512)
                 val volumePercentage = kotlin.math.round(volume / 256f * 100f).toInt()
-                val interpolation = prefs.getString("audio_interpolation", "none") ?: "none"
-                val interpLocalized = getLocalizedEntry(interpolation, R.array.audio_interpolation_values, R.array.audio_interpolation_options)
-                val interpStr = "${getString(R.string.audio_interpolation)}: $interpLocalized"
+                val dspMode = prefs.getString("3ds_audio_emulation", "0") ?: "0"
+                val dspLocalized = getLocalizedEntry(dspMode, R.array.audio_emulation_3ds_values, R.array.audio_emulation_3ds_options)
+                val dspStr = "${getString(R.string.pref_3ds_audio_emulation_title)}: $dspLocalized"
                 val micSource = prefs.getString("mic_source", "blow") ?: "blow"
                 val micLocalized = getLocalizedEntry(micSource, R.array.mic_source_values, R.array.mic_source_options)
                 val micStr = if (micSource.equals("none", ignoreCase = true)) {
@@ -164,7 +170,7 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
                 } else {
                     micLocalized
                 }
-                pref.summary = "${getString(R.string.volume)}: $volumePercentage% • $interpStr • $micStr"
+                pref.summary = "${getString(R.string.volume)}: $volumePercentage% • $dspStr • $micStr"
             }
         }
 

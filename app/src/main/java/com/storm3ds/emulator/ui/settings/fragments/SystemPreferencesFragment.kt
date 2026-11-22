@@ -146,10 +146,12 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
         }
 
         jitPreference?.isVisible = false
+        val jitModePref = findPreference<ListPreference>("3ds_jit_mode")
         if (Build.SUPPORTED_64_BIT_ABIS.isEmpty()) {
             jitPreference?.isChecked = false
             stormCompilerPreference?.isChecked = false
             stormCompilerPreference?.isVisible = false
+            jitModePref?.isVisible = false
             sharedPrefs?.edit()?.putBoolean("enable_jit", false)?.apply()
         } else {
             val legacyJitEnabled = jitPreference?.isChecked == true || sharedPrefs?.getBoolean("enable_jit", false) == true
@@ -161,8 +163,11 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                 jitPreference?.isChecked = false
                 sharedPrefs?.edit()?.putBoolean("enable_jit", false)?.apply()
             }
+            jitModePref?.isEnabled = stormCompilerPreference?.isChecked != false
             stormCompilerPreference?.setOnPreferenceChangeListener { _, newValue ->
-                if (newValue == false) {
+                val enabled = newValue as? Boolean ?: true
+                jitModePref?.isEnabled = enabled
+                if (!enabled) {
                     jitPreference?.isChecked = false
                     sharedPrefs?.edit()?.putBoolean("enable_jit", false)?.apply()
                 }
@@ -170,10 +175,30 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             }
         }
 
-        val arm9OverclockPref = findPreference<ListPreference>("arm9_overclock")
-        if (arm9OverclockPref?.value == "3") {
-            arm9OverclockPref.value = "2"
-            sharedPrefs?.edit()?.putString("arm9_overclock", "2")?.apply()
+        findPreference<Preference>("3ds_low_end_preset")?.setOnPreferenceClickListener {
+            sharedPrefs?.edit()?.apply {
+                putBoolean("enable_storm_compiler", true)
+                putString("3ds_jit_mode", "2")
+                putString("3ds_cpu_clock_percentage", "75")
+                putString("video_internal_resolution", "1")
+                putBoolean("video_async_shader_compilation", true)
+                putString("video_filtering", "none")
+                putBoolean("3ds_fmv_hack", true)
+                putBoolean("3ds_skip_slow_draw", true)
+                putBoolean("3ds_skip_duplicate_frames", true)
+                putBoolean("3ds_disable_right_eye", true)
+                putBoolean("3ds_accurate_mul", false)
+                putBoolean("3ds_spirv_opt", true)
+                putBoolean("3ds_audio_stretch", true)
+                putString("3ds_audio_emulation", "0")
+                apply()
+            }
+            stormCompilerPreference?.isChecked = true
+            jitModePref?.isEnabled = true
+            jitModePref?.value = "2"
+            findPreference<ListPreference>("3ds_cpu_clock_percentage")?.value = "75"
+            Toast.makeText(requireContext(), R.string.pref_3ds_low_end_preset_applied, Toast.LENGTH_LONG).show()
+            true
         }
 
         mirrorPreference?.setOnPreferenceChangeListener { _, newValue ->
@@ -262,62 +287,6 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             true
         }
 
-        val wfcServerPref = findPreference<ListPreference>("system_wfc_server")
-        val wfcCustomDnsPref = findPreference<androidx.preference.EditTextPreference>("system_wfc_custom_dns")
-        val wfcTestPref = findPreference<Preference>("system_wfc_test_connection")
-        val updateCustomDnsVisibility = { _: String? ->
-            // Legacy DS WFC settings stay hidden in Nintendo 3DS builds
-            wfcServerPref?.isVisible = false
-            wfcCustomDnsPref?.isVisible = false
-            wfcTestPref?.isVisible = false
-        }
-        updateCustomDnsVisibility(wfcServerPref?.value)
-        wfcServerPref?.setOnPreferenceChangeListener { _, newValue ->
-            updateCustomDnsVisibility(newValue as? String)
-            true
-        }
-        wfcCustomDnsPref?.setOnPreferenceChangeListener { _, newValue ->
-            val candidate = (newValue as? String)?.trim().orEmpty()
-            if (!isValidIpv4(candidate)) {
-                Toast.makeText(requireContext(), R.string.wfc_custom_dns_invalid, Toast.LENGTH_SHORT).show()
-                false
-            } else {
-                true
-            }
-        }
-
-        wfcTestPref?.setOnPreferenceClickListener {
-            val serverMode = wfcServerPref?.value ?: "none"
-            val targetIp = when (serverMode) {
-                "wiimmfi" -> "167.235.229.36"
-                "altwfc" -> "172.104.88.237"
-                "kaeru" -> "178.62.43.212"
-                "custom" -> wfcCustomDnsPref?.text?.trim().orEmpty()
-                else -> ""
-            }
-            if (!isValidIpv4(targetIp)) {
-                Toast.makeText(requireContext(), R.string.wfc_custom_dns_invalid, Toast.LENGTH_SHORT).show()
-                return@setOnPreferenceClickListener true
-            }
-            wfcTestPref.isEnabled = false
-            wfcTestPref.summary = getString(R.string.wfc_test_running, targetIp)
-            lifecycleScope.launch(Dispatchers.IO) {
-                val testResult = testWfcDnsServer(targetIp)
-                withContext(Dispatchers.Main) {
-                    if (!isAdded) return@withContext
-                    wfcTestPref.isEnabled = true
-                    val msg = if (testResult.first) {
-                        getString(R.string.wfc_test_success, targetIp, testResult.second)
-                    } else {
-                        getString(R.string.wfc_test_failed, targetIp, testResult.third ?: "Timeout")
-                    }
-                    wfcTestPref.summary = msg
-                    Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
-                }
-            }
-            true
-        }
-
         findPreference<Preference>("system_share_app_log")?.setOnPreferenceClickListener {
             shareSystemLogFiles()
             true
@@ -327,59 +296,56 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(requireActivity())
             true
         }
+
+        findPreference<Preference>("3ds_system_files_check")?.setOnPreferenceClickListener {
+            showThreeDsSystemFilesDialog()
+            true
+        }
     }
 
-    private fun testWfcDnsServer(ip: String): Triple<Boolean, Long, String?> {
-        val startNs = System.nanoTime()
-        // 1. Send a standard minimal UDP DNS A-record query to port 53 (exact protocol used by DS WFC)
-        val udpAttempt = runCatching {
-            val query = byteArrayOf(
-                0x13, 0x37, // Transaction ID
-                0x01, 0x00, // Standard query with recursion desired
-                0x00, 0x01, // 1 question
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                // conntest.nintendowifi.net
-                8, 'c'.code.toByte(), 'o'.code.toByte(), 'n'.code.toByte(), 'n'.code.toByte(),
-                't'.code.toByte(), 'e'.code.toByte(), 's'.code.toByte(), 't'.code.toByte(),
-                12, 'n'.code.toByte(), 'i'.code.toByte(), 'n'.code.toByte(), 't'.code.toByte(),
-                'e'.code.toByte(), 'n'.code.toByte(), 'd'.code.toByte(), 'o'.code.toByte(),
-                'w'.code.toByte(), 'i'.code.toByte(), 'f'.code.toByte(), 'i'.code.toByte(),
-                3, 'n'.code.toByte(), 'e'.code.toByte(), 't'.code.toByte(),
-                0x00,
-                0x00, 0x01, // Type A
-                0x00, 0x01  // Class IN
-            )
-            java.net.DatagramSocket().use { socket ->
-                socket.soTimeout = 3000
-                val address = java.net.InetAddress.getByName(ip)
-                socket.send(java.net.DatagramPacket(query, query.size, address, 53))
-                val respBuf = ByteArray(512)
-                val respPacket = java.net.DatagramPacket(respBuf, respBuf.size)
-                socket.receive(respPacket)
-                respPacket.length >= 12
-            }
-        }
-        if (udpAttempt.getOrDefault(false)) {
-            val ms = ((System.nanoTime() - startNs) / 1_000_000L).coerceAtLeast(1L)
-            return Triple(true, ms, null)
-        }
-        // 2. Fallback: TCP port 80 / 443 or ICMP reachability
-        val fallbackStart = System.nanoTime()
-        val tcpOk = runCatching {
-            java.net.Socket().use { sock ->
-                sock.connect(java.net.InetSocketAddress(ip, 80), 2500)
-                true
-            }
-        }.getOrDefault(false) || runCatching {
-            java.net.InetAddress.getByName(ip).isReachable(2500)
-        }.getOrDefault(false)
+    private fun showThreeDsSystemFilesDialog() {
+        val ctx = context ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val report = runCatching {
+                com.storm3ds.emulator.NativeCoreLoader.load()
+                val userDir = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
+                val sysDir = java.io.File(userDir, "sysdata")
+                val sdmcDir = java.io.File(userDir, "sdmc/Nintendo 3DS")
+                val nandDir = java.io.File(userDir, "nand")
+                val boot9Ok = java.io.File(sysDir, "boot9.bin").let { it.exists() && it.length() > 0 }
+                val aesOk = java.io.File(sysDir, "aes_keys.txt").let { it.exists() && it.length() > 0 } ||
+                    java.io.File(sysDir, "keys.txt").let { it.exists() && it.length() > 0 }
+                val seedOk = java.io.File(sysDir, "seeddb.bin").let { it.exists() && it.length() > 0 }
+                val homeMenuPath = runCatching {
+                    com.storm3ds.emulator.nativebridge.NativeLibrary.getHomeMenuPath(-1)
+                }.getOrDefault("")
+                val installed = if (homeMenuPath.isNotBlank()) getString(R.string.setup_3ds_key_ok) else getString(R.string.setup_3ds_key_missing)
+                val yes = getString(R.string.setup_3ds_key_ok)
+                val no = getString(R.string.setup_3ds_key_missing)
+                getString(
+                    R.string.pref_3ds_system_files_report,
+                    userDir,
+                    if (boot9Ok) yes else no,
+                    if (aesOk) yes else no,
+                    if (seedOk) yes else no,
+                    installed,
+                    if (nandDir.exists()) nandDir.absolutePath else "-",
+                    if (sdmcDir.exists()) sdmcDir.absolutePath else java.io.File(userDir, "sdmc").absolutePath,
+                )
+            }.getOrElse { it.localizedMessage ?: "Error" }
 
-        if (tcpOk) {
-            val ms = ((System.nanoTime() - fallbackStart) / 1_000_000L).coerceAtLeast(1L)
-            return Triple(true, ms, null)
+            withContext(Dispatchers.Main) {
+                if (!isAdded) return@withContext
+                AlertDialog.Builder(ctx)
+                    .setTitle(R.string.pref_3ds_check_system_files_title)
+                    .setMessage(report)
+                    .setPositiveButton(R.string.home_menu_3ds_open_setup) { _, _ ->
+                        com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(requireActivity())
+                    }
+                    .setNegativeButton(R.string.ok, null)
+                    .show()
+            }
         }
-        val errMsg = udpAttempt.exceptionOrNull()?.localizedMessage ?: "Timeout"
-        return Triple(false, 0L, errMsg)
     }
 
     private fun shareSystemLogFiles() {
@@ -446,14 +412,6 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
         }
     }
 
-    private fun isValidIpv4(value: String): Boolean {
-        val parts = value.split(".")
-        if (parts.size != 4) return false
-        return parts.all { part ->
-            part.isNotEmpty() && part.length <= 3 && part.all { it.isDigit() } && (part.toIntOrNull() in 0..255)
-        }
-    }
-
     private fun setMirrorEnabled(mirrorPreference: SwitchPreference) {
         updatingMirrorPreference = true
         mirrorPreference.isChecked = true
@@ -463,29 +421,20 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
 
     override fun onResume() {
         super.onResume()
-        updateBiosStatusSummary()
+        updateThreeDsSystemSummary()
     }
 
-    private fun updateBiosStatusSummary() {
-        findPreference<Preference>("custom_bios_firmware")?.isVisible = false
-        return
-        @Suppress("UNREACHABLE_CODE")
-        lifecycleScope.launch(Dispatchers.IO) {
-            val statusPair = runCatching {
-                val dsResult = configurationDirectoryVerifier.checkDsConfigurationDirectory()
-                val dsiResult = configurationDirectoryVerifier.checkDsiConfigurationDirectory()
-                val dsReady = dsResult.status == com.storm3ds.emulator.domain.model.ConfigurationDirResult.Status.VALID
-                val dsiReady = dsiResult.status == com.storm3ds.emulator.domain.model.ConfigurationDirResult.Status.VALID
-                dsReady to dsiReady
-            }.getOrNull() ?: return@launch
-
-            withContext(Dispatchers.Main) {
-                if (!isAdded) return@withContext
-                val (dsReady, dsiReady) = statusPair
-                val dsStatusStr = if (dsReady) getString(R.string.v780_bios_status_ready) else getString(R.string.v780_bios_status_not_ready)
-                val dsiStatusStr = if (dsiReady) getString(R.string.v780_bios_status_ready) else getString(R.string.v780_bios_status_not_ready)
-                findPreference<Preference>("custom_bios_firmware")?.summary = getString(R.string.v780_bios_ready_status, dsStatusStr, dsiStatusStr)
-            }
-        }
+    private fun updateThreeDsSystemSummary() {
+        val statusText = runCatching {
+            val userDir = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
+            val sysDir = java.io.File(userDir, "sysdata")
+            val boot9 = java.io.File(sysDir, "boot9.bin").let { it.exists() && it.length() > 0 }
+            val keys = java.io.File(sysDir, "aes_keys.txt").let { it.exists() && it.length() > 0 } ||
+                java.io.File(sysDir, "keys.txt").let { it.exists() && it.length() > 0 }
+            val ok = getString(R.string.setup_3ds_key_ok)
+            val miss = getString(R.string.setup_3ds_key_missing)
+            "boot9: ${if (boot9) ok else miss} • aes_keys: ${if (keys) ok else miss}"
+        }.getOrNull() ?: return
+        findPreference<Preference>("3ds_system_files_check")?.summary = statusText
     }
 }

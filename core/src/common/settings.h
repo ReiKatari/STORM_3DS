@@ -741,6 +741,10 @@ struct Values {
     std::string audio_encoder;
     std::string audio_encoder_options;
     u64 audio_bitrate;
+
+    // STORM 3DS Dynarmic ARM11 JIT tuning
+    u32 storm_jit_mode{1};      // 0 = Accurate, 1 = Fast, 2 = Turbo (Weak Devices)
+    u32 storm_jit_cache_mb{0};  // 0 = Adaptive auto, or explicit MB clamped [32..128]
 };
 
 extern Values values;

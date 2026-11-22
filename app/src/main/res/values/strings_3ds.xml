@@ -75,8 +75,8 @@
     <string name="input_zl">ZL</string>
     <string name="input_zr">ZR</string>
     <string name="input_home">HOME</string>
-    <string name="input_combo_1">Combo 1</string>
-    <string name="input_combo_2">Combo 2</string>
+    <string name="input_combo_1">Combo Macro 1</string>
+    <string name="input_combo_2">Combo Macro 2</string>
     <string name="pref_3ds_hardware_cat">Nintendo 3DS System &amp; Hardware</string>
     <string name="pref_3ds_setup_title">3DS Keys, Speedhacks, SPIR-V &amp; 3D</string>
     <string name="pref_3ds_setup_summary">Import boot9/aes_keys/seeddb, speedhacks, SPIR-V, Artic Base &amp; Pretendo</string>
@@ -262,5 +262,51 @@ If the second phone shares a hotspot and the room does not appear, enter its IP 
     <string name="dual_screen_scaling_options_header">SCALING OPTIONS</string>
     <string name="update_dialog_title_storm3ds">STORM 3DS Update Available</string>
     <string name="update_dialog_whats_new">What\'s new:</string>
+    <string name="action_boot_3ds_home_menu">Launch 3DS HOME Menu</string>
+    <string name="home_menu_3ds_not_installed_title">3DS HOME Menu not installed</string>
+    <string name="home_menu_3ds_not_installed_message">Nintendo 3DS games (.3ds, .cci, .cia, .3dsx, .zcci) launch directly without BIOS or HOME Menu. To boot the 3DS HOME Menu itself, install 3DS System Archives (.cia) or connect Artic Base, and place boot9.bin / aes_keys.txt in STORM 3DS/sysdata if your dumps are encrypted.</string>
+    <string name="home_menu_3ds_open_setup">3DS Keys &amp; Setup</string>
+    <string name="pref_3ds_jit_mode_title">ARM11 JIT Optimization Profile</string>
+    <string name="pref_3ds_low_end_preset_title">Optimize for Weak &amp; Old Devices</string>
+    <string name="pref_3ds_low_end_preset_summary">Enables Turbo ARM11 JIT, 75% CPU clock, 1x resolution, frame skip, 2D right-eye skip, FMV hack &amp; HLE audio for maximum FPS</string>
+    <string name="pref_3ds_low_end_preset_applied">Low-end device speed profile applied (Turbo JIT, 75% CPU, 1x, HLE audio)</string>
+    <string name="pref_3ds_profile_nand_cat">3DS Profile, System Files &amp; Online</string>
+    <string name="pref_3ds_system_profile_title">Nintendo 3DS System Profile</string>
+    <string name="pref_3ds_system_profile_summary">3DS username, birthday, Play Coins (0-300), MAC address &amp; Console ID</string>
+    <string name="pref_3ds_check_system_files_title">Check 3DS System Files &amp; NAND</string>
+    <string name="pref_3ds_check_system_files_summary">Inspect boot9.bin, aes_keys.txt, seeddb.bin, 3DS HOME Menu and SDMC folders</string>
+    <string name="pref_3ds_system_files_report">STORM 3DS Data: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+3DS HOME Menu: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">3DS Username</string>
+    <string name="pref_3ds_play_coins_title">3DS Play Coins</string>
+    <string name="pref_3ds_play_coins_summary">Set Play Coins balance stored in emulated 3DS NAND (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">Regenerate 3DS Console ID</string>
+    <string name="pref_3ds_regenerate_console_id_summary">Generates a new random Nintendo 3DS console identity in NAND</string>
+    <string name="pref_3ds_console_id_regenerated">3DS Console ID regenerated in NAND</string>
+    <string name="pref_3ds_audio_emulation_title">DSP Audio Emulation</string>
+    <string name="pref_3ds_realtime_audio_title">Realtime Audio Sync</string>
+    <string name="pref_3ds_realtime_audio_summary">Matches audio output cadence directly to emulated 3DS frames</string>
+    <string name="pref_3ds_sdmc_saves_title">Nintendo 3DS Saves Directory (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">3DS title save data is managed automatically in STORM 3DS/sdmc/Nintendo 3DS/</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">Active path: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">Skip Duplicate Frames</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">Reduces GPU presentation load in 30 FPS 3DS titles on slower devices</string>
+    <string name="v794_video_preset_weak_devices">Weak &amp; Old Devices (Turbo JIT, 1x)</string>
+    <string name="input_group_face_dpad">Face Buttons &amp; D-Pad</string>
+    <string name="input_group_shoulders_system">Shoulders &amp; 3DS System Buttons</string>
+    <string name="input_3ds_analog_sticks_title">Circle Pad &amp; C-Stick</string>
+    <string name="input_3ds_analog_sticks_summary">Left gamepad stick automatically controls the 3DS Circle Pad; right stick controls the New 3DS C-Stick.</string>
+    <string name="setup_3ds_pretendo_summary">Redirects Nintendo 3DS online services to Pretendo / Nimbus (api.pretendo.cc)</string>
+    <string name="setup_3ds_accurate_mul_summary">Improves shader accuracy in select games; turn OFF for higher FPS on mobile GPUs</string>
+    <string name="setup_3ds_disable_right_eye_summary">Skips rendering the second stereo eye buffer when 3D depth is disabled (+FPS)</string>
+    <string name="setup_3ds_key_ok">Found (OK)</string>
+    <string name="setup_3ds_key_missing">Missing</string>
 </resources>
 

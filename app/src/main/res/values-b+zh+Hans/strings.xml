@@ -246,7 +246,7 @@
     <string name="save_internal_config_as_file">将内部配置保存为文件</string>
     <string name="save_internal_config_as_file_summary">使 STORM 3DS.opts 与存档文件目录保持同步；未配置存档文件目录时，则与 ROM 目录保持同步。</string>
     <string name="system_app_log_file_enabled">将应用日志写入 ROM 文件夹</string>
-    <string name="system_app_log_file_enabled_summary">在第一个 ROM 文件夹中创建 melonDualLog.log，并记录应用、原生代码和核心的 logcat 日志用于调试。仅在复现问题时启用。</string>
+    <string name="system_app_log_file_enabled_summary">默认开启：将诊断日志 STORM_3DS.log 记录到 STORM 3DS/logs/ 目录。</string>
     <string name="backup_settings">备份设置</string>
     <string name="restore_settings">恢复设置</string>
     <string name="settings_backup_success">设置备份已创建。\n\n已跳过下列设置：\n• RetroAchievements 会话\n• ROM/存档目录\n• DS BIOS 目录\n• DSi BIOS 目录</string>
@@ -304,12 +304,12 @@
     <string name="filter">过滤器</string>
     <string name="internal_resolution">内部分辨率</string>
     <string name="renderer">渲染器</string>
-    <string name="dsi_camera_source">DSi 摄像头源</string>
+    <string name="dsi_camera_source">Nintendo 3DS 摄像头来源</string>
     <string name="external_screen_layout">外部屏幕布局</string>
     <string name="external_display_screen">外部显示屏幕</string>
     <string name="external_display_rotate_left">将外部屏幕内容向左旋转</string>
     <string name="refresh_external_screen">刷新外部屏幕</string>
-    <string name="dsi_camera_image">DSi 摄像头图像</string>
+    <string name="dsi_camera_image">3DS 摄像头静态图像</string>
     <string name="internal_screen_layout">内部屏幕布局</string>
     <string name="input_refresh_external_screen">刷新外部屏幕</string>
     <string name="quick_settings">快速设置</string>
@@ -383,7 +383,7 @@
     <string name="import_cheats">导入金手指</string>
     <string name="import_cheats_summary">从数据库文件导入金手指代码以使其可用。目前仅支持 XML 数据库。之前导入的任何金手指都将被删除。</string>
     <string name="rom_shortcut">ROM 快捷方式</string>
-    <string name="firmware_nickname">昵称</string>
+    <string name="firmware_nickname">3DS 昵称</string>
     <string name="firmware_message">消息</string>
     <string name="firmware_language">语言</string>
     <string name="firmware_favourite_colour">最喜欢的颜色</string>
@@ -487,7 +487,7 @@
     <string name="aspect_ratio_4_3">4:3（原始）</string>
     <string name="aspect_ratio_16_9">16:9（宽屏）</string>
     <string name="aspect_ratio_unrestricted">无限制</string>
-    <string name="keep_ds_ratio">保持 DS 宽高比</string>
+    <string name="keep_ds_ratio">保持 3DS 屏幕比例 (5:3 / 4:3)</string>
     <string name="dual_screen_presets">预设</string>
     <string name="dual_screen_presets_settings_title">双屏预设</string>
     <string name="dual_screen_presets_summary">预设：%1$s\n保持 DS 比例：%2$s • 整数缩放：%3$s\n内部高：%4$s • 内部宽：%5$s\n外部高：%6$s • 外部宽：%7$s</string>
@@ -1056,7 +1056,7 @@
     <string name="layout_auto_rotate">自动旋转（传感器）</string>
     <string name="layout_open_editor">布局编辑器</string>
     <string name="toast_layout_applied">布局：%1$s</string>
-    <string name="input_group_console">掌机按键</string>
+    <string name="input_group_console">Nintendo 3DS 按键控制</string>
     <string name="input_group_hotkeys">热键与快捷方式</string>
     <string name="label_position">位置</string>
     <string name="dual_screen_presets_disabled_hint">预设已禁用。请选择一个预设以启用下方选项。</string>
@@ -1293,7 +1293,7 @@
     <string name="translator_tts_neural_title">云端神经网络语音（高音质）</string>
     <string name="translator_tts_neural_summary">通过流式神经网络生成自然且富有情感的角色配音</string>
     <string name="video_console_skin_title">3D Animated Console Skin</string>
-    <string name="video_console_skin_summary">逼真的 Nintendo 3DS Lite / DSi XL 机身边框，带动态电源与 Wi-Fi 指示灯</string>
+    <string name="video_console_skin_summary">逼真的 Nintendo 3DS / New 3DS XL / 2DS 机身边框与状态指示灯</string>
     <string name="video_console_skin_type_title">掌机型号与外观颜色</string>
     <string name="video_oled_battery_saver_title">Smart OLED Battery Saver</string>
     <string name="video_oled_battery_saver_summary">使用纯黑背景并禁用掌机外观边框，以在 OLED 屏幕上节省电量</string>

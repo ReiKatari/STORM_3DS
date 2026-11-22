@@ -200,4 +200,14 @@
         <item>Vulkan</item>
         <item>Compute</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Präzise (Sicher)</item>
+        <item>Schnell (Empfohlen)</item>
+        <item>Turbo (Schwache/alte Geräte)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (Schnell / Empfohlen)</item>
+        <item>LLE (Präzise 1-Kern)</item>
+        <item>LLE Multithreaded</item>
+    </string-array>
 </resources>

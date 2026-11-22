@@ -56,10 +56,10 @@
     <string name="v794_cat_main_app_system">インターフェースと情報</string>
     <string name="v794_cat_video_depth_color">3D深度、エフェクト、カラー</string>
     <string name="v794_video_quick_profile_title">グラフィック クイックプリセット</string>
-    <string name="v794_video_quick_profile_summary">パフォーマンス、バランス、ウルトラ品質をワンタップで切り替え</string>
+    <string name="v794_video_quick_profile_summary">低スペック端末・パフォーマンス・バランス・ウルトラ3DS画質をワンタップ切替</string>
     <string name="v794_video_preset_performance">パフォーマンス (1x, 高速パイプライン)</string>
     <string name="v794_video_preset_balanced">バランス (2x, リニアフィルタリング)</string>
-    <string name="v794_video_preset_ultra">ウルトラ品質 (4x, SSAO, 3D深度)</string>
+    <string name="v794_video_preset_ultra">ウルトラ画質 (4x, 高精度シェーダー)</string>
     <string name="v794_video_preset_applied">グラフィックプリセットを適用しました: %s</string>
     <string name="v794_cat_general_pause_menu">ポーズメニューとツール</string>
     <string name="v794_audio_dsp_preset_title">オーディオプロファイル (DSPプリセット)</string>

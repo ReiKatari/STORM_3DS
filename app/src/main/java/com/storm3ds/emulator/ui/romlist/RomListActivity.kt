@@ -431,10 +431,6 @@ class RomListActivity : AppCompatActivity() {
                 launchFirmware(ConsoleType.DS)
                 return true
             }
-            R.id.action_boot_firmware_dsi -> {
-                launchFirmware(ConsoleType.DSi)
-                return true
-            }
             R.id.action_install_cia -> {
                 openCiaInstaller()
                 return true

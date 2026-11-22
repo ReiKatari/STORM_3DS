@@ -348,6 +348,8 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         listOf(
             "audio_mute_on_fast_forward",
+            "3ds_audio_emulation",
+            "3ds_realtime_audio",
             "3ds_audio_stretch",
             "volume",
             "audio_latency",
@@ -356,8 +358,6 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
 
         findPreference<Preference>("pref_cat_dsp_effects")?.isVisible = false
-        findPreference<Preference>("audio_interpolation")?.isVisible = false
-        findPreference<Preference>("audio_bitrate")?.isVisible = false
 
         val isDeviceMic = micVal.equals("device", ignoreCase = true)
         agcNoiseGatePreference?.let { pref ->

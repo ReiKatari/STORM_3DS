@@ -27,4 +27,14 @@
         <item>⚔️ 高潔な騎士 / メタナイト（凛としたバリトン）</item>
         <item>🕊️ 女神 / 天使パルテナ（神聖で澄んだ声）</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>正確 (安全)</item>
+        <item>高速 (推奨)</item>
+        <item>ターボ (低スペック・旧型端末向け)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (高速 / 推奨)</item>
+        <item>LLE (高精度・シングルスレッド)</item>
+        <item>LLE マルチスレッド</item>
+    </string-array>
 </resources>

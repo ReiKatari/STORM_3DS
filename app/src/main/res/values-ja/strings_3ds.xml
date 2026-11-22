@@ -64,8 +64,8 @@
     <string name="frame_advance_plus_1">+1 フレーム</string>
     <string name="input_c_stick">Cスティック</string>
     <string name="input_circle_pad">スライドパッド</string>
-    <string name="input_combo_1">コンボ 1</string>
-    <string name="input_combo_2">コンボ 2</string>
+    <string name="input_combo_1">コンボマクロ 1</string>
+    <string name="input_combo_2">コンボマクロ 2</string>
     <string name="input_home">HOME</string>
     <string name="input_slider_3d_depth">3Dボリューム</string>
     <string name="input_zl">ZL</string>
@@ -261,4 +261,50 @@
     <string name="video_vulkan_3d_depth_mode_interlaced">インターレース</string>
     <string name="video_vulkan_3d_depth_mode_reverse_interlaced">リバースインターレース</string>
     <string name="video_vulkan_3d_depth_mode_sbs_full">サイドバイサイド（フル）</string>
+    <string name="action_boot_3ds_home_menu">3DS HOMEメニューを起動</string>
+    <string name="home_menu_3ds_not_installed_title">3DS HOMEメニューが未インストールです</string>
+    <string name="home_menu_3ds_not_installed_message">Nintendo 3DSソフト(.3ds, .cci, .cia, .3dsx, .zcci)はBIOSやHOMEメニューなしで直接起動できます。3DS HOMEメニュー自体を起動するには3DSシステムアーカイブ(.cia)をインストールするかArtic Baseを接続し、暗号化済みの場合はboot9.bin / aes_keys.txtをSTORM 3DS/sysdataに配置してください。</string>
+    <string name="home_menu_3ds_open_setup">3DSキーと設定</string>
+    <string name="pref_3ds_jit_mode_title">ARM11 JIT最適化プロファイル</string>
+    <string name="pref_3ds_low_end_preset_title">低スペック・旧型端末向けに最適化</string>
+    <string name="pref_3ds_low_end_preset_summary">Turbo ARM11 JIT、CPUクロック75%、1x解像度、重複フレームスキップ、右目描画無効、FMVハック、HLE音声を有効化しFPSを最大化します</string>
+    <string name="pref_3ds_low_end_preset_applied">低スペック端末向け高速プロファイルを適用しました (Turbo JIT, CPU 75%, 1x, HLE音声)</string>
+    <string name="pref_3ds_profile_nand_cat">3DSプロフィール・システムファイル・通信</string>
+    <string name="pref_3ds_system_profile_title">Nintendo 3DS システムプロフィール</string>
+    <string name="pref_3ds_system_profile_summary">3DSユーザー名、誕生日、ゲームコイン(0-300)、MACアドレスと本体ID</string>
+    <string name="pref_3ds_check_system_files_title">3DSシステムファイルとNANDを確認</string>
+    <string name="pref_3ds_check_system_files_summary">boot9.bin、aes_keys.txt、seeddb.bin、3DS HOMEメニューとSDMCフォルダを確認します</string>
+    <string name="pref_3ds_system_files_report">STORM 3DS データ: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+3DS HOMEメニュー: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">3DSユーザー名</string>
+    <string name="pref_3ds_play_coins_title">3DS ゲームコイン</string>
+    <string name="pref_3ds_play_coins_summary">エミュレートされた3DS NAND内のゲームコイン数 (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">3DS本体IDを再生成</string>
+    <string name="pref_3ds_regenerate_console_id_summary">NAND内に新しいランダムなNintendo 3DS本体IDを生成します</string>
+    <string name="pref_3ds_console_id_regenerated">3DS本体IDをNANDに再生成しました</string>
+    <string name="pref_3ds_audio_emulation_title">DSPオーディオエミュレーション</string>
+    <string name="pref_3ds_realtime_audio_title">リアルタイム音声同期</string>
+    <string name="pref_3ds_realtime_audio_summary">音声出力を3DSの実時間フレーム進行に直接同期させます</string>
+    <string name="pref_3ds_sdmc_saves_title">Nintendo 3DS セーブデータフォルダ (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">3DSソフトのセーブデータは STORM 3DS/sdmc/Nintendo 3DS/ に自動管理されます</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">現在のパス: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">重複フレームをスキップ</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">30 FPSタイトルでGPUの描画負荷を軽減し、低スペック端末での動作を安定させます</string>
+    <string name="v794_video_preset_weak_devices">低スペック・旧型端末 (Turbo JIT, 1x)</string>
+    <string name="input_group_face_dpad">アクションボタンと十字キー</string>
+    <string name="input_group_shoulders_system">ショルダーと3DSシステムボタン</string>
+    <string name="input_3ds_analog_sticks_title">スライドパッドとCスティック</string>
+    <string name="input_3ds_analog_sticks_summary">左スティックは自動的に3DSスライドパッドに、右スティックはNew 3DS Cスティックに割り当てられます。</string>
+    <string name="setup_3ds_pretendo_summary">Nintendo 3DSのオンライン機能をPretendo / Nimbus (api.pretendo.cc) に接続します</string>
+    <string name="setup_3ds_accurate_mul_summary">一部タイトルのシェーダー精度を向上します。オフにするとFPSが向上します</string>
+    <string name="setup_3ds_disable_right_eye_summary">3D立体視オフ時に右目用バッファの描画を省き、パフォーマンスを向上させます</string>
+    <string name="setup_3ds_key_ok">検出済み (OK)</string>
+    <string name="setup_3ds_key_missing">未検出</string>
 </resources>

@@ -64,8 +64,8 @@
     <string name="frame_advance_plus_1">+1 帧</string>
     <string name="input_c_stick">C 摇杆</string>
     <string name="input_circle_pad">圆形滑垫</string>
-    <string name="input_combo_1">组合键 1</string>
-    <string name="input_combo_2">组合键 2</string>
+    <string name="input_combo_1">组合宏按键 1</string>
+    <string name="input_combo_2">组合宏按键 2</string>
     <string name="input_home">HOME</string>
     <string name="input_slider_3d_depth">3D 景深滑块</string>
     <string name="input_zl">ZL</string>
@@ -261,4 +261,50 @@
     <string name="video_vulkan_3d_depth_mode_interlaced">隔行扫描</string>
     <string name="video_vulkan_3d_depth_mode_reverse_interlaced">反向隔行扫描</string>
     <string name="video_vulkan_3d_depth_mode_sbs_full">左右并排（全宽）</string>
+    <string name="action_boot_3ds_home_menu">启动 3DS 主菜单 (HOME)</string>
+    <string name="home_menu_3ds_not_installed_title">尚未安装 3DS 主菜单</string>
+    <string name="home_menu_3ds_not_installed_message">Nintendo 3DS 游戏 (.3ds, .cci, .cia, .3dsx, .zcci) 可直接启动，无需 BIOS 或主菜单。如需启动 3DS 主菜单本身，请安装 3DS 系统档案 (.cia) 或连接 Artic Base；若游戏镜像已加密，请将 boot9.bin / aes_keys.txt 放入 STORM 3DS/sysdata。</string>
+    <string name="home_menu_3ds_open_setup">3DS 密钥与设置</string>
+    <string name="pref_3ds_jit_mode_title">ARM11 JIT 优化模式</string>
+    <string name="pref_3ds_low_end_preset_title">为老旧及低配设备优化性能</string>
+    <string name="pref_3ds_low_end_preset_summary">开启 Turbo ARM11 JIT、75% CPU 频率、1x 分辨率、跳过重复帧、禁用右眼渲染、FMV 加速与 HLE 音频以获取最高帧率</string>
+    <string name="pref_3ds_low_end_preset_applied">已应用低配设备极速配置 (Turbo JIT, 75% CPU, 1x, HLE 音频)</string>
+    <string name="pref_3ds_profile_nand_cat">3DS 个人资料、系统文件与联网</string>
+    <string name="pref_3ds_system_profile_title">Nintendo 3DS 系统个人资料</string>
+    <string name="pref_3ds_system_profile_summary">3DS 用户名、生日、游戏币 (0-300)、MAC 地址与主机 ID</string>
+    <string name="pref_3ds_check_system_files_title">检查 3DS 系统文件与 NAND</string>
+    <string name="pref_3ds_check_system_files_summary">检查 boot9.bin、aes_keys.txt、seeddb.bin、3DS 主菜单及 SDMC 目录</string>
+    <string name="pref_3ds_system_files_report">STORM 3DS 数据目录: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+3DS 主菜单: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">3DS 用户名</string>
+    <string name="pref_3ds_play_coins_title">3DS 游戏币 (Play Coins)</string>
+    <string name="pref_3ds_play_coins_summary">设置保存在虚拟 3DS NAND 中的游戏币数量 (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">重新生成 3DS 主机 ID</string>
+    <string name="pref_3ds_regenerate_console_id_summary">在 NAND 中生成新的随机 Nintendo 3DS 主机标识</string>
+    <string name="pref_3ds_console_id_regenerated">已在 NAND 中重新生成 3DS 主机 ID</string>
+    <string name="pref_3ds_audio_emulation_title">DSP 音频模拟模式</string>
+    <string name="pref_3ds_realtime_audio_title">实时音频同步</string>
+    <string name="pref_3ds_realtime_audio_summary">使音频输出节拍与 3DS 实时帧率保持同步</string>
+    <string name="pref_3ds_sdmc_saves_title">Nintendo 3DS 游戏存档目录 (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">3DS 游戏存档会自动保存在 STORM 3DS/sdmc/Nintendo 3DS/ 中</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">当前路径: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">跳过重复帧</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">在低性能设备上运行 30 FPS 3DS 游戏时降低 GPU 渲染负担</string>
+    <string name="v794_video_preset_weak_devices">老旧与低配设备 (Turbo JIT, 1x)</string>
+    <string name="input_group_face_dpad">功能键与十字键</string>
+    <string name="input_group_shoulders_system">肩键与 3DS 系统按键</string>
+    <string name="input_3ds_analog_sticks_title">摇杆 (Circle Pad) 与 C-Stick</string>
+    <string name="input_3ds_analog_sticks_summary">左摇杆自动控制 3DS 主摇杆 (Circle Pad)；右摇杆自动控制 New 3DS 的 C-Stick。</string>
+    <string name="setup_3ds_pretendo_summary">将 Nintendo 3DS 在线服务重定向至 Pretendo / Nimbus (api.pretendo.cc)</string>
+    <string name="setup_3ds_accurate_mul_summary">提升部分游戏着色器精度；关闭可在移动 GPU 上获得更高帧率</string>
+    <string name="setup_3ds_disable_right_eye_summary">关闭 3D 景深时跳过右眼画面渲染以提升帧率 (+FPS)</string>
+    <string name="setup_3ds_key_ok">已找到 (OK)</string>
+    <string name="setup_3ds_key_missing">缺失</string>
 </resources>

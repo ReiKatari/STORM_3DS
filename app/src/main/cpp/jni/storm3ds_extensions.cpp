@@ -91,6 +91,13 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
     Settings::values.spirv_output_legalization.SetValue(legalization == JNI_TRUE);
 }
 
+JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setStormJitOptions(
+    JNIEnv*, jobject, jint jit_mode, jint code_cache_mb) {
+    Settings::values.storm_jit_mode = static_cast<u32>(std::clamp<int>(jit_mode, 0, 2));
+    Settings::values.storm_jit_cache_mb =
+        code_cache_mb <= 0 ? 0u : static_cast<u32>(std::clamp<int>(code_cache_mb, 32, 128));
+}
+
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setCustomScreenLayout(
     JNIEnv*, jobject, jboolean is_portrait, jint top_x, jint top_y, jint top_w, jint top_h,
     jint bot_x, jint bot_y, jint bot_w, jint bot_h, jint second_layer_opacity) {

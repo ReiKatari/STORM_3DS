@@ -56,10 +56,10 @@
     <string name="v794_cat_main_app_system">Интерфейс и сведения</string>
     <string name="v794_cat_video_depth_color">Глубина 3D, эффекты и цвет</string>
     <string name="v794_video_quick_profile_title">Быстрые профили графики</string>
-    <string name="v794_video_quick_profile_summary">Один клик для переключения между производительностью, балансом и ультра качеством</string>
+    <string name="v794_video_quick_profile_summary">Готовые профили для слабых устройств, производительности, баланса и ультра качества 3DS</string>
     <string name="v794_video_preset_performance">Производительность (1x, Быстрый конвейер)</string>
     <string name="v794_video_preset_balanced">Баланс (2x, Линейная фильтрация)</string>
-    <string name="v794_video_preset_ultra">Ультра качество (4x, SSAO, 3D глубина)</string>
+    <string name="v794_video_preset_ultra">Ультра качество (4x, точные шейдеры)</string>
     <string name="v794_video_preset_applied">Графический профиль применён: %s</string>
     <string name="v794_cat_general_pause_menu">Меню паузы и инструменты</string>
     <string name="v794_audio_dsp_preset_title">Профили звука (DSP пресеты)</string>

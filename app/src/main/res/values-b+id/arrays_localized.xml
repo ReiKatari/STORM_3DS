@@ -87,4 +87,14 @@
         <item>⚔️ Ksatria Mulia / Meta Knight (Bariton Mantap)</item>
         <item>🕊️ Dewi / Malaikat Palutena (Kristal Suci)</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Akurat (Aman)</item>
+        <item>Cepat (Disarankan)</item>
+        <item>Turbo (Perangkat Lama/Lemah)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (Cepat / Disarankan)</item>
+        <item>LLE (Akurat 1-core)</item>
+        <item>LLE Multithread</item>
+    </string-array>
 </resources>

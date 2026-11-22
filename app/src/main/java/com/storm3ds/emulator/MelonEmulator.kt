@@ -117,6 +117,21 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.use_virtual_sd(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
 
+        val jitMode = (prefs.getString("3ds_jit_mode", "1") ?: "1").toIntOrNull()?.coerceIn(0, 2) ?: 1
+        val adaptiveCacheMb = runCatching {
+            val am = NativeBridgeHost.appContext.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            val mi = android.app.ActivityManager.MemoryInfo()
+            am?.getMemoryInfo(mi)
+            val totalMb = (mi.totalMem / (1024L * 1024L)).toInt()
+            when {
+                jitMode >= 2 -> 48
+                totalMb in 1..3200 -> 48
+                totalMb in 3201..6400 -> 64
+                else -> 96
+            }
+        }.getOrDefault(64)
+        runCatching { NativeLibrary.setStormJitOptions(jitMode, adaptiveCacheMb) }
+
         val isNew3ds = cfg.isNew3dsOverride ?: prefs.getBoolean("3ds_is_new_3ds", true)
         val cpuClock = (cfg.cpuClockPercentageOverride ?: (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull() ?: 100).coerceIn(25, 200)
         val regionVal = (prefs.getString("3ds_region_value", "-1") ?: "-1").toIntOrNull() ?: -1
@@ -129,12 +144,18 @@ object MelonEmulator {
         val useVulkan = cfg.rendererConfiguration.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN
         val resScale = cfg.rendererConfiguration.internalResolutionScaling.coerceIn(1, 10)
         val asyncShaders = prefs.getBoolean("video_async_shader_compilation", true)
+        val skipDupFrames = prefs.getBoolean("3ds_skip_duplicate_frames", false)
         val texFilter = (prefs.getString("video_texture_filter", "0") ?: "0").toIntOrNull()?.coerceIn(0, 5) ?: 0
         val hdTex = prefs.getBoolean("video_hd_textures_enabled", false)
         val dumpTex = prefs.getBoolean("video_dump_textures_enabled", false)
         val preloadTex = prefs.getBoolean("video_preload_textures_enabled", false)
 
         NativeLibrary.addDefaultSetting(SettingKeys.graphics_api(), if (useVulkan) "2" else "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.use_hw_shader(), "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.use_shader_jit(), "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.use_disk_shader_cache(), "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.async_presentation(), "1")
+        NativeLibrary.addDefaultSetting(SettingKeys.use_skip_duplicate_frames(), if (skipDupFrames) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.resolution_factor(), resScale.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.async_shader_compilation(), if (asyncShaders) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.filter_mode(), if (cfg.rendererConfiguration.videoFiltering.ordinal > 0) "1" else "0")
@@ -200,9 +221,41 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.render_3d_which_display(), whichDisplay)
         NativeLibrary.addDefaultSetting(SettingKeys.factor_3d(), factor3d.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.disable_right_eye_render(), if (disableRightEye) "1" else "0")
-        NativeLibrary.addDefaultSetting(SettingKeys.volume(), (cfg.volume.coerceIn(0, 512) / 256f).coerceIn(0f, 1f).toString())
-        NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), if (cfg.soundEnabled) "1" else "0")
-        runCatching { NativeLibrary.setMicrophoneInputType(inputType) }
+        val audioEmulation = (prefs.getString("3ds_audio_emulation", "0") ?: "0").toIntOrNull()?.coerceIn(0, 2) ?: 0
+        val realtimeAudio = prefs.getBoolean("3ds_realtime_audio", false)
+        NativeLibrary.addDefaultSetting(
+            SettingKeys.volume(),
+            if (cfg.soundEnabled) (cfg.volume.coerceIn(0, 512) / 256f).coerceIn(0f, 1f).toString() else "0",
+        )
+        NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), audioEmulation.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.enable_realtime_audio(), if (realtimeAudio) "1" else "0")
+        runCatching {
+            NativeLibrary.setAudioMuted(!cfg.soundEnabled)
+            NativeLibrary.setMicrophoneInputType(inputType)
+        }
+
+        val cameraSourcePref = prefs.getString("dsi_camera_source", "physical_cameras") ?: "physical_cameras"
+        val cameraDriver = when (cameraSourcePref) {
+            "black_screen" -> "blank"
+            "static_image" -> "image"
+            else -> "ndk"
+        }
+        NativeLibrary.addDefaultSetting(SettingKeys.camera_inner_name(), cameraDriver)
+        NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_left_name(), cameraDriver)
+        NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_right_name(), cameraDriver)
+        if (cameraDriver == "image") {
+            val rawUri = prefs.getString("dsi_camera_static_image", "").orEmpty()
+            val resolvedImg = if (rawUri.isNotBlank()) {
+                runCatching {
+                    NativeLibrary.resolveNativeOrContentPath(android.net.Uri.parse(rawUri)).removePrefix("!")
+                }.getOrDefault(rawUri)
+            } else ""
+            if (resolvedImg.isNotBlank()) {
+                NativeLibrary.addDefaultSetting(SettingKeys.camera_inner_config(), resolvedImg)
+                NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_left_config(), resolvedImg)
+                NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_right_config(), resolvedImg)
+            }
+        }
 
         val pretendoEnabled = prefs.getBoolean("3ds_pretendo_enabled", false)
         NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")

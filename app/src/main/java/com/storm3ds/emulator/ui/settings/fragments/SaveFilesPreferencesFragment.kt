@@ -75,12 +75,24 @@ class SaveFilesPreferencesFragment : BasePreferenceFragment(), PreferenceFragmen
             helper.bindPreferenceSummaryToValue(pref)
         }
 
+        findPreference<androidx.preference.Preference>("3ds_sdmc_saves_info")?.summary =
+            getString(
+                R.string.pref_3ds_sdmc_saves_summary_path,
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/sdmc/Nintendo 3DS",
+            )
+
         updateAutoLoadStateSummary()
     }
 
     override fun onResume() {
         super.onResume()
         syncSramDirVisibility(useRomDirPref?.isChecked ?: false)
+        findPreference<androidx.preference.Preference>("3ds_sdmc_saves_info")?.summary =
+            getString(
+                R.string.pref_3ds_sdmc_saves_summary_path,
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/sdmc/Nintendo 3DS",
+            )
+
         updateAutoLoadStateSummary()
     }
 

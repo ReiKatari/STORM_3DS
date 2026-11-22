@@ -56,10 +56,10 @@
     <string name="v794_cat_main_app_system">Antarmuka dan Informasi</string>
     <string name="v794_cat_video_depth_color">Kedalaman 3D, Efek dan Warna</string>
     <string name="v794_video_quick_profile_title">Profil Grafis Cepat</string>
-    <string name="v794_video_quick_profile_summary">Beralih cepat antara Performa, Seimbang, dan Kualitas Ultra</string>
+    <string name="v794_video_quick_profile_summary">Preset sekali ketuk untuk Perangkat Lemah, Performa, Seimbang, dan Ultra 3DS</string>
     <string name="v794_video_preset_performance">Performa (1x, Jalur Cepat)</string>
     <string name="v794_video_preset_balanced">Seimbang (2x, Pemfilteran Linear)</string>
-    <string name="v794_video_preset_ultra">Kualitas Ultra (4x, SSAO, Kedalaman 3D)</string>
+    <string name="v794_video_preset_ultra">Kualitas Ultra (4x, Shader Akurat)</string>
     <string name="v794_video_preset_applied">Profil grafis diterapkan: %s</string>
     <string name="v794_cat_general_pause_menu">Menu Jeda dan Alat</string>
     <string name="v794_audio_dsp_preset_title">Profil Audio (Preset DSP)</string>

@@ -81,16 +81,15 @@ class EmulatorLaunchValidatorDelegate(
 
     private fun showIncorrectConfigurationDirectoryDialogForFirmware(configurationDirResult: ConfigurationDirResult) {
         AlertDialog.Builder(context)
-            .setTitle(R.string.firmware_launch_failed)
-            .setMessage(R.string.firmware_launch_bad_setup)
-            .setPositiveButton(R.string.settings) { _, _ ->
-                val intent = Intent(context, SettingsActivity::class.java).apply {
-                    putExtra(SettingsActivity.KEY_ENTRY_POINT, SettingsActivity.CUSTOM_FIRMWARE_ENTRY_POINT)
-                }
-                firmwareSettingsLauncher.launch(intent)
+            .setTitle(R.string.home_menu_3ds_not_installed_title)
+            .setMessage(R.string.home_menu_3ds_not_installed_message)
+            .setPositiveButton(R.string.home_menu_3ds_open_setup) { _, _ ->
+                com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(context)
+                callback.onValidationAborted()
             }
-            .setNeutralButton(R.string.delete_bios_paths) { _, _ ->
-                viewModel.clearBiosDirectoriesAndRetry()
+            .setNeutralButton(R.string.action_install_cia) { _, _ ->
+                (context as? com.storm3ds.emulator.ui.romlist.RomListActivity)?.openCiaInstaller()
+                callback.onValidationAborted()
             }
             .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
             .setOnCancelListener { callback.onValidationAborted() }
@@ -100,12 +99,10 @@ class EmulatorLaunchValidatorDelegate(
     private fun showIncorrectConfigurationDirectoryDialogForRom(configurationDirResult: ConfigurationDirResult) {
         AlertDialog.Builder(context)
             .setTitle(R.string.rom_launch_failed)
-            .setMessage(R.string.rom_launch_custom_bios_firmware_bad_setup)
-            .setPositiveButton(R.string.settings) { _, _ ->
-                val intent = Intent(context, SettingsActivity::class.java).apply {
-                    putExtra(SettingsActivity.KEY_ENTRY_POINT, SettingsActivity.CUSTOM_FIRMWARE_ENTRY_POINT)
-                }
-                firmwareSettingsLauncher.launch(intent)
+            .setMessage(R.string.home_menu_3ds_not_installed_message)
+            .setPositiveButton(R.string.home_menu_3ds_open_setup) { _, _ ->
+                com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(context)
+                callback.onValidationAborted()
             }
             .setNegativeButton(R.string.cancel) { _, _ -> callback.onValidationAborted() }
             .setOnCancelListener { callback.onValidationAborted() }

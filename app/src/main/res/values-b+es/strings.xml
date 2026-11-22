@@ -193,7 +193,7 @@
     <string name="save_internal_config_as_file">Guardar configuración interna como archivo</string>
     <string name="save_internal_config_as_file_summary">Mantiene STORM 3DS.opts sincronizado en el directorio de archivos de guardado, o en una ruta de ROMs si no hay directorio de guardado configurado.</string>
     <string name="system_app_log_file_enabled">Escribir log de la app en la carpeta de ROMs</string>
-    <string name="system_app_log_file_enabled_summary">Crea melonDualLog.log en la primera carpeta de ROMs y registra líneas logcat de app, nativo y core para depurar. Actívalo solo mientras reproduces un problema.</string>
+    <string name="system_app_log_file_enabled_summary">Activado por defecto: guarda STORM_3DS.log en STORM 3DS/logs/ para diagnóstico e informes.</string>
     <string name="backup_settings">Respaldar ajustes</string>
     <string name="restore_settings">Restaurar ajustes</string>
     <string name="settings_backup_success">Respaldo de ajustes creado.\n\nSe omitieron:\n• Token de sesión de RetroAchievements\n• Directorios de búsqueda de ROMs\n• Directorio de DS BIOS\n• Directorio de DSi BIOS</string>
@@ -222,8 +222,8 @@
     <string name="category_video">Vídeo</string>
     <string name="category_video_summary">Filtro, renderizado de subprocesos, contador de FPS</string>
     <string name="filter">Filtro</string>
-    <string name="dsi_camera_source">Fuente de cámara DSi</string>
-    <string name="dsi_camera_image">Imagen de cámara DSi</string>
+    <string name="dsi_camera_source">Origen de cámara Nintendo 3DS</string>
+    <string name="dsi_camera_image">Imagen estática de cámara 3DS</string>
     <string name="category_audio">Audio</string>
     <string name="category_audio_summary">Volumen, latencia, fuente de micrófono</string>
     <string name="enable_sound">Activar sonido</string>
@@ -290,7 +290,7 @@
     <string name="import_cheats">Importar trucos</string>
     <string name="import_cheats_summary">Importar trucos desde archivos de base de datos para tenerlos disponibles. Por ahora, solo se admiten bases de datos en formato XML. Cualquier truco previamente importado se eliminará</string>
     <string name="rom_shortcut">Acceso directo de la ROM</string>
-    <string name="firmware_nickname">Apodo</string>
+    <string name="firmware_nickname">Apodo 3DS</string>
     <string name="firmware_message">Mensaje</string>
     <string name="firmware_language">Idioma</string>
     <string name="firmware_favourite_colour">Color favorito</string>
@@ -966,7 +966,7 @@
     <string name="layout_auto_rotate">Giro automático (sensor)</string>
     <string name="layout_open_editor">Editor de diseños</string>
     <string name="toast_layout_applied">Diseño: %1$s</string>
-    <string name="input_group_console">Controles de la consola</string>
+    <string name="input_group_console">Controles de Nintendo 3DS</string>
     <string name="input_group_hotkeys">Teclas rápidas y atajos</string>
     <string name="custom_layout_default_name">Mi diseño</string>
     <string name="use_global_preference_with_value">Usar ajuste global (%1$s)</string>
@@ -983,7 +983,7 @@
     <string name="aspect_ratio_4_3">4:3 (Original)</string>
     <string name="aspect_ratio_16_9">16:9 (Panorámico)</string>
     <string name="aspect_ratio_unrestricted">Sin restricción</string>
-    <string name="keep_ds_ratio">Mantener relación de aspecto de DS</string>
+    <string name="keep_ds_ratio">Mantener relación de aspecto 3DS (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Preajustes</string>
     <string name="dual_screen_presets_settings_title">Preajustes de doble pantalla</string>
     <string name="dual_screen_presets_summary">Preajuste: %1$s\nProporción DS: %2$s • Escala entera: %3$s\nAl. interna: %4$s • An. interno: %5$s\nAl. externa: %6$s • An. externo: %7$s</string>
@@ -1291,7 +1291,7 @@ Rechazos permanentes del servidor: %7$d.</string>
     <string name="translator_tts_neural_title">Voz neuronal en la nube (alta calidad)</string>
     <string name="translator_tts_neural_summary">Voces naturales y expresivas mediante red neuronal en streaming</string>
     <string name="video_console_skin_title">3D Animated Console Skin</string>
-    <string name="video_console_skin_summary">Marco realista de Nintendo 3DS Lite / DSi XL con indicadores LED activos de batería y Wi-Fi</string>
+    <string name="video_console_skin_summary">Carcasa auténtica de Nintendo 3DS / New 3DS XL / 2DS con indicadores LED</string>
     <string name="video_console_skin_type_title">Modelo y color de consola</string>
     <string name="video_oled_battery_saver_title">Smart OLED Battery Saver</string>
     <string name="video_oled_battery_saver_summary">Usa un fondo negro puro y desactiva la carcasa de la consola para ahorrar batería en pantallas OLED</string>

@@ -49,25 +49,11 @@
     </item>
 
     <item
-        android:id="@+id/action_boot_firmware"
-        android:title="@string/action_boot_firmware"
+        android:id="@+id/action_boot_firmware_ds"
+        android:title="@string/action_boot_3ds_home_menu"
         android:icon="@drawable/ic_firmware"
         android:orderInCategory="3"
-        app:showAsAction="ifRoom">
-
-        <menu>
-            <item
-                android:id="@+id/action_boot_firmware_ds"
-                android:title="@string/action_boot_firmware_ds"
-                android:orderInCategory="1" />
-
-            <item
-                android:id="@+id/action_boot_firmware_dsi"
-                android:title="@string/action_boot_firmware_dsi"
-                android:visible="false"
-                android:orderInCategory="1" />
-        </menu>
-    </item>
+        app:showAsAction="ifRoom" />
 
         <item
         android:id="@+id/action_install_cia"

@@ -182,7 +182,7 @@
     <string name="import_cheats">Importar cheats (trapaças)</string>
     <string name="import_cheats_summary">Importe cheats (trapaças) de arquivos de bancos de dados para disponibilizá-los. Apenas bancos de dados XML são suportados por enquanto. Qualquer cheat (trapaça) previamente importado será deletado.</string>
     <string name="rom_shortcut">Atalho da ROM</string>
-    <string name="firmware_nickname">Apelido</string>
+    <string name="firmware_nickname">Apelido do 3DS</string>
     <string name="firmware_message">Mensagem</string>
     <string name="firmware_language">Idioma</string>
     <string name="firmware_favourite_colour">Cor favorita</string>
@@ -628,7 +628,7 @@
     <string name="save_internal_config_as_file">Salvar configuração interna como arquivo</string>
     <string name="save_internal_config_as_file_summary">Mantém o arquivo STORM 3DS.opts sincronizado no diretório de salvamento ou em um diretório de ROM.</string>
     <string name="system_app_log_file_enabled">Gravar log do aplicativo na pasta de ROMs</string>
-    <string name="system_app_log_file_enabled_summary">Cria o arquivo melonDualLog.log na primeira pasta de ROMs e grava linhas do logcat para depuração.</string>
+    <string name="system_app_log_file_enabled_summary">Ativado por padrão: grava STORM_3DS.log em STORM 3DS/logs/ para diagnóstico.</string>
     <string name="system_dldi_sd_card_enabled">Enable DLDI / Homebrew SD</string>
     <string name="system_dldi_sd_card_enabled_summary">Mounts a virtual SD card for DLDI homebrew. Needed by apps like ZXDS.</string>
     <string name="system_dldi_sd_card_dir">DLDI SD folder</string>
@@ -725,13 +725,13 @@
     <string name="debug_3d_clear_magenta_summary">Se as frestas ficarem magenta, são lacunas de cobertura. Apenas para depuração.</string>
     <string name="internal_resolution">Resolução interna</string>
     <string name="renderer">Renderizador</string>
-    <string name="dsi_camera_source">Fonte da câmera DSi</string>
+    <string name="dsi_camera_source">Fonte da câmera Nintendo 3DS</string>
     <string name="external_screen_layout">Layout da tela externa</string>
     <string name="external_display_screen">Tela de exibição externa</string>
     <string name="external_display_mode">Modo de tela externa</string>
     <string name="external_display_rotate_left">Girar conteúdo da tela externa para a esquerda</string>
     <string name="refresh_external_screen">Atualizar tela externa</string>
-    <string name="dsi_camera_image">Imagem da câmera DSi</string>
+    <string name="dsi_camera_image">Imagem estática da câmera 3DS</string>
     <string name="internal_screen_layout">Layout da tela interna</string>
     <string name="input_refresh_external_screen">Atualizar tela externa</string>
     <string name="quick_settings">Configurações rápidas</string>
@@ -833,7 +833,7 @@
     <string name="layout_auto_rotate">Rotação automática (sensor)</string>
     <string name="layout_open_editor">Editor de layout</string>
     <string name="toast_layout_applied">Layout: %1$s</string>
-    <string name="input_group_console">Controles do console</string>
+    <string name="input_group_console">Controles do Nintendo 3DS</string>
     <string name="input_group_hotkeys">Teclas de atalho e ações rápidas</string>
     <string name="custom_layout_default_name">Meu layout</string>
     <string name="use_global_preference">Usar configuração global</string>
@@ -852,7 +852,7 @@
     <string name="aspect_ratio_4_3">4:3 (Original)</string>
     <string name="aspect_ratio_16_9">16:9 (Widescreen)</string>
     <string name="aspect_ratio_unrestricted">Sem restrição</string>
-    <string name="keep_ds_ratio">Manter proporção do DS</string>
+    <string name="keep_ds_ratio">Manter proporção da tela 3DS (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Predefinições</string>
     <string name="dual_screen_presets_settings_title">Predefinições de tela dupla</string>
     <string name="dual_screen_presets_summary">Predefinição: %1$s\nProporção DS: %2$s • Escala inteira: %3$s\nA interna: %4$s • L interna: %5$s\nA externa: %6$s • L externa: %7$s</string>
@@ -1272,7 +1272,7 @@ Importá-los para o STORM 3DS?</string>
     <string name="translator_tts_neural_title">Voz neural na nuvem (alta qualidade)</string>
     <string name="translator_tts_neural_summary">Vozes naturais e expressivas por meio de rede neural via streaming</string>
     <string name="video_console_skin_title">3D Animated Console Skin</string>
-    <string name="video_console_skin_summary">Moldura realista de Nintendo 3DS Lite / DSi XL com LEDs ativos de bateria e Wi-Fi</string>
+    <string name="video_console_skin_summary">Carcaça realista do Nintendo 3DS / New 3DS XL / 2DS com LEDs de status</string>
     <string name="video_console_skin_type_title">Modelo e cor do console</string>
     <string name="video_oled_battery_saver_title">Smart OLED Battery Saver</string>
     <string name="video_oled_battery_saver_summary">Usa um fundo preto puro e desativa a skin do console para economizar bateria em telas OLED</string>

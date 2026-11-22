@@ -106,4 +106,14 @@
         <item>Vulkan</item>
         <item>Cómputo</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Preciso (seguro)</item>
+        <item>Rápido (recomendado)</item>
+        <item>Turbo (equipos básicos/antiguos)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (Rápido / Recomendado)</item>
+        <item>LLE (Preciso, 1 hilo)</item>
+        <item>LLE multihilo</item>
+    </string-array>
 </resources>

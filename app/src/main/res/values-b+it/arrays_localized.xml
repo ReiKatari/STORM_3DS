@@ -99,4 +99,14 @@
         <item>⚔️ Nobile Cavaliere / Meta Knight (Baritono fermo)</item>
         <item>🕊️ Dea / Angelo Palutena (Cristallino sacro)</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Accurato (sicuro)</item>
+        <item>Veloce (consigliato)</item>
+        <item>Turbo (dispositivi vecchi/lenti)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (Veloce / Consigliato)</item>
+        <item>LLE (Accurato single-core)</item>
+        <item>LLE multithread</item>
+    </string-array>
 </resources>

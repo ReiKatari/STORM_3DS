@@ -39,4 +39,14 @@
         <item>⚔️ Благородный рыцарь / Мета Найт (Твердый баритон)</item>
         <item>🕊️ Богиня / Ангел Палютена (Священный кристальный)</item>
     </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Точный (безопасный)</item>
+        <item>Быстрый (рекомендуется)</item>
+        <item>Турбо (слабые и старые устройства)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (быстрый / рекомендуется)</item>
+        <item>LLE (точный, 1 поток)</item>
+        <item>LLE (многопоточный)</item>
+    </string-array>
 </resources>

@@ -3,28 +3,12 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <SwitchPreference
-            android:key="use_rom_dir"
-            android:title="@string/save_next_rom"
+    <Preference
+            android:key="3ds_sdmc_saves_info"
+            android:title="@string/pref_3ds_sdmc_saves_title"
+            android:summary="@string/pref_3ds_sdmc_saves_summary"
             app:iconSpaceReserved="false"
-            android:defaultValue="false"
-            android:disableDependentsState="true" />
-
-    <com.storm3ds.emulator.ui.settings.preferences.SavesDirectoryPickerPreference
-            android:key="sram_dir"
-            android:title="@string/save_file_directory"
-            android:dependency="use_rom_dir"
-            app:iconSpaceReserved="false"
-            app:type="directory"
-            app:permissions="read_write"
-            app:persistPermissions="true" />
-
-    <SwitchPreference
-            android:key="save_file_use_srm_extension"
-            android:title="@string/save_file_use_srm_extension"
-            android:summary="@string/save_file_use_srm_extension_summary"
-            android:defaultValue="false"
-            app:iconSpaceReserved="false" />
+            android:persistent="false" />
 
     <ListPreference
             android:key="save_state_location"

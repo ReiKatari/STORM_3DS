@@ -701,4 +701,24 @@
         <item>hold_l</item>
         <item>hold_r</item>
     </string-array>
+    <string-array name="jit_perf_mode_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="jit_perf_mode_options">
+        <item>Accurate (Safe)</item>
+        <item>Fast (Recommended)</item>
+        <item>Turbo (Weak &amp; Old Devices)</item>
+    </string-array>
+    <string-array name="audio_emulation_3ds_options">
+        <item>HLE (Fast / Recommended)</item>
+        <item>LLE (Single-core Accurate)</item>
+        <item>LLE Multithreaded</item>
+    </string-array>
 </resources>

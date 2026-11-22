@@ -56,10 +56,10 @@
     <string name="v794_cat_main_app_system">界面与信息</string>
     <string name="v794_cat_video_depth_color">3D深度、特效与色彩</string>
     <string name="v794_video_quick_profile_title">快捷图形预设</string>
-    <string name="v794_video_quick_profile_summary">一键在性能、平衡与极致画质间切换</string>
+    <string name="v794_video_quick_profile_summary">一键切换低配设备、性能、均衡与高画质 3DS 预设</string>
     <string name="v794_video_preset_performance">性能 (1x, 快速管线)</string>
     <string name="v794_video_preset_balanced">平衡 (2x, 线性过滤)</string>
-    <string name="v794_video_preset_ultra">极致画质 (4x, SSAO, 3D深度)</string>
+    <string name="v794_video_preset_ultra">极致画质 (4x, 精确着色器)</string>
     <string name="v794_video_preset_applied">已应用图形预设：%s</string>
     <string name="v794_cat_general_pause_menu">暂停菜单与工具</string>
     <string name="v794_audio_dsp_preset_title">音频配置文件 (DSP预设)</string>

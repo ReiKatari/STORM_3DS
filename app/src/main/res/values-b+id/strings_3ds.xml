@@ -64,8 +64,8 @@
     <string name="frame_advance_plus_1">+1 Frame</string>
     <string name="input_c_stick">C-Stick</string>
     <string name="input_circle_pad">Circle Pad</string>
-    <string name="input_combo_1">Kombo 1</string>
-    <string name="input_combo_2">Kombo 2</string>
+    <string name="input_combo_1">Makro Kombo 1</string>
+    <string name="input_combo_2">Makro Kombo 2</string>
     <string name="input_home">HOME</string>
     <string name="input_slider_3d_depth">Penggeser Kedalaman 3D</string>
     <string name="input_zl">ZL</string>
@@ -261,4 +261,50 @@
     <string name="video_vulkan_3d_depth_mode_interlaced">Interlaced</string>
     <string name="video_vulkan_3d_depth_mode_reverse_interlaced">Interlaced Terbalik</string>
     <string name="video_vulkan_3d_depth_mode_sbs_full">Berdampingan (Penuh)</string>
+    <string name="action_boot_3ds_home_menu">Buka Menu HOME 3DS</string>
+    <string name="home_menu_3ds_not_installed_title">Menu HOME 3DS belum terpasang</string>
+    <string name="home_menu_3ds_not_installed_message">Game Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) berjalan langsung tanpa BIOS atau Menu HOME. Untuk membuka Menu HOME 3DS, instal arsip sistem 3DS (.cia) atau sambungkan Artic Base, serta letakkan boot9.bin / aes_keys.txt di STORM 3DS/sysdata untuk dump terenkripsi.</string>
+    <string name="home_menu_3ds_open_setup">Kunci &amp; Pengaturan 3DS</string>
+    <string name="pref_3ds_jit_mode_title">Profil Optimasi ARM11 JIT</string>
+    <string name="pref_3ds_low_end_preset_title">Optimalkan untuk Perangkat Lama &amp; Lemah</string>
+    <string name="pref_3ds_low_end_preset_summary">Mengaktifkan Turbo ARM11 JIT, clock CPU 75%, resolusi 1x, lewati frame ganda, nonaktifkan mata kanan, hack FMV &amp; audio HLE untuk FPS maksimal</string>
+    <string name="pref_3ds_low_end_preset_applied">Profil kecepatan perangkat lemah diterapkan (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_profile_nand_cat">Profil 3DS, Berkas Sistem &amp; Jaringan</string>
+    <string name="pref_3ds_system_profile_title">Profil Sistem Nintendo 3DS</string>
+    <string name="pref_3ds_system_profile_summary">Nama 3DS, tanggal lahir, Play Coins (0-300), alamat MAC &amp; ID Konsol</string>
+    <string name="pref_3ds_check_system_files_title">Periksa Berkas Sistem 3DS &amp; NAND</string>
+    <string name="pref_3ds_check_system_files_summary">Periksa boot9.bin, aes_keys.txt, seeddb.bin, Menu HOME 3DS dan folder SDMC</string>
+    <string name="pref_3ds_system_files_report">Data STORM 3DS: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+Menu HOME 3DS: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">Nama Pengguna 3DS</string>
+    <string name="pref_3ds_play_coins_title">Play Coins 3DS</string>
+    <string name="pref_3ds_play_coins_summary">Jumlah koin yang tersimpan di NAND 3DS emulasi (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">Buat Ulang ID Konsol 3DS</string>
+    <string name="pref_3ds_regenerate_console_id_summary">Membuat identitas konsol Nintendo 3DS acak baru di NAND</string>
+    <string name="pref_3ds_console_id_regenerated">ID Konsol 3DS dibuat ulang di NAND</string>
+    <string name="pref_3ds_audio_emulation_title">Emulasi Audio DSP</string>
+    <string name="pref_3ds_realtime_audio_title">Sinkronisasi Audio Waktu Nyata</string>
+    <string name="pref_3ds_realtime_audio_summary">Menyesuaikan irama audio langsung ke kecepatan frame 3DS emulasi</string>
+    <string name="pref_3ds_sdmc_saves_title">Folder Simpanan Nintendo 3DS (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">Data simpanan game 3DS dikelola otomatis di STORM 3DS/sdmc/Nintendo 3DS/</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">Jalur aktif: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">Lewati Frame Duplikat</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">Mengurangi beban GPU di game 3DS 30 FPS pada perangkat lebih lambat</string>
+    <string name="v794_video_preset_weak_devices">Perangkat Lama &amp; Lemah (Turbo JIT, 1x)</string>
+    <string name="input_group_face_dpad">Tombol Aksi &amp; D-Pad</string>
+    <string name="input_group_shoulders_system">Tombol Bahu &amp; Sistem 3DS</string>
+    <string name="input_3ds_analog_sticks_title">Circle Pad &amp; C-Stick</string>
+    <string name="input_3ds_analog_sticks_summary">Stik kiri otomatis mengontrol Circle Pad 3DS; stik kanan mengontrol C-Stick New 3DS.</string>
+    <string name="setup_3ds_pretendo_summary">Mengarahkan layanan daring Nintendo 3DS ke Pretendo / Nimbus (api.pretendo.cc)</string>
+    <string name="setup_3ds_accurate_mul_summary">Meningkatkan akurasi shader pada beberapa game; matikan untuk FPS lebih tinggi</string>
+    <string name="setup_3ds_disable_right_eye_summary">Melewati rendering mata kedua saat kedalaman 3D dimatikan (+FPS)</string>
+    <string name="setup_3ds_key_ok">Ditemukan (OK)</string>
+    <string name="setup_3ds_key_missing">Tidak ada</string>
 </resources>

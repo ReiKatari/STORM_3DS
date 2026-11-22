@@ -413,7 +413,7 @@
     <string name="save_internal_config_as_file">内部設定をファイルとして保存</string>
     <string name="save_internal_config_as_file_summary">セーブデータディレクトリ（設定されていない場合はROMディレクトリ）内のSTORM 3DS.optsと同期を維持します。</string>
     <string name="system_app_log_file_enabled">アプリログをROMフォルダに出力</string>
-    <string name="system_app_log_file_enabled_summary">最初のROMフォルダにmelonDualLog.logを作成し、デバッグ用にアプリ、ネイティブコードおよびコアのlogcat行を記録します。問題を再現する時のみ有効にしてください。</string>
+    <string name="system_app_log_file_enabled_summary">既定で有効：診断用ログ STORM_3DS.log を STORM 3DS/logs/ フォルダへ記録します。</string>
     <string name="system_dldi_sd_card_enabled">Nintendo 3DS SDカードを有効化</string>
     <string name="system_dldi_sd_card_enabled_summary">仮想Slot-1フラッシュカードのSDカード（Nintendo 3DS）をエミュレート</string>
     <string name="system_dldi_sd_card_dir">Nintendo 3DS SDカードフォルダ</string>
@@ -516,13 +516,13 @@
     <string name="filter">フィルター</string>
     <string name="internal_resolution">内部解像度</string>
     <string name="renderer">レンダラー</string>
-    <string name="dsi_camera_source">DSiカメラ入力元</string>
+    <string name="dsi_camera_source">Nintendo 3DS カメラソース</string>
     <string name="external_screen_layout">外部画面レイアウト</string>
     <string name="external_display_screen">外部ディスプレイ画面</string>
     <string name="external_display_mode">外部ディスプレイモード</string>
     <string name="external_display_rotate_left">外部画面の表示を左に回転</string>
     <string name="refresh_external_screen">外部画面を更新</string>
-    <string name="dsi_camera_image">DSiカメラ画像</string>
+    <string name="dsi_camera_image">3DSカメラ用静止画像</string>
     <string name="internal_screen_layout">内蔵画面レイアウト</string>
     <string name="input_refresh_external_screen">外部画面を更新</string>
     <string name="quick_settings">クイック設定</string>
@@ -609,7 +609,7 @@
     <string name="import_cheats">チートをインポート</string>
     <string name="import_cheats_summary">データベースファイルからチートをインポートして利用可能にします。現在はXMLデータベースのみ対応しています。過去にインポートしたチートは削除されます。</string>
     <string name="rom_shortcut">ROMショートカット</string>
-    <string name="firmware_nickname">ニックネーム</string>
+    <string name="firmware_nickname">3DSニックネーム</string>
     <string name="firmware_message">メッセージ</string>
     <string name="firmware_language">言語</string>
     <string name="firmware_favourite_colour">お気に入りの色</string>
@@ -703,7 +703,7 @@
     <string name="layout_auto_rotate">自動回転 (センサー連動)</string>
     <string name="layout_open_editor">レイアウトエディタ</string>
     <string name="toast_layout_applied">レイアウト: %1$s</string>
-    <string name="input_group_console">本体の操作ボタン</string>
+    <string name="input_group_console">Nintendo 3DS コントロール</string>
     <string name="input_group_hotkeys">ホットキーとショートカット</string>
     <string name="layouts">レイアウト</string>
     <string name="layouts_summary">カスタムレイアウト設定を管理</string>
@@ -732,7 +732,7 @@
     <string name="aspect_ratio_4_3">4:3 (オリジナル)</string>
     <string name="aspect_ratio_16_9">16:9 (ワイドスクリーン)</string>
     <string name="aspect_ratio_unrestricted">無制限</string>
-    <string name="keep_ds_ratio">DSのアスペクト比を維持</string>
+    <string name="keep_ds_ratio">3DSのアスペクト比を維持 (5:3 / 4:3)</string>
     <string name="dual_screen_presets">プリセット</string>
     <string name="dual_screen_presets_settings_title">デュアルスクリーンプリセット</string>
     <string name="dual_screen_presets_summary">プリセット: %1$s\nDS比率維持: %2$s • 整数スケーリング: %3$s\n内蔵 縦: %4$s • 内蔵 横: %5$s\n外部 縦: %6$s • 外部 横: %7$s</string>
@@ -1154,7 +1154,7 @@
     <string name="translator_tts_neural_title">ニューラルクラウドTTS (高音質)</string>
     <string name="translator_tts_neural_summary">ストリーミングニューラルネットワークによる自然で表情豊かな声優ボイス</string>
     <string name="video_console_skin_title">3Dアニメーション本体スキン</string>
-    <string name="video_console_skin_summary">アクティブなバッテリーおよびWi-Fi LEDを備えたリアルなNintendo 3DS Lite / DSi XLフレームベゼル</string>
+    <string name="video_console_skin_summary">電源・3D LED表示付きのリアルな Nintendo 3DS / New 3DS XL / 2DS スキン</string>
     <string name="video_console_skin_type_title">本体モデルとカラー</string>
     <string name="video_oled_battery_saver_title">スマートOLED省電力</string>
     <string name="video_oled_battery_saver_summary">OLED画面での節電のため、純黒の背景を使用し、本体スキンを無効にします</string>

@@ -1,67 +1,127 @@
 package com.storm3ds.emulator.ui.settings.fragments
 
 import android.os.Bundle
+import android.widget.Toast
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
-import androidx.preference.PreferenceFragmentCompat
-import dagger.hilt.android.AndroidEntryPoint
+import androidx.preference.SeekBarPreference
+import com.storm3ds.emulator.NativeCoreLoader
 import com.storm3ds.emulator.R
-import com.storm3ds.emulator.common.DirectoryAccessValidator
-import com.storm3ds.emulator.common.UriPermissionManager
-import com.storm3ds.emulator.ui.settings.PreferenceFragmentHelper
+import com.storm3ds.emulator.nativebridge.utils.SystemSaveGame
 import com.storm3ds.emulator.ui.settings.PreferenceFragmentTitleProvider
-import javax.inject.Inject
+import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class FirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitleProvider {
-    private val helper by lazy { PreferenceFragmentHelper(this, uriPermissionManager, directoryAccessValidator) }
-    @Inject lateinit var uriPermissionManager: UriPermissionManager
-    @Inject lateinit var directoryAccessValidator: DirectoryAccessValidator
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.pref_internal_firmware_settings, rootKey)
-        helper.bindPreferenceSummaryToValue(findPreference("firmware_settings_birthday"))
 
+        val coreLoaded = runCatching {
+            NativeCoreLoader.load()
+            com.storm3ds.emulator.nativebridge.NativeLibrary.setUserDirectory(
+                com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(),
+            )
+            SystemSaveGame.load()
+            true
+        }.getOrDefault(false)
+
+        val nicknamePref = findPreference<EditTextPreference>("firmware_settings_nickname")
+        val birthdayPref = findPreference<Preference>("firmware_settings_birthday")
+        val coinsPref = findPreference<SeekBarPreference>("3ds_play_coins")
         val macPref = findPreference<Preference>("internal_mac_address")
-        val prefs = preferenceManager.sharedPreferences
-        if (prefs?.getString("internal_mac_address", null).isNullOrBlank()) {
-            val defaultMac = com.storm3ds.emulator.domain.model.MacAddress.randomDsAddress().toString()
-            prefs?.edit()?.putString("internal_mac_address", defaultMac)?.apply()
-        }
-        macPref?.summary = prefs?.getString("internal_mac_address", null) ?: getString(R.string.not_set)
+        val regenMacPref = findPreference<Preference>("internal_randomize_mac")
+        val regenIdPref = findPreference<Preference>("3ds_regenerate_console_id")
 
-        macPref?.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
-            val macStr = (newValue as? String)?.trim() ?: return@OnPreferenceChangeListener false
-            if (!isValidMacAddress(macStr)) {
-                android.widget.Toast.makeText(requireContext(), R.string.v780_mac_invalid_format, android.widget.Toast.LENGTH_SHORT).show()
-                false
-            } else {
-                val formatted = formatMacAddress(macStr)
-                preferenceManager.sharedPreferences?.edit()?.putString("internal_mac_address", formatted)?.apply()
-                macPref.summary = formatted
-                false
+        if (coreLoaded) {
+            runCatching {
+                val curName = SystemSaveGame.getUsername()
+                if (curName.isNotBlank()) {
+                    nicknamePref?.text = curName
+                    nicknamePref?.summary = curName
+                }
+                val bday = SystemSaveGame.getBirthday()
+                if (bday.size >= 2 && bday[0] > 0 && bday[1] > 0) {
+                    val bdayStr = "%02d/%02d".format(bday[1].toInt(), bday[0].toInt())
+                    birthdayPref?.summary = bdayStr
+                    preferenceManager.sharedPreferences?.edit()?.putString("firmware_settings_birthday", bdayStr)?.apply()
+                }
+                val curCoins = SystemSaveGame.getPlayCoins().coerceIn(0, 300)
+                coinsPref?.value = curCoins
+                macPref?.summary = SystemSaveGame.getMac().ifBlank { getString(R.string.not_set) }
             }
+        } else {
+            macPref?.summary = preferenceManager.sharedPreferences?.getString("internal_mac_address", null) ?: getString(R.string.not_set)
         }
 
-        findPreference<Preference>("internal_randomize_mac")?.setOnPreferenceClickListener {
-            val randomMac = com.storm3ds.emulator.domain.model.MacAddress.randomDsAddress().toString()
-            preferenceManager.sharedPreferences?.edit()?.putString("internal_mac_address", randomMac)?.apply()
-            macPref?.summary = randomMac
-            android.widget.Toast.makeText(requireContext(), getString(R.string.v780_mac_generated, randomMac), android.widget.Toast.LENGTH_SHORT).show()
+        nicknamePref?.setOnPreferenceChangeListener { _, newValue ->
+            val sanitized = (newValue as? String).orEmpty().trim().take(10)
+            if (sanitized.isBlank()) return@setOnPreferenceChangeListener false
+            if (coreLoaded) {
+                runCatching {
+                    SystemSaveGame.setUsername(sanitized)
+                    SystemSaveGame.save()
+                }
+            }
+            nicknamePref.summary = sanitized
             true
         }
 
-        hideDependentsWhenInactive("internal_randomize_mac_address", "internal_mac_address", "internal_randomize_mac", showWhenChecked = false)
+        birthdayPref?.setOnPreferenceChangeListener { _, newValue ->
+            val str = (newValue as? String).orEmpty()
+            val parts = str.split("/")
+            if (parts.size == 2) {
+                val first = parts[0].toIntOrNull()
+                val second = parts[1].toIntOrNull()
+                if (first != null && second != null && coreLoaded) {
+                    val month = (if (second in 1..12) second else first).coerceIn(1, 12).toShort()
+                    val day = (if (second in 1..12) first else second).coerceIn(1, 31).toShort()
+                    runCatching {
+                        SystemSaveGame.setBirthday(month, day)
+                        SystemSaveGame.save()
+                    }
+                }
+            }
+            birthdayPref.summary = str
+            true
+        }
+
+        coinsPref?.setOnPreferenceChangeListener { _, newValue ->
+            val coins = (newValue as? Int ?: 0).coerceIn(0, 300)
+            if (coreLoaded) {
+                runCatching {
+                    SystemSaveGame.setPlayCoins(coins)
+                    SystemSaveGame.save()
+                }
+            }
+            true
+        }
+
+        regenMacPref?.setOnPreferenceClickListener {
+            if (coreLoaded) {
+                runCatching {
+                    SystemSaveGame.regenerateMac()
+                    SystemSaveGame.save()
+                    val newMac = SystemSaveGame.getMac()
+                    macPref?.summary = newMac
+                    preferenceManager.sharedPreferences?.edit()?.putString("internal_mac_address", newMac)?.apply()
+                    Toast.makeText(requireContext(), getString(R.string.v780_mac_generated, newMac), Toast.LENGTH_SHORT).show()
+                }
+            }
+            true
+        }
+
+        regenIdPref?.setOnPreferenceClickListener {
+            if (coreLoaded) {
+                runCatching {
+                    SystemSaveGame.regenerateConsoleId()
+                    SystemSaveGame.save()
+                    Toast.makeText(requireContext(), R.string.pref_3ds_console_id_regenerated, Toast.LENGTH_SHORT).show()
+                }
+            }
+            true
+        }
     }
 
-    private fun isValidMacAddress(mac: String): Boolean {
-        val parts = mac.split(":", "-")
-        if (parts.size != 6) return false
-        return parts.all { it.length == 2 && it.toIntOrNull(16) != null }
-    }
-
-    private fun formatMacAddress(mac: String): String {
-        return mac.split(":", "-").joinToString(":") { it.uppercase() }
-    }
-
-    override fun getTitle() = getString(R.string.internal_firmware_settings)
+    override fun getTitle() = getString(R.string.pref_3ds_system_profile_title)
 }

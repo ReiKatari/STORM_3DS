@@ -177,8 +177,8 @@
     <string name="filter">Filtri</string>
     <string name="internal_resolution">Risoluzione interna</string>
     <string name="renderer">Renderer</string>
-    <string name="dsi_camera_source">Sorgente fotocamera DSi</string>
-    <string name="dsi_camera_image">Immagine fotocamera DSi</string>
+    <string name="dsi_camera_source">Sorgente fotocamera Nintendo 3DS</string>
+    <string name="dsi_camera_image">Immagine statica fotocamera 3DS</string>
     <string name="category_audio">Audio</string>
     <string name="category_audio_summary">Volume, ritardo audio, sorgente microfono</string>
     <string name="enable_sound">Abilita audio</string>
@@ -217,7 +217,7 @@
     <string name="import_cheats">Importa trucchi</string>
     <string name="import_cheats_summary">Importa trucchi da un database in modo da renderli disponibili. Al momento sono supportati solo i database XML. Tutti i trucchi importati in precedenza verranno cancellati.</string>
     <string name="rom_shortcut">Scorciatoia ROM</string>
-    <string name="firmware_nickname">Soprannome</string>
+    <string name="firmware_nickname">Soprannome 3DS</string>
     <string name="firmware_message">Messaggio</string>
     <string name="firmware_language">Lingua</string>
     <string name="firmware_favourite_colour">Colore preferito</string>
@@ -719,7 +719,7 @@
     <string name="save_internal_config_as_file">Salva configurazione interna come file</string>
     <string name="save_internal_config_as_file_summary">Mantiene STORM 3DS.opts sincronizzato nella directory dei salvataggi o in una directory ROM.</string>
     <string name="system_app_log_file_enabled">Scrivi il log dell\'app nella cartella ROM</string>
-    <string name="system_app_log_file_enabled_summary">Crea melonDualLog.log nella prima cartella ROM e registra le righe di logcat per il debug.</string>
+    <string name="system_app_log_file_enabled_summary">Attivo per impostazione predefinita: salva STORM_3DS.log in STORM 3DS/logs/ per la diagnostica.</string>
     <string name="system_dldi_sd_card_enabled">Enable DLDI / Homebrew SD</string>
     <string name="system_dldi_sd_card_enabled_summary">Mounts a virtual SD card for DLDI homebrew. Needed by apps like ZXDS.</string>
     <string name="system_dldi_sd_card_dir">DLDI SD folder</string>
@@ -898,7 +898,7 @@
     <string name="layout_auto_rotate">Rotazione automatica (sensore)</string>
     <string name="layout_open_editor">Editor dei layout</string>
     <string name="toast_layout_applied">Layout: %1$s</string>
-    <string name="input_group_console">Controlli della console</string>
+    <string name="input_group_console">Comandi Nintendo 3DS</string>
     <string name="input_group_hotkeys">Tasti rapidi e scorciatoie</string>
     <string name="use_global_preference">Usa impostazione globale</string>
     <string name="use_global_preference_with_value">Usa impostazione globale (%1$s)</string>
@@ -916,7 +916,7 @@
     <string name="aspect_ratio_4_3">4:3 (Originale)</string>
     <string name="aspect_ratio_16_9">16:9 (Widescreen)</string>
     <string name="aspect_ratio_unrestricted">Senza restrizioni</string>
-    <string name="keep_ds_ratio">Mantieni proporzioni DS</string>
+    <string name="keep_ds_ratio">Mantieni proporzioni schermo 3DS (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Preset</string>
     <string name="dual_screen_presets_settings_title">Preset doppio schermo</string>
     <string name="dual_screen_presets_summary">Preset: %1$s\nProporzioni DS: %2$s • Scala intera: %3$s\nA interna: %4$s • L interna: %5$s\nA esterna: %6$s • L esterna: %7$s</string>
@@ -1305,7 +1305,7 @@ Importarli in STORM 3DS?</string>
     <string name="translator_tts_neural_title">Sintesi vocale neurale cloud (alta qualità)</string>
     <string name="translator_tts_neural_summary">Voci naturali ed espressive tramite rete neurale in streaming</string>
     <string name="video_console_skin_title">3D Animated Console Skin</string>
-    <string name="video_console_skin_summary">Cornice realistica Nintendo 3DS Lite / DSi XL con LED attivi per batteria e Wi-Fi</string>
+    <string name="video_console_skin_summary">Scocca autentica Nintendo 3DS / New 3DS XL / 2DS con indicatori LED</string>
     <string name="video_console_skin_type_title">Modello e colore della console</string>
     <string name="video_oled_battery_saver_title">Smart OLED Battery Saver</string>
     <string name="video_oled_battery_saver_summary">Usa uno sfondo nero puro e disattiva la skin della console per risparmiare batteria sugli schermi OLED</string>

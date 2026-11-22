@@ -198,6 +198,7 @@ object NativeLibrary {
     external fun getAesKeyStatusMask(): Int
     external fun createBundleNative(outPath: String, mainFile: String, deps: Array<String>): Int
     external fun setLogFilterAndRegex(filter: String, regex: String)
+    external fun setStormJitOptions(jitMode: Int, codeCacheMb: Int)
     external fun setMicrophoneEnabled(enabled: Boolean)
     external fun setMicrophoneInputType(inputType: Int)
     external fun setAudioMuted(muted: Boolean)

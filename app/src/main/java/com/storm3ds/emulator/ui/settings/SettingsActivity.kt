@@ -190,7 +190,7 @@ class SettingsActivity :
 
         if (savedInstanceState == null) {
             val entryPoint = when (intent.extras?.getString(KEY_ENTRY_POINT)) {
-                CUSTOM_FIRMWARE_ENTRY_POINT -> CustomFirmwarePreferencesFragment::class
+                CUSTOM_FIRMWARE_ENTRY_POINT -> com.storm3ds.emulator.ui.settings.fragments.SystemPreferencesFragment::class
                 TRANSLATOR_ENTRY_POINT -> com.storm3ds.emulator.ui.settings.fragments.TranslatorPreferencesFragment::class
                 else -> MainPreferencesFragment::class
             }

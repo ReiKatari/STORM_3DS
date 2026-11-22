@@ -451,7 +451,7 @@
     <string name="save_internal_config_as_file">Save internal config as a file</string>
     <string name="save_internal_config_as_file_summary">Keeps STORM 3DS.opts synchronized in the save-file directory, or in a ROM directory when no save-file directory is configured.</string>
     <string name="system_app_log_file_enabled">Write app log to ROM folder</string>
-    <string name="system_app_log_file_enabled_summary">Creates melonDualLog.log in the first ROM folder and records app, native, and core logcat lines for debugging. Enable only while reproducing an issue.</string>
+    <string name="system_app_log_file_enabled_summary">Enabled by default: records STORM_3DS.log in STORM 3DS/logs/ for diagnostics and quick problem sharing.</string>
     <string name="system_dldi_sd_card_enabled">Enable Nintendo 3DS SD card</string>
     <string name="system_dldi_sd_card_enabled_summary">Emulate virtual Slot-1 flashcard SD card (Nintendo 3DS)</string>
     <string name="system_dldi_sd_card_dir">Nintendo 3DS SD card folder</string>
@@ -554,13 +554,13 @@
     <string name="filter">Filter</string>
     <string name="internal_resolution">Internal resolution</string>
     <string name="renderer">Renderer</string>
-    <string name="dsi_camera_source">DSi camera source</string>
+    <string name="dsi_camera_source">Nintendo 3DS Camera Source</string>
     <string name="external_screen_layout">External screen layout</string>
     <string name="external_display_screen">External display screen</string>
     <string name="external_display_mode">External display mode</string>
     <string name="external_display_rotate_left">Rotate external screen content left</string>
     <string name="refresh_external_screen">Refresh external screen</string>
-    <string name="dsi_camera_image">DSi camera image</string>
+    <string name="dsi_camera_image">3DS Camera Static Image</string>
     <string name="internal_screen_layout">Internal screen layout</string>
     <string name="input_refresh_external_screen">Refresh external screen</string>
     <string name="quick_settings">Quick settings</string>
@@ -648,8 +648,7 @@
     <string name="import_cheats">Import cheats</string>
     <string name="import_cheats_summary">Import Gateway 3DS (.txt) cheat files for your Nintendo 3DS games.</string>
     <string name="rom_shortcut">ROM shortcut</string>
-
-    <string name="firmware_nickname">Nickname</string>
+    <string name="firmware_nickname">3DS Nickname</string>
     <string name="firmware_message">Message</string>
     <string name="firmware_language">Language</string>
     <string name="firmware_favourite_colour">Favourite colour</string>
@@ -749,7 +748,7 @@
     <string name="layout_auto_rotate">Auto-rotate (sensor)</string>
     <string name="layout_open_editor">Layout editor</string>
     <string name="toast_layout_applied">Layout: %1$s</string>
-    <string name="input_group_console">Console controls</string>
+    <string name="input_group_console">Nintendo 3DS Controls</string>
     <string name="input_group_hotkeys">Hotkeys and shortcuts</string>
 
     <string name="layouts">Layouts</string>
@@ -780,7 +779,7 @@
     <string name="aspect_ratio_4_3">4:3 (Original)</string>
     <string name="aspect_ratio_16_9">16:9 (Widescreen)</string>
     <string name="aspect_ratio_unrestricted">Unrestricted</string>
-    <string name="keep_ds_ratio">Keep DS aspect ratio</string>
+    <string name="keep_ds_ratio">Keep 3DS aspect ratio (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Presets</string>
     <string name="dual_screen_presets_settings_title">Dual screen presets</string>
     <string name="dual_screen_presets_summary">Preset: %1$s\nKeep DS ratio: %2$s • Integer scale: %3$s\nInternal H: %4$s • Internal W: %5$s\nExternal H: %6$s • External W: %7$s</string>
@@ -1489,7 +1488,7 @@
     <string name="translator_tts_neural_title">Neural cloud TTS (high quality)</string>
     <string name="translator_tts_neural_summary">Natural sounding emotional actor voices via streaming neural network</string>
     <string name="video_console_skin_title">3D animated console skin</string>
-    <string name="video_console_skin_summary">Realistic Nintendo 3DS Lite / DSi XL bezel frame with active battery and Wi-Fi LEDs</string>
+    <string name="video_console_skin_summary">Authentic Nintendo 3DS / New 3DS XL / 2DS bezel skin with status LED indicators</string>
     <string name="video_console_skin_type_title">Console model and color</string>
     <string name="video_oled_battery_saver_title">Smart OLED battery saver</string>
     <string name="video_oled_battery_saver_summary">Uses a pure black #000000 background to save battery power on AMOLED and OLED screens</string>

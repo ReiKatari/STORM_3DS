@@ -56,10 +56,10 @@
     <string name="v794_cat_main_app_system">Interfaccia e informazioni</string>
     <string name="v794_cat_video_depth_color">Profondità 3D, effetti e colore</string>
     <string name="v794_video_quick_profile_title">Profili grafici rapidi</string>
-    <string name="v794_video_quick_profile_summary">Passa con un tocco tra Prestazioni, Bilanciato e Qualità Ultra</string>
+    <string name="v794_video_quick_profile_summary">Profili rapidi per dispositivi lenti, prestazioni, bilanciato e qualità ultra 3DS</string>
     <string name="v794_video_preset_performance">Prestazioni (1x, Pipeline rapida)</string>
     <string name="v794_video_preset_balanced">Bilanciato (2x, Filtro lineare)</string>
-    <string name="v794_video_preset_ultra">Qualità Ultra (4x, SSAO, Profondità 3D)</string>
+    <string name="v794_video_preset_ultra">Qualità ultra (4x, shader accurati)</string>
     <string name="v794_video_preset_applied">Profilo grafico applicato: %s</string>
     <string name="v794_cat_general_pause_menu">Menu di pausa e strumenti</string>
     <string name="v794_audio_dsp_preset_title">Profili audio (Preset DSP)</string>

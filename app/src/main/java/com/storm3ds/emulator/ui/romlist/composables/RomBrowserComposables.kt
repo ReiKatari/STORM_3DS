@@ -249,7 +249,7 @@ fun WatermelonLibraryHeader(
                             Text(stringResource(R.string.rom_list_random_rom))
                         }
                         DropdownMenuItem(onClick = { overflowOpen = false; onBootFirmwareDs() }) {
-                            Text(stringResource(R.string.action_boot_firmware_ds))
+                            Text(stringResource(R.string.action_boot_3ds_home_menu))
                         }
                         DropdownMenuItem(onClick = { overflowOpen = false; onRefresh() }) {
                             Text(stringResource(R.string.action_refresh_rom_list))

@@ -31,7 +31,7 @@ import com.storm3ds.emulator.R
 import com.storm3ds.emulator.ui.theme.LocalWatermelonColors
 import com.storm3ds.emulator.ui.theme.SpaceGrotesk
 
-private data class ButtonSwatchColors(
+internal data class ButtonSwatchColors(
     val capA: Pair<Color, Color>,
     val capB: Pair<Color, Color>,
     val capX: Pair<Color, Color>,
@@ -39,7 +39,7 @@ private data class ButtonSwatchColors(
     val glow: Color,
 )
 
-private fun resolveButtonSwatches(key: String): ButtonSwatchColors {
+internal fun resolveButtonSwatches(key: String): ButtonSwatchColors {
     fun solid(top: Long, bot: Long, glow: Long): ButtonSwatchColors {
         val p = Color(top) to Color(bot)
         return ButtonSwatchColors(p, p, p, p, Color(glow))

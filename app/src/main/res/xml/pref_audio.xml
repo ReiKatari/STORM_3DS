@@ -31,6 +31,24 @@
                 app:min="0"
                 android:max="512" />
 
+        <ListPreference
+                android:key="3ds_audio_emulation"
+                android:title="@string/pref_3ds_audio_emulation_title"
+                android:dependency="sound_enabled"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/audio_emulation_3ds_options"
+                android:entryValues="@array/audio_emulation_3ds_values"
+                android:defaultValue="0" />
+
+        <SwitchPreference
+                android:key="3ds_realtime_audio"
+                android:title="@string/pref_3ds_realtime_audio_title"
+                android:summary="@string/pref_3ds_realtime_audio_summary"
+                android:dependency="sound_enabled"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
         <SwitchPreference
                 android:key="3ds_audio_stretch"
                 android:title="@string/pref_3ds_audio_stretch_title"
@@ -38,28 +56,6 @@
                 android:dependency="sound_enabled"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
-
-        <ListPreference
-                android:key="audio_interpolation"
-                android:title="@string/interpolation"
-                android:dependency="sound_enabled"
-                android:summary="%s"
-                app:isPreferenceVisible="false"
-                app:iconSpaceReserved="false"
-                android:entries="@array/audio_interpolation_options"
-                android:entryValues="@array/audio_interpolation_values"
-                android:defaultValue="none" />
-
-        <ListPreference
-                android:key="audio_bitrate"
-                android:title="@string/bitrate"
-                android:dependency="sound_enabled"
-                android:summary="%s"
-                app:isPreferenceVisible="false"
-                app:iconSpaceReserved="false"
-                android:entries="@array/audio_bitrate_options"
-                android:entryValues="@array/audio_bitrate_values"
-                android:defaultValue="auto" />
 
         <ListPreference
                 android:key="audio_latency"

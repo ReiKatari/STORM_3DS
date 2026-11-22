@@ -67,13 +67,20 @@
                 android:defaultValue="true" />
 
         <ListPreference
-                android:key="arm9_overclock"
-                android:title="@string/arm9_overclock_title"
-                app:isPreferenceVisible="false"
+                android:key="3ds_jit_mode"
+                android:title="@string/pref_3ds_jit_mode_title"
+                app:useSimpleSummaryProvider="true"
                 app:iconSpaceReserved="false"
-                android:entries="@array/arm9_overclock_options"
-                android:entryValues="@array/arm9_overclock_values"
+                android:dependency="enable_storm_compiler"
+                android:entries="@array/jit_perf_mode_options"
+                android:entryValues="@array/jit_perf_mode_values"
                 android:defaultValue="1" />
+
+        <Preference
+                android:key="3ds_low_end_preset"
+                android:title="@string/pref_3ds_low_end_preset_title"
+                android:summary="@string/pref_3ds_low_end_preset_summary"
+                app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -95,7 +102,7 @@
                 android:title="@string/system_app_log_file_enabled"
                 android:summary="@string/system_app_log_file_enabled_summary"
                 app:iconSpaceReserved="false"
-                android:defaultValue="false" />
+                android:defaultValue="true" />
 
         <Preference
                 android:key="system_share_app_log"
@@ -112,51 +119,28 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-            android:title="@string/pref_cat_bios_firmware"
-            app:isPreferenceVisible="false"
+            android:title="@string/pref_3ds_profile_nand_cat"
             app:iconSpaceReserved="false">
 
         <Preference
                 android:key="internal_firmware_settings"
-                android:title="@string/internal_firmware_settings"
-                app:isPreferenceVisible="false"
+                android:title="@string/pref_3ds_system_profile_title"
+                android:summary="@string/pref_3ds_system_profile_summary"
                 app:iconSpaceReserved="false"
                 android:fragment="com.storm3ds.emulator.ui.settings.fragments.FirmwarePreferencesFragment" />
 
         <Preference
-                android:key="custom_bios_firmware"
-                android:title="@string/custom_bios_firmware"
-                app:isPreferenceVisible="false"
-                app:iconSpaceReserved="false"
-                android:fragment="com.storm3ds.emulator.ui.settings.fragments.CustomFirmwarePreferencesFragment" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-            android:title="@string/pref_cat_network_wfc"
-            app:isPreferenceVisible="false"
-            app:iconSpaceReserved="false">
-
-        <ListPreference
-                android:key="system_wfc_server"
-                android:title="@string/wfc_server_title"
-                app:isPreferenceVisible="false"
-                app:iconSpaceReserved="false"
-                android:defaultValue="none"
-                android:entries="@array/wfc_server_options"
-                android:entryValues="@array/wfc_server_values" />
-
-        <EditTextPreference
-                android:key="system_wfc_custom_dns"
-                android:title="@string/wfc_custom_dns_title"
-                app:isPreferenceVisible="false"
-                app:iconSpaceReserved="false"
-                android:defaultValue="178.62.43.212" />
-
-        <Preference
-                android:key="system_wfc_test_connection"
-                android:title="@string/wfc_test_connection_title"
-                app:isPreferenceVisible="false"
+                android:key="3ds_system_files_check"
+                android:title="@string/pref_3ds_check_system_files_title"
+                android:summary="@string/pref_3ds_check_system_files_summary"
                 app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+                android:key="3ds_pretendo_enabled"
+                android:title="@string/setup_3ds_pretendo_toggle"
+                android:summary="@string/setup_3ds_pretendo_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

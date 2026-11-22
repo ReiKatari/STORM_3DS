@@ -2,12 +2,14 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
 #include <csignal>
 #include <cstring>
 #include <dynarmic/interface/A32/a32.h>
 #include <dynarmic/interface/optimization_flags.h>
 #include "common/assert.h"
 #include "common/microprofile.h"
+#include "common/settings.h"
 #include "core/arm/dynarmic/arm_dynarmic.h"
 #include "core/arm/dynarmic/arm_dynarmic_cp15.h"
 #include "core/arm/dynarmic/arm_exclusive_monitor.h"
@@ -18,7 +20,10 @@
 #ifdef ENABLE_GDBSTUB
 #include "core/gdbstub/gdbstub.h"
 #endif
+#include "core/hle/kernel/kernel.h"
+#include "core/hle/kernel/process.h"
 #include "core/hle/kernel/svc.h"
+#include "core/hle/kernel/vm_manager.h"
 #include "core/memory.h"
 
 #ifndef SIGILL
@@ -168,7 +173,29 @@ public:
         return static_cast<u64>(ticks <= 0 ? 0 : ticks);
     }
     std::uint64_t GetTicksForCode(bool is_thumb, VAddr, std::uint32_t instruction) override {
+        if (Settings::values.storm_jit_mode >= 2) {
+            return 1;
+        }
         return Core::TicksForInstruction(is_thumb, instruction);
+    }
+
+    bool IsReadOnlyMemory(VAddr vaddr) override {
+        if (!parent.system.KernelRunning()) {
+            return false;
+        }
+        const auto process = parent.system.Kernel().GetCurrentProcess();
+        if (!process) {
+            return false;
+        }
+        const auto vma = process->vm_manager.FindVMA(vaddr);
+        if (vma == process->vm_manager.vma_map.end()) {
+            return false;
+        }
+        const auto& area = vma->second;
+        return area.type == Kernel::VMAType::BackingMemory &&
+               area.meminfo_state == Kernel::MemoryState::Code &&
+               (area.permissions == Kernel::VMAPermission::Read ||
+                area.permissions == Kernel::VMAPermission::ReadExecute);
     }
 
     ARM_Dynarmic& parent;
@@ -364,7 +391,33 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
         config.page_table = &current_page_table->GetPointerArray();
     }
     config.coprocessors[15] = std::make_shared<DynarmicCP15>(cp15_state);
+    config.arch_version = Dynarmic::A32::ArchVersion::v6K;
+    config.always_little_endian = true;
+    config.hook_isb = false;
+    config.hook_hint_instructions = false;
+    config.check_halt_on_memory_access = false;
     config.define_unpredictable_behaviour = true;
+
+    const u32 jit_mode = Settings::values.storm_jit_mode;
+    const u32 configured_mb = Settings::values.storm_jit_cache_mb;
+    const u32 default_mb = (jit_mode >= 2) ? 48u : 64u;
+    const u32 cache_mb = std::clamp(configured_mb > 0 ? configured_mb : default_mb, 32u, 128u);
+    config.code_cache_size = static_cast<std::size_t>(cache_mb) * 1024ULL * 1024ULL;
+
+    if (jit_mode == 0) {
+        config.unsafe_optimizations = false;
+        config.optimizations = Dynarmic::all_safe_optimizations;
+    } else {
+        auto opts = Dynarmic::all_safe_optimizations |
+                    Dynarmic::OptimizationFlag::Unsafe_UnfuseFMA |
+                    Dynarmic::OptimizationFlag::Unsafe_ReducedErrorFP |
+                    Dynarmic::OptimizationFlag::Unsafe_InaccurateNaN;
+        if (jit_mode >= 2) {
+            opts |= Dynarmic::OptimizationFlag::Unsafe_IgnoreStandardFPCRValue;
+        }
+        config.unsafe_optimizations = true;
+        config.optimizations = opts;
+    }
 
     // Multi-process state
     config.processor_id = GetID();

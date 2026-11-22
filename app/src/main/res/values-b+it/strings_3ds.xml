@@ -64,8 +64,8 @@
     <string name="frame_advance_plus_1">+1 fotogramma</string>
     <string name="input_c_stick">C-Stick</string>
     <string name="input_circle_pad">Pad scorrevole</string>
-    <string name="input_combo_1">Combo 1</string>
-    <string name="input_combo_2">Combo 2</string>
+    <string name="input_combo_1">Macro Combo 1</string>
+    <string name="input_combo_2">Macro Combo 2</string>
     <string name="input_home">HOME</string>
     <string name="input_slider_3d_depth">Cursore profondità 3D</string>
     <string name="input_zl">ZL</string>
@@ -261,4 +261,50 @@
     <string name="video_vulkan_3d_depth_mode_interlaced">Interlacciato</string>
     <string name="video_vulkan_3d_depth_mode_reverse_interlaced">Interlacciato inverso</string>
     <string name="video_vulkan_3d_depth_mode_sbs_full">Affiancato (Intero)</string>
+    <string name="action_boot_3ds_home_menu">Avvia menu HOME 3DS</string>
+    <string name="home_menu_3ds_not_installed_title">Menu HOME 3DS non installato</string>
+    <string name="home_menu_3ds_not_installed_message">I giochi Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) si avviano direttamente senza BIOS né menu HOME. Per avviare il menu HOME 3DS, installa gli archivi di sistema (.cia) o collega Artic Base e inserisci boot9.bin / aes_keys.txt in STORM 3DS/sysdata se i file sono cifrati.</string>
+    <string name="home_menu_3ds_open_setup">Chiavi e configurazione 3DS</string>
+    <string name="pref_3ds_jit_mode_title">Profilo ottimizzazione ARM11 JIT</string>
+    <string name="pref_3ds_low_end_preset_title">Ottimizza per dispositivi vecchi e lenti</string>
+    <string name="pref_3ds_low_end_preset_summary">Attiva Turbo ARM11 JIT, clock CPU 75%, risoluzione 1x, salto fotogrammi duplicati, disattiva occhio destro, hack FMV e audio HLE per FPS massimi</string>
+    <string name="pref_3ds_low_end_preset_applied">Profilo velocità per dispositivi lenti applicato (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_profile_nand_cat">Profilo 3DS, file di sistema e rete</string>
+    <string name="pref_3ds_system_profile_title">Profilo di sistema Nintendo 3DS</string>
+    <string name="pref_3ds_system_profile_summary">Nome 3DS, compleanno, monete di gioco (0-300), indirizzo MAC e ID console</string>
+    <string name="pref_3ds_check_system_files_title">Verifica file di sistema 3DS e NAND</string>
+    <string name="pref_3ds_check_system_files_summary">Controlla boot9.bin, aes_keys.txt, seeddb.bin, menu HOME 3DS e cartelle SDMC</string>
+    <string name="pref_3ds_system_files_report">Dati STORM 3DS: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+Menu HOME 3DS: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">Nome utente 3DS</string>
+    <string name="pref_3ds_play_coins_title">Monete di gioco 3DS</string>
+    <string name="pref_3ds_play_coins_summary">Saldo monete salvato nella NAND 3DS emulata (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">Rigenera ID console 3DS</string>
+    <string name="pref_3ds_regenerate_console_id_summary">Genera un nuovo identificativo casuale console Nintendo 3DS nella NAND</string>
+    <string name="pref_3ds_console_id_regenerated">ID console 3DS rigenerato nella NAND</string>
+    <string name="pref_3ds_audio_emulation_title">Emulazione audio DSP</string>
+    <string name="pref_3ds_realtime_audio_title">Sincronizzazione audio in tempo reale</string>
+    <string name="pref_3ds_realtime_audio_summary">Allinea il ritmo audio direttamente al tempo reale dei fotogrammi 3DS</string>
+    <string name="pref_3ds_sdmc_saves_title">Cartella salvataggi Nintendo 3DS (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">I salvataggi dei giochi 3DS sono gestiti automaticamente in STORM 3DS/sdmc/Nintendo 3DS/</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">Percorso attivo: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">Salta fotogrammi duplicati</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">Riduce il carico GPU nei titoli 3DS a 30 FPS sui dispositivi meno potenti</string>
+    <string name="v794_video_preset_weak_devices">Dispositivi vecchi e lenti (Turbo JIT, 1x)</string>
+    <string name="input_group_face_dpad">Tasti azione e croce direzionale</string>
+    <string name="input_group_shoulders_system">Dorsali e tasti di sistema 3DS</string>
+    <string name="input_3ds_analog_sticks_title">Circle Pad e C-Stick</string>
+    <string name="input_3ds_analog_sticks_summary">La levetta sinistra controlla il Circle Pad 3DS; la destra controlla il C-Stick del New 3DS.</string>
+    <string name="setup_3ds_pretendo_summary">Reindirizza i servizi online Nintendo 3DS verso Pretendo / Nimbus (api.pretendo.cc)</string>
+    <string name="setup_3ds_accurate_mul_summary">Migliora la precisione degli shader in alcuni giochi; disattiva per più FPS</string>
+    <string name="setup_3ds_disable_right_eye_summary">Salta il rendering del secondo occhio quando la profondità 3D è spenta (+FPS)</string>
+    <string name="setup_3ds_key_ok">Trovato (OK)</string>
+    <string name="setup_3ds_key_missing">Mancante</string>
 </resources>

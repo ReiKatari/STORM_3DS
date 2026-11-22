@@ -409,32 +409,6 @@ private fun Content(
                     )
                 },
             )
-            if (false) {
-                ConfigRow(
-                    title = stringResource(R.string.console_type),
-                    value = if (romConfig.runtimeConsoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
-                        useGlobalWithValue(globalConsoleLabel)
-                    } else {
-                        runtimeConsoleOptions.getOrNull(romConfig.runtimeConsoleType.ordinal) ?: romConfig.runtimeConsoleType.name
-                    },
-                    showDivider = true,
-                    onClick = {
-                        runtimeConsoleDialogState.show(
-                            title = context.getString(R.string.console_type),
-                            items = com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.entries.toList(),
-                            labelOf = { consoleType ->
-                                if (consoleType == com.storm3ds.emulator.domain.model.rom.config.RuntimeConsoleType.DEFAULT) {
-                                    useGlobalWithValue(globalConsoleLabel)
-                                } else {
-                                    runtimeConsoleOptions.getOrNull(consoleType.ordinal) ?: consoleType.name
-                                }
-                            },
-                            selected = romConfig.runtimeConsoleType,
-                            onSelect = { onConfigUpdate(RomConfigUpdateEvent.RuntimeConsoleUpdate(it)) },
-                        )
-                    },
-                )
-            }
         }
         }
 
@@ -487,37 +461,6 @@ private fun Content(
 
         if (showSystemCpu) {
         ConfigSection(title = stringResource(R.string.rom_config_speed_multiplier)) {
-            val normalizedArm9 = if (romConfig.arm9Overclock == 3) 2 else romConfig.arm9Overclock
-            val arm9Label = when (normalizedArm9) {
-                null -> useGlobalWithValue("${romConfig.globalArm9Overclock}x")
-                1 -> "1x (67 MHz)"
-                2 -> "2x (133 MHz)"
-                4 -> "4x (268 MHz)"
-                else -> "${normalizedArm9}x"
-            }
-            if (false) ConfigRow(
-                title = stringResource(R.string.rom_config_overclock_arm9),
-                value = arm9Label,
-                showDivider = false,
-                onClick = {
-                    arm9OverclockDialogState.show(
-                        title = context.getString(R.string.rom_config_overclock_arm9),
-                        items = listOf(null, 1, 2, 4),
-                        labelOf = {
-                            when (it) {
-                                null -> useGlobalWithValue("${romConfig.globalArm9Overclock}x")
-                                1 -> "1x (67 MHz)"
-                                2 -> "2x (133 MHz)"
-                                4 -> "4x (268 MHz)"
-                                else -> "${it}x"
-                            }
-                        },
-                        selected = normalizedArm9,
-                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.Arm9OverclockUpdate(it)) },
-                    )
-                },
-            )
-
             val speedLabel = when (romConfig.fastForwardSpeedMultiplier) {
                 null -> useGlobalWithValue(
                     if (romConfig.globalFastForwardSpeedMultiplier <= 0f) {
@@ -905,42 +848,6 @@ private fun Content(
                     )
                 },
             )
-        }
-        }
-
-        if (showGbaSlot) {
-        ConfigSection(title = stringResource(R.string.label_rom_config_gba_slot)) {
-            val isGbaRom = romConfig.gbaSlotConfig.type == RomGbaSlotConfigUiModel.Type.GbaRom
-            ConfigRow(
-                title = stringResource(R.string.label_rom_config_gba_slot),
-                value = gbaSlotOptions[romConfig.gbaSlotConfig.type.ordinal],
-                showDivider = false,
-                onClick = {
-                    gbaSlotDialogState.show(
-                        title = context.getString(R.string.label_rom_config_gba_slot),
-                        items = RomGbaSlotConfigUiModel.Type.entries.toList(),
-                        labelOf = { gbaSlotOptions[it.ordinal] },
-                        selected = romConfig.gbaSlotConfig.type,
-                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.GbaSlotTypeUpdated(it)) },
-                    )
-                },
-            )
-            AnimatedVisibility(visible = isGbaRom) {
-                Column {
-                    ConfigRow(
-                        title = stringResource(R.string.label_rom_config_gba_rom_path),
-                        value = romConfig.gbaSlotConfig.gbaRomPath ?: stringResource(R.string.not_set),
-                        showDivider = true,
-                        onClick = { gbaRomSelectorLauncher.launch(Pair(null, null)) },
-                    )
-                    ConfigRow(
-                        title = stringResource(R.string.label_rom_config_gba_save_path),
-                        value = romConfig.gbaSlotConfig.gbaSavePath ?: stringResource(R.string.not_set),
-                        showDivider = true,
-                        onClick = { gbaSaveSelectorLauncher.launch(Pair(null, null)) },
-                    )
-                }
-            }
         }
         }
 

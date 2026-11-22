@@ -26,8 +26,6 @@ import com.storm3ds.emulator.R
 import com.storm3ds.emulator.ui.settings.fragments.AboutPreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.AudioPreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.CheatsPreferencesFragment
-import com.storm3ds.emulator.ui.settings.fragments.CustomFirmwarePreferencesFragment
-import com.storm3ds.emulator.ui.settings.fragments.FirmwarePreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.GeneralPreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.InputPreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.MainPreferencesFragment

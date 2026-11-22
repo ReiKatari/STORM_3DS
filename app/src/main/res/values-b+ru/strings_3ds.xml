@@ -75,8 +75,8 @@
     <string name="input_zl">ZL</string>
     <string name="input_zr">ZR</string>
     <string name="input_home">HOME</string>
-    <string name="input_combo_1">Комбо 1</string>
-    <string name="input_combo_2">Комбо 2</string>
+    <string name="input_combo_1">Макрос Combo 1</string>
+    <string name="input_combo_2">Макрос Combo 2</string>
     <string name="pref_3ds_hardware_cat">Система и железо Nintendo 3DS</string>
     <string name="pref_3ds_setup_title">Ключи 3DS, спидхаки, SPIR-V и 3D</string>
     <string name="pref_3ds_setup_summary">Импорт boot9/aes_keys/seeddb, спидхаки, SPIR-V, Artic Base и Pretendo</string>
@@ -262,5 +262,51 @@
     <string name="dual_screen_scaling_options_header">ПАРАМЕТРЫ МАСШТАБИРОВАНИЯ</string>
     <string name="update_dialog_title_storm3ds">Доступно обновление STORM 3DS</string>
     <string name="update_dialog_whats_new">Что нового:</string>
+    <string name="action_boot_3ds_home_menu">Запустить HOME Menu 3DS</string>
+    <string name="home_menu_3ds_not_installed_title">HOME Menu 3DS не установлено</string>
+    <string name="home_menu_3ds_not_installed_message">Игры Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) запускаются напрямую без BIOS и HOME Menu. Чтобы запустить само HOME Menu 3DS, установите системные архивы 3DS (.cia) или подключите Artic Base, а для зашифрованных дампов добавьте boot9.bin / aes_keys.txt в STORM 3DS/sysdata.</string>
+    <string name="home_menu_3ds_open_setup">Ключи и настройки 3DS</string>
+    <string name="pref_3ds_jit_mode_title">Профиль оптимизации ARM11 JIT</string>
+    <string name="pref_3ds_low_end_preset_title">Оптимизация для слабых и старых устройств</string>
+    <string name="pref_3ds_low_end_preset_summary">Включает Турбо ARM11 JIT, 75% частоты ЦП, разрешение 1x, пропуск дублей кадров, отключение 2-го глаза, FMV-хак и HLE-звук для макс. FPS</string>
+    <string name="pref_3ds_low_end_preset_applied">Профиль для слабых устройств применен (Турбо JIT, ЦП 75%, 1x, HLE-звук)</string>
+    <string name="pref_3ds_profile_nand_cat">Профиль 3DS, системные файлы и сеть</string>
+    <string name="pref_3ds_system_profile_title">Профиль системы Nintendo 3DS</string>
+    <string name="pref_3ds_system_profile_summary">Имя в 3DS, дата рождения, Play Coins (0-300), MAC-адрес и Console ID</string>
+    <string name="pref_3ds_check_system_files_title">Проверка системных файлов 3DS и NAND</string>
+    <string name="pref_3ds_check_system_files_summary">Проверить наличие boot9.bin, aes_keys.txt, seeddb.bin, HOME Menu 3DS и папок SDMC</string>
+    <string name="pref_3ds_system_files_report">Папка STORM 3DS: %1$s
+
+boot9.bin: %2$s
+aes_keys.txt / keys.txt: %3$s
+seeddb.bin: %4$s
+HOME Menu 3DS: %5$s
+
+NAND: %6$s
+SDMC: %7$s</string>
+    <string name="pref_3ds_profile_nickname">Имя пользователя 3DS</string>
+    <string name="pref_3ds_play_coins_title">Игровые монеты 3DS (Play Coins)</string>
+    <string name="pref_3ds_play_coins_summary">Баланс монет в эмулируемой NAND Nintendo 3DS (0-300)</string>
+    <string name="pref_3ds_regenerate_console_id_title">Пересоздать Console ID Nintendo 3DS</string>
+    <string name="pref_3ds_regenerate_console_id_summary">Создает новый случайный идентификатор консоли Nintendo 3DS в NAND</string>
+    <string name="pref_3ds_console_id_regenerated">Console ID Nintendo 3DS обновлен в NAND</string>
+    <string name="pref_3ds_audio_emulation_title">Эмуляция аудио DSP</string>
+    <string name="pref_3ds_realtime_audio_title">Синхронизация звука в реальном времени</string>
+    <string name="pref_3ds_realtime_audio_summary">Точная подстройка вывода звука под реальное время кадра 3DS</string>
+    <string name="pref_3ds_sdmc_saves_title">Папка сохранений игр Nintendo 3DS (SDMC)</string>
+    <string name="pref_3ds_sdmc_saves_summary">Сохранения игр 3DS хранятся автоматически в STORM 3DS/sdmc/Nintendo 3DS/</string>
+    <string name="pref_3ds_sdmc_saves_summary_path">Активный путь: %1$s</string>
+    <string name="pref_3ds_skip_duplicate_frames_title">Пропуск дублирующихся кадров</string>
+    <string name="pref_3ds_skip_duplicate_frames_summary">Снижает нагрузку на ГП в играх 30 FPS на слабых и старых устройствах</string>
+    <string name="v794_video_preset_weak_devices">Слабые и старые устройства (Турбо JIT, 1x)</string>
+    <string name="input_group_face_dpad">Кнопки действий и крестовина (D-Pad)</string>
+    <string name="input_group_shoulders_system">Курки и системные кнопки 3DS</string>
+    <string name="input_3ds_analog_sticks_title">Circle Pad и C-Stick</string>
+    <string name="input_3ds_analog_sticks_summary">Левый стик геймпада автоматически управляет 3DS Circle Pad; правый стик управляет C-Stick (New 3DS).</string>
+    <string name="setup_3ds_pretendo_summary">Перенаправляет онлайн-сервисы Nintendo 3DS на Pretendo / Nimbus (api.pretendo.cc)</string>
+    <string name="setup_3ds_accurate_mul_summary">Повышает точность шейдеров в редких играх; отключите для максимального FPS на слабых ГП</string>
+    <string name="setup_3ds_disable_right_eye_summary">Отключает рендер буфера второго глаза в режиме без 3D-стерео (+FPS)</string>
+    <string name="setup_3ds_key_ok">Найден (OK)</string>
+    <string name="setup_3ds_key_missing">Отсутствует</string>
 </resources>
 

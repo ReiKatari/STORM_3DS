@@ -371,4 +371,45 @@ class Storm3dsCoreTest {
             }
         }
     }
+
+    @Test
+    fun `app log defaults to true and system video save preferences are pure 3ds`() {
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+
+        val prefSystem = File(resRoot, "xml/pref_system.xml").readText()
+        assertTrue(
+            "system_app_log_file_enabled must default to true",
+            Regex("""android:key="system_app_log_file_enabled"[\s\S]*?android:defaultValue="true"""").containsMatchIn(prefSystem),
+        )
+        assertFalse("pref_system.xml must not reference custom_bios_firmware", "custom_bios_firmware" in prefSystem)
+        assertFalse("pref_system.xml must not reference arm9_overclock", "arm9_overclock" in prefSystem)
+        assertFalse("pref_system.xml must not reference system_wfc_server", "system_wfc_server" in prefSystem)
+        assertTrue("pref_system.xml must contain 3ds_jit_mode", "3ds_jit_mode" in prefSystem)
+        assertTrue("pref_system.xml must contain 3ds_low_end_preset", "3ds_low_end_preset" in prefSystem)
+        assertTrue("pref_system.xml must contain 3ds_system_files_check", "3ds_system_files_check" in prefSystem)
+
+        val prefCfw = File(resRoot, "xml/pref_custom_firmware.xml").readText()
+        assertFalse("pref_custom_firmware.xml must not contain DS BIOS downloaders", "auto_download_ds_bios" in prefCfw)
+        assertFalse("pref_custom_firmware.xml must not contain DSi BIOS downloaders", "auto_download_dsi_bios" in prefCfw)
+        assertFalse("pref_custom_firmware.xml must not contain duplicate console_type", "console_type" in prefCfw)
+
+        val repoTxt = File(srcJava, "com/storm3ds/emulator/impl/SharedPreferencesSettingsRepository.kt").readText()
+        assertTrue(
+            "SharedPreferencesSettingsRepository.isAppLogFileEnabled must default to true",
+            "getBoolean(\"system_app_log_file_enabled\", true)" in repoTxt,
+        )
+    }
+
+    @Test
+    fun `arm dynarmic configures v6K little endian jit modes and adaptive cache`() {
+        val dynarmicCpp = File("../core/src/core/arm/dynarmic/arm_dynarmic.cpp").takeIf { it.exists() }
+            ?: File("core/src/core/arm/dynarmic/arm_dynarmic.cpp")
+        val txt = dynarmicCpp.readText()
+        assertTrue("ArchVersion::v6K must be set", "ArchVersion::v6K" in txt)
+        assertTrue("always_little_endian must be enabled", "always_little_endian = true" in txt)
+        assertTrue("storm_jit_mode must configure optimization levels", "storm_jit_mode" in txt)
+        assertTrue("adaptive code_cache_size must be configured", "code_cache_size" in txt)
+        assertTrue("IsReadOnlyMemory override must check BackingMemory + Code", "IsReadOnlyMemory" in txt && "MemoryState::Code" in txt)
+    }
 }

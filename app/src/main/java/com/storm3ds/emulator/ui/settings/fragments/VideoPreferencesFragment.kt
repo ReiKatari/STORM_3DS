@@ -201,34 +201,36 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             }
         }
         val vulkanFastPathPreference =
-            findPreference<InGameLockedSwitchPreference>("video_vulkan_fastpath_enabled")!!
-        vulkanFastPathPreference.isInGameLocked = launchedInGame
-        vulkanFastPathPreference.inGameLockedMessageRes = R.string.video_setting_cannot_change_ingame
-        vulkanFastPathPreference.setOnPreferenceChangeListener { preference, newValue ->
-            if (newValue != true) {
-                applyVulkanFastPathSelection(
-                    preference as InGameLockedSwitchPreference,
-                    enabled = false,
-                )
-                return@setOnPreferenceChangeListener false
-            }
-
-            AlertDialog.Builder(requireContext())
-                .setTitle(R.string.video_vulkan_fastpath_warning_title)
-                .setMessage(R.string.video_vulkan_fastpath_warning_message)
-                .setPositiveButton(R.string.video_vulkan_fastpath_enable_action) { _, _ ->
+            findPreference<InGameLockedSwitchPreference>("video_vulkan_fastpath_enabled")
+        vulkanFastPathPreference?.let { fastPathPref ->
+            fastPathPref.isInGameLocked = launchedInGame
+            fastPathPref.inGameLockedMessageRes = R.string.video_setting_cannot_change_ingame
+            fastPathPref.setOnPreferenceChangeListener { preference, newValue ->
+                if (newValue != true) {
                     applyVulkanFastPathSelection(
                         preference as InGameLockedSwitchPreference,
-                        enabled = true,
+                        enabled = false,
                     )
+                    return@setOnPreferenceChangeListener false
                 }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-            false
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.video_vulkan_fastpath_warning_title)
+                    .setMessage(R.string.video_vulkan_fastpath_warning_message)
+                    .setPositiveButton(R.string.video_vulkan_fastpath_enable_action) { _, _ ->
+                        applyVulkanFastPathSelection(
+                            preference as InGameLockedSwitchPreference,
+                            enabled = true,
+                        )
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+                false
+            }
         }
 
         threadedRendererPreferences.apply {
-            add(findPreference("enable_threaded_rendering")!!)
+            findPreference<Preference>("enable_threaded_rendering")?.let { add(it) }
         }
 
         highResRendererPreferences.apply {
@@ -315,8 +317,8 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         videoFilteringPreference.isInGameLocked = launchedInGame &&
             requireActivity().intent.getBooleanExtra(SettingsActivity.KEY_LOCK_VIDEO_FILTERING, false)
         videoFilteringPreference.inGameLockedMessageRes = R.string.cannot_change_use_rom_settings
-        val dsiCameraSourcePreference = findPreference<ListPreference>("dsi_camera_source")!!
-        val dsiCameraImagePreference = findPreference<StoragePickerPreference>("dsi_camera_static_image")!!
+        val dsiCameraSourcePreference = findPreference<ListPreference>("dsi_camera_source")
+        val dsiCameraImagePreference = findPreference<StoragePickerPreference>("dsi_camera_static_image")
         val retroArchShaderRootPreference = findPreference<StoragePickerPreference>("video_retroarch_shader_root")!!
         val retroArchShaderPresetPreference = findPreference<ListPreference>("video_retroarch_shader_preset")!!
         val retroArchShaderParametersPreference = findPreference<EditTextPreference>("video_retroarch_shader_parameters")
@@ -382,15 +384,15 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                     removePreference = vulkanDriverRemovePreference,
                     launchedInGame = launchedInGame,
                 )
-                if (newRenderer != VideoRenderer.VULKAN && vulkanFastPathPreference.isChecked) {
+                if (newRenderer != VideoRenderer.VULKAN && vulkanFastPathPreference?.isChecked == true) {
                     applyVulkanFastPathSelection(vulkanFastPathPreference, enabled = false)
                 }
                 true
             }
         }
 
-        dsiCameraSourcePreference.setOnPreferenceChangeListener { _, newValue ->
-            updateDsiCameraImagePreference(dsiCameraImagePreference, newValue as String)
+        dsiCameraSourcePreference?.setOnPreferenceChangeListener { _, newValue ->
+            dsiCameraImagePreference?.let { updateDsiCameraImagePreference(it, newValue as String) }
             true
         }
 
@@ -418,7 +420,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             true
         }
 
-        helper.setupStoragePickerPreference(dsiCameraImagePreference)
+        dsiCameraImagePreference?.let { helper.setupStoragePickerPreference(it) }
         helper.setupStoragePickerPreference(retroArchShaderRootPreference)
         helper.bindPreferenceSummaryToValue(retroArchShaderPresetPreference)
         retroArchShaderParametersPreference?.let { helper.bindPreferenceSummaryToValue(it) }
@@ -539,7 +541,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             allFilteringValues = allFilteringValues,
             allFilteringEntries = allFilteringEntries,
         )
-        updateDsiCameraImagePreference(dsiCameraImagePreference, dsiCameraSourcePreference.value)
+        if (dsiCameraImagePreference != null && dsiCameraSourcePreference != null) {
+            updateDsiCameraImagePreference(dsiCameraImagePreference, dsiCameraSourcePreference.value)
+        }
         updateDualScreenPresetSummary()
 
         val fpsCounterPref = findPreference<ListPreference>("fps_counter_position")
@@ -2398,6 +2402,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             putBoolean("video_vulkan_compat_autoselect", true)
             putString("video_vulkan_3d_depth_mode", "off")
             putString("video_vulkan_3d_depth_strength", "50")
+            putBoolean("3ds_accurate_mul", false)
+            putBoolean("3ds_skip_duplicate_frames", false)
+            putBoolean("3ds_disable_right_eye", false)
+            putBoolean("video_async_shader_compilation", true)
             putBoolean("video_vulkan_ssao", false)
             putBoolean("video_vulkan_thick_edges", false)
             putString("video_ds_color_profile", "standard")
@@ -2454,30 +2462,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             it.value = "50"
             updateListPreferenceSummary(it)
         }
-        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_ssao")?.isChecked = false
-        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_thick_edges")?.isChecked = false
-        findPreference<ListPreference>("video_ds_color_profile")?.let {
-            it.value = "standard"
-            updateListPreferenceSummary(it)
-        }
-        findPreference<ListPreference>("video_ds_lcd_grid")?.let {
-            it.value = "off"
-            updateListPreferenceSummary(it)
-        }
-        findPreference<ListPreference>("video_ds_hinge_gap")?.let {
-            it.value = "0"
-            updateListPreferenceSummary(it)
-        }
-        findPreference<InGameLockedSwitchPreference>("video_vulkan_fastpath_enabled")?.isChecked = false
-        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_tools_enabled")?.isChecked = false
-        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_bgobj_enabled")?.isChecked = false
-        findPreference<androidx.preference.TwoStatePreference>("video_renderer_debug_latch_trace_enabled")?.isChecked = false
-        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_enabled")?.isChecked = false
-        findPreference<androidx.preference.SeekBarPreference>("video_conservative_coverage_px")?.value = 150
-        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_apply_repeat")?.isChecked = true
-        findPreference<androidx.preference.TwoStatePreference>("video_conservative_coverage_apply_clamp")?.isChecked = false
-        findPreference<androidx.preference.SeekBarPreference>("video_conservative_coverage_depth_bias")?.value = 0
-        findPreference<androidx.preference.TwoStatePreference>("video_debug_3d_clear_magenta")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("3ds_accurate_mul")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("3ds_skip_duplicate_frames")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("3ds_disable_right_eye")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("video_async_shader_compilation")?.isChecked = true
 
         val rendererPref = findPreference<ListPreference>("video_renderer")
         if (rendererPref != null && ::shaderRootPreference.isInitialized && ::shaderPresetPreference.isInitialized) {
@@ -2497,19 +2485,22 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
     private fun showVideoQuickProfileDialog() {
         val ctx = context ?: return
-        val options = listOf<CharSequence>(
-            getString(R.string.v794_video_preset_performance),
-            getString(R.string.v794_video_preset_balanced),
-            getString(R.string.v794_video_preset_ultra)
-        )
-        val values = listOf<CharSequence>("0", "1", "2")
         val prefs = preferenceManager.sharedPreferences
         val curRes = prefs?.getString("video_internal_resolution", "2") ?: "2"
-        val curSsao = prefs?.getBoolean("video_vulkan_ssao", false) ?: false
+        val curSkipDup = prefs?.getBoolean("3ds_skip_duplicate_frames", false) ?: false
+        val curAccMul = prefs?.getBoolean("3ds_accurate_mul", false) ?: false
+        val options = listOf<CharSequence>(
+            getString(R.string.v794_video_preset_weak_devices),
+            getString(R.string.v794_video_preset_performance),
+            getString(R.string.v794_video_preset_balanced),
+            getString(R.string.v794_video_preset_ultra),
+        )
+        val values = listOf<CharSequence>("0", "1", "2", "3")
         val selectedValue = when {
-            curRes == "1" -> "0"
-            curRes == "4" && curSsao -> "2"
-            curRes == "2" && !curSsao -> "1"
+            curRes == "1" && curSkipDup -> "0"
+            curRes == "1" && !curSkipDup -> "1"
+            curRes == "4" && curAccMul -> "3"
+            curRes == "2" && !curAccMul -> "2"
             else -> null
         }
         com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog(ctx) { dismiss ->
@@ -2531,29 +2522,35 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun applyVideoQuickProfile(presetIndex: Int, presetTitle: String) {
+        val isWeak = presetIndex == 0
         val resValue = when (presetIndex) {
-            0 -> "1"
-            1 -> "2"
-            2 -> "4"
+            0, 1 -> "1"
+            2 -> "2"
+            3 -> "4"
             else -> "2"
         }
         val filteringValue = when (presetIndex) {
-            0 -> VideoFiltering.NONE.name.lowercase()
-            1 -> VideoFiltering.QUILEZ.name.lowercase()
-            2 -> VideoFiltering.QUILEZ.name.lowercase()
+            0, 1 -> VideoFiltering.NONE.name.lowercase()
             else -> VideoFiltering.QUILEZ.name.lowercase()
         }
-        val threaded = true
-        val ssao = presetIndex == 2
-        val thickEdges = presetIndex == 2
+        val accurateMul = presetIndex == 3
+        val jitMode = if (isWeak) "2" else "1"
+        val cpuClock = if (isWeak) "75" else "100"
 
         preferenceManager.sharedPreferences?.edit()?.apply {
             putString("video_internal_resolution", resValue)
-            putBoolean("enable_threaded_rendering", threaded)
+            putBoolean("enable_threaded_rendering", true)
+            putBoolean("video_async_shader_compilation", true)
             putString("video_filtering", filteringValue)
-            putBoolean("video_ai_upscale_enabled", false)
-            putBoolean("video_vulkan_ssao", ssao)
-            putBoolean("video_vulkan_thick_edges", thickEdges)
+            putBoolean("3ds_accurate_mul", accurateMul)
+            putBoolean("3ds_skip_duplicate_frames", isWeak)
+            putBoolean("3ds_disable_right_eye", isWeak)
+            putBoolean("3ds_fmv_hack", true)
+            putBoolean("3ds_skip_slow_draw", isWeak)
+            putString("3ds_jit_mode", jitMode)
+            putString("3ds_cpu_clock_percentage", cpuClock)
+            putBoolean("3ds_audio_stretch", true)
+            putString("3ds_audio_emulation", "0")
             putString("video_vulkan_3d_depth_mode", "off")
             apply()
         }
@@ -2562,15 +2559,14 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             it.value = resValue
             updateInternalResolutionSummary(it)
         }
-        findPreference<androidx.preference.TwoStatePreference>("enable_threaded_rendering")?.isChecked = threaded
+        findPreference<androidx.preference.TwoStatePreference>("video_async_shader_compilation")?.isChecked = true
         findPreference<ListPreference>("video_filtering")?.let {
             it.value = filteringValue
             updateListPreferenceSummary(it)
         }
-        findPreference<androidx.preference.TwoStatePreference>("video_ai_upscale_enabled")?.isChecked = false
-        updateAiUpscaleSummary()
-        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_ssao")?.isChecked = ssao
-        findPreference<androidx.preference.TwoStatePreference>("video_vulkan_thick_edges")?.isChecked = thickEdges
+        findPreference<androidx.preference.TwoStatePreference>("3ds_accurate_mul")?.isChecked = accurateMul
+        findPreference<androidx.preference.TwoStatePreference>("3ds_skip_duplicate_frames")?.isChecked = isWeak
+        findPreference<androidx.preference.TwoStatePreference>("3ds_disable_right_eye")?.isChecked = isWeak
         findPreference<ListPreference>("video_vulkan_3d_depth_mode")?.let {
             it.value = "off"
             updateListPreferenceSummary(it)

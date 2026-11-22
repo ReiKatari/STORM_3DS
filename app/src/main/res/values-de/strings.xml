@@ -414,7 +414,7 @@
     <string name="save_internal_config_as_file">Interne Konfiguration als Datei speichern</string>
     <string name="save_internal_config_as_file_summary">Hält STORM 3DS.opts im Speicherstandsverzeichnis bzw. im ROM-Verzeichnis synchron, falls kein Speicherstandsverzeichnis konfiguriert ist.</string>
     <string name="system_app_log_file_enabled">App-Protokoll in ROM-Ordner schreiben</string>
-    <string name="system_app_log_file_enabled_summary">Erstellt melonDualLog.log im ersten ROM-Ordner und zeichnet App-, native und Core-Logcat-Zeilen zu Debug-Zwecken auf. Nur bei der Fehlersuche aktivieren.</string>
+    <string name="system_app_log_file_enabled_summary">Standardmäßig aktiviert: speichert STORM_3DS.log in STORM 3DS/logs/ zur Fehlerdiagnose.</string>
     <string name="system_dldi_sd_card_enabled">Nintendo 3DS-SD-Karte aktivieren</string>
     <string name="system_dldi_sd_card_enabled_summary">Virtuelle Slot-1 Flashcard-SD-Karte (Nintendo 3DS) emulieren</string>
     <string name="system_dldi_sd_card_dir">Nintendo 3DS-SD-Kartenordner</string>
@@ -517,13 +517,13 @@
     <string name="filter">Filter</string>
     <string name="internal_resolution">Interne Auflösung</string>
     <string name="renderer">Renderer</string>
-    <string name="dsi_camera_source">DSi-Kameraquelle</string>
+    <string name="dsi_camera_source">Nintendo 3DS-Kameraquelle</string>
     <string name="external_screen_layout">Externes Bildschirmlayout</string>
     <string name="external_display_screen">Externer Anzeigebildschirm</string>
     <string name="external_display_mode">Externer Anzeigemodus</string>
     <string name="external_display_rotate_left">Externen Bildschirminhalt nach links drehen</string>
     <string name="refresh_external_screen">Externen Bildschirm aktualisieren</string>
-    <string name="dsi_camera_image">DSi-Kamerabild</string>
+    <string name="dsi_camera_image">Statisches 3DS-Kamerabild</string>
     <string name="internal_screen_layout">Internes Bildschirmlayout</string>
     <string name="input_refresh_external_screen">Externen Bildschirm aktualisieren</string>
     <string name="quick_settings">Schnelleinstellungen</string>
@@ -610,7 +610,7 @@
     <string name="import_cheats">Cheats importieren</string>
     <string name="import_cheats_summary">Cheats aus Datenbankdateien importieren. Derzeit werden nur XML-Datenbanken unterstützt. Zuvor importierte Cheats werden gelöscht.</string>
     <string name="rom_shortcut">ROM-Verknüpfung</string>
-    <string name="firmware_nickname">Spitzname</string>
+    <string name="firmware_nickname">3DS-Spitzname</string>
     <string name="firmware_message">Nachricht</string>
     <string name="firmware_language">Sprache</string>
     <string name="firmware_favourite_colour">Lieblingsfarbe</string>
@@ -704,7 +704,7 @@
     <string name="layout_auto_rotate">Automatisch drehen (Sensor)</string>
     <string name="layout_open_editor">Layout-Editor</string>
     <string name="toast_layout_applied">Layout: %1$s</string>
-    <string name="input_group_console">Konsolen-Steuerung</string>
+    <string name="input_group_console">Nintendo 3DS-Steuerung</string>
     <string name="input_group_hotkeys">Hotkeys und Schnellzugriffe</string>
     <string name="layouts">Layouts</string>
     <string name="layouts_summary">Benutzerdefinierte Layouts verwalten</string>
@@ -733,7 +733,7 @@
     <string name="aspect_ratio_4_3">4:3 (Original)</string>
     <string name="aspect_ratio_16_9">16:9 (Breitbild)</string>
     <string name="aspect_ratio_unrestricted">Uneingeschränkt</string>
-    <string name="keep_ds_ratio">DS-Seitenverhältnis beibehalten</string>
+    <string name="keep_ds_ratio">3DS-Seitenverhältnis beibehalten (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Voreinstellungen</string>
     <string name="dual_screen_presets_settings_title">Dual-Screen-Voreinstellungen</string>
     <string name="dual_screen_presets_summary">Voreinstellung: %1$s\nDS-Verhältnis beibehalten: %2$s • Ganzzahlige Skalierung: %3$s\nIntern H: %4$s • Intern B: %5$s\nExtern H: %6$s • Extern B: %7$s</string>
@@ -1158,7 +1158,7 @@
     <string name="translator_tts_neural_title">Neuronales Cloud-TTS (hohe Qualität)</string>
     <string name="translator_tts_neural_summary">Natürlich klingende emotionale Stimmen über neuronales Netzwerk im Streaming</string>
     <string name="video_console_skin_title">Animierter 3D-Konsolen-Skin</string>
-    <string name="video_console_skin_summary">Realistischer Gehäuserahmen im Nintendo 3DS Lite / DSi XL-Design mit aktiven Akku- und WLAN-LEDs</string>
+    <string name="video_console_skin_summary">Authentisches Nintendo 3DS / New 3DS XL / 2DS-Gehäuse mit Status-LEDs</string>
     <string name="video_console_skin_type_title">Konsolenmodell und Farbe</string>
     <string name="video_oled_battery_saver_title">Intelligenter OLED-Akkuschoner</string>
     <string name="video_oled_battery_saver_summary">Reiner Schwarzhintergrund und deaktivierter Konsolen-Skin, um auf OLED-Bildschirmen Strom zu sparen</string>
