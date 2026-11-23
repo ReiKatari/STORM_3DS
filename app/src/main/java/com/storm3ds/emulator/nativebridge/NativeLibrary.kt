@@ -114,6 +114,8 @@ object NativeLibrary {
         customDriverName: String?,
         fileRedirectDir: String?
     )
+    external fun queryVulkanGpuInfoJson(): String
+    external fun isVulkanSupported(): Boolean
     external fun areKeysAvailable(): Boolean
     external fun getHomeMenuPath(region: Int): String
     external fun getSystemTitleIds(systemType: Int, region: Int): LongArray
@@ -204,6 +206,7 @@ object NativeLibrary {
     external fun setAudioMuted(muted: Boolean)
     external fun installCiaSimple(path: String): Int
     external fun getCiaTitleId(path: String): Long
+    external fun findInstalledTitlePath(titleId: Long): String
 
     data class InstalledGame(val path: String, val mediaType: GameMediaType)
 

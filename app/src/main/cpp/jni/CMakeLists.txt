@@ -54,6 +54,7 @@ if (ENABLE_VULKAN)
         emu_window/emu_window_vk.cpp
         emu_window/emu_window_vk.h
     )
+    target_link_libraries(storm3ds PRIVATE vulkan-headers)
     if (STORM_ENABLE_ADRENOTOOLS AND "arm64" IN_LIST ARCHITECTURE)
         target_compile_definitions(storm3ds PRIVATE STORM_ENABLE_ADRENOTOOLS=1)
         target_link_libraries(storm3ds PRIVATE adrenotools)

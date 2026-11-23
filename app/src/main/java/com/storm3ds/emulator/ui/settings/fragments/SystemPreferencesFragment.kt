@@ -234,9 +234,17 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                                 .setPositiveButton(R.string.settings_mirror_restore) { _, _ ->
                                     setMirrorEnabled(mirrorPreference)
                                     lifecycleScope.launch(Dispatchers.IO) {
-                                        runCatching {
+                                        val restored = runCatching {
                                             settingsBackupManager.restoreMirrorFrom(mirrorDirectory)
                                             settingsBackupManager.requestMirrorWrite()
+                                            true
+                                        }.getOrDefault(false)
+                                        if (restored) {
+                                            withContext(Dispatchers.Main) {
+                                                if (isAdded) {
+                                                    activity?.recreate()
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -352,26 +360,36 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
         val ctx = context ?: return
         val appContext = ctx.applicationContext
         lifecycleScope.launch(Dispatchers.IO) {
-            val shareUri = runCatching {
-                val rootLogsDir = java.io.File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS/logs")
-                val appLogFile = java.io.File(rootLogsDir, "STORM_3DS.log")
-                val infoFile = java.io.File(rootLogsDir, com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.INFO_FILE_NAME)
+            val shareData = runCatching {
+                val candidateLogDirs = listOfNotNull(
+                    java.io.File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS/logs"),
+                    appContext.getExternalFilesDir(null)?.let { java.io.File(it, "logs") },
+                    java.io.File(appContext.filesDir, "logs"),
+                )
+                fun findNonEmptyLogFile(name: String): java.io.File? {
+                    return candidateLogDirs
+                        .map { java.io.File(it, name) }
+                        .firstOrNull { it.exists() && it.length() > 0L }
+                }
 
                 // Ensure fresh STORM_INFO.txt always exists
                 val freshInfoReport = runCatching {
                     com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.saveUnifiedReport(appContext)
                 }.getOrNull()
 
+                val infoFile = findNonEmptyLogFile(com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.INFO_FILE_NAME)
+                val appLogFile = findNonEmptyLogFile("STORM_3DS.log")
+
                 val exportDir = java.io.File(appContext.cacheDir, "shared_logs").apply { mkdirs() }
                 val exportFile = java.io.File(exportDir, "STORM_3DS_DIAGNOSTIC_LOG.txt")
                 exportFile.bufferedWriter(Charsets.UTF_8).use { writer ->
                     writer.appendLine("===== STORM 3DS SYSTEM INFO (STORM_INFO.txt) =====")
                     when {
-                        infoFile.exists() && infoFile.length() > 0 -> writer.appendLine(infoFile.readText(Charsets.UTF_8))
+                        infoFile != null -> writer.appendLine(infoFile.readText(Charsets.UTF_8))
                         !freshInfoReport.isNullOrBlank() -> writer.appendLine(freshInfoReport)
                         else -> writer.appendLine("(No system info generated)")
                     }
-                    if (appLogFile.exists() && appLogFile.length() > 0) {
+                    if (appLogFile != null) {
                         writer.appendLine()
                         writer.appendLine("===== STORM 3DS APP LOG (STORM_3DS.log, last 256 KB) =====")
                         val maxTail = 256 * 1024L
@@ -384,23 +402,26 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                         }
                     }
                 }
-                androidx.core.content.FileProvider.getUriForFile(
+                val uri = androidx.core.content.FileProvider.getUriForFile(
                     appContext,
                     "${appContext.packageName}.fileprovider",
                     exportFile
                 )
+                exportFile.name to uri
             }.getOrNull()
 
             withContext(Dispatchers.Main) {
                 if (!isAdded) return@withContext
-                if (shareUri == null) {
+                if (shareData == null) {
                     Toast.makeText(requireContext(), R.string.system_share_log_error, Toast.LENGTH_SHORT).show()
                     return@withContext
                 }
+                val (fileName, shareUri) = shareData
                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(android.content.Intent.EXTRA_SUBJECT, "STORM 3DS Log")
                     putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
+                    clipData = android.content.ClipData.newUri(appContext.contentResolver, fileName, shareUri)
                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 runCatching {

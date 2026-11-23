@@ -225,7 +225,7 @@ class SettingsActivity :
 
             // Set default values for system config file
             SystemSaveGame.apply {
-                setUsername("AZAHAR")
+                setUsername("STORM 3DS")
                 setBirthday(11, 7)
                 setSystemLanguage(1)
                 setSoundOutputMode(1)

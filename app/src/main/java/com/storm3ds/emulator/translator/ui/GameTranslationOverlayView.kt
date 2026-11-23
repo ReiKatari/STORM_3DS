@@ -13,11 +13,13 @@ import android.view.MotionEvent
 import android.view.View
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.translator.dictionary.GameDictionaryService
+import com.storm3ds.emulator.utils.getFloatCompat
 import com.storm3ds.emulator.translator.model.TranslatedTextBlock
 import com.storm3ds.emulator.translator.model.TranslationRegion
 import com.storm3ds.emulator.translator.model.TranslatorOverlayStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
@@ -40,6 +42,7 @@ class GameTranslationOverlayView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private var viewScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var dictionaryLookupJob: Job? = null
     private val blocks = mutableListOf<TranslatedTextBlock>()
     val customRegions = mutableListOf<TranslationRegion>()
 
@@ -371,6 +374,8 @@ class GameTranslationOverlayView @JvmOverloads constructor(
     }
 
     fun clearTranslations() {
+        dictionaryLookupJob?.cancel()
+        dictionaryLookupJob = null
         blocks.clear()
         layoutCache.evictAll()
         activeDictionaryResult = null
@@ -422,8 +427,8 @@ class GameTranslationOverlayView @JvmOverloads constructor(
     private fun initFloatBtnPosition(w: Int, h: Int) {
         val halfW = floatBtnPanelWidth / 2f
         val halfH = floatBtnPanelHeight / 2f
-        val savedXRatio = prefs.getFloat("pref_translator_float_btn_x_ratio", -1f)
-        val savedYRatio = prefs.getFloat("pref_translator_float_btn_y_ratio", -1f)
+        val savedXRatio = prefs.getFloatCompat("pref_translator_float_btn_x_ratio", -1f)
+        val savedYRatio = prefs.getFloatCompat("pref_translator_float_btn_y_ratio", -1f)
         if (savedXRatio in 0f..1f && savedYRatio in 0f..1f) {
             floatBtnX = (savedXRatio * w).coerceIn(halfW + 8f, w - halfW - 8f)
             floatBtnY = (savedYRatio * h).coerceIn(halfH + 8f, h - halfH - 8f)
@@ -1195,10 +1200,13 @@ class GameTranslationOverlayView @JvmOverloads constructor(
                         val br = block.boundingBox.right * w
                         val bb = block.boundingBox.bottom * h
                         if (RectF(bl - blockHitPad, bt - blockHitPad, br + blockHitPad, bb + blockHitPad).contains(x, y)) {
-                            viewScope.launch {
+                            dictionaryLookupJob?.cancel()
+                            dictionaryLookupJob = viewScope.launch {
                                 val lookupResult = GameDictionaryService.lookup(block.originalText, block.translatedText)
-                                activeDictionaryResult = lookupResult
-                                invalidate()
+                                if (isActive && blocks.isNotEmpty()) {
+                                    activeDictionaryResult = lookupResult
+                                    invalidate()
+                                }
                             }
                             return true
                         }
@@ -1276,6 +1284,8 @@ class GameTranslationOverlayView @JvmOverloads constructor(
         super.onDetachedFromWindow()
         longPressHandler.removeCallbacks(longPressRunnable)
         longPressHandler.removeCallbacksAndMessages(null)
+        dictionaryLookupJob?.cancel()
+        dictionaryLookupJob = null
         viewScope.cancel()
     }
 }

@@ -29,7 +29,8 @@ class CiaInstallWorker(val context: Context, params: WorkerParameters) : Worker(
             val resolvedPath = if (path.startsWith("content://")) {
                 val uri = Uri.parse(path)
                 val nativeCandidate = NativeLibrary.resolveNativeOrContentPath(uri)
-                if (!nativeCandidate.startsWith("content://") && File(nativeCandidate).isFile) {
+                val rawFile = File(nativeCandidate.removePrefix("!"))
+                if (!nativeCandidate.startsWith("content://") && rawFile.isFile && rawFile.canRead()) {
                     nativeCandidate
                 } else {
                     val docName = runCatching { DocumentFile.fromSingleUri(context, uri)?.name }.getOrNull().orEmpty()

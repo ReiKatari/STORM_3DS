@@ -80,6 +80,8 @@ object MelonEmulator {
     @Volatile private var touchDown: Boolean = false
     @Volatile var captureFrameBitmapCallback: (() -> Bitmap?)? = null
     @Volatile private var latestScreenshotBitmap: Bitmap? = null
+    @Volatile var isLongPreparationInProgress: Boolean = false
+    @Volatile var lastLoadFailureWasContainerOrFile: Boolean = false
     private val rewindScreenshots = java.util.ArrayDeque<ByteBuffer>()
     private val rewindExecutor = Executors.newSingleThreadScheduledExecutor()
     private var rewindTask: ScheduledFuture<*>? = null
@@ -287,8 +289,20 @@ object MelonEmulator {
 
         val rawSysLang = (prefs.getString("3ds_system_language", "-1") ?: "-1").toIntOrNull() ?: -1
         val sysLang = if (rawSysLang in 0..11) rawSysLang else resolveDevice3dsSystemLanguage()
+        val prefNickname = prefs.getString("firmware_settings_nickname", null)
         runCatching {
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.load()
+            val currentNandName = com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.getUsername()
+            val effectiveName = com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.resolveEffectiveUsername(
+                prefNickname,
+                currentNandName,
+            )
+            if (effectiveName != currentNandName) {
+                com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.setUsername(effectiveName)
+            }
+            if (prefNickname.isNullOrBlank() || prefNickname.equals("AZAHAR", ignoreCase = true)) {
+                prefs.edit().putString("firmware_settings_nickname", effectiveName).apply()
+            }
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.setSystemLanguage(sysLang)
             com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.save()
         }
@@ -370,10 +384,72 @@ object MelonEmulator {
     fun discardPendingRetroAchievementsSubmissions(expectedNativeSubmissionIds: LongArray): Int = 0
     fun setRetroAchievementsSubmissionTransportSuspended(suspended: Boolean) {}
 
+    internal fun matchInstalledGamePathByTitleId(installedPaths: List<String>, titleId: Long): String? {
+        if (titleId == 0L) return null
+        val tidHigh = String.format(java.util.Locale.ROOT, "%08x", (titleId ushr 32) and 0xFFFFFFFFL)
+        val tidLow = String.format(java.util.Locale.ROOT, "%08x", titleId and 0xFFFFFFFFL)
+        val slashNeedle = "$tidHigh/$tidLow"
+        val backslashNeedle = "$tidHigh\\$tidLow"
+        val compactNeedle = "$tidHigh$tidLow"
+        return installedPaths.firstOrNull { path ->
+            path.contains(slashNeedle, ignoreCase = true) ||
+                path.contains(backslashNeedle, ignoreCase = true) ||
+                path.contains(compactNeedle, ignoreCase = true)
+        }
+    }
+
+    private fun resolveCiaExtension(romUri: Uri, nativePath: String): String {
+        val docName = runCatching {
+            androidx.documentfile.provider.DocumentFile.fromSingleUri(NativeBridgeHost.appContext, romUri)?.name
+        }.getOrNull()
+        return listOfNotNull(docName, nativePath, romUri.lastPathSegment, romUri.toString())
+            .firstNotNullOfOrNull { candidate ->
+                candidate.substringBefore('?').substringAfterLast('.', "").lowercase()
+                    .takeIf { it in setOf("cia", "zcia", "bcia") }
+            } ?: ""
+    }
+
+    private fun resolveInstalledBootPath(
+        titleId: Long,
+        postGames: Array<NativeLibrary.InstalledGame>? = null,
+        prePaths: Set<String> = emptySet(),
+    ): String? {
+        if (titleId != 0L) {
+            val direct = runCatching { NativeLibrary.findInstalledTitlePath(titleId) }.getOrDefault("")
+            if (direct.isNotBlank()) return direct
+
+            val tidHigh = (titleId ushr 32) and 0xFFFFFFFFL
+            val baseTid = if (tidHigh == 0x0004000EL || tidHigh == 0x0004008CL) {
+                (0x00040000L shl 32) or (titleId and 0xFFFFFFFFL)
+            } else {
+                0L
+            }
+            if (baseTid != 0L) {
+                val baseDirect = runCatching { NativeLibrary.findInstalledTitlePath(baseTid) }.getOrDefault("")
+                if (baseDirect.isNotBlank()) return baseDirect
+            }
+
+            val games = postGames ?: runCatching { NativeLibrary.getInstalledGamePaths() }.getOrDefault(emptyArray())
+            val paths = games.map { it.path }
+            matchInstalledGamePathByTitleId(paths, titleId)?.let { return it }
+            if (baseTid != 0L) {
+                matchInstalledGamePathByTitleId(paths, baseTid)?.let { return it }
+            }
+            games.firstOrNull { runCatching { NativeLibrary.getTitleId(it.path) == titleId }.getOrDefault(false) }
+                ?.let { return it.path }
+        }
+        if (postGames != null) {
+            postGames.firstOrNull { it.path !in prePaths }?.let { return it.path }
+        }
+        return null
+    }
+
     fun loadRom(romUri: Uri, sramUri: Uri, gbaSlotType: GbaSlotType, gbaRomUri: Uri?, gbaSramUri: Uri?): LoadResult {
         NativeCoreLoader.load()
+        lastLoadFailureWasContainerOrFile = false
         var nativePath = resolveUriToNativePath(romUri)
         if (nativePath.isBlank()) {
+            lastLoadFailureWasContainerOrFile = true
             return LoadResult.NDS_FAILED
         }
         val lowerCandidate = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
@@ -391,16 +467,19 @@ object MelonEmulator {
                 }
             }.getOrNull()
             if (articUrl.isNullOrBlank()) {
+                lastLoadFailureWasContainerOrFile = true
                 return LoadResult.NDS_FAILED
             }
             nativePath = articUrl
         }
 
-        val ciaExt = listOf(nativePath, romUri.lastPathSegment.orEmpty(), romUri.toString())
-            .firstNotNullOfOrNull { candidate ->
-                candidate.substringBefore('?').substringAfterLast('.', "").lowercase()
-                    .takeIf { it in setOf("cia", "zcia", "bcia") }
-            } ?: ""
+        var ciaExt = resolveCiaExtension(romUri, nativePath)
+        if (ciaExt.isEmpty() && !nativePath.startsWith("artic", ignoreCase = true)) {
+            val directTid = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
+            if (directTid == 0L && runCatching { NativeLibrary.getCiaTitleId(nativePath) }.getOrDefault(0L) != 0L) {
+                ciaExt = "cia"
+            }
+        }
         var titleId = if (ciaExt.isNotEmpty()) {
             runCatching { NativeLibrary.getCiaTitleId(nativePath) }.getOrDefault(0L)
         } else {
@@ -408,19 +487,37 @@ object MelonEmulator {
         }
 
         if (ciaExt.isNotEmpty()) {
-            val prePaths = runCatching { NativeLibrary.getInstalledGamePaths().map { it.path }.toSet() }.getOrDefault(emptySet())
-            val installStatus = runCatching { NativeLibrary.installCiaSimple(nativePath) }.getOrDefault(-1)
-            if (installStatus != 0) {
-                return LoadResult.NDS_FAILED
+            val tidHigh = (titleId ushr 32) and 0xFFFFFFFFL
+            val isUpdateOrDlc = tidHigh == 0x0004000EL || tidHigh == 0x0004008CL
+            var installedPath = if (ciaExt != "bcia" && titleId != 0L && !isUpdateOrDlc) {
+                resolveInstalledBootPath(titleId)
+            } else {
+                null
             }
-            val postGames = runCatching { NativeLibrary.getInstalledGamePaths() }.getOrDefault(emptyArray())
-            val tidHex = if (titleId != 0L) String.format("%016x", titleId) else ""
-            val installedPath = when {
-                tidHex.isNotEmpty() -> postGames.firstOrNull { it.path.contains(tidHex, ignoreCase = true) }?.path
-                else -> postGames.firstOrNull { it.path !in prePaths }?.path
-            }
+
             if (installedPath.isNullOrBlank()) {
-                return LoadResult.NDS_FAILED
+                isLongPreparationInProgress = true
+                try {
+                    val prePaths = runCatching {
+                        NativeLibrary.getInstalledGamePaths().map { it.path }.toSet()
+                    }.getOrDefault(emptySet())
+                    val installStatus = runCatching { NativeLibrary.installCiaSimple(nativePath) }.getOrDefault(-1)
+                    if (installStatus != 0) {
+                        diagnosticBuf.appendLine("CIA install failed for $nativePath with status=$installStatus")
+                        lastLoadFailureWasContainerOrFile = true
+                        return LoadResult.NDS_FAILED
+                    }
+                    val postGames = runCatching { NativeLibrary.getInstalledGamePaths() }.getOrDefault(emptyArray())
+                    installedPath = resolveInstalledBootPath(titleId, postGames, prePaths)
+                    if (installedPath.isNullOrBlank()) {
+                        val tidHex = if (titleId != 0L) String.format(java.util.Locale.ROOT, "%016X", titleId) else "unknown"
+                        diagnosticBuf.appendLine("CIA installed (tid=$tidHex) but no bootable title found")
+                        lastLoadFailureWasContainerOrFile = true
+                        return LoadResult.NDS_FAILED
+                    }
+                } finally {
+                    isLongPreparationInProgress = false
+                }
             }
             nativePath = installedPath
             titleId = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(titleId)

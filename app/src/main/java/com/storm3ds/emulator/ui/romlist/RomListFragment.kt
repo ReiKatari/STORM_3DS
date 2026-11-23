@@ -156,7 +156,7 @@ class RomListFragment : Fragment() {
                         onNavigateUp = {},
                         onRefresh = {
                             romListViewModel.refreshRoms()
-                            (activity as? RomListActivity)?.checkForUpdatesManually()
+                            (activity as? RomListActivity)?.checkForUpdatesSilently()
                         },
                         onSearchQueryChanged = { query ->
                             romListViewModel.setRomSearchQuery(query)

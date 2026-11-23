@@ -4,9 +4,11 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import com.storm3ds.emulator.MelonEmulator
 import com.storm3ds.emulator.common.uridelegates.UriHandler
 import com.storm3ds.emulator.domain.model.RomInfo
 import com.storm3ds.emulator.domain.model.RomMetadata
@@ -32,10 +34,30 @@ abstract class CompressedRomFileProcessor(
     private val ndsRomCache: NdsRomCache,
 ) : RomFileProcessor {
 
+    companion object {
+        private val PLAYABLE_ROM_EXTENSIONS = setOf(
+            "3ds", "cci", "zcci", "bcci", "cxi", "zcxi", "bcxi", "app", "3dsx", "z3dsx",
+        )
+        private val INSTALLABLE_CIA_EXTENSIONS = setOf("cia", "zcia", "bcia")
+        private val OTHER_SUPPORTED_EXTENSIONS = setOf("elf", "axf", "artic")
+
+        internal fun romEntryPriority(fileName: String): Int {
+            val ext = fileName.substringAfterLast('.', "").lowercase()
+            return when (ext) {
+                in PLAYABLE_ROM_EXTENSIONS -> 3
+                in INSTALLABLE_CIA_EXTENSIONS -> 2
+                in OTHER_SUPPORTED_EXTENSIONS -> 1
+                else -> 0
+            }
+        }
+    }
+
     private sealed class RomExtractionException(message: String) : Exception(message)
     private class CouldNotOpenCompressedFileException : RomExtractionException("Failed to open compressed file for extraction")
     private class CouldNotFind3dsRomException : RomExtractionException("Failed to find a Nintendo 3DS ROM inside archive")
     private class CouldNotFindExtractedFileException : RomExtractionException("Failed to find extracted 3DS ROM file")
+
+    protected open fun openBestEntryForUri(romUri: Uri): RomFileStream? = null
 
     protected open fun openRomUriInputStream(uri: Uri): InputStream? {
         val directFile = FileUtils.resolveDirectFileFromExternalStorageUri(uri)
@@ -96,42 +118,59 @@ abstract class CompressedRomFileProcessor(
         return extension in ThreeDS.NATIVE_3DS_EXTENSIONS
     }
 
-    private suspend fun extractRomFile(rom: Rom): Uri? = withContext(Dispatchers.IO) {
-        val baseStream = openRomUriInputStream(rom.uri)
-            ?: throw CouldNotOpenCompressedFileException()
-        baseStream.use { stream ->
-            val romFileStream = getNdsEntryStreamInFileStream(stream)
-                ?: throw CouldNotFind3dsRomException()
-            romFileStream.use { entryStream ->
-                try {
-                    ndsRomCache.cacheRom(
-                        rom,
-                        object : NdsRomCache.RomExtractor {
-                            override fun getExtractedRomFileSize(): SizeUnit = entryStream.romFileSize
-                            override fun saveRomFile(fileStream: FileOutputStream): Boolean {
-                                val buffer = ByteArray(65536)
-                                return try {
-                                    while (coroutineContext.isActive) {
-                                        val read = entryStream.read(buffer)
-                                        if (read <= 0) break
-                                        fileStream.write(buffer, 0, read)
-                                    }
-                                    coroutineContext.isActive
-                                } catch (_: IOException) {
-                                    false
-                                }
+    private fun CoroutineScope.cacheEntryStream(rom: Rom, entryStream: RomFileStream) {
+        try {
+            ndsRomCache.cacheRom(
+                rom,
+                object : NdsRomCache.RomExtractor {
+                    override fun getExtractedRomFileSize(): SizeUnit = entryStream.romFileSize
+                    override fun saveRomFile(fileStream: FileOutputStream): Boolean {
+                        val buffer = ByteArray(65536)
+                        return try {
+                            while (coroutineContext.isActive) {
+                                val read = entryStream.read(buffer)
+                                if (read <= 0) break
+                                fileStream.write(buffer, 0, read)
                             }
-                        },
-                        extension = entryStream.entryExtension ?: "3ds",
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    throw CouldNotFindExtractedFileException()
+                            coroutineContext.isActive
+                        } catch (_: IOException) {
+                            false
+                        }
+                    }
+                },
+                extension = entryStream.entryExtension ?: "3ds",
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            throw CouldNotFindExtractedFileException()
+        }
+    }
+
+    private suspend fun extractRomFile(rom: Rom): Uri? = withContext(Dispatchers.IO) {
+        MelonEmulator.isLongPreparationInProgress = true
+        try {
+            val directEntryStream = openBestEntryForUri(rom.uri)
+            if (directEntryStream != null) {
+                directEntryStream.use { entryStream ->
+                    cacheEntryStream(rom, entryStream)
+                    if (!coroutineContext.isActive) throw CancellationException("ROM extraction cancelled")
+                    return@withContext ndsRomCache.getCachedRomFile(rom) ?: throw CouldNotFindExtractedFileException()
                 }
-                if (!coroutineContext.isActive) throw CancellationException("ROM extraction cancelled")
-                ndsRomCache.getCachedRomFile(rom) ?: throw CouldNotFindExtractedFileException()
             }
+            val baseStream = openRomUriInputStream(rom.uri)
+                ?: throw CouldNotOpenCompressedFileException()
+            baseStream.use { stream ->
+                val romFileStream = getNdsEntryStreamInFileStream(stream)
+                    ?: throw CouldNotFind3dsRomException()
+                romFileStream.use { entryStream ->
+                    cacheEntryStream(rom, entryStream)
+                    if (!coroutineContext.isActive) throw CancellationException("ROM extraction cancelled")
+                    ndsRomCache.getCachedRomFile(rom) ?: throw CouldNotFindExtractedFileException()
+                }
+            }
+        } finally {
+            MelonEmulator.isLongPreparationInProgress = false
         }
     }
 

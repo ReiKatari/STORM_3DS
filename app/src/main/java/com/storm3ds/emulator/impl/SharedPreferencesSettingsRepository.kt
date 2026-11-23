@@ -43,6 +43,7 @@ import com.storm3ds.emulator.domain.model.DualScreenPreset
 import com.storm3ds.emulator.domain.model.EmulatorConfiguration
 import com.storm3ds.emulator.domain.model.ExternalDisplayMode
 import com.storm3ds.emulator.domain.model.FirmwareConfiguration
+import com.storm3ds.emulator.utils.getFloatCompat
 import com.storm3ds.emulator.domain.model.FpsCounterPosition
 import com.storm3ds.emulator.domain.model.MacAddress
 import com.storm3ds.emulator.domain.model.MicSource
@@ -782,7 +783,7 @@ class SharedPreferencesSettingsRepository(
         }
 
         return FirmwareConfiguration(
-                preferences.getString("firmware_settings_nickname", "Player")!!,
+                preferences.getString("firmware_settings_nickname", com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.DEFAULT_3DS_USERNAME)!!,
                 preferences.getString("firmware_settings_message", "Hello!")!!,
                 effectiveLanguage,
                 preferences.getInt("firmware_settings_colour", 0).coerceIn(0, 15),
@@ -2861,7 +2862,7 @@ class SharedPreferencesSettingsRepository(
     override fun getSlowMotionSpeed(): Float {
         val speed = try {
             if (preferences.contains("slow_motion_speed")) {
-                preferences.getFloat("slow_motion_speed", 0.5f)
+                preferences.getFloatCompat("slow_motion_speed", 0.5f)
             } else {
                 preferences.getString("slow_motion_speed", "0.5")?.toFloatOrNull() ?: 0.5f
             }

@@ -5,6 +5,33 @@
 package com.storm3ds.emulator.nativebridge.utils
 
 object SystemSaveGame {
+    const val DEFAULT_3DS_USERNAME = "STORM 3DS"
+    const val MAX_USERNAME_UTF16_LEN = 10
+
+    fun sanitizeUsername(raw: String?): String {
+        val trimmed = raw.orEmpty().trim()
+        if (trimmed.isEmpty()) return DEFAULT_3DS_USERNAME
+        if (trimmed.length <= MAX_USERNAME_UTF16_LEN) return trimmed
+        var cut = MAX_USERNAME_UTF16_LEN
+        if (Character.isHighSurrogate(trimmed[cut - 1])) {
+            cut -= 1
+        }
+        val clipped = trimmed.substring(0, cut).trimEnd()
+        return clipped.ifEmpty { DEFAULT_3DS_USERNAME }
+    }
+
+    fun resolveEffectiveUsername(prefName: String?, nandName: String?): String {
+        val prefTrimmed = prefName?.trim().orEmpty()
+        if (prefTrimmed.isNotEmpty() && !prefTrimmed.equals("AZAHAR", ignoreCase = true)) {
+            return sanitizeUsername(prefTrimmed)
+        }
+        val nandTrimmed = nandName?.trim().orEmpty()
+        if (nandTrimmed.isEmpty() || nandTrimmed.equals("AZAHAR", ignoreCase = true)) {
+            return DEFAULT_3DS_USERNAME
+        }
+        return sanitizeUsername(nandTrimmed)
+    }
+
     external fun save()
 
     external fun load()

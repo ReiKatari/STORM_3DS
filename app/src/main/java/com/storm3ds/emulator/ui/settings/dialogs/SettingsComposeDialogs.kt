@@ -27,6 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +54,7 @@ import com.storm3ds.emulator.ui.theme.WatermelonMono
 
 fun showSettingsComposeDialog(
     context: Context,
+    onDismiss: (() -> Unit)? = null,
     content: @Composable (dismiss: () -> Unit) -> Unit
 ): Dialog {
     val dialog = ComponentDialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
@@ -62,6 +66,25 @@ fun showSettingsComposeDialog(
     }
     dialog.setOnShowListener {
         dialog.window?.applyImmersiveFullscreen()
+    }
+
+    val lifecycleOwner = context as? LifecycleOwner
+    val lifecycleObserver = if (lifecycleOwner != null) {
+        object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                if (dialog.isShowing) {
+                    dialog.dismiss()
+                }
+            }
+        }.also { lifecycleOwner.lifecycle.addObserver(it) }
+    } else {
+        null
+    }
+    dialog.setOnDismissListener {
+        if (lifecycleOwner != null && lifecycleObserver != null) {
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
+        }
+        onDismiss?.invoke()
     }
 
     val composeView = ComposeView(context).apply {
@@ -125,7 +148,7 @@ fun SettingsDialogScaffold(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Header Bar
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.Top,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp),
@@ -152,18 +175,19 @@ fun SettingsDialogScaffold(
                                 color = colors.text,
                                 fontFamily = SpaceGrotesk,
                                 fontSize = 16.sp,
+                                lineHeight = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                softWrap = true,
                             )
                             if (subtitle != null) {
+                                Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = subtitle,
                                     color = colors.text2,
                                     fontFamily = SpaceGrotesk,
                                     fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    lineHeight = 16.sp,
+                                    softWrap = true,
                                 )
                             }
                         }
@@ -245,9 +269,9 @@ fun SettingsChoiceDialogContent(
                         color = colors.text,
                         fontFamily = SpaceGrotesk,
                         fontSize = 14.sp,
+                        lineHeight = 19.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
                         modifier = Modifier.weight(1f),
                     )
 
@@ -287,6 +311,7 @@ fun SettingsEditTextDialogContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -417,9 +442,9 @@ fun SettingsMultiChoiceDialogContent(
                         color = colors.text,
                         fontFamily = SpaceGrotesk,
                         fontSize = 14.sp,
+                        lineHeight = 19.sp,
                         fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -475,6 +500,7 @@ fun SettingsSeekBarDialogContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -525,13 +551,10 @@ fun SettingsSeekBarDialogContent(
 }
 
 fun showSettingsRewindDialog(context: Context, onUpdated: (() -> Unit)? = null): Dialog {
-    return showSettingsComposeDialog(context) { dismiss ->
+    return showSettingsComposeDialog(context = context, onDismiss = onUpdated) { dismiss ->
         SettingsRewindDialogContent(
             context = context,
-            onDismiss = {
-                onUpdated?.invoke()
-                dismiss()
-            }
+            onDismiss = dismiss,
         )
     }
 }
@@ -740,9 +763,9 @@ fun SettingsRetroAchievementsLoginDialogContent(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalWatermelonColors.current
-    var username by remember { mutableStateOf(existingUsername.orEmpty()) }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var username by rememberSaveable { mutableStateOf(existingUsername.orEmpty()) }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     SettingsDialogScaffold(
         title = stringResource(R.string.login_with_retro_achievements),
@@ -958,6 +981,7 @@ fun SettingsConfirmDialogContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

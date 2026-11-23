@@ -1,6 +1,7 @@
 // Copyright 2026 STORM 3DS Project
 // Licensed under GPLv3 or any later version
 #include <algorithm>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "common/logging/backend.h"
 #include "common/file_derived.h"
 #include "common/settings.h"
+#include "common/string_util.h"
 #include "common/tar_file.h"
 #include "audio_core/input_details.h"
 #include "core/core.h"
@@ -264,9 +266,10 @@ JNIEXPORT jlong JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_ge
     if (auto tar = FileUtil::TarArchive::OpenTarArchive(in_file->OpenCopy())) {
         std::string picked;
         for (const auto& f : tar->GetFileList()) {
-            if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+            const std::string lower_name = Common::ToLower(f.name);
+            if (lower_name.ends_with(".cia") || lower_name.ends_with(".zcia")) {
                 picked = f.name;
-                if (f.name.find("00040000") != std::string::npos) {
+                if (lower_name.find("00040000") != std::string::npos) {
                     break;
                 }
             }
@@ -280,13 +283,48 @@ JNIEXPORT jlong JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_ge
         }
     }
     if (FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(in_file.get()).has_value()) {
-        in_file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+        auto z3ds = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+        if (auto ti = z3ds->Metadata().Get("titleinfo"); ti && ti->size() >= sizeof(u64)) {
+            u64 tid = 0;
+            std::memcpy(&tid, ti->data(), sizeof(u64));
+            if (tid != 0) {
+                return static_cast<jlong>(tid);
+            }
+        }
+        in_file = std::move(z3ds);
     }
     FileSys::CIAContainer container;
     if (container.Load(in_file.get()) != Loader::ResultStatus::Success) {
         return 0;
     }
     return static_cast<jlong>(container.GetTitleMetadata().GetTitleID());
+}
+
+JNIEXPORT jstring JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_findInstalledTitlePath(
+    JNIEnv* env, jobject, jlong j_title_id) {
+    const u64 tid = static_cast<u64>(j_title_id);
+    if (tid == 0) {
+        return env->NewStringUTF("");
+    }
+    const Service::FS::MediaType primary = Service::AM::GetTitleMediaType(tid);
+    const Service::FS::MediaType secondary = (primary == Service::FS::MediaType::SDMC)
+                                                 ? Service::FS::MediaType::NAND
+                                                 : Service::FS::MediaType::SDMC;
+    for (const auto media : {primary, secondary}) {
+        const std::string content_path = Service::AM::GetTitleContentPath(media, tid, 0, false);
+        if (content_path.empty() || !FileUtil::Exists(content_path)) {
+            continue;
+        }
+        auto loader = Loader::GetLoader(content_path);
+        if (!loader) {
+            continue;
+        }
+        bool executable = false;
+        if (loader->IsExecutable(executable) == Loader::ResultStatus::Success && executable) {
+            return env->NewStringUTF(content_path.c_str());
+        }
+    }
+    return env->NewStringUTF("");
 }
 
 } // extern "C"

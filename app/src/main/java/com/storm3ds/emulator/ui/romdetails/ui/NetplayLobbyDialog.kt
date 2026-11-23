@@ -145,7 +145,8 @@ fun NetplayLobbyDialog(
     var isLanConnecting by remember { mutableStateOf(false) }
 
     val defaultNickname = remember {
-        prefs.getString("firmware_settings_nickname", null)?.takeIf { it.isNotBlank() } ?: "STORM_Player"
+        prefs.getString("firmware_settings_nickname", null)?.takeIf { it.isNotBlank() }
+            ?: com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.DEFAULT_3DS_USERNAME
     }
     var manualHostIp by remember {
         mutableStateOf(prefs.getString("lan_last_host_ip", "") ?: "")

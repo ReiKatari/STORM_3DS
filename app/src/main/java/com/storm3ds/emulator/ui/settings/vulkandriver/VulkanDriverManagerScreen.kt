@@ -70,6 +70,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.GetApp
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Refresh
@@ -149,13 +150,16 @@ fun VulkanDriverManagerScreen(
                 },
                 actions = {
                     if (state.isSupported) {
+                        val isBusy = state.activeDownloadKey != null || state.isImportingLocal
                         IconButton(
+                            enabled = !isBusy,
                             onClick = {
                                 zipPickerLauncher.launch(
                                     arrayOf(
                                         "application/zip",
                                         "application/x-zip-compressed",
                                         "application/octet-stream",
+                                        "application/x-compressed",
                                     )
                                 )
                             }
@@ -254,7 +258,7 @@ fun VulkanDriverManagerScreen(
                             Text(
                                 text = stringResource(
                                     R.string.vulkan_driver_tab_repositories,
-                                    OnlineVulkanDriverRepository.ALL_REPOSITORIES.size,
+                                    state.repoGroups.size,
                                 ),
                                 color = if (selectedTab == 1) colors.green else colors.text2,
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
@@ -291,6 +295,7 @@ fun VulkanDriverManagerScreen(
                                     "application/zip",
                                     "application/x-zip-compressed",
                                     "application/octet-stream",
+                                    "application/x-compressed",
                                 )
                             )
                         },
@@ -304,13 +309,34 @@ fun VulkanDriverManagerScreen(
                         onInstallAsset = { repo, release, asset ->
                             viewModel.requestInstallAsset(repo, release, asset)
                         },
+                        onImportClick = {
+                            zipPickerLauncher.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                    "application/x-compressed",
+                                )
+                            )
+                        },
                     )
                     else -> RecommendedForGpuTab(
                         state = state,
+                        onSelectSystem = { viewModel.setSystemDriver() },
                         onInstallStorm = { viewModel.installStormDriver() },
                         onSelectInstalledDriver = { viewModel.selectDriver(it) },
                         onInstallAsset = { repo, release, asset ->
                             viewModel.requestInstallAsset(repo, release, asset)
+                        },
+                        onImportClick = {
+                            zipPickerLauncher.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                    "application/x-compressed",
+                                )
+                            )
                         },
                     )
                 }
@@ -428,8 +454,6 @@ private fun GpuTelemetryHeader(state: VulkanDriverManagerViewModel.UiState) {
                     color = colors.text,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -460,6 +484,17 @@ private fun GpuTelemetryHeader(state: VulkanDriverManagerViewModel.UiState) {
                     },
                     bg = colors.surface3,
                     fg = colors.text3,
+                )
+                TelemetryPill(
+                    label = "${stringResource(R.string.vulkan_driver_recommended_badge)}: ${
+                        when {
+                            state.isAdrenoTurnipCapable -> "STORM DRIVER"
+                            state.isMalisx2Supported -> "malisx2 (PanVK)"
+                            else -> stringResource(R.string.vulkan_driver_system_title)
+                        }
+                    }",
+                    bg = WatermelonColors.gold.copy(alpha = 0.18f),
+                    fg = WatermelonColors.gold,
                 )
             }
 
@@ -690,16 +725,27 @@ private fun InstalledDriversTab(
         contentPadding = PaddingValues(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            StormQuickInstallCard(
-                isInstalled = stormInstalled,
-                isBusy = state.activeDownloadKey != null,
-                onClick = onInstallStorm,
-            )
+        if (state.isAdrenoTurnipCapable) {
+            item {
+                StormQuickInstallCard(
+                    isInstalled = stormInstalled,
+                    isBusy = state.activeDownloadKey != null || state.isImportingLocal,
+                    onClick = onInstallStorm,
+                )
+            }
+        } else if (state.isMalisx2Supported) {
+            item {
+                Malisx2CompatibilityCard(state = state)
+            }
+        } else {
+            item {
+                NonAdrenoCompatibilityCard(state = state)
+            }
         }
 
         item {
             val isSystemActive = state.driverMode == VulkanDriverMode.SYSTEM
+            val isSystemRecommended = !state.isAdrenoTurnipCapable && !state.isMalisx2Supported
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -708,7 +754,11 @@ private fun InstalledDriversTab(
                 backgroundColor = colors.surface,
                 border = BorderStroke(
                     width = if (isSystemActive) 1.5.dp else 1.dp,
-                    color = if (isSystemActive) colors.green else colors.line,
+                    color = when {
+                        isSystemActive -> colors.green
+                        isSystemRecommended -> WatermelonColors.gold
+                        else -> colors.line
+                    },
                 ),
                 elevation = if (isSystemActive) 4.dp else 2.dp,
             ) {
@@ -738,12 +788,21 @@ private fun InstalledDriversTab(
                             fontSize = 12.sp,
                         )
                     }
-                    if (isSystemActive) {
-                        TelemetryPill(
-                            label = stringResource(R.string.vulkan_driver_status_active),
-                            bg = colors.greenDim,
-                            fg = colors.green,
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (isSystemRecommended) {
+                            TelemetryPill(
+                                label = stringResource(R.string.vulkan_driver_recommended_badge),
+                                bg = WatermelonColors.gold.copy(alpha = 0.20f),
+                                fg = WatermelonColors.gold,
+                            )
+                        }
+                        if (isSystemActive) {
+                            TelemetryPill(
+                                label = stringResource(R.string.vulkan_driver_status_active),
+                                bg = colors.greenDim,
+                                fg = colors.green,
+                            )
+                        }
                     }
                 }
             }
@@ -768,10 +827,12 @@ private fun InstalledDriversTab(
         } else {
             items(state.installedDrivers, key = { it.id }) { driver ->
                 val isActive = state.driverMode == VulkanDriverMode.CUSTOM && state.selectedDriverId == driver.id
+                val isCompatible = state.compatibleInstalledDrivers[driver.id] != false
                 InstalledCustomDriverCard(
                     driver = driver,
                     sizeText = state.installedDriverSizes[driver.id],
                     isActive = isActive,
+                    isCompatible = isCompatible,
                     onSelect = { onSelectDriver(driver.id) },
                     onDelete = { onDeleteDriver(driver) },
                 )
@@ -785,6 +846,7 @@ private fun InstalledDriversTab(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 OutlinedButton(
+                    enabled = state.activeDownloadKey == null && !state.isImportingLocal,
                     onClick = onImportClick,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp),
@@ -822,6 +884,118 @@ private fun InstalledDriversTab(
 }
 
 @Composable
+private fun Malisx2CompatibilityCard(
+    state: VulkanDriverManagerViewModel.UiState,
+) {
+    val colors = watermelon
+    val gpuLabel = state.gpuDescription.ifBlank { state.maliArchFamily.displayName }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        backgroundColor = colors.surface,
+        border = BorderStroke(1.dp, colors.green.copy(alpha = 0.75f)),
+        elevation = 3.dp,
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Star, contentDescription = null, tint = WatermelonColors.gold, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(
+                        R.string.vulkan_driver_mali_supported_title,
+                        state.maliArchFamily.displayName,
+                    ),
+                    color = colors.text,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(
+                    R.string.vulkan_driver_mali_supported_desc,
+                    gpuLabel,
+                    android.os.Build.VERSION.SDK_INT,
+                ),
+                color = colors.text2,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NonAdrenoCompatibilityCard(
+    state: VulkanDriverManagerViewModel.UiState,
+    showEmptyReposNotice: Boolean = false,
+) {
+    val colors = watermelon
+    val gpuLabel = state.gpuDescription.ifBlank { state.gpuVendorFamily.displayName }
+    val baseDescription = when (state.gpuVendorFamily) {
+        AdrenoVulkanDriverSupport.GpuVendorFamily.ARM_MALI -> when {
+            state.maliArchFamily == AdrenoVulkanDriverSupport.MaliArchFamily.UNSUPPORTED_MIDGARD_OR_V6 ->
+                stringResource(R.string.vulkan_driver_mali_midgard_v6_desc, gpuLabel)
+            state.maliArchFamily == AdrenoVulkanDriverSupport.MaliArchFamily.UNSUPPORTED_V13_PLUS ->
+                stringResource(R.string.vulkan_driver_mali_v13_plus_desc, gpuLabel)
+            state.maliArchFamily.isSupportedByMalisx2() ->
+                stringResource(R.string.vulkan_driver_mali_api_or_kernel_desc, gpuLabel)
+            else ->
+                stringResource(R.string.vulkan_driver_non_adreno_mali_desc)
+        }
+        else ->
+            stringResource(R.string.vulkan_driver_non_adreno_other_desc, gpuLabel)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        backgroundColor = colors.surface,
+        border = BorderStroke(1.dp, WatermelonColors.gold.copy(alpha = 0.65f)),
+        elevation = 3.dp,
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Info, contentDescription = null, tint = WatermelonColors.gold, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(
+                        R.string.vulkan_driver_non_adreno_title,
+                        state.gpuVendorFamily.displayName,
+                    ),
+                    color = colors.text,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = baseDescription,
+                color = colors.text2,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            )
+            if (state.hasPanfrostKernel) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.vulkan_driver_non_adreno_panfrost_detected),
+                    color = colors.green,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            if (showEmptyReposNotice) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.vulkan_driver_non_adreno_no_online_repos),
+                    color = colors.text3,
+                    fontSize = 12.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun StormQuickInstallCard(
     isInstalled: Boolean,
     isBusy: Boolean,
@@ -840,12 +1014,21 @@ private fun StormQuickInstallCard(
                 Icon(Icons.Filled.Bolt, contentDescription = null, tint = WatermelonColors.gold)
                 Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.vulkan_driver_storm_quick_title),
-                        color = colors.text,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.vulkan_driver_storm_quick_title),
+                            color = colors.text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        TelemetryPill(
+                            label = stringResource(R.string.vulkan_driver_recommended_badge),
+                            bg = WatermelonColors.gold.copy(alpha = 0.20f),
+                            fg = WatermelonColors.gold,
+                        )
+                    }
                     Text(
                         text = stringResource(R.string.vulkan_driver_storm_quick_subtitle),
                         color = colors.text2,
@@ -884,6 +1067,7 @@ private fun InstalledCustomDriverCard(
     driver: VulkanDriverInfo,
     sizeText: String?,
     isActive: Boolean,
+    isCompatible: Boolean,
     onSelect: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -896,7 +1080,11 @@ private fun InstalledCustomDriverCard(
         backgroundColor = colors.surface,
         border = BorderStroke(
             width = if (isActive) 1.5.dp else 1.dp,
-            color = if (isActive) colors.green else colors.line,
+            color = when {
+                isActive -> colors.green
+                !isCompatible -> WatermelonColors.gold.copy(alpha = 0.65f)
+                else -> colors.line
+            },
         ),
         elevation = if (isActive) 4.dp else 2.dp,
     ) {
@@ -917,16 +1105,12 @@ private fun InstalledCustomDriverCard(
                         color = colors.text,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     if (!driver.description.isNullOrBlank()) {
                         Text(
                             text = driver.description,
                             color = colors.text2,
                             fontSize = 12.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -949,6 +1133,13 @@ private fun InstalledCustomDriverCard(
                         label = stringResource(R.string.vulkan_driver_status_active),
                         bg = colors.greenDim,
                         fg = colors.green,
+                    )
+                }
+                if (!isCompatible) {
+                    TelemetryPill(
+                        label = stringResource(R.string.vulkan_driver_incompatible_gpu_badge),
+                        bg = colors.redGlow,
+                        fg = colors.red,
                     )
                 }
                 TelemetryPill(label = driver.driverName, bg = colors.surface2, fg = colors.text2)
@@ -981,6 +1172,7 @@ private fun RepositoriesHubTab(
     onCategorySelect: (DriverRepoCategory) -> Unit,
     onSelectInstalledDriver: (String) -> Unit,
     onInstallAsset: (VulkanDriverRepoSpec, VulkanDriverRelease, VulkanDriverAsset) -> Unit,
+    onImportClick: () -> Unit,
 ) {
     val colors = watermelon
     val query = state.searchQuery.trim()
@@ -1039,33 +1231,38 @@ private fun RepositoriesHubTab(
             ),
         )
 
-        val categories = listOf(
-            DriverRepoCategory.ALL to stringResource(R.string.vulkan_driver_cat_all),
+        val categoryLabels = mapOf(
+            DriverRepoCategory.ALL to stringResource(R.string.vulkan_driver_cat_all, state.repoGroups.size),
             DriverRepoCategory.STORM to stringResource(R.string.vulkan_driver_cat_storm),
             DriverRepoCategory.TURNIP to stringResource(R.string.vulkan_driver_cat_turnip),
             DriverRepoCategory.QUALCOMM_8XX to stringResource(R.string.vulkan_driver_cat_8xx),
             DriverRepoCategory.ADRENO_710 to stringResource(R.string.vulkan_driver_cat_710),
         )
+        val categories = state.availableCategories.mapNotNull { cat ->
+            categoryLabels[cat]?.let { cat to it }
+        }
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(categories, key = { it.first.name }) { (cat, label) ->
-                val selected = state.selectedCategory == cat
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (selected) colors.green else colors.surface,
-                    border = BorderStroke(1.dp, if (selected) colors.green else colors.line),
-                    modifier = Modifier.clickable { onCategorySelect(cat) },
-                ) {
-                    Text(
-                        text = label,
-                        color = if (selected) (if (colors.isDark) Color.Black else Color.White) else colors.text2,
-                        fontSize = 12.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
+        if (state.repoGroups.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(categories, key = { it.first.name }) { (cat, label) ->
+                    val selected = state.selectedCategory == cat
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (selected) colors.green else colors.surface,
+                        border = BorderStroke(1.dp, if (selected) colors.green else colors.line),
+                        modifier = Modifier.clickable { onCategorySelect(cat) },
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (selected) (if (colors.isDark) Color.Black else Color.White) else colors.text2,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
                 }
             }
         }
@@ -1093,17 +1290,44 @@ private fun RepositoriesHubTab(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (filteredGroups.isEmpty() && !state.isSyncingRepos) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        backgroundColor = colors.surface,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.vulkan_driver_no_matches, query),
-                            color = colors.text3,
-                            modifier = Modifier.padding(16.dp),
+                if (!state.isAdrenoTurnipCapable && !state.isMalisx2Supported) {
+                    item {
+                        NonAdrenoCompatibilityCard(
+                            state = state,
+                            showEmptyReposNotice = true,
                         )
+                    }
+                    item {
+                        OutlinedButton(
+                            enabled = state.activeDownloadKey == null && !state.isImportingLocal,
+                            onClick = onImportClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, colors.line),
+                        ) {
+                            Icon(Icons.Filled.FileOpen, contentDescription = null, tint = colors.green, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.vulkan_driver_import_zip),
+                                color = colors.text,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                } else {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            backgroundColor = colors.surface,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.vulkan_driver_no_matches, query),
+                                color = colors.text3,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
                     }
                 }
             } else {
@@ -1132,9 +1356,11 @@ private fun RepositoriesHubTab(
 @Composable
 private fun RecommendedForGpuTab(
     state: VulkanDriverManagerViewModel.UiState,
+    onSelectSystem: () -> Unit,
     onInstallStorm: () -> Unit,
     onSelectInstalledDriver: (String) -> Unit,
     onInstallAsset: (VulkanDriverRepoSpec, VulkanDriverRelease, VulkanDriverAsset) -> Unit,
+    onImportClick: () -> Unit,
 ) {
     val colors = watermelon
     val adviceText = when (state.gpuSubFamily) {
@@ -1146,10 +1372,11 @@ private fun RecommendedForGpuTab(
             stringResource(R.string.vulkan_driver_series_710_desc)
         AdrenoVulkanDriverSupport.AdrenoSubFamily.ADRENO_7XX_MODERN ->
             stringResource(R.string.vulkan_driver_series_7xx_desc)
-        AdrenoVulkanDriverSupport.AdrenoSubFamily.ADRENO_6XX,
+        AdrenoVulkanDriverSupport.AdrenoSubFamily.ADRENO_6XX ->
+            stringResource(R.string.vulkan_driver_series_6xx_desc)
         AdrenoVulkanDriverSupport.AdrenoSubFamily.ADRENO_LEGACY_OR_UNKNOWN,
         AdrenoVulkanDriverSupport.AdrenoSubFamily.NON_ADRENO,
-        -> stringResource(R.string.vulkan_driver_series_6xx_desc)
+        -> stringResource(R.string.vulkan_driver_non_adreno_no_online_repos)
     }
 
     val stormInstalled = state.installedDrivers.any {
@@ -1166,54 +1393,206 @@ private fun RecommendedForGpuTab(
         contentPadding = PaddingValues(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                backgroundColor = colors.surface,
-                border = BorderStroke(1.dp, colors.green),
-                elevation = 4.dp,
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+        if (!state.isAdrenoTurnipCapable && !state.isMalisx2Supported) {
+            item {
+                val isSystemActive = state.driverMode == VulkanDriverMode.SYSTEM
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    backgroundColor = colors.surface,
+                    border = BorderStroke(1.5.dp, if (isSystemActive) colors.green else WatermelonColors.gold),
+                    elevation = 4.dp,
                 ) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = WatermelonColors.gold)
-                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Filled.Star, contentDescription = null, tint = WatermelonColors.gold)
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.vulkan_driver_system_title),
+                                    color = colors.text,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                )
+                                Text(
+                                    text = stringResource(R.string.vulkan_driver_system_subtitle),
+                                    color = colors.text2,
+                                    fontSize = 12.sp,
+                                )
+                            }
+                            TelemetryPill(
+                                label = stringResource(R.string.vulkan_driver_recommended_badge),
+                                bg = WatermelonColors.gold.copy(alpha = 0.20f),
+                                fg = WatermelonColors.gold,
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        if (isSystemActive) {
+                            TelemetryPill(
+                                label = stringResource(R.string.vulkan_driver_status_active),
+                                bg = colors.greenDim,
+                                fg = colors.green,
+                            )
+                        } else {
+                            Button(
+                                onClick = onSelectSystem,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor = colors.green,
+                                    contentColor = if (colors.isDark) Color.Black else Color.White,
+                                ),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.vulkan_driver_activate),
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                NonAdrenoCompatibilityCard(
+                    state = state,
+                    showEmptyReposNotice = true,
+                )
+            }
+            item {
+                OutlinedButton(
+                    enabled = state.activeDownloadKey == null && !state.isImportingLocal,
+                    onClick = onImportClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, colors.line),
+                ) {
+                    Icon(Icons.Filled.FileOpen, contentDescription = null, tint = colors.green, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
-                        text = adviceText,
+                        text = stringResource(R.string.vulkan_driver_import_zip),
                         color = colors.text,
                         fontSize = 13.sp,
-                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
-        }
+        } else if (state.isMalisx2Supported) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    backgroundColor = colors.surface,
+                    border = BorderStroke(1.dp, colors.green),
+                    elevation = 4.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = WatermelonColors.gold)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.vulkan_driver_mali_panvk_advice,
+                                state.gpuDescription.ifBlank { state.maliArchFamily.displayName },
+                            ),
+                            color = colors.text,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                        )
+                    }
+                }
+            }
 
-        item {
-            StormQuickInstallCard(
-                isInstalled = stormInstalled,
-                isBusy = state.activeDownloadKey != null,
-                onClick = onInstallStorm,
-            )
-        }
+            items(recommendedGroups, key = { "rec_${it.spec.id}" }) { group ->
+                RepoGroupCard(
+                    group = group,
+                    isRecommended = true,
+                    expanded = true,
+                    onToggleExpand = {},
+                    installedDrivers = state.installedDrivers,
+                    activeDriverId = if (state.driverMode == VulkanDriverMode.CUSTOM) state.selectedDriverId else null,
+                    activeDownloadKey = state.activeDownloadKey,
+                    searchQuery = "",
+                    maxReleasesShown = 3,
+                    onSelectInstalledDriver = onSelectInstalledDriver,
+                    onInstallAsset = { release, asset ->
+                        onInstallAsset(group.spec, release, asset)
+                    },
+                )
+            }
 
-        items(recommendedGroups, key = { "rec_${it.spec.id}" }) { group ->
-            RepoGroupCard(
-                group = group,
-                isRecommended = true,
-                expanded = true,
-                onToggleExpand = {},
-                installedDrivers = state.installedDrivers,
-                activeDriverId = if (state.driverMode == VulkanDriverMode.CUSTOM) state.selectedDriverId else null,
-                activeDownloadKey = state.activeDownloadKey,
-                searchQuery = "",
-                maxReleasesShown = 3,
-                onSelectInstalledDriver = onSelectInstalledDriver,
-                onInstallAsset = { release, asset ->
-                    onInstallAsset(group.spec, release, asset)
-                },
-            )
+            item {
+                OutlinedButton(
+                    enabled = state.activeDownloadKey == null && !state.isImportingLocal,
+                    onClick = onImportClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, colors.line),
+                ) {
+                    Icon(Icons.Filled.FileOpen, contentDescription = null, tint = colors.green, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.vulkan_driver_import_zip),
+                        color = colors.text,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        } else {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    backgroundColor = colors.surface,
+                    border = BorderStroke(1.dp, colors.green),
+                    elevation = 4.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = WatermelonColors.gold)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = adviceText,
+                            color = colors.text,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                        )
+                    }
+                }
+            }
+
+            item {
+                StormQuickInstallCard(
+                    isInstalled = stormInstalled,
+                    isBusy = state.activeDownloadKey != null || state.isImportingLocal,
+                    onClick = onInstallStorm,
+                )
+            }
+
+            items(recommendedGroups, key = { "rec_${it.spec.id}" }) { group ->
+                RepoGroupCard(
+                    group = group,
+                    isRecommended = true,
+                    expanded = true,
+                    onToggleExpand = {},
+                    installedDrivers = state.installedDrivers,
+                    activeDriverId = if (state.driverMode == VulkanDriverMode.CUSTOM) state.selectedDriverId else null,
+                    activeDownloadKey = state.activeDownloadKey,
+                    searchQuery = "",
+                    maxReleasesShown = 3,
+                    onSelectInstalledDriver = onSelectInstalledDriver,
+                    onInstallAsset = { release, asset ->
+                        onInstallAsset(group.spec, release, asset)
+                    },
+                )
+            }
         }
     }
 }
@@ -1289,6 +1668,12 @@ private fun RepoGroupCard(
                                 contentDescription = null,
                                 tint = WatermelonColors.gold,
                                 modifier = Modifier.size(15.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            TelemetryPill(
+                                label = stringResource(R.string.vulkan_driver_recommended_badge),
+                                bg = WatermelonColors.gold.copy(alpha = 0.20f),
+                                fg = WatermelonColors.gold,
                             )
                         }
                     }
@@ -1372,8 +1757,6 @@ private fun ReleaseCardSection(
                 color = colors.text,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             if (release.publishedAt.isNotBlank()) {
@@ -1464,8 +1847,6 @@ private fun ReleaseCardSection(
                             color = colors.text,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
                         )
                         if (asset.sizeBytes > 0L) {
                             Text(

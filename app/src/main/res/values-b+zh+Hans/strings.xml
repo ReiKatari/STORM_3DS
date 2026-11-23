@@ -1615,4 +1615,17 @@
     <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
     <string name="about_credits_libraries_title">Open source libraries and tools</string>
     <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
+    <string name="freedreno_settings">Freedreno 设置</string>
+    <string name="freedreno_summary">Turnip/Freedreno 高级选项。留空以使用驱动默认值。更改后需要重启应用。驱动可能忽略不支持的选项。</string>
+    <string name="freedreno_default">驱动默认值</string>
+    <string name="freedreno_invalid">最多输入 2048 个 ASCII 字符，不可换行。</string>
+    <string name="freedreno_restart">重启 STORM 3DS 以保存并应用此更改。</string>
+    <string name="freedreno_restart_button">重启</string>
+    <string name="freedreno_save_failed">无法保存设置。点击重启以重试。</string>
+    <string name="vulkan_driver_mali_supported_title">支持 Arm Mali PanVK (%1$s)</string>
+    <string name="vulkan_driver_mali_supported_desc">检测到 %1$s，运行于 Android %2$d+ 64 位 /dev/mali0 内核驱动。可在云端仓库获取 malisx2 PanVK 版本，也可手动导入兼容的 ZIP 驱动包。</string>
+    <string name="vulkan_driver_mali_panvk_advice">Arm Mali (%1$s)：建议使用系统 GPU 驱动以获得最佳兼容性，或在受支持的 Mali Bifrost v7 至第 5 代 v12 GPU 上测试 malisx2 PanVK 版本。</string>
+    <string name="vulkan_driver_mali_midgard_v6_desc">检测到 %1$s（Midgard / Bifrost v6）。malisx2 PanVK 需要 Mali Bifrost v7 (G31/G51/G52/G76) 至第 5 代 v12 (G620/G720) GPU。当前使用系统 GPU 驱动，手动 ZIP 导入已解锁。</string>
+    <string name="vulkan_driver_mali_v13_plus_desc">检测到 %1$s（v13+ / Immortalis-G925）。malisx2 PanVK 目前最高支持到 Mali 第 5 代 v12 (G720)。当前使用系统 GPU 驱动，手动 ZIP 导入已解锁。</string>
+    <string name="vulkan_driver_mali_api_or_kernel_desc">检测到 %1$s，但 malisx2 PanVK 需要 Android 10 (API 29) 及以上版本、64 位进程以及 /dev/mali0 内核节点。当前使用系统 GPU 驱动，手动 ZIP 导入已解锁。</string>
 </resources>

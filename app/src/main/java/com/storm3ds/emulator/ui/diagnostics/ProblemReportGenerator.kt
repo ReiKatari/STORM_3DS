@@ -126,8 +126,12 @@ object ProblemReportGenerator {
             writeTextEntry(zos, "logcat_tail.txt", captureLogcatTail())
 
             val rootStormDir = File(Environment.getExternalStorageDirectory(), "STORM 3DS")
-            val candidateFiles = listOf(
+            val extFilesLogsDir = context.getExternalFilesDir(null)?.let { File(it, "logs") }
+            val internalLogsDir = File(context.filesDir, "logs")
+            val candidateFiles = listOfNotNull(
                 "STORM_INFO.txt" to File(rootStormDir, "logs/STORM_INFO.txt"),
+                extFilesLogsDir?.let { "STORM_INFO_fallback.txt" to File(it, "STORM_INFO.txt") },
+                "STORM_INFO_internal.txt" to File(internalLogsDir, "STORM_INFO.txt"),
                 "STORM_INFO_legacy.txt" to File(rootStormDir, "logs/!STORM_INFO.txt"),
                 "STORM_INFO_root.txt" to File(rootStormDir, "STORM_INFO.txt"),
                 "vulkan_debug_report.json" to File(rootStormDir, "debug/vulkan_debug_report.json"),
@@ -135,6 +139,8 @@ object ProblemReportGenerator {
                 "vulkan_debug_report_internal.json" to File(context.filesDir, "vulkan_debug_report.json"),
                 "STORM_3DS.opts" to File(rootStormDir, "settings/STORM_3DS.opts"),
                 "STORM_3DS.log" to File(rootStormDir, "logs/STORM_3DS.log"),
+                extFilesLogsDir?.let { "STORM_3DS_fallback.log" to File(it, "STORM_3DS.log") },
+                "STORM_3DS_internal.log" to File(internalLogsDir, "STORM_3DS.log"),
             )
 
             val addedEntryNames = mutableSetOf<String>()

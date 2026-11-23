@@ -58,9 +58,10 @@ GameInfoData* GetNewGameInfoData(const std::string& path) {
                 if (auto tar = FileUtil::TarArchive::OpenTarArchive(in_file->OpenCopy())) {
                     std::string picked;
                     for (const auto& f : tar->GetFileList()) {
-                        if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+                        const std::string lower_name = Common::ToLower(f.name);
+                        if (lower_name.ends_with(".cia") || lower_name.ends_with(".zcia")) {
                             picked = f.name;
-                            if (f.name.find("00040000") != std::string::npos) {
+                            if (lower_name.find("00040000") != std::string::npos) {
                                 break;
                             }
                         }
@@ -73,13 +74,35 @@ GameInfoData* GetNewGameInfoData(const std::string& path) {
                     }
                 }
                 bool is_zcia = false;
+                FileUtil::Z3DSReadIOFile* z3ds_ptr = nullptr;
                 if (in_file && in_file->IsGood() &&
                     FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(in_file.get()).has_value()) {
-                    in_file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+                    auto z3ds = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+                    z3ds_ptr = z3ds.get();
+                    in_file = std::move(z3ds);
                     is_zcia = true;
                 }
+                bool resolved_from_z3ds_meta = false;
+                if (z3ds_ptr != nullptr && z3ds_ptr->IsGood()) {
+                    const auto ti_meta = z3ds_ptr->Metadata().Get("titleinfo");
+                    const auto smdh_meta = z3ds_ptr->Metadata().Get("smdh");
+                    if (ti_meta && ti_meta->size() >= sizeof(u64) && smdh_meta &&
+                        smdh_meta->size() >= sizeof(Loader::SMDH) &&
+                        Loader::IsValidSMDH(std::span<const u8>{smdh_meta->data(), sizeof(Loader::SMDH)})) {
+                        u64 meta_tid = 0;
+                        std::memcpy(&meta_tid, ti_meta->data(), sizeof(u64));
+                        if (meta_tid != 0) {
+                            gid->title_id = meta_tid;
+                            gid->is_encrypted = false;
+                            gid->loaded = true;
+                            gid->file_type = is_bundle ? "BCIA" : "ZCIA";
+                            std::memcpy(&gid->smdh, smdh_meta->data(), sizeof(Loader::SMDH));
+                            resolved_from_z3ds_meta = true;
+                        }
+                    }
+                }
                 FileSys::CIAContainer container;
-                if (in_file && in_file->IsGood() &&
+                if (!resolved_from_z3ds_meta && in_file && in_file->IsGood() &&
                     container.Load(in_file.get()) == Loader::ResultStatus::Success) {
                     const auto& tmd = container.GetTitleMetadata();
                     gid->title_id = tmd.GetTitleID();

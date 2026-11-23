@@ -96,6 +96,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         const val GLES_3_2 = 0x30002
         const val VULKAN_SYSTEM_DRIVER_VALUE = "system"
         const val SHADER_LOG_FILE_NAME = "librashader.log"
+        const val FREEDRENO_SETTINGS_KEY = "video_freedreno_settings"
         const val SHADER_SETTINGS_KEY = "video_retroarch_shader_settings"
         const val HEAVY_PRESET_BADGE_THRESHOLD_MS = 60_000L
     }
@@ -135,6 +136,11 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.pref_video, rootKey)
+
+        if (rootKey == FREEDRENO_SETTINGS_KEY) {
+            setupFreedrenoSettingsSubScreen()
+            return
+        }
 
         if (rootKey == SHADER_SETTINGS_KEY) {
             setupShaderSettingsSubScreen()
@@ -627,12 +633,12 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 getString(R.string.vulkan_driver_prefs_blocked_legacy_summary)
             com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_ANDROID_OR_ABI ->
                 getString(R.string.vulkan_driver_prefs_blocked_abi_summary)
-            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_GPU,
-            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.SUPPORTED,
-            -> getString(
-                R.string.vulkan_driver_prefs_blocked_summary,
-                com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getDeviceGpuDescription(),
-            )
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.UNSUPPORTED_GPU ->
+                getString(
+                    R.string.vulkan_driver_prefs_blocked_summary,
+                    com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getDeviceGpuDescription(),
+                )
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.SupportStatus.SUPPORTED -> ""
         }
     }
 
@@ -735,28 +741,60 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             importPreference.isEnabled = false
             removePreference.isEnabled = false
             removePreference.isVisible = false
+            findPreference<Preference>(FREEDRENO_SETTINGS_KEY)?.isVisible = false
             return
         }
 
+        findPreference<Preference>(FREEDRENO_SETTINGS_KEY)?.isVisible =
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.supportsFreedreno(requireContext())
         category.summary = null
         managerPreference?.isEnabled = true
         modePreference.isEnabled = true
         importPreference.isEnabled = true
         removePreference.isEnabled = true
 
+        updateVulkanDriverPreferenceSummaries(modePreference, removePreference, managerPreference)
+    }
+
+    private fun setupFreedrenoSettingsSubScreen() {
+        preferenceScreen.isEnabled =
+            com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.supportsFreedreno(requireContext()) &&
+            !requireActivity().intent.getBooleanExtra(SettingsActivity.KEY_IN_GAME, false)
+        for (variable in com.storm3ds.emulator.impl.FreedrenoSettings.variables) {
+            findPreference<androidx.preference.EditTextPreference>(
+                com.storm3ds.emulator.impl.FreedrenoSettings.preferenceKey(variable),
+            )?.apply {
+                summaryProvider = Preference.SummaryProvider<androidx.preference.EditTextPreference> {
+                    it.text?.takeIf { value -> value.isNotBlank() } ?: getString(R.string.freedreno_default)
+                }
+                setOnBindEditTextListener { it.setSingleLine(true) }
+                setOnPreferenceChangeListener { _, value ->
+                    val nextValue = value as String
+                    if (!com.storm3ds.emulator.impl.FreedrenoSettings.isValid(nextValue)) {
+                        Toast.makeText(requireContext(), R.string.freedreno_invalid, Toast.LENGTH_LONG).show()
+                    } else if (nextValue.trim() != text.orEmpty().trim()) {
+                        FreedrenoRestartDialog.create(key, nextValue.trim())
+                            .show(childFragmentManager, "freedreno_restart")
+                    }
+                    false
+                }
+            }
+        }
+    }
+
+    private fun updateVulkanManagerSummary(managerPreference: Preference?) {
         val subFamily = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getSubFamily()
+        val malisx2Supported = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.isMalisx2Supported()
         val recommendedLabel = com.storm3ds.emulator.impl.vulkandriver.OnlineVulkanDriverRepository
-            .getRecommendedDriverDisplayTitle(subFamily)
+            .getRecommendedDriverDisplayTitle(subFamily, malisx2Supported = malisx2Supported)
         val hasCustomActive = settingsRepository.getVulkanDriverMode() == VulkanDriverMode.CUSTOM &&
             !settingsRepository.getCustomVulkanDriverDisplayName().isNullOrBlank()
 
-        if (recommendedLabel != null && !hasCustomActive) {
-            managerPreference?.summary = getString(R.string.video_prefs_recommended_driver_available, recommendedLabel)
-        } else {
-            managerPreference?.summary = getString(R.string.video_vulkan_driver_manager_summary)
+        managerPreference?.summary = when {
+            hasCustomActive -> getString(R.string.video_vulkan_driver_manager_summary)
+            recommendedLabel != null -> getString(R.string.video_prefs_recommended_driver_available, recommendedLabel)
+            else -> getString(R.string.video_prefs_recommended_system_driver)
         }
-
-        updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
     }
 
     private fun showVulkanDriverSelectionDialog(
@@ -775,9 +813,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             .setSingleChoiceItems(entries.toTypedArray(), checkedIndex) { dialog, which ->
                 val value = values[which]
                 if (value == VULKAN_SYSTEM_DRIVER_VALUE) {
-                    settingsRepository.setVulkanDriverMode(VulkanDriverMode.SYSTEM)
+                    adrenoVulkanDriverManager.setSystemDriver()
                 } else {
-                    settingsRepository.setSelectedVulkanDriver(value)
+                    adrenoVulkanDriverManager.selectDriver(value)
                 }
                 updateVulkanDriverPreferenceSummaries(modePreference, removePreference)
                 dialog.dismiss()
@@ -828,6 +866,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     private fun updateVulkanDriverPreferenceSummaries(
         modePreference: ListPreference,
         removePreference: Preference,
+        managerPreference: Preference? = findPreference("video_vulkan_driver_manager"),
     ) {
         val installedDrivers = settingsRepository.getInstalledVulkanDrivers()
         val selectedDriverId = settingsRepository.getSelectedVulkanDriverId()
@@ -847,6 +886,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             getString(R.string.video_vulkan_driver_active_system)
         }
         removePreference.isVisible = installedDrivers.isNotEmpty()
+        updateVulkanManagerSummary(managerPreference)
     }
 
     private fun showRemoveVulkanDriverDialog(

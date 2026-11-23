@@ -1706,4 +1706,17 @@
     <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
     <string name="about_credits_libraries_title">Open source libraries and tools</string>
     <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
+    <string name="freedreno_settings">Freedreno 設定</string>
+    <string name="freedreno_summary">Turnip/Freedreno の詳細オプション。空欄にするとドライバーのデフォルトを使用します。変更の反映にはアプリの再起動が必要です。未対応のオプションはドライバー側で無視される場合があります。</string>
+    <string name="freedreno_default">ドライバーのデフォルト</string>
+    <string name="freedreno_invalid">改行なしの ASCII 文字 2048 文字以内で入力してください。</string>
+    <string name="freedreno_restart">この変更を保存して適用するには STORM 3DS を再起動してください。</string>
+    <string name="freedreno_restart_button">再起動</string>
+    <string name="freedreno_save_failed">設定を保存できませんでした。「再起動」をタップしてもう一度お試しください。</string>
+    <string name="vulkan_driver_mali_supported_title">Arm Mali PanVK 対応 (%1$s)</string>
+    <string name="vulkan_driver_mali_supported_desc">Android %2$d 以上の 64ビット /dev/mali0 カーネルドライバーと %1$s を検出しました。malisx2 PanVK ビルドはクラウドリポジトリから入手できるほか、互換性のある ZIP を手動インポートすることもできます。</string>
+    <string name="vulkan_driver_mali_panvk_advice">Arm Mali (%1$s): 最大の互換性にはシステム GPU ドライバーを使用してください。対応する Mali Bifrost v7 から 5th Gen v12 の GPU では malisx2 PanVK ビルドも試せます。</string>
+    <string name="vulkan_driver_mali_midgard_v6_desc">%1$s (Midgard / Bifrost v6) を検出しました。malisx2 PanVK には Mali Bifrost v7 (G31/G51/G52/G76) から 5th Gen v12 (G620/G720) までが必要です。システム GPU ドライバーを使用します (手動 ZIP インポートは利用可能です)。</string>
+    <string name="vulkan_driver_mali_v13_plus_desc">%1$s (v13+ / Immortalis-G925) を検出しました。現在 malisx2 PanVK は Mali 5th Gen v12 (G720) まで対応しています。システム GPU ドライバーを使用します (手動 ZIP インポートは利用可能です)。</string>
+    <string name="vulkan_driver_mali_api_or_kernel_desc">%1$s を検出しましたが、malisx2 PanVK には Android 10 (API 29) 以上、64ビットプロセス、および /dev/mali0 カーネルノードが必要です。システム GPU ドライバーを使用します (手動 ZIP インポートは利用可能です)。</string>
 </resources>

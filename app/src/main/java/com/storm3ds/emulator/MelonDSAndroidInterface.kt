@@ -56,9 +56,14 @@ object MelonDSAndroidInterface {
 
     fun getRendererCapabilities(): Int = RENDERER_CAP_OPENGL or RENDERER_CAP_VULKAN
 
-    fun isVulkanRendererSupported(): Boolean = true
+    fun isVulkanRendererSupported(): Boolean {
+        return runCatching {
+            NativeCoreLoader.load()
+            NativeLibrary.isVulkanSupported()
+        }.getOrDefault(true)
+    }
 
-    fun canInitializeVulkanRenderer(profile: VulkanPipelineProfile): Boolean = true
+    fun canInitializeVulkanRenderer(profile: VulkanPipelineProfile): Boolean = isVulkanRendererSupported()
 
     fun setVulkanCompatibilityOverrides(
         disableTimelineSemaphores: Boolean,
@@ -68,6 +73,41 @@ object MelonDSAndroidInterface {
     }
 
     fun getVulkanGpuInfo(): VulkanGpuHardwareInfo {
+        val rawJson = runCatching {
+            NativeCoreLoader.load()
+            NativeLibrary.queryVulkanGpuInfoJson()
+        }.getOrDefault("")
+        if (rawJson.isNotBlank()) {
+            val parsed = runCatching {
+                val obj = org.json.JSONObject(rawJson)
+                val driverNameFromNative = obj.optString("driverName", "").trim()
+                val isCustomFromNative = obj.optBoolean("isCustomDriver", lastCustomDriver)
+                val effectiveDriverName = when {
+                    isCustomFromNative && lastDriverName.isNotBlank() && lastDriverName != "System GPU Driver" -> {
+                        if (driverNameFromNative.isNotBlank() && !lastDriverName.contains(driverNameFromNative, ignoreCase = true)) {
+                            "$lastDriverName ($driverNameFromNative)"
+                        } else {
+                            lastDriverName
+                        }
+                    }
+                    driverNameFromNative.isNotBlank() -> driverNameFromNative
+                    else -> lastDriverName
+                }
+                VulkanGpuHardwareInfo(
+                    deviceName = obj.optString("deviceName", "").ifBlank { android.os.Build.HARDWARE },
+                    vendorId = obj.optInt("vendorId", 0),
+                    deviceId = obj.optInt("deviceId", 0),
+                    apiVersion = obj.optString("apiVersion", "").ifBlank { "Vulkan 1.1+" },
+                    driverVersionRaw = obj.optLong("driverVersion", 0L),
+                    driverName = effectiveDriverName,
+                    driverInfo = obj.optString("driverInfo", ""),
+                    isCustomDriver = isCustomFromNative,
+                )
+            }.getOrNull()
+            if (parsed != null) {
+                return parsed
+            }
+        }
         return VulkanGpuHardwareInfo(
             deviceName = android.os.Build.HARDWARE,
             apiVersion = "Vulkan 1.1+ / OpenGL ES 3.2",

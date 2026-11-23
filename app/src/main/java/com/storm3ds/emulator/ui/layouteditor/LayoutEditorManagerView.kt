@@ -13,9 +13,11 @@ import android.widget.FrameLayout
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
 import androidx.core.view.ViewCompat
@@ -118,6 +120,16 @@ class LayoutEditorManagerView(
     private var editableDialogTargetComponent: LayoutComponent? = null
     private var positionDialogTargetComponent: LayoutComponent? = null
     private val nameInputDialogState = TextInputDialogState()
+
+    private var previewSkinEnabled by mutableStateOf(false)
+    private var previewSkinTheme by mutableStateOf(com.storm3ds.emulator.ui.emulator.skin.ConsoleSkinTheme.AURORA_AUTO_THEME)
+    private var previewHingeGapPx by mutableStateOf(0)
+    private var previewHasCustomBackground by mutableStateOf(false)
+    private var previewTopRect by mutableStateOf<com.storm3ds.emulator.domain.model.Rect?>(null)
+    private var previewBottomRect by mutableStateOf<com.storm3ds.emulator.domain.model.Rect?>(null)
+    private var previewHybridTopRect by mutableStateOf<com.storm3ds.emulator.domain.model.Rect?>(null)
+    private var previewHybridBottomRect by mutableStateOf<com.storm3ds.emulator.domain.model.Rect?>(null)
+    private var previewSurfaceSize by mutableStateOf(0 to 0)
 
     val layoutEditorView get() = binding.viewLayoutEditor
     val imageBackground get() = binding.imageBackground
@@ -266,15 +278,36 @@ class LayoutEditorManagerView(
         addView(binding.root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(composeView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
+        if (layoutTarget == LayoutTarget.MAIN_SCREEN) {
+            reloadVisualPreviewSettings()
+            binding.layoutConsoleSkinPreview.setContent {
+                if (previewSkinEnabled && !previewHasCustomBackground) {
+                    val (surfW, surfH) = previewSurfaceSize
+                    com.storm3ds.emulator.ui.emulator.skin.ConsoleSkinFullFrame(
+                        skinTheme = previewSkinTheme,
+                        topScreenRect = previewTopRect,
+                        bottomScreenRect = previewBottomRect,
+                        hybridTopScreenRect = previewHybridTopRect,
+                        hybridBottomScreenRect = previewHybridBottomRect,
+                        surfaceWidth = surfW,
+                        surfaceHeight = surfH,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+            binding.viewLayoutEditor.setOnLayoutChangedListener { components, w, h ->
+                updatePreviewScreenRects(components, w, h)
+            }
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
             val ignoreCutout = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
                 .getBoolean("system_ignore_display_cutout_in_layouts", false)
             val cutoutInsets = if (ignoreCutout) androidx.core.graphics.Insets.NONE else windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val systemBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val topPadding = maxOf(cutoutInsets.top, systemBarInsets.top)
-            val bottomPadding = maxOf(cutoutInsets.bottom, systemBarInsets.bottom)
-            val leftPadding = maxOf(cutoutInsets.left, systemBarInsets.left)
-            val rightPadding = maxOf(cutoutInsets.right, systemBarInsets.right)
+            val topPadding = cutoutInsets.top
+            val bottomPadding = cutoutInsets.bottom
+            val leftPadding = cutoutInsets.left
+            val rightPadding = cutoutInsets.right
 
             binding.layoutScalingContainer.setPadding(
                 leftPadding,
@@ -283,7 +316,7 @@ class LayoutEditorManagerView(
                 bottomPadding,
             )
             (binding.layoutControls.layoutParams as? MarginLayoutParams)?.let { lp ->
-                lp.topMargin = topPadding + context.dpToPixels(8f).toInt()
+                lp.topMargin = topPadding + context.dpToPixels(4f).toInt()
                 binding.layoutControls.layoutParams = lp
             }
 
@@ -848,7 +881,86 @@ class LayoutEditorManagerView(
         )
     }
 
+    fun reloadVisualPreviewSettings() {
+        if (layoutTarget != LayoutTarget.MAIN_SCREEN) return
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+        previewSkinEnabled = prefs.getBoolean("video_console_skin_enabled", false)
+        previewSkinTheme = com.storm3ds.emulator.ui.emulator.skin.ConsoleSkinTheme.fromKey(
+            prefs.getString("video_console_skin_type", "aurora_auto_theme")
+        )
+        previewHingeGapPx = prefs.getString("video_3ds_hinge_gap", null)?.toIntOrNull()?.coerceIn(0, 200)
+            ?: prefs.getString("video_ds_hinge_gap", "0")?.toIntOrNull()?.coerceIn(0, 200)
+            ?: 0
+        updateConsoleSkinPreviewVisibility()
+        val (surfW, surfH) = previewSurfaceSize
+        if (surfW > 0 && surfH > 0) {
+            updatePreviewScreenRects(binding.viewLayoutEditor.buildCurrentLayout(), surfW, surfH)
+        }
+    }
+
+    private fun updatePreviewScreenRects(
+        components: List<com.storm3ds.emulator.domain.model.layout.PositionedLayoutComponent>,
+        w: Int,
+        h: Int,
+    ) {
+        previewSurfaceSize = w to h
+        var topRect = components.firstOrNull { it.component == LayoutComponent.TOP_SCREEN }
+            ?.rect
+            ?.takeIf { it.width > 0 && it.height > 0 }
+        var bottomRect = components.firstOrNull { it.component == LayoutComponent.BOTTOM_SCREEN }
+            ?.rect
+            ?.takeIf { it.width > 0 && it.height > 0 }
+
+        if (previewHingeGapPx > 0 && topRect != null && bottomRect != null && kotlin.math.abs(topRect.x - bottomRect.x) < 40) {
+            val upperIsTop = topRect.y <= bottomRect.y
+            val upper = if (upperIsTop) topRect else bottomRect
+            val lower = if (upperIsTop) bottomRect else topRect
+            if (lower.y >= upper.bottom - 8) {
+                val halfGap = previewHingeGapPx / 2
+                val minTopY = if (previewSkinEnabled && !previewHasCustomBackground) {
+                    (28f * resources.displayMetrics.density).roundToInt()
+                } else {
+                    0
+                }
+                val shiftUp = minOf(halfGap, (upper.y - minTopY).coerceAtLeast(0))
+                val maxY = (h - lower.height).coerceAtLeast(0)
+                val shiftDown = minOf(previewHingeGapPx - shiftUp, (maxY - lower.y).coerceAtLeast(0))
+                val newUpper = com.storm3ds.emulator.domain.model.Rect(upper.x, upper.y - shiftUp, upper.width, upper.height)
+                val newLower = com.storm3ds.emulator.domain.model.Rect(lower.x, lower.y + shiftDown, lower.width, lower.height)
+                if (upperIsTop) {
+                    topRect = newUpper
+                    bottomRect = newLower
+                } else {
+                    bottomRect = newUpper
+                    topRect = newLower
+                }
+            }
+        }
+
+        previewTopRect = topRect
+        previewBottomRect = bottomRect
+        val hybridRect = components.firstOrNull { it.component == LayoutComponent.HYBRID_SCREEN }
+            ?.rect
+            ?.takeIf { it.width > 0 && it.height > 0 }
+        if (hybridRect != null) {
+            val topH = (hybridRect.height / 2).coerceAtLeast(1)
+            val bottomH = (hybridRect.height - topH).coerceAtLeast(1)
+            previewHybridTopRect = hybridRect.copy(height = topH)
+            previewHybridBottomRect = hybridRect.copy(y = hybridRect.y + topH, height = bottomH)
+        } else {
+            previewHybridTopRect = null
+            previewHybridBottomRect = null
+        }
+    }
+
+    private fun updateConsoleSkinPreviewVisibility() {
+        binding.layoutConsoleSkinPreview.isVisible =
+            layoutTarget == LayoutTarget.MAIN_SCREEN && previewSkinEnabled && !previewHasCustomBackground
+    }
+
     fun updateBackground(background: RuntimeBackground) {
+        previewHasCustomBackground = background.background?.uri != null
+        updateConsoleSkinPreviewVisibility()
         picasso.load(background.background?.uri).into(binding.imageBackground, object : Callback {
             override fun onSuccess() {
                 binding.imageBackground.setBackgroundMode(background.mode)

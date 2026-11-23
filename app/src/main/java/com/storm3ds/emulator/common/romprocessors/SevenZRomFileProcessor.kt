@@ -66,16 +66,21 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
         var returned = false
         return try {
             sevenZFile = if (fileStream is FileInputStream) {
-                SevenZFile.Builder()
-                    .setMaxMemoryLimitKb(maxMemoryLimitKb)
-                    .setSeekableByteChannel(fileStream.channel)
-                    .get()
+                runCatching {
+                    SevenZFile.Builder()
+                        .setMaxMemoryLimitKb(maxMemoryLimitKb)
+                        .setSeekableByteChannel(fileStream.channel)
+                        .get()
+                }.getOrNull()
             } else {
+                null
+            }
+            if (sevenZFile == null) {
                 val tmp = File.createTempFile("storm3ds_7z_", ".7z", context.cacheDir)
                 tempArchiveFile = tmp
                 tmp.outputStream().use { out -> fileStream.copyTo(out, 65536) }
                 runCatching { fileStream.close() }
-                SevenZFile.Builder()
+                sevenZFile = SevenZFile.Builder()
                     .setMaxMemoryLimitKb(maxMemoryLimitKb)
                     .setFile(tmp)
                     .get()
@@ -89,7 +94,7 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
                 fileStream,
                 tempArchiveFile,
             )
-            val romFileStream = RomFileStream(entryStream, SizeUnit.Bytes(ndsEntry.size), ext)
+            val romFileStream = RomFileStream(entryStream, SizeUnit.Bytes(ndsEntry.size.coerceAtLeast(0L)), ext)
             returned = true
             romFileStream
         } finally {
@@ -110,13 +115,12 @@ class SevenZRomFileProcessor(private val context: Context, uriHandler: UriHandle
     }
 
     private fun getNdsEntryInFile(sevenZFile: SevenZFile): SevenZArchiveEntry? {
-        do {
-            val nextEntry = sevenZFile.nextEntry ?: break
-            if (!nextEntry.isDirectory && isSupportedRomFile(nextEntry.name)) {
-                return nextEntry
-            }
-        } while (true)
-        return null
+        return sevenZFile.entries
+            .filter { !it.isDirectory && isSupportedRomFile(it.name) }
+            .maxWithOrNull(
+                compareBy<SevenZArchiveEntry> { romEntryPriority(it.name) }
+                    .thenBy { it.size.coerceAtLeast(0L) }
+            )
     }
 
     private class SevenZEntryInputStream(

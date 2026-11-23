@@ -35,36 +35,56 @@ class FirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFragment
 
         if (coreLoaded) {
             runCatching {
-                val curName = SystemSaveGame.getUsername()
-                if (curName.isNotBlank()) {
-                    nicknamePref?.text = curName
-                    nicknamePref?.summary = curName
+                val prefs = preferenceManager.sharedPreferences
+                val prefName = prefs?.getString("firmware_settings_nickname", null)
+                val nandName = SystemSaveGame.getUsername()
+                val effectiveName = SystemSaveGame.resolveEffectiveUsername(prefName, nandName)
+                if (effectiveName != nandName) {
+                    SystemSaveGame.setUsername(effectiveName)
+                    SystemSaveGame.save()
                 }
+                if (prefName.isNullOrBlank() || prefName.equals("AZAHAR", ignoreCase = true)) {
+                    prefs?.edit()?.putString("firmware_settings_nickname", effectiveName)?.apply()
+                }
+                nicknamePref?.text = effectiveName
+                nicknamePref?.summary = effectiveName
                 val bday = SystemSaveGame.getBirthday()
                 if (bday.size >= 2 && bday[0] > 0 && bday[1] > 0) {
                     val bdayStr = "%02d/%02d".format(bday[1].toInt(), bday[0].toInt())
                     birthdayPref?.summary = bdayStr
-                    preferenceManager.sharedPreferences?.edit()?.putString("firmware_settings_birthday", bdayStr)?.apply()
+                    prefs?.edit()?.putString("firmware_settings_birthday", bdayStr)?.apply()
                 }
                 val curCoins = SystemSaveGame.getPlayCoins().coerceIn(0, 300)
                 coinsPref?.value = curCoins
                 macPref?.summary = SystemSaveGame.getMac().ifBlank { getString(R.string.not_set) }
             }
         } else {
+            val fallbackName = SystemSaveGame.sanitizeUsername(
+                preferenceManager.sharedPreferences?.getString("firmware_settings_nickname", null)
+            )
+            nicknamePref?.text = fallbackName
+            nicknamePref?.summary = fallbackName
             macPref?.summary = preferenceManager.sharedPreferences?.getString("internal_mac_address", null) ?: getString(R.string.not_set)
         }
 
+        nicknamePref?.setOnBindEditTextListener { editText ->
+            editText.filters = arrayOf(android.text.InputFilter.LengthFilter(SystemSaveGame.MAX_USERNAME_UTF16_LEN))
+        }
+
         nicknamePref?.setOnPreferenceChangeListener { _, newValue ->
-            val sanitized = (newValue as? String).orEmpty().trim().take(10)
-            if (sanitized.isBlank()) return@setOnPreferenceChangeListener false
+            val raw = (newValue as? String).orEmpty().trim()
+            if (raw.isEmpty()) return@setOnPreferenceChangeListener false
+            val sanitized = SystemSaveGame.sanitizeUsername(raw)
             if (coreLoaded) {
                 runCatching {
                     SystemSaveGame.setUsername(sanitized)
                     SystemSaveGame.save()
                 }
             }
+            nicknamePref.text = sanitized
             nicknamePref.summary = sanitized
-            true
+            preferenceManager.sharedPreferences?.edit()?.putString("firmware_settings_nickname", sanitized)?.apply()
+            false
         }
 
         birthdayPref?.setOnPreferenceChangeListener { _, newValue ->

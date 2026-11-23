@@ -1,14 +1,21 @@
 package com.storm3ds.emulator
 
+import android.content.SharedPreferences
 import android.view.MotionEvent
+import com.storm3ds.emulator.common.UriFileHandler
 import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
+import com.storm3ds.emulator.common.romprocessors.CompressedRomFileProcessor
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.InputConfig
 import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport
 import com.storm3ds.emulator.impl.emulator.EmulatorMessageQueue
 import com.storm3ds.emulator.impl.input.DefaultControllerConfigurationFactory
 import com.storm3ds.emulator.nativebridge.NativeLibrary
+import com.storm3ds.emulator.nativebridge.utils.SystemSaveGame
+import com.storm3ds.emulator.utils.getFloatCompat
+import com.storm3ds.emulator.utils.getLongCompat
 import com.storm3ds.emulator.ui.cheats.ui.cheatform.CheatFormState
 import com.storm3ds.emulator.ui.common.views.ButtonColorStyle
 import com.storm3ds.emulator.ui.common.views.ButtonThemeManager
@@ -411,5 +418,223 @@ class Storm3dsCoreTest {
         assertTrue("storm_jit_mode must configure optimization levels", "storm_jit_mode" in txt)
         assertTrue("adaptive code_cache_size must be configured", "code_cache_size" in txt)
         assertTrue("IsReadOnlyMemory override must check BackingMemory + Code", "IsReadOnlyMemory" in txt && "MemoryState::Code" in txt)
+    }
+
+    @Test
+    fun `default 3ds username is STORM 3DS and migrates AZAHAR safely`() {
+        assertEquals("STORM 3DS", SystemSaveGame.DEFAULT_3DS_USERNAME)
+        assertEquals(10, SystemSaveGame.MAX_USERNAME_UTF16_LEN)
+        assertEquals("STORM 3DS", SystemSaveGame.sanitizeUsername(null))
+        assertEquals("STORM 3DS", SystemSaveGame.sanitizeUsername("   "))
+        assertEquals("ABCDEFGHIJ", SystemSaveGame.sanitizeUsername("ABCDEFGHIJKLM"))
+        assertEquals("123456789", SystemSaveGame.sanitizeUsername("123456789\uD83D\uDE00"))
+
+        assertEquals("STORM 3DS", SystemSaveGame.resolveEffectiveUsername("", ""))
+        assertEquals("STORM 3DS", SystemSaveGame.resolveEffectiveUsername("AZAHAR", "AZAHAR"))
+        assertEquals("STORM 3DS", SystemSaveGame.resolveEffectiveUsername("", "AZAHAR"))
+        assertEquals("ReiKa", SystemSaveGame.resolveEffectiveUsername("ReiKa", "AZAHAR"))
+        assertEquals("ReiKa", SystemSaveGame.resolveEffectiveUsername("", "ReiKa"))
+
+        val cfgDefaults = File("../core/src/core/hle/service/cfg/cfg_defaults.cpp").takeIf { it.exists() }
+            ?: File("core/src/core/hle/service/cfg/cfg_defaults.cpp")
+        val cppTxt = cfgDefaults.readText()
+        assertTrue("cfg_defaults.cpp must use u\"STORM 3DS\"", """u"STORM 3DS"""" in cppTxt)
+        assertFalse("cfg_defaults.cpp must not contain AZAHAR", "AZAHAR" in cppTxt)
+    }
+
+    @Test
+    fun `mali panvk architecture classification and driver package heuristics`() {
+        val v7G52 = AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G52")
+        assertEquals(AdrenoVulkanDriverSupport.MaliArchFamily.V7_BIFROST, v7G52)
+        assertTrue(v7G52.isSupportedByMalisx2())
+
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V7_BIFROST,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G76"),
+        )
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V9_VALHALL,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G78"),
+        )
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V10_VALHALL,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G610"),
+        )
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V10_VALHALL,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G710"),
+        )
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V11_VALHALL,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Immortalis-G715"),
+        )
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.V12_FIFTH_GEN,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Immortalis-G720"),
+        )
+
+        val midgard = AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-G72")
+        assertEquals(AdrenoVulkanDriverSupport.MaliArchFamily.UNSUPPORTED_MIDGARD_OR_V6, midgard)
+        assertFalse(midgard.isSupportedByMalisx2())
+        assertEquals(
+            AdrenoVulkanDriverSupport.MaliArchFamily.UNSUPPORTED_MIDGARD_OR_V6,
+            AdrenoVulkanDriverSupport.classifyMaliArchFamily("Mali-T880"),
+        )
+
+        val v13Plus = AdrenoVulkanDriverSupport.classifyMaliArchFamily("Immortalis-G925")
+        assertEquals(AdrenoVulkanDriverSupport.MaliArchFamily.UNSUPPORTED_V13_PLUS, v13Plus)
+        assertFalse(v13Plus.isSupportedByMalisx2())
+
+        assertTrue(AdrenoVulkanDriverSupport.isDriverLikelyMalisx2Package("malisx2-v1.zip", "Mesa PanVK", "libvulkan_panfrost.so"))
+        assertFalse(AdrenoVulkanDriverSupport.isDriverLikelyAdrenoTurnipPackage("malisx2-v1.zip", "Mesa PanVK", "libvulkan_panfrost.so"))
+
+        assertTrue(AdrenoVulkanDriverSupport.isDriverLikelyAdrenoTurnipPackage("Turnip-v25.zip", "Mesa Turnip", "vulkan.ad07xx.so"))
+        assertFalse(AdrenoVulkanDriverSupport.isDriverLikelyMalisx2Package("Turnip-v25.zip", "Mesa Turnip", "vulkan.ad07xx.so"))
+    }
+
+    @Test
+    fun `shared preferences compat heals int stored in float and long keys`() {
+        val backing = mutableMapOf<String, Any?>(
+            "btn_alpha" to 2,
+            "ra_gen" to 2,
+        )
+        val prefs = object : SharedPreferences {
+            override fun getAll(): MutableMap<String, *> = backing.toMutableMap()
+            override fun getString(key: String?, defValue: String?): String? =
+                (backing[key] as? String) ?: defValue
+            @Suppress("UNCHECKED_CAST")
+            override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
+                (backing[key] as? MutableSet<String>) ?: defValues
+            override fun getInt(key: String?, defValue: Int): Int {
+                val v = backing[key] ?: return defValue
+                return v as? Int ?: throw ClassCastException("Not Int")
+            }
+            override fun getLong(key: String?, defValue: Long): Long {
+                val v = backing[key] ?: return defValue
+                return v as? Long ?: throw ClassCastException("Not Long")
+            }
+            override fun getFloat(key: String?, defValue: Float): Float {
+                val v = backing[key] ?: return defValue
+                return v as? Float ?: throw ClassCastException("Not Float")
+            }
+            override fun getBoolean(key: String?, defValue: Boolean): Boolean {
+                val v = backing[key] ?: return defValue
+                return v as? Boolean ?: throw ClassCastException("Not Boolean")
+            }
+            override fun contains(key: String?): Boolean = backing.containsKey(key)
+            override fun edit(): SharedPreferences.Editor = object : SharedPreferences.Editor {
+                private val pending = mutableMapOf<String, Any?>()
+                private var cleared = false
+                override fun putString(key: String?, value: String?) = apply { if (key != null) pending[key] = value }
+                override fun putStringSet(key: String?, values: MutableSet<String>?) = apply { if (key != null) pending[key] = values }
+                override fun putInt(key: String?, value: Int) = apply { if (key != null) pending[key] = value }
+                override fun putLong(key: String?, value: Long) = apply { if (key != null) pending[key] = value }
+                override fun putFloat(key: String?, value: Float) = apply { if (key != null) pending[key] = value }
+                override fun putBoolean(key: String?, value: Boolean) = apply { if (key != null) pending[key] = value }
+                override fun remove(key: String?) = apply { if (key != null) pending[key] = null }
+                override fun clear() = apply { cleared = true }
+                override fun commit(): Boolean {
+                    if (cleared) backing.clear()
+                    for ((k, v) in pending) {
+                        if (v == null) backing.remove(k) else backing[k] = v
+                    }
+                    return true
+                }
+                override fun apply() {
+                    commit()
+                }
+            }
+            override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
+            override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = Unit
+        }
+
+        assertEquals(2.0f, prefs.getFloatCompat("btn_alpha", 1.0f), 0.0001f)
+        assertEquals(2L, prefs.getLongCompat("ra_gen", 0L))
+        assertTrue(backing["btn_alpha"] is Float)
+        assertTrue(backing["ra_gen"] is Long)
+    }
+
+    @Test
+    fun `uri file handler resolveWriteModes and saf truncation fallback`() {
+        assertEquals(listOf("wt", "rwt", "rw"), UriFileHandler.resolveWriteModes("wt"))
+        assertEquals(listOf("rwt", "rw"), UriFileHandler.resolveWriteModes("rwt"))
+        assertEquals(listOf("r"), UriFileHandler.resolveWriteModes("r"))
+
+        val triedModes = mutableListOf<String>()
+        var truncatedCount = 0
+        var closedCount = 0
+        val fd = UriFileHandler.openSafFileDescriptorWithFallback(
+            requestedMode = "wt",
+            openDescriptor = { mode ->
+                triedModes.add(mode)
+                when (mode) {
+                    "wt" -> throw UnsupportedOperationException("wt unsupported")
+                    "rwt" -> throw SecurityException("rwt unsupported")
+                    "rw" -> "fake_pfd"
+                    else -> null
+                }
+            },
+            truncateDescriptor = { _ -> truncatedCount += 1 },
+            closeDescriptor = { _ -> closedCount += 1 },
+            detachDescriptor = { _ -> 42 },
+        )
+        assertEquals(42, fd)
+        assertEquals(listOf("wt", "rwt", "rw"), triedModes)
+        assertEquals(1, truncatedCount)
+        assertEquals(0, closedCount)
+    }
+
+    @Test
+    fun `cia installed game path matching handles slash, backslash, and compact title ids`() {
+        val tid = 0x000400000f700200L
+        val slashPath = "/storage/emulated/0/STORM 3DS/sdmc/Nintendo 3DS/00000000000000000000000000000000/00000000000000000000000000000000/title/00040000/0f700200/content/00000000.app"
+        val backslashPath = """C:\STORM_3DS\title\00040000\0F700200\content\00000000.app"""
+        val compactPath = "/tmp/000400000F700200.app"
+        val otherPath = "/storage/emulated/0/STORM 3DS/sdmc/Nintendo 3DS/00000000000000000000000000000000/00000000000000000000000000000000/title/00040000/00030800/content/00000000.app"
+
+        assertEquals(slashPath, MelonEmulator.matchInstalledGamePathByTitleId(listOf(otherPath, slashPath), tid))
+        assertEquals(backslashPath, MelonEmulator.matchInstalledGamePathByTitleId(listOf(otherPath, backslashPath), tid))
+        assertEquals(compactPath, MelonEmulator.matchInstalledGamePathByTitleId(listOf(otherPath, compactPath), tid))
+        assertEquals(null, MelonEmulator.matchInstalledGamePathByTitleId(listOf(otherPath), tid))
+        assertEquals(null, MelonEmulator.matchInstalledGamePathByTitleId(listOf(slashPath), 0L))
+    }
+
+    @Test
+    fun `compressed rom entry priority prefers playable 3ds formats over cia and homebrew`() {
+        assertEquals(3, CompressedRomFileProcessor.romEntryPriority("game.3ds"))
+        assertEquals(3, CompressedRomFileProcessor.romEntryPriority("game.zcci"))
+        assertEquals(3, CompressedRomFileProcessor.romEntryPriority("game.bcci"))
+        assertEquals(3, CompressedRomFileProcessor.romEntryPriority("game.cxi"))
+        assertEquals(2, CompressedRomFileProcessor.romEntryPriority("Xenoblade.zcia"))
+        assertEquals(2, CompressedRomFileProcessor.romEntryPriority("game.cia"))
+        assertEquals(2, CompressedRomFileProcessor.romEntryPriority("bundle.bcia"))
+        assertEquals(1, CompressedRomFileProcessor.romEntryPriority("homebrew.elf"))
+        assertEquals(0, CompressedRomFileProcessor.romEntryPriority("readme.txt"))
+    }
+
+    @Test
+    fun `native core guards prevent 4gb overflow, cia read infinite loop, and n3ds rejection`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val ncchCpp = File("../core/src/core/file_sys/ncch_container.cpp").takeIf { it.exists() }
+            ?: File("core/src/core/file_sys/ncch_container.cpp")
+        val amCpp = File("../core/src/core/hle/service/am/am.cpp").takeIf { it.exists() }
+            ?: File("core/src/core/hle/service/am/am.cpp")
+        val coreCpp = File("../core/src/core/core.cpp").takeIf { it.exists() }
+            ?: File("core/src/core/core.cpp")
+
+        val ncchTxt = ncchCpp.readText()
+        assertTrue("ncch_container must cast partition/romfs offsets to u64", "static_cast<u64>(ncch_header.romfs_offset)" in ncchTxt)
+        assertTrue("ncch_container must cast NCSD partition offset to u64", "static_cast<u64>(ncsd_header.partitions[partition].offset)" in ncchTxt)
+
+        val amTxt = amCpp.readText()
+        assertTrue("MAX_IMPORT_FILE_SIZE must allow 4 GiB content", "0x100000000ULL" in amTxt)
+        assertTrue("InstallCIA must break on bytes_read == 0", "bytes_read == 0" in amTxt)
+        assertTrue("GetCIAInfos must unwrap Z3DSReadIOFile", "Z3DSReadIOFile::GetUnderlyingFileMagic" in amTxt)
+
+        val coreTxt = coreCpp.readText()
+        assertTrue("Core::System::Load must auto-enable is_new_3ds for N3DS exclusives", "auto-enabling New 3DS mode" in coreTxt)
+
+        val workerTxt = File(srcJava, "com/storm3ds/emulator/nativebridge/utils/CiaInstallWorker.kt").readText()
+        assertTrue("CiaInstallWorker must strip leading '!' before checking File", "removePrefix(\"!\")" in workerTxt)
     }
 }

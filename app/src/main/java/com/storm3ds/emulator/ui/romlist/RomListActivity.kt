@@ -441,7 +441,7 @@ class RomListActivity : AppCompatActivity() {
             }
             R.id.action_rom_list_refresh -> {
                 viewModel.refreshRoms()
-                updatesViewModel.checkForUpdatesManually()
+                updatesViewModel.checkForUpdatesSilently()
                 return true
             }
             R.id.action_player_stats -> {
@@ -482,6 +482,10 @@ class RomListActivity : AppCompatActivity() {
 
     fun checkForUpdatesManually() {
         updatesViewModel.checkForUpdatesManually()
+    }
+
+    fun checkForUpdatesSilently() {
+        updatesViewModel.checkForUpdatesSilently()
     }
 
     internal fun bootFirmware(consoleType: ConsoleType) {

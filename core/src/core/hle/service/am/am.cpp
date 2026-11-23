@@ -67,8 +67,8 @@ constexpr Result ResultReadNotSupported(ErrorDescription::NotImplemented, ErrorM
                                         ErrorSummary::NotSupported, ErrorLevel::Permanent);
 
 /// Imported tickets, TMDs and contents are stored on FAT32 partitions on hardware, so none of
-/// them can be larger than the maximum FAT32 file size.
-constexpr u64 MAX_IMPORT_FILE_SIZE = 0xFFFFFFFF;
+/// them can be larger than 4 GiB.
+constexpr u64 MAX_IMPORT_FILE_SIZE = 0x100000000ULL;
 
 /// Maximum size of the part of a CIA before its contents (header, certificates, ticket and TMD),
 /// which is buffered in memory while installing.
@@ -1370,7 +1370,8 @@ bool BundleCIAHandler::RegisterBundle(const std::string& filename) {
         return false;
     }
     for (auto f : files) {
-        if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+        const std::string lower_name = Common::ToLower(f.name);
+        if (lower_name.ends_with(".cia") || lower_name.ends_with(".zcia")) {
             auto sub_file = tar.OpenSubFile(f.name);
             if (!sub_file->IsGood()) {
                 LOG_ERROR(Service_AM, "Failed to open sub file {}", f.name);
@@ -1500,16 +1501,25 @@ InstallStatus InstallCIA(const std::string& path,
             installFile.AuthorizeDecryptionFromHLE(false);
 
             std::vector<u8> buffer;
-            buffer.resize(0x10000);
+            buffer.resize(0x100000);
             auto file_size = in_file->GetSize();
             std::size_t total_bytes_read = 0;
-            while (total_bytes_read != file_size) {
-                std::size_t bytes_read = in_file->ReadBytes(buffer.data(), buffer.size());
+            while (total_bytes_read < file_size) {
+                const std::size_t to_read = std::min<std::size_t>(
+                    buffer.size(), static_cast<std::size_t>(file_size - total_bytes_read));
+                const std::size_t bytes_read = in_file->ReadBytes(buffer.data(), to_read);
+                if (bytes_read == 0) {
+                    LOG_ERROR(Service_AM,
+                              "CIA read stalled or unexpected EOF in {} at {}/{}", path,
+                              total_bytes_read, file_size);
+                    installFile.Close();
+                    return InstallStatus::ErrorAborted;
+                }
                 auto result = installFile.Write(static_cast<u64>(total_bytes_read), bytes_read,
                                                 true, false, static_cast<u8*>(buffer.data()));
 
                 if (update_callback) {
-                    update_callback(total_bytes_read, file_size);
+                    update_callback(total_bytes_read + bytes_read, file_size);
                 }
                 if (result.Failed()) {
                     LOG_ERROR(Service_AM, "CIA file installation aborted with error code {:08x}",
@@ -1558,7 +1568,8 @@ InstallStatus InstallCIA(const std::string& path,
             return InstallStatus::ErrorInvalid;
         }
         for (auto f : files) {
-            if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+            const std::string lower_name = Common::ToLower(f.name);
+            if (lower_name.ends_with(".cia") || lower_name.ends_with(".zcia")) {
                 auto sub_file = tar->OpenSubFile(f.name);
                 if (!sub_file->IsGood()) {
                     LOG_ERROR(Service_AM, "Failed to open sub file {}", f.name);
@@ -1591,7 +1602,8 @@ InstallStatus CheckCIAToInstall(const std::string& path, bool& is_compressed, bo
         auto files = tar->GetFileList();
         bool has_cia = false;
         for (const auto& f : files) {
-            if (f.name.ends_with(".cia") || f.name.ends_with(".zcia")) {
+            const std::string lower_name = Common::ToLower(f.name);
+            if (lower_name.ends_with(".cia") || lower_name.ends_with(".zcia")) {
                 has_cia = true;
             } else if (f.name != "metadata") {
                 // Bundles only contain CIA files, besides the metadata written by the bundler.
@@ -1648,7 +1660,11 @@ ResultVal<std::pair<TitleInfo, std::unique_ptr<Loader::SMDH>>> GetCIAInfos(
         return ResultUnknown;
     }
 
-    std::unique_ptr<FileUtil::IOFile> in_file = std::make_unique<FileUtil::IOFile>(path, "rb");
+    std::unique_ptr<FileUtil::IOFileBase> in_file = std::make_unique<FileUtil::IOFile>(path, "rb");
+    if (in_file && in_file->IsOpen() &&
+        FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(in_file.get()).has_value()) {
+        in_file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(in_file));
+    }
     FileSys::CIAContainer container;
     if (container.Load(in_file.get()) == Loader::ResultStatus::Success) {
         in_file->Seek(0, SEEK_SET);

@@ -445,8 +445,13 @@ bool Instance::CreateDevice() {
     const bool is_nvidia = driver_id == vk::DriverIdKHR::eNvidiaProprietary;
     const bool is_moltenvk = driver_id == vk::DriverIdKHR::eMoltenvk;
     const bool is_arm = driver_id == vk::DriverIdKHR::eArmProprietary;
+    const bool is_panvk = driver_id == vk::DriverIdKHR::eMesaPanvk;
     const bool is_qualcomm = driver_id == vk::DriverIdKHR::eQualcommProprietary;
     const bool is_turnip = driver_id == vk::DriverIdKHR::eMesaTurnip;
+    if (is_panvk) {
+        LOG_INFO(Render_Vulkan, "Active Mali PanVK driver: {} ({})", driver.driverName.data(),
+                 driver.driverInfo.data());
+    }
 
     add_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     image_format_list = add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);

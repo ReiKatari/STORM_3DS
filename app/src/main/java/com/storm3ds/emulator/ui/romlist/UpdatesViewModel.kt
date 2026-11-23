@@ -51,7 +51,7 @@ class UpdatesViewModel @Inject constructor(
     fun checkForUpdatesManually() {
         viewModelScope.launch {
             _manualUpdateResult.emit(ManualUpdateResult.Checking)
-            val result = updatesRepository.checkNewUpdateManually()
+            val result = updatesRepository.checkNewUpdate(ignorePreferences = true)
             result.onSuccess { update ->
                 if (update != null) {
                     _manualUpdateResult.emit(ManualUpdateResult.UpdateAvailable(update))
@@ -61,6 +61,17 @@ class UpdatesViewModel @Inject constructor(
                 }
             }.onFailure { e ->
                 _manualUpdateResult.emit(ManualUpdateResult.Error(e.message))
+            }
+        }
+    }
+
+    fun checkForUpdatesSilently() {
+        viewModelScope.launch {
+            val result = updatesRepository.checkNewUpdate(ignorePreferences = true)
+            result.onSuccess { update ->
+                if (update != null) {
+                    _appUpdate.send(update)
+                }
             }
         }
     }

@@ -273,6 +273,7 @@ class MelonDSApplication : Application(), Configuration.Provider {
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
+        runCatching { com.storm3ds.emulator.impl.FreedrenoSettings.applyAtStartup(base) }
         NativeCoreLoader.load()
     }
 

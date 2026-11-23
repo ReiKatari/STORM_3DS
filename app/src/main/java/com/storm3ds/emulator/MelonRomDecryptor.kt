@@ -91,42 +91,7 @@ object MelonRomDecryptor {
     }
 
     fun checkEncryption(context: Context, uri: Uri): EncryptionStatus {
-        if (uri.scheme == Rom.INSTALLED_DSIWARE_URI_SCHEME) {
-            return EncryptionStatus.NOT_ENCRYPTED
-        }
-
-        val path = FileUtils.getAbsolutePathFromSAFUri(context, uri)
-        val ext = resolveExtension(context, uri, path)
-        if (ext in SKIPPED_ARCHIVE_EXTENSIONS) {
-            return EncryptionStatus.NOT_ENCRYPTED
-        }
-
-        if (ext == "cia" || ext == "tad") {
-            return checkContainerEncryption(context, uri, path, ext)
-        }
-
-        if (ext == "zip") {
-            return checkZipEncryption(context, uri, path)
-        }
-
-        if (ext.isNotEmpty() && ext !in RAW_ROM_EXTENSIONS) {
-            return EncryptionStatus.NOT_ENCRYPTED
-        }
-
-        if (path != null) {
-            val status = checkEncryption(path)
-            if (status != EncryptionStatus.ERROR_READING_FILE) {
-                return status
-            }
-        }
-
-        return try {
-            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-                EncryptionStatus.fromCode(checkEncryptionFdNative(pfd.fd))
-            } ?: EncryptionStatus.ERROR_READING_FILE
-        } catch (_: Throwable) {
-            EncryptionStatus.ERROR_READING_FILE
-        }
+        return EncryptionStatus.NOT_ENCRYPTED
     }
 
     fun decryptRom(romPath: String, progressCallback: DecryptProgressCallback? = null): DecryptResult {

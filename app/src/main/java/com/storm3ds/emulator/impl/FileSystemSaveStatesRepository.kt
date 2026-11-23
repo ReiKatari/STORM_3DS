@@ -2,6 +2,8 @@ package com.storm3ds.emulator.impl
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.system.Os
 import androidx.documentfile.provider.DocumentFile
 import com.storm3ds.emulator.common.uridelegates.UriHandler
 import com.storm3ds.emulator.domain.model.rom.Rom
@@ -141,8 +143,16 @@ class FileSystemSaveStatesRepository(
         context.contentResolver.openInputStream(sourceFile.uri)?.use { input ->
             val outStream = runCatching { context.contentResolver.openOutputStream(targetFile.uri, "wt") }.getOrNull()
                 ?: runCatching { context.contentResolver.openOutputStream(targetFile.uri, "rwt") }.getOrNull()
-                ?: runCatching { context.contentResolver.openOutputStream(targetFile.uri, "w") }.getOrNull()
-                ?: runCatching { context.contentResolver.openOutputStream(targetFile.uri) }.getOrNull()
+                ?: runCatching {
+                    val pfd = context.contentResolver.openFileDescriptor(targetFile.uri, "rw") ?: return@runCatching null
+                    try {
+                        Os.ftruncate(pfd.fileDescriptor, 0L)
+                        ParcelFileDescriptor.AutoCloseOutputStream(pfd)
+                    } catch (t: Throwable) {
+                        runCatching { pfd.close() }
+                        throw t
+                    }
+                }.getOrNull()
             outStream?.use { output ->
                 input.copyTo(output)
             }

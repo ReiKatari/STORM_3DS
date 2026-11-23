@@ -915,6 +915,7 @@ class EmulatorViewModel @Inject constructor(
             isNativeEmulationActive = true
             var result = emulatorManager.loadRom(rom, cheats)
             if (result is RomLaunchResult.LaunchFailed &&
+                !MelonEmulator.lastLoadFailureWasContainerOrFile &&
                 (didReceiveRendererInitFailure ||
                     (initialEffectiveRenderer != VideoRenderer.SOFTWARE &&
                         result.reason == MelonEmulator.LoadResult.NDS_FAILED))

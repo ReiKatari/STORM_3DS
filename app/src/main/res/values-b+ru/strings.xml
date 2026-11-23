@@ -4,7 +4,7 @@
   <string name="yes">Да</string>
   <string name="no">Нет</string>
   <string name="on">Вкл.</string>
-  <string name="off">Выкл.</string>
+  <string name="off">Выключено</string>
   <string name="cancel">Отмена</string>
   <string name="not_set">Не задано</string>
   <string name="delete">Удалить</string>
@@ -1707,4 +1707,17 @@
     <string name="about_credits_watermelonds_summary">SapphireRhodonite и авторы - основа современного интерфейса Android (Jetpack Compose, темы, редактор экранов, OCR-переводчик, наэкранные кнопки)</string>
     <string name="about_credits_libraries_title">Библиотеки с открытым исходным кодом</string>
     <string name="about_credits_libraries_summary">librashader (шейдеры RetroArch), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
+    <string name="freedreno_settings">Настройки Freedreno</string>
+    <string name="freedreno_summary">Расширенные параметры Turnip/Freedreno. Оставьте пустым для настроек драйвера по умолчанию. Изменения требуют перезапуска приложения. Неподдерживаемые параметры могут игнорироваться драйвером.</string>
+    <string name="freedreno_default">По умолчанию драйвера</string>
+    <string name="freedreno_invalid">Используйте не более 2048 ASCII-символов без переносов строк.</string>
+    <string name="freedreno_restart">Перезапустите STORM 3DS, чтобы сохранить и применить это изменение.</string>
+    <string name="freedreno_restart_button">Перезапустить</string>
+    <string name="freedreno_save_failed">Не удалось сохранить настройку. Нажмите «Перезапустить», чтобы повторить попытку.</string>
+    <string name="vulkan_driver_mali_supported_title">Поддерживается Arm Mali PanVK (%1$s)</string>
+    <string name="vulkan_driver_mali_supported_desc">Обнаружен %1$s с 64-битным драйвером ядра /dev/mali0 на Android %2$d+. Сборки malisx2 PanVK доступны в облачных репозиториях, либо вы можете импортировать совместимый ZIP вручную.</string>
+    <string name="vulkan_driver_mali_panvk_advice">Arm Mali (%1$s): используйте системный видеодрайвер для максимальной совместимости или тестируйте сборки malisx2 PanVK на поддерживаемых видеочипах Mali от Bifrost v7 до 5th Gen v12.</string>
+    <string name="vulkan_driver_mali_midgard_v6_desc">Обнаружен %1$s (Midgard / Bifrost v6). malisx2 PanVK требует Mali от Bifrost v7 (G31/G51/G52/G76) до 5th Gen v12 (G620/G720). Используется системный видеодрайвер; ручной импорт ZIP остаётся разблокированным.</string>
+    <string name="vulkan_driver_mali_v13_plus_desc">Обнаружен %1$s (v13+ / Immortalis-G925). malisx2 PanVK сейчас поддерживает видеочипы до Mali 5th Gen v12 (G720). Используется системный видеодрайвер; ручной импорт ZIP остаётся разблокированным.</string>
+    <string name="vulkan_driver_mali_api_or_kernel_desc">Обнаружен %1$s, но malisx2 PanVK требует Android 10 (API 29)+, 64-битный процесс и узел ядра /dev/mali0. Используется системный видеодрайвер; ручной импорт ZIP остаётся разблокированным.</string>
 </resources>

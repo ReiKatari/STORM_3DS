@@ -791,6 +791,9 @@ class EmulatorActivity : AppCompatActivity() {
         onOverlaysPresent = {
             enableScreenTimeOut()
             presentation?.setPauseOverlayVisibility(true)
+            if (::nativeInputListener.isInitialized) {
+                (nativeInputListener as? InputProcessor)?.resetHeldInputs()
+            }
         }
     )
 
@@ -1914,7 +1917,23 @@ class EmulatorActivity : AppCompatActivity() {
                         it is EmulatorState.LoadingFirmware || it is EmulatorState.LoadingRom) {
                         if (romLoadingTimeoutJob == null || romLoadingTimeoutJob?.isActive != true) {
                             romLoadingTimeoutJob = lifecycleScope.launch {
-                                kotlinx.coroutines.delay(90_000L)
+                                val stepMs = 5_000L
+                                val maxPrepMs = 600_000L
+                                var elapsedPrepMs = 0L
+                                var elapsedWaitMs = 0L
+                                while (true) {
+                                    kotlinx.coroutines.delay(stepMs)
+                                    if (com.storm3ds.emulator.MelonEmulator.isLongPreparationInProgress &&
+                                        elapsedPrepMs < maxPrepMs
+                                    ) {
+                                        elapsedPrepMs += stepMs
+                                    } else {
+                                        elapsedWaitMs += stepMs
+                                        if (elapsedWaitMs >= 90_000L) {
+                                            break
+                                        }
+                                    }
+                                }
                                 if (!bootRomReady.value && !isFinishing && !isDestroyed) {
                                     android.util.Log.e("EmulatorActivity", "ROM launch timed out after 90s")
                                     binding.textLoading.isGone = true

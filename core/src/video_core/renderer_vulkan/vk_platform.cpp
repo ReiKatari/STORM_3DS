@@ -292,8 +292,27 @@ vk::UniqueInstance CreateInstance(const Common::DynamicLibrary& library,
         throw std::runtime_error("Failed to load Vulkan driver library");
     }
 
-    const auto vkGetInstanceProcAddr =
+    auto vkGetInstanceProcAddr =
         library.GetSymbol<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    if (!vkGetInstanceProcAddr) {
+        vkGetInstanceProcAddr =
+            library.GetSymbol<PFN_vkGetInstanceProcAddr>("vk_icdGetInstanceProcAddr");
+        if (vkGetInstanceProcAddr) {
+            using PFN_vk_icdNegotiateLoaderICDInterfaceVersion = VkResult(VKAPI_PTR*)(uint32_t*);
+            auto negotiate = library.GetSymbol<PFN_vk_icdNegotiateLoaderICDInterfaceVersion>(
+                "vk_icdNegotiateLoaderICDInterfaceVersion");
+            if (!negotiate) {
+                negotiate = reinterpret_cast<PFN_vk_icdNegotiateLoaderICDInterfaceVersion>(
+                    vkGetInstanceProcAddr(VK_NULL_HANDLE,
+                                          "vk_icdNegotiateLoaderICDInterfaceVersion"));
+            }
+            if (negotiate) {
+                u32 icd_version = 5;
+                negotiate(&icd_version);
+            }
+            LOG_INFO(Render_Vulkan, "Using direct Vulkan ICD entry point vk_icdGetInstanceProcAddr");
+        }
+    }
     if (!vkGetInstanceProcAddr) {
         throw std::runtime_error("Failed GetSymbol vkGetInstanceProcAddr");
     }

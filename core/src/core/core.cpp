@@ -430,7 +430,11 @@ System::ResultStatus System::Load(Frontend::EmuWindow& emu_window, const std::st
     app_n3ds_hw_capabilities = n3ds_hw_caps.first.value();
 
     if (!Settings::values.is_new_3ds.GetValue() && app_loader->IsN3DSExclusive()) {
-        return ResultStatus::ErrorN3DSApplication;
+        LOG_WARNING(Core, "Title {:016X} requires New 3DS; auto-enabling New 3DS mode", program_id);
+        Settings::values.is_new_3ds.SetValue(true);
+        if (used_default_mem_mode) {
+            system_mem_mode = Kernel::MemoryMode::NewProd;
+        }
     }
 
     // If the default mem mode has been used, we do not come from a FIRM launch. On real HW

@@ -47,7 +47,19 @@ jstring Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_getUsername
 void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_setUsername([[maybe_unused]] JNIEnv* env,
                                                                 [[maybe_unused]] jobject obj,
                                                                 jstring username) {
-    cfg->SetUsername(Common::UTF8ToUTF16(GetJString(env, username)));
+    std::u16string name = Common::UTF8ToUTF16(GetJString(env, username));
+    if (name.empty()) {
+        name = u"STORM 3DS";
+    } else if (name.size() > 10) {
+        name.resize(10);
+        if (name.back() >= 0xD800 && name.back() <= 0xDBFF) {
+            name.resize(9);
+        }
+        if (name.empty()) {
+            name = u"STORM 3DS";
+        }
+    }
+    cfg->SetUsername(name);
     changes_pending = true;
 }
 

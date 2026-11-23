@@ -134,6 +134,50 @@ class InputProcessor(
         cachedTurboFrequencyHz = (prefs.getString("input_turbo_frequency_hz", "15") ?: "15").toIntOrNull() ?: 15
     }
 
+    fun resetHeldInputs() {
+        stopAllTurboPulses()
+
+        val activeChords = activeChordTriggers.values.toList()
+        activeChordTriggers.clear()
+        for (chordAction in activeChords) {
+            dispatchInputReleased(chordAction, fromController = true)
+        }
+
+        val heldKeys = heldPhysicalKeys.toList()
+        heldPhysicalKeys.clear()
+        for (keyCode in heldKeys) {
+            if (consumedChordModifiers.contains(keyCode)) {
+                continue
+            }
+            val input = controllerConfiguration.keyToInput(keyCode) ?: resolveTriggerKeyFallback(keyCode)
+            if (input != null && (input.isSystemInput || input == Input.HOLD_FAST_FORWARD)) {
+                dispatchInputReleased(input, fromController = true)
+            }
+        }
+        consumedChordModifiers.clear()
+        selectModifierHeld = false
+        selectUsedInChord = false
+
+        for (entry in axisEntries) {
+            entry.state.value = 0f
+            if (entry.state.active) {
+                entry.state.active = false
+                resolveAxisInput(MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_MOVE, 0f, 0f, 0), entry.axis.axisCode, entry.axis.direction)?.let { input ->
+                    dispatchInputReleased(input, fromController = true)
+                }
+            }
+        }
+
+        slot2DigitalLeftPressed = false
+        slot2DigitalRightPressed = false
+        slot2DigitalUpPressed = false
+        slot2DigitalDownPressed = false
+        lastSentSlot2AnalogX = 0f
+        lastSentSlot2AnalogY = 0f
+        MelonEmulator.setSlot2AnalogInput(0f, 0f)
+        MelonEmulator.setCStickAxis(0f, 0f)
+    }
+
     private fun isChordHotkeysEnabled(): Boolean {
         return cachedChordHotkeysEnabled
     }
@@ -147,8 +191,8 @@ class InputProcessor(
     }
 
     private fun isSelectKeyCode(keyCode: Int): Boolean {
-        return keyCode == KeyEvent.KEYCODE_BUTTON_SELECT ||
-            controllerConfiguration.keyToInput(keyCode) == Input.SELECT
+        val mapped = controllerConfiguration.keyToInput(keyCode) ?: resolveTriggerKeyFallback(keyCode)
+        return mapped == Input.SELECT
     }
 
     override fun onKeyEvent(keyEvent: KeyEvent): Boolean {
@@ -168,7 +212,7 @@ class InputProcessor(
         when (keyEvent.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (keyEvent.repeatCount > 0) {
-                    if (keyCode in activeChordTriggers || input?.isSystemInput == false) {
+                    if (keyCode in activeChordTriggers || input?.isSystemInput == false || isSelectKeyCode(keyCode)) {
                         return true
                     }
                 }
@@ -179,11 +223,14 @@ class InputProcessor(
                     if (customChordInput != null) {
                         activeChordTriggers[keyCode] = customChordInput
                         consumedChordModifiers.add(modKey)
-                        // Release modifier in system listener if it was previously pressed
-                        controllerConfiguration.keyToInput(modKey)?.let { modInput ->
-                            if (modInput.isSystemInput) {
-                                systemInputListener.onKeyReleased(modInput)
+                        // Release modifier if it was previously pressed as a system input or hold-fast-forward
+                        (controllerConfiguration.keyToInput(modKey) ?: resolveTriggerKeyFallback(modKey))?.let { modInput ->
+                            if (modInput.isSystemInput || modInput == Input.HOLD_FAST_FORWARD) {
+                                dispatchInputReleased(modInput, fromController)
                             }
+                        }
+                        if (isSelectKeyCode(modKey)) {
+                            selectUsedInChord = true
                         }
                         dispatchInputPressed(customChordInput, fromController)
                         return true
@@ -210,7 +257,7 @@ class InputProcessor(
                     }
                 }
 
-                if (isSelectKeyCode(keyCode)) {
+                if (keyEvent.repeatCount == 0 && isSelectKeyCode(keyCode)) {
                     selectModifierHeld = true
                     selectUsedInChord = false
                 }

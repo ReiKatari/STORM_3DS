@@ -91,8 +91,11 @@ class LayoutEditorActivity : AppCompatActivity() {
         }
     }
 
+    private var pendingApplyLayoutRunnable: Runnable? = null
     private var externalLayoutEditorPresentation: ExternalLayoutEditorPresentation? = null
     private var savedExternalEditorState: ScreenEditorState? = null
+    private var latestSecondaryDisplayId: Int? = null
+    private var latestFoldsSignature: String? = null
 
     private val mainScreenBackgroundPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode == RESULT_OK) {
@@ -181,6 +184,7 @@ class LayoutEditorActivity : AppCompatActivity() {
         }
         container.addView(layoutEditorManager, RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT)
         setContentView(container)
+        setupFullscreen()
         ViewCompat.setOnApplyWindowInsetsListener(container) { _, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val uiInsets = if (viewModel.shouldIgnoreDisplayCutoutInLayouts()) {
@@ -214,16 +218,19 @@ class LayoutEditorActivity : AppCompatActivity() {
             }
         }
 
-        val displayMetrics = resources.displayMetrics
-        val initialWidth = displayMetrics.widthPixels
-        val initialHeight = displayMetrics.heightPixels
+        val (initialWidth, initialHeight) = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val bounds = windowManager.currentWindowMetrics.bounds
+            bounds.width() to bounds.height()
+        } else {
+            val displayMetrics = resources.displayMetrics
+            displayMetrics.widthPixels to displayMetrics.heightPixels
+        }
         if (initialWidth > 0 && initialHeight > 0) {
             viewModel.setCurrentUiSize(initialWidth, initialHeight)
         }
         viewModel.setUiInsets(Insets.Zero)
         viewModel.setScreenFolds(emptyList())
         updateDisplays()
-        setupFullscreen()
         updateOrientation(resources.configuration)
 
         lifecycleScope.launch {
@@ -231,6 +238,8 @@ class LayoutEditorActivity : AppCompatActivity() {
                 var lastOrientation: LayoutConfiguration.LayoutOrientation? = null
                 var lastSystemOrientation: Orientation? = null
                 var lastResetToken: Long = -1L
+                var lastSecondaryDisplayId: Int? = null
+                var lastFoldsSignature: String? = null
                 viewModel.currentLayout.collect {
                     if (it == null) {
                         layoutEditorManager.layoutEditorView.destroyLayout()
@@ -238,18 +247,22 @@ class LayoutEditorActivity : AppCompatActivity() {
                         lastOrientation = null
                         lastSystemOrientation = null
                         lastResetToken = -1L
+                        lastSecondaryDisplayId = null
+                        lastFoldsSignature = null
                     } else {
-                        handler.removeCallbacksAndMessages(null)
-                        handler.post {
+                        pendingApplyLayoutRunnable?.let { pending -> handler.removeCallbacks(pending) }
+                        val applyRunnable = Runnable {
                             val orientationChanged = lastOrientation != it.orientation || lastSystemOrientation != it.systemOrientation
                             val resetChanged = lastResetToken != it.layoutResetToken
+                            val displayOrFoldChanged = lastSecondaryDisplayId != latestSecondaryDisplayId ||
+                                lastFoldsSignature != latestFoldsSignature
                             val hasAnyEdits = layoutEditorManager.layoutEditorView.isModifiedByUser() ||
                                 layoutEditorManager.layoutEditorView.canUndo() ||
                                 (externalLayoutEditorPresentation?.layoutEditorManager?.layoutEditorView?.let { v ->
                                     v.isModifiedByUser() || v.canUndo()
                                 } == true) ||
                                 viewModel.hasUnsavedChanges.value
-                            if (resetChanged || orientationChanged || !hasAnyEdits) {
+                            if (resetChanged || orientationChanged || displayOrFoldChanged || !hasAnyEdits) {
                                 val spread = viewModel.pendingButtonSpread.value
                                 val innerScale = viewModel.pendingButtonInnerScale.value
                                 layoutEditorManager.layoutEditorView.applyButtonClusterAppearance(spread, innerScale)
@@ -259,9 +272,13 @@ class LayoutEditorActivity : AppCompatActivity() {
                                 lastOrientation = it.orientation
                                 lastSystemOrientation = it.systemOrientation
                                 lastResetToken = it.layoutResetToken
+                                lastSecondaryDisplayId = latestSecondaryDisplayId
+                                lastFoldsSignature = latestFoldsSignature
                             }
                             setLayoutOrientation(it.orientation)
                         }
+                        pendingApplyLayoutRunnable = applyRunnable
+                        handler.post(applyRunnable)
                     }
                 }
             }
@@ -299,6 +316,10 @@ class LayoutEditorActivity : AppCompatActivity() {
                         }
                     }
 
+                    val foldsSignature = folds.joinToString("|") {
+                        "${it.orientation}:${it.type}:${it.foldBounds}"
+                    }
+                    latestFoldsSignature = foldsSignature
                     storeLayoutChanges()
                     viewModel.setScreenFolds(folds)
                 }
@@ -313,6 +334,10 @@ class LayoutEditorActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        setupFullscreen()
+        if (::layoutEditorManager.isInitialized) {
+            layoutEditorManager.reloadVisualPreviewSettings()
+        }
         updateDisplays()
     }
 
@@ -346,6 +371,11 @@ class LayoutEditorActivity : AppCompatActivity() {
     private fun updateDisplays() {
         val currentDisplay = ContextCompat.getDisplayOrDefault(this)
         val secondaryDisplay = secondaryDisplaySelector.getSecondaryDisplay(this)
+        val newSecondaryId = secondaryDisplay?.displayId
+        if (latestSecondaryDisplayId != newSecondaryId) {
+            latestSecondaryDisplayId = newSecondaryId
+            storeLayoutChanges()
+        }
 
         val displays = deviceLayoutDisplayMapper.mapDisplaysToLayoutDisplays(currentDisplay, secondaryDisplay)
         viewModel.setConnectedDisplays(displays)
@@ -414,6 +444,8 @@ class LayoutEditorActivity : AppCompatActivity() {
 
     private fun setupFullscreen() {
         window.applyImmersiveFullscreen()
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
     }
 
     private fun saveLayoutAndExit() {
@@ -450,6 +482,8 @@ class LayoutEditorActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pendingApplyLayoutRunnable?.let { handler.removeCallbacks(it) }
+        pendingApplyLayoutRunnable = null
         picasso.cancelRequest(layoutEditorManager.imageBackground)
         externalLayoutEditorPresentation?.layoutEditorManager?.imageBackground?.let {
             picasso.cancelRequest(it)

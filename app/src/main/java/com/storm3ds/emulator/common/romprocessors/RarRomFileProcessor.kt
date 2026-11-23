@@ -49,8 +49,11 @@ class RarRomFileProcessor(
     }
 
     private fun getNdsEntryInRar(archive: Archive): FileHeader? {
-        return archive.fileHeaders?.firstOrNull { header ->
-            !header.isDirectory && isSupportedRomFile(header.fileName ?: "")
-        }
+        return archive.fileHeaders
+            ?.filter { !it.isDirectory && isSupportedRomFile(it.fileName ?: "") }
+            ?.maxWithOrNull(
+                compareBy<FileHeader> { romEntryPriority(it.fileName ?: "") }
+                    .thenBy { it.fullUnpackSize }
+            )
     }
 }

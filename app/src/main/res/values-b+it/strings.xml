@@ -1581,4 +1581,17 @@ Importarli in STORM 3DS?</string>
     <string name="about_credits_watermelonds_summary">SapphireRhodonite and contributors - Android Jetpack Compose UI architecture, themes, layout editor, Live OCR translator and touch controls</string>
     <string name="about_credits_libraries_title">Open source libraries and tools</string>
     <string name="about_credits_libraries_summary">librashader (RetroArch Slang shaders), SPIRV-Tools, Glslang, VMA, libadrenotools, Dynarmic, Teakra, SoundTouch, Cubeb, Zstd, Crypto++, ML Kit</string>
+    <string name="freedreno_settings">Impostazioni Freedreno</string>
+    <string name="freedreno_summary">Opzioni avanzate Turnip/Freedreno. Lascia vuoto per i valori predefiniti del driver. Le modifiche richiedono il riavvio dell\'app. Le opzioni non supportate potrebbero essere ignorate dal driver.</string>
+    <string name="freedreno_default">Predefinito del driver</string>
+    <string name="freedreno_invalid">Usa al massimo 2048 caratteri ASCII senza interruzioni di riga.</string>
+    <string name="freedreno_restart">Riavvia STORM 3DS per salvare e applicare questa modifica.</string>
+    <string name="freedreno_restart_button">Riavvia</string>
+    <string name="freedreno_save_failed">Impossibile salvare l\'impostazione. Tocca Riavvia per riprovare.</string>
+    <string name="vulkan_driver_mali_supported_title">Arm Mali PanVK supportato (%1$s)</string>
+    <string name="vulkan_driver_mali_supported_desc">Rilevato %1$s con driver kernel /dev/mali0 a 64 bit su Android %2$d+. Le build malisx2 PanVK sono disponibili nei Repository cloud, oppure puoi importare manualmente uno ZIP compatibile.</string>
+    <string name="vulkan_driver_mali_panvk_advice">Arm Mali (%1$s): usa il driver GPU di sistema per la massima compatibilità, oppure prova le build malisx2 PanVK sulle GPU Mali supportate da Bifrost v7 alla 5a gen. v12.</string>
+    <string name="vulkan_driver_mali_midgard_v6_desc">Rilevato %1$s (Midgard / Bifrost v6). malisx2 PanVK richiede Mali Bifrost v7 (G31/G51/G52/G76) fino alla 5a gen. v12 (G620/G720). In uso il driver GPU di sistema; l\'importazione manuale di ZIP resta sbloccata.</string>
+    <string name="vulkan_driver_mali_v13_plus_desc">Rilevato %1$s (v13+ / Immortalis-G925). malisx2 PanVK attualmente supporta fino a Mali 5a gen. v12 (G720). In uso il driver GPU di sistema; l\'importazione manuale di ZIP resta sbloccata.</string>
+    <string name="vulkan_driver_mali_api_or_kernel_desc">Rilevato %1$s, ma malisx2 PanVK richiede Android 10 (API 29)+, processo a 64 bit e nodo kernel /dev/mali0. In uso il driver GPU di sistema; l\'importazione manuale di ZIP resta sbloccata.</string>
 </resources>

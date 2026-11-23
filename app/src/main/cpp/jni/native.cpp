@@ -3,11 +3,17 @@
 // Refer to the LICENSE.txt file included.
 
 #include <algorithm>
+#include <atomic>
+#include <cctype>
 #include <chrono>
 #include <codecvt>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <vector>
 #include <dlfcn.h>
 
 #include <android/api-level.h>
@@ -63,6 +69,10 @@
 #endif
 
 #ifdef ENABLE_VULKAN
+#ifndef VK_NO_PROTOTYPES
+#define VK_NO_PROTOTYPES
+#endif
+#include <vulkan/vulkan.h>
 #include "jni/emu_window/emu_window_vk.h"
 #if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
 #include <adrenotools/driver.h>
@@ -95,6 +105,11 @@ enum class CompressionStatus : jint {
 };
 
 std::shared_ptr<Common::DynamicLibrary> vulkan_library{};
+std::atomic<bool> s_using_custom_driver{false};
+std::mutex s_gpu_info_mutex{};
+std::string s_cached_gpu_info_json{};
+bool s_has_cached_gpu_info{false};
+bool s_cached_vulkan_supported{false};
 std::unique_ptr<EmuWindow_Android> window;
 std::unique_ptr<EmuWindow_Android> secondary_window;
 
@@ -535,48 +550,429 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     return Core::System::ResultStatus::Success;
 }
 
+#ifdef ENABLE_VULKAN
+using PFN_vk_icdNegotiateLoaderICDInterfaceVersion = VkResult(VKAPI_PTR*)(uint32_t*);
+
+static bool ContainsCaseInsensitive(const std::string& haystack, const char* needle) {
+    const size_t nlen = std::strlen(needle);
+    if (nlen == 0 || haystack.size() < nlen) {
+        return false;
+    }
+    for (size_t i = 0; i + nlen <= haystack.size(); ++i) {
+        bool ok = true;
+        for (size_t j = 0; j < nlen; ++j) {
+            if (std::tolower(static_cast<unsigned char>(haystack[i + j])) !=
+                std::tolower(static_cast<unsigned char>(needle[j]))) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void* OpenDriverWithAndroidSurface(const std::string& custom_driver_dir,
+                                          const std::string& custom_driver_name) {
+    if (custom_driver_dir.empty() || custom_driver_name.empty()) {
+        return nullptr;
+    }
+    std::string path = custom_driver_dir;
+    if (path.back() != '/') {
+        path += '/';
+    }
+    path += custom_driver_name;
+
+    std::unique_ptr<void, decltype(&dlclose)> driver(dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL),
+                                                     &dlclose);
+    if (!driver) {
+        return nullptr;
+    }
+
+    auto get = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+        dlsym(driver.get(), "vk_icdGetInstanceProcAddr"));
+    if (!get) {
+        return nullptr;
+    }
+
+    auto negotiate = reinterpret_cast<PFN_vk_icdNegotiateLoaderICDInterfaceVersion>(
+        dlsym(driver.get(), "vk_icdNegotiateLoaderICDInterfaceVersion"));
+    if (!negotiate) {
+        negotiate = reinterpret_cast<PFN_vk_icdNegotiateLoaderICDInterfaceVersion>(
+            get(VK_NULL_HANDLE, "vk_icdNegotiateLoaderICDInterfaceVersion"));
+    }
+    uint32_t interface_version = 5;
+    if (!negotiate || negotiate(&interface_version) != VK_SUCCESS || interface_version != 5) {
+        return nullptr;
+    }
+
+    auto enumerate_version = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
+        get(VK_NULL_HANDLE, "vkEnumerateInstanceVersion"));
+    auto enumerate_exts = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+        get(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
+    uint32_t api_version = 0;
+    uint32_t count = 0;
+    if (!enumerate_version || enumerate_version(&api_version) != VK_SUCCESS ||
+        api_version < VK_API_VERSION_1_1 || !get(VK_NULL_HANDLE, "vkCreateInstance") ||
+        !get(VK_NULL_HANDLE, "vkEnumerateInstanceLayerProperties") || !enumerate_exts ||
+        enumerate_exts(nullptr, &count, nullptr) != VK_SUCCESS || count == 0) {
+        return nullptr;
+    }
+
+    std::vector<VkExtensionProperties> extensions(count);
+    if (enumerate_exts(nullptr, &count, extensions.data()) != VK_SUCCESS) {
+        return nullptr;
+    }
+    const auto supports_ext = [&](const char* name) {
+        return std::any_of(extensions.begin(), extensions.begin() + count,
+                           [name](const VkExtensionProperties& ext) {
+                               return std::strcmp(ext.extensionName, name) == 0;
+                           });
+    };
+    if (!supports_ext(VK_KHR_SURFACE_EXTENSION_NAME) ||
+        !supports_ext("VK_KHR_android_surface")) {
+        return nullptr;
+    }
+
+    return driver.release();
+}
+
+static std::string JsonEscapeC(const char* input, size_t max_len) {
+    if (input == nullptr) {
+        return {};
+    }
+    std::string out;
+    size_t len = 0;
+    while (len < max_len && input[len] != '\0') {
+        ++len;
+    }
+    out.reserve(len + 8);
+    for (size_t i = 0; i < len; ++i) {
+        const unsigned char c = static_cast<unsigned char>(input[i]);
+        switch (c) {
+        case '\\':
+            out += "\\\\";
+            break;
+        case '"':
+            out += "\\\"";
+            break;
+        case '\n':
+            out += "\\n";
+            break;
+        case '\r':
+            out += "\\r";
+            break;
+        case '\t':
+            out += "\\t";
+            break;
+        default:
+            if (c >= 0x20 && c < 0x7F) {
+                out.push_back(static_cast<char>(c));
+            }
+            break;
+        }
+    }
+    return out;
+}
+
+static bool ProbeVulkanGpuInfo(std::string& out_json, bool& out_supported) {
+    std::lock_guard<std::mutex> lock(s_gpu_info_mutex);
+    if (s_has_cached_gpu_info) {
+        out_json = s_cached_gpu_info_json;
+        out_supported = s_cached_vulkan_supported;
+        return !out_json.empty();
+    }
+
+    out_json.clear();
+    out_supported = false;
+
+    void* temp_handle = nullptr;
+    PFN_vkGetInstanceProcAddr get_proc = nullptr;
+    if (vulkan_library && vulkan_library->IsLoaded()) {
+        get_proc = vulkan_library->GetSymbol<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+        if (!get_proc) {
+            get_proc =
+                vulkan_library->GetSymbol<PFN_vkGetInstanceProcAddr>("vk_icdGetInstanceProcAddr");
+        }
+    }
+    if (!get_proc) {
+        temp_handle = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+        if (!temp_handle) {
+            temp_handle = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
+        }
+        if (temp_handle) {
+            get_proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
+                dlsym(temp_handle, "vkGetInstanceProcAddr"));
+        }
+    }
+
+    auto cleanup_temp = detail::ScopeExit([&] {
+        if (temp_handle) {
+            dlclose(temp_handle);
+        }
+    });
+
+    if (!get_proc) {
+        s_cached_gpu_info_json.clear();
+        s_cached_vulkan_supported = false;
+        s_has_cached_gpu_info = true;
+        return false;
+    }
+
+    auto fn_create_instance =
+        reinterpret_cast<PFN_vkCreateInstance>(get_proc(VK_NULL_HANDLE, "vkCreateInstance"));
+    if (!fn_create_instance) {
+        s_cached_gpu_info_json.clear();
+        s_cached_vulkan_supported = false;
+        s_has_cached_gpu_info = true;
+        return false;
+    }
+
+    uint32_t instance_api_version = VK_API_VERSION_1_0;
+    if (auto fn_enum_ver = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
+            get_proc(VK_NULL_HANDLE, "vkEnumerateInstanceVersion"))) {
+        uint32_t queried_ver = VK_API_VERSION_1_0;
+        if (fn_enum_ver(&queried_ver) == VK_SUCCESS) {
+            instance_api_version = queried_ver;
+        }
+    }
+
+    VkApplicationInfo app_info{};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "STORM 3DS";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "STORM 3DS Vulkan Probe";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion =
+        instance_api_version >= VK_API_VERSION_1_1 ? VK_API_VERSION_1_1 : VK_API_VERSION_1_0;
+
+    VkInstanceCreateInfo inst_ci{};
+    inst_ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    inst_ci.pApplicationInfo = &app_info;
+
+    VkInstance instance = VK_NULL_HANDLE;
+    if (fn_create_instance(&inst_ci, nullptr, &instance) != VK_SUCCESS ||
+        instance == VK_NULL_HANDLE) {
+        s_cached_gpu_info_json.clear();
+        s_cached_vulkan_supported = false;
+        s_has_cached_gpu_info = true;
+        return false;
+    }
+
+    auto fn_destroy_instance =
+        reinterpret_cast<PFN_vkDestroyInstance>(get_proc(instance, "vkDestroyInstance"));
+    auto destroy_inst = detail::ScopeExit([&] {
+        if (fn_destroy_instance && instance != VK_NULL_HANDLE) {
+            fn_destroy_instance(instance, nullptr);
+        }
+    });
+
+    auto fn_enum_devs = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
+        get_proc(instance, "vkEnumeratePhysicalDevices"));
+    auto fn_get_props = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties>(
+        get_proc(instance, "vkGetPhysicalDeviceProperties"));
+    auto fn_get_qprops = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties>(
+        get_proc(instance, "vkGetPhysicalDeviceQueueFamilyProperties"));
+    auto fn_enum_dev_exts = reinterpret_cast<PFN_vkEnumerateDeviceExtensionProperties>(
+        get_proc(instance, "vkEnumerateDeviceExtensionProperties"));
+    if (!fn_enum_devs || !fn_get_props) {
+        return false;
+    }
+
+    uint32_t dev_count = 0;
+    if (fn_enum_devs(instance, &dev_count, nullptr) != VK_SUCCESS || dev_count == 0) {
+        s_cached_gpu_info_json.clear();
+        s_cached_vulkan_supported = false;
+        s_has_cached_gpu_info = true;
+        return false;
+    }
+    std::vector<VkPhysicalDevice> devices(dev_count);
+    if (fn_enum_devs(instance, &dev_count, devices.data()) != VK_SUCCESS || devices.empty()) {
+        return false;
+    }
+
+    VkPhysicalDevice picked = devices[0];
+    int best_score = -1;
+    for (VkPhysicalDevice dev : devices) {
+        VkPhysicalDeviceProperties p{};
+        fn_get_props(dev, &p);
+        bool has_gfx = true;
+        if (fn_get_qprops) {
+            uint32_t q_count = 0;
+            fn_get_qprops(dev, &q_count, nullptr);
+            has_gfx = false;
+            if (q_count > 0) {
+                std::vector<VkQueueFamilyProperties> qps(q_count);
+                fn_get_qprops(dev, &q_count, qps.data());
+                for (const auto& qp : qps) {
+                    if (qp.queueCount > 0 && (qp.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+                        has_gfx = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!has_gfx) {
+            continue;
+        }
+        int score = 1;
+        if (p.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            score = 3;
+        } else if (p.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+            score = 2;
+        }
+        if (score > best_score) {
+            best_score = score;
+            picked = dev;
+        }
+    }
+
+    VkPhysicalDeviceProperties props{};
+    fn_get_props(picked, &props);
+
+    std::string driver_name;
+    std::string driver_info;
+    auto fn_get_props2 = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(
+        get_proc(instance, "vkGetPhysicalDeviceProperties2"));
+    if (!fn_get_props2) {
+        fn_get_props2 = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(
+            get_proc(instance, "vkGetPhysicalDeviceProperties2KHR"));
+    }
+    if (fn_get_props2) {
+        bool supports_driver_props = props.apiVersion >= VK_API_VERSION_1_2;
+        if (!supports_driver_props && fn_enum_dev_exts) {
+            uint32_t ext_count = 0;
+            if (fn_enum_dev_exts(picked, nullptr, &ext_count, nullptr) == VK_SUCCESS && ext_count > 0) {
+                std::vector<VkExtensionProperties> dev_exts(ext_count);
+                if (fn_enum_dev_exts(picked, nullptr, &ext_count, dev_exts.data()) == VK_SUCCESS) {
+                    for (const auto& ext : dev_exts) {
+                        if (std::strcmp(ext.extensionName,
+                                        VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME) == 0) {
+                            supports_driver_props = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (supports_driver_props) {
+            VkPhysicalDeviceProperties2 props2{};
+            props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            VkPhysicalDeviceDriverProperties driver_props{};
+            driver_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+            props2.pNext = &driver_props;
+            fn_get_props2(picked, &props2);
+            driver_name = JsonEscapeC(driver_props.driverName, VK_MAX_DRIVER_NAME_SIZE);
+            driver_info = JsonEscapeC(driver_props.driverInfo, VK_MAX_DRIVER_INFO_SIZE);
+        }
+    }
+
+    const uint32_t major = VK_API_VERSION_MAJOR(props.apiVersion);
+    const uint32_t minor = VK_API_VERSION_MINOR(props.apiVersion);
+    const uint32_t patch = VK_API_VERSION_PATCH(props.apiVersion);
+    char api_ver_buf[32];
+    std::snprintf(api_ver_buf, sizeof(api_ver_buf), "%u.%u.%u", major, minor, patch);
+
+    const std::string escaped_device_name =
+        JsonEscapeC(props.deviceName, VK_MAX_PHYSICAL_DEVICE_NAME_SIZE);
+    const bool using_custom = s_using_custom_driver.load(std::memory_order_relaxed);
+
+    char header_buf[512];
+    std::snprintf(
+        header_buf, sizeof(header_buf),
+        "{\"deviceName\":\"%s\",\"vendorId\":%u,\"deviceId\":%u,\"apiVersion\":\"%s\","
+        "\"driverVersion\":%u,\"isCustomDriver\":%s,",
+        escaped_device_name.c_str(), props.vendorID, props.deviceID, api_ver_buf,
+        props.driverVersion, using_custom ? "true" : "false");
+    out_json = header_buf;
+    out_json += "\"driverName\":\"" + driver_name + "\",\"driverInfo\":\"" + driver_info + "\"}";
+
+    out_supported = instance_api_version >= VK_API_VERSION_1_1 && props.apiVersion >= VK_API_VERSION_1_1;
+    s_cached_gpu_info_json = out_json;
+    s_cached_vulkan_supported = out_supported;
+    s_has_cached_gpu_info = true;
+    return true;
+}
+#endif
+
 void InitializeGpuDriver(const std::string& hook_lib_dir, const std::string& custom_driver_dir,
                          const std::string& custom_driver_name,
                          const std::string& file_redirect_dir) {
-#if defined(ENABLE_VULKAN) && defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
+#ifdef ENABLE_VULKAN
+    std::lock_guard<std::mutex> lock(s_gpu_info_mutex);
+    s_has_cached_gpu_info = false;
+    s_cached_gpu_info_json.clear();
+    s_cached_vulkan_supported = false;
+
+    vulkan_library.reset();
     void* handle{};
-    const char* file_redirect_dir_{};
-    int featureFlags{};
+    bool loaded_custom = false;
 
-    // Enable driver file redirection when renderer debugging is enabled.
-    if (Settings::values.renderer_debug && file_redirect_dir.size()) {
-        featureFlags |= ADRENOTOOLS_DRIVER_FILE_REDIRECT;
-        file_redirect_dir_ = file_redirect_dir.c_str();
-    }
-
-    const char* tmp_lib_dir =
-        (android_get_device_api_level() < 29 && !file_redirect_dir.empty())
-            ? file_redirect_dir.c_str()
-            : nullptr;
-
-    // Try to load a custom driver.
-    if (custom_driver_name.size()) {
-        handle = adrenotools_open_libvulkan(
-            RTLD_NOW, featureFlags | ADRENOTOOLS_DRIVER_CUSTOM, tmp_lib_dir, hook_lib_dir.c_str(),
-            custom_driver_dir.c_str(), custom_driver_name.c_str(), file_redirect_dir_, nullptr);
-    }
-
-    // Try to load the system driver.
-    if (!handle) {
-        handle = adrenotools_open_libvulkan(RTLD_NOW, featureFlags, tmp_lib_dir, hook_lib_dir.c_str(),
-                                            nullptr, nullptr, file_redirect_dir_, nullptr);
-    }
-
-    vulkan_library = std::make_shared<Common::DynamicLibrary>(handle);
-#elif defined(ENABLE_VULKAN)
-    if (!custom_driver_dir.empty() && !custom_driver_name.empty()) {
-        std::string full_driver = custom_driver_dir;
-        if (!full_driver.ends_with('/')) full_driver += '/';
-        full_driver += custom_driver_name;
-        void* handle = dlopen(full_driver.c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (handle) {
-            vulkan_library = std::make_shared<Common::DynamicLibrary>(handle);
+    if (!custom_driver_name.empty()) {
+        if (ContainsCaseInsensitive(custom_driver_name, "panvk") ||
+            ContainsCaseInsensitive(custom_driver_name, "panfrost")) {
+            setenv("PAN_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 0);
+            setenv("MESA_NO_ERROR", "1", 0);
         }
+
+        handle = OpenDriverWithAndroidSurface(custom_driver_dir, custom_driver_name);
+        if (handle) {
+            LOG_INFO(Frontend, "Loaded custom Vulkan driver with native Android surface: {}",
+                     custom_driver_name);
+            loaded_custom = true;
+        }
+#if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
+        if (!handle) {
+            const char* file_redirect_dir_{};
+            int feature_flags{};
+            if (Settings::values.renderer_debug && !file_redirect_dir.empty()) {
+                feature_flags |= ADRENOTOOLS_DRIVER_FILE_REDIRECT;
+                file_redirect_dir_ = file_redirect_dir.c_str();
+            }
+            const char* tmp_lib_dir =
+                (android_get_device_api_level() < 29 && !file_redirect_dir.empty())
+                    ? file_redirect_dir.c_str()
+                    : nullptr;
+            handle = adrenotools_open_libvulkan(
+                RTLD_NOW, feature_flags | ADRENOTOOLS_DRIVER_CUSTOM, tmp_lib_dir,
+                hook_lib_dir.c_str(), custom_driver_dir.c_str(), custom_driver_name.c_str(),
+                file_redirect_dir_, nullptr);
+            if (handle) {
+                LOG_INFO(Frontend, "Loaded custom Vulkan driver via adrenotools: {}",
+                         custom_driver_name);
+                loaded_custom = true;
+            }
+        }
+#endif
+        if (!handle) {
+            LOG_WARNING(Frontend, "Failed to load custom Vulkan driver {}, falling back to system",
+                        custom_driver_name);
+        }
+    }
+
+#if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
+    if (!handle) {
+        const char* file_redirect_dir_{};
+        int feature_flags{};
+        if (Settings::values.renderer_debug && !file_redirect_dir.empty()) {
+            feature_flags |= ADRENOTOOLS_DRIVER_FILE_REDIRECT;
+            file_redirect_dir_ = file_redirect_dir.c_str();
+        }
+        const char* tmp_lib_dir =
+            (android_get_device_api_level() < 29 && !file_redirect_dir.empty())
+                ? file_redirect_dir.c_str()
+                : nullptr;
+        handle = adrenotools_open_libvulkan(RTLD_NOW, feature_flags, tmp_lib_dir,
+                                            hook_lib_dir.c_str(), nullptr, nullptr,
+                                            file_redirect_dir_, nullptr);
+    }
+#endif
+
+    s_using_custom_driver.store(loaded_custom, std::memory_order_relaxed);
+    if (handle != nullptr) {
+        vulkan_library = std::make_shared<Common::DynamicLibrary>(handle);
     }
 #endif
 }
@@ -687,6 +1083,30 @@ void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_initializeGpu
     jstring custom_driver_name, jstring file_redirect_dir) {
     InitializeGpuDriver(GetJString(env, hook_lib_dir), GetJString(env, custom_driver_dir),
                         GetJString(env, custom_driver_name), GetJString(env, file_redirect_dir));
+}
+
+jstring JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_queryVulkanGpuInfoJson(
+    JNIEnv* env, jobject obj) {
+#ifdef ENABLE_VULKAN
+    std::string json;
+    bool supported = false;
+    ProbeVulkanGpuInfo(json, supported);
+    return ToJString(env, json);
+#else
+    return ToJString(env, "");
+#endif
+}
+
+jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_isVulkanSupported(
+    JNIEnv* env, jobject obj) {
+#ifdef ENABLE_VULKAN
+    std::string json;
+    bool supported = false;
+    ProbeVulkanGpuInfo(json, supported);
+    return supported ? JNI_TRUE : JNI_FALSE;
+#else
+    return JNI_FALSE;
+#endif
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_notifyOrientationChange([[maybe_unused]] JNIEnv* env,
@@ -899,6 +1319,11 @@ jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getInstalledG
                 "Nintendo "
                 "3DS/00000000000000000000000000000000/"
                 "00000000000000000000000000000000/title/00040000");
+    ScanDir(nullptr, "",
+            FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir) +
+                "Nintendo "
+                "3DS/00000000000000000000000000000000/"
+                "00000000000000000000000000000000/title/00040002");
     media_type = Service::FS::MediaType::NAND;
     ScanDir(nullptr, "",
             FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +

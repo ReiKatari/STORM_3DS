@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.storm3ds.emulator.domain.model.RuntimeBackground
 import com.storm3ds.emulator.domain.model.layout.BackgroundMode
+import com.storm3ds.emulator.utils.getFloatCompat
 import com.storm3ds.emulator.domain.model.layout.Insets
 import com.storm3ds.emulator.domain.model.layout.LayoutConfiguration
 import com.storm3ds.emulator.domain.model.layout.LayoutConfiguration.LayoutOrientation
@@ -56,8 +57,8 @@ class LayoutEditorViewModel @Inject constructor(
     private var currentLayoutVariant: UILayoutVariant? = null
     private var layoutResetToken: Long = 0L
 
-    private val initialButtonSpread: Float = sharedPreferences.getFloat("pref_button_cluster_spread", 1.0f)
-    private val initialButtonInnerScale: Float = sharedPreferences.getFloat("pref_button_cluster_inner_scale", 1.0f)
+    private val initialButtonSpread: Float = sharedPreferences.getFloatCompat("pref_button_cluster_spread", 1.0f)
+    private val initialButtonInnerScale: Float = sharedPreferences.getFloatCompat("pref_button_cluster_inner_scale", 1.0f)
 
     private val _pendingButtonSpread = MutableStateFlow(initialButtonSpread)
     val pendingButtonSpread = _pendingButtonSpread.asStateFlow()
