@@ -858,6 +858,7 @@ void QtConfig::ReadUIValues() {
         UISettings::values.theme =
             ReadSetting(Settings::QKeys::theme, QString::fromUtf8(UISettings::themes[0].second))
                 .toString();
+        UISettings::values.ui_scale = ReadSetting(QStringLiteral("ui_scale"), 0).toInt();
 #ifdef ENABLE_DISCORD_RPC
         ReadBasicSetting(UISettings::values.enable_discord_presence);
 #endif
@@ -1401,6 +1402,7 @@ void QtConfig::SaveUIValues() {
     if (global) {
         WriteSetting(Settings::QKeys::theme, UISettings::values.theme,
                      QString::fromUtf8(UISettings::themes[0].second));
+        WriteSetting(QStringLiteral("ui_scale"), UISettings::values.ui_scale, 0);
 #ifdef ENABLE_DISCORD_RPC
         WriteBasicSetting(UISettings::values.enable_discord_presence);
 #endif

@@ -372,11 +372,11 @@ private:
     Core::System& system;
     Core::Movie& movie;
     GApplicationEventFilter* filter = new GApplicationEventFilter();
-    GRenderWindow* render_window;
-    GRenderWindow* secondary_window;
+    GRenderWindow* render_window = nullptr;
+    GRenderWindow* secondary_window = nullptr;
 
-    GameListPlaceholder* game_list_placeholder;
-    LoadingScreen* loading_screen;
+    GameListPlaceholder* game_list_placeholder = nullptr;
+    LoadingScreen* loading_screen = nullptr;
 
     // Status bar elements
     QProgressBar* progress_bar = nullptr;

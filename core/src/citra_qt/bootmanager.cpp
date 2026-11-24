@@ -2,7 +2,9 @@
 // Licensed under GPLv3 or any later version
 // Refer to the LICENSE.txt file included.
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <thread>
 #include <QApplication>
 #include <QHBoxLayout>
@@ -528,10 +530,11 @@ void GRenderWindow::PollEvents() {
 // The result will be a viewport that is smaller than the extent of the window.
 void GRenderWindow::OnFramebufferSizeChanged() {
     // Screen changes potentially incur a change in screen DPI, hence we should update the
-    // framebuffer size
+    // framebuffer size with exact rounded physical pixel dimensions
     const qreal pixel_ratio = windowPixelRatio();
-    const u32 width = static_cast<u32>(this->width() * pixel_ratio);
-    const u32 height = static_cast<u32>(this->height() * pixel_ratio);
+    window_info.render_surface_scale = static_cast<float>(pixel_ratio);
+    const u32 width = static_cast<u32>(std::max<long>(1L, std::lround(this->width() * pixel_ratio)));
+    const u32 height = static_cast<u32>(std::max<long>(1L, std::lround(this->height() * pixel_ratio)));
     UpdateCurrentFramebufferLayout(width, height);
 }
 
@@ -588,14 +591,16 @@ void GRenderWindow::mousePressEvent(QMouseEvent* event) {
         return; // touch input is handled in TouchBeginEvent
     }
 
-    auto pos = event->pos();
+    const QPointF pos = event->position();
     if (event->button() == Qt::LeftButton) {
         const auto [x, y] = ScaleTouch(pos);
         this->TouchPressed(x, y);
     } else if (event->button() == Qt::RightButton) {
-        InputCommon::GetMotionEmu()->BeginTilt(pos.x(), pos.y());
+        InputCommon::GetMotionEmu()->BeginTilt(static_cast<int>(std::lround(pos.x())),
+                                               static_cast<int>(std::lround(pos.y())));
     } else if (event->button() == Qt::MiddleButton) {
-        InputCommon::GetMotionEmu()->BeginLook(pos.x(), pos.y());
+        InputCommon::GetMotionEmu()->BeginLook(static_cast<int>(std::lround(pos.x())),
+                                               static_cast<int>(std::lround(pos.y())));
     }
     emit MouseActivity();
 }
@@ -605,11 +610,20 @@ void GRenderWindow::mouseMoveEvent(QMouseEvent* event) {
         return; // touch input is handled in TouchUpdateEvent
     }
 
-    auto pos = event->pos();
+    const QPointF pos = event->position();
     const auto [x, y] = ScaleTouch(pos);
     this->TouchMoved(x, y);
-    InputCommon::GetMotionEmu()->Tilt(pos.x(), pos.y());
-    InputCommon::GetMotionEmu()->Look(pos.x(), pos.y());
+    InputCommon::GetMotionEmu()->Tilt(static_cast<int>(std::lround(pos.x())),
+                                      static_cast<int>(std::lround(pos.y())));
+    InputCommon::GetMotionEmu()->Look(static_cast<int>(std::lround(pos.x())),
+                                      static_cast<int>(std::lround(pos.y())));
+    if (Settings::values.render_3d.GetValue() == Settings::StereoRenderOption::GyroParallax &&
+        !(event->buttons() & Qt::LeftButton) && this->width() > 0 && this->height() > 0) {
+        const float nx = static_cast<float>((pos.x() / static_cast<qreal>(this->width())) * 2.0 - 1.0);
+        const float ny = static_cast<float>((pos.y() / static_cast<qreal>(this->height())) * 2.0 - 1.0);
+        Settings::values.gyro_3d_tilt_x = std::clamp(nx * 0.65f, -0.65f, 0.65f);
+        Settings::values.gyro_3d_tilt_y = std::clamp(ny * 0.65f, -0.65f, 0.65f);
+    }
     emit MouseActivity();
 }
 
@@ -667,6 +681,10 @@ bool GRenderWindow::event(QEvent* event) {
     case QEvent::TouchCancel:
         TouchEndEvent();
         return true;
+    case QEvent::DevicePixelRatioChange:
+    case QEvent::ScreenChangeInternal:
+        OnFramebufferSizeChanged();
+        break;
     default:
         break;
     }
@@ -895,6 +913,11 @@ void GRenderWindow::OnEmulationStopping() {
 
 void GRenderWindow::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
+    if (QWindow* wh = windowHandle() ? windowHandle() : (window() ? window()->windowHandle() : nullptr)) {
+        connect(wh, &QWindow::screenChanged, this, [this] { OnFramebufferSizeChanged(); },
+                Qt::UniqueConnection);
+    }
+    OnFramebufferSizeChanged();
 }
 
 std::unique_ptr<Frontend::GraphicsContext> GRenderWindow::CreateSharedContext() const {

@@ -1195,7 +1195,8 @@ void GameList::LoadInterfaceLayout() {
 const QStringList GameList::supported_file_extensions = {
     QStringLiteral("3dsx"), QStringLiteral("elf"),  QStringLiteral("axf"),   QStringLiteral("cci"),
     QStringLiteral("cxi"),  QStringLiteral("app"),  QStringLiteral("z3dsx"), QStringLiteral("zcci"),
-    QStringLiteral("zcxi"), QStringLiteral("bcci"), QStringLiteral("3ds"),
+    QStringLiteral("z3ds"), QStringLiteral("zcxi"), QStringLiteral("bcci"),  QStringLiteral("bcxi"),
+    QStringLiteral("3ds"),
 };
 
 void GameList::RefreshGameDirectory() {
@@ -1298,11 +1299,14 @@ GameListPlaceholder::GameListPlaceholder(GMainWindow* parent) : QWidget{parent} 
     image = new QLabel;
     text = new QLabel;
     layout->setAlignment(Qt::AlignCenter);
-    image->setPixmap(QIcon::fromTheme(QStringLiteral("plus_folder")).pixmap(200));
+    image->setPixmap(
+        QIcon::fromTheme(QStringLiteral("plus_folder"))
+            .pixmap(112)
+            .scaled(112, 112, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     text->setText(tr("Double-click to add a new folder to the application list"));
     QFont font = text->font();
-    font.setPointSize(20);
+    font.setPointSize(13);
     text->setFont(font);
     text->setAlignment(Qt::AlignHCenter);
     image->setAlignment(Qt::AlignHCenter);
@@ -1315,7 +1319,10 @@ GameListPlaceholder::GameListPlaceholder(GMainWindow* parent) : QWidget{parent} 
 GameListPlaceholder::~GameListPlaceholder() = default;
 
 void GameListPlaceholder::onUpdateThemedIcons() {
-    image->setPixmap(QIcon::fromTheme(QStringLiteral("plus_folder")).pixmap(200));
+    image->setPixmap(
+        QIcon::fromTheme(QStringLiteral("plus_folder"))
+            .pixmap(112)
+            .scaled(112, 112, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }
 
 void GameListPlaceholder::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent* event) {

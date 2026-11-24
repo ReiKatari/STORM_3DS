@@ -5,9 +5,15 @@
 #include "common/settings.h"
 
 #include <algorithm>
-#include <dlfcn.h>
 #include <mutex>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+#ifdef __ANDROID__
 #include <EGL/egl.h>
+#endif
 
 #if defined(ENABLE_VULKAN)
 #define LIBRA_RUNTIME_VULKAN 1
@@ -54,12 +60,23 @@ struct LibraApi {
             return false;
         }
         attempted = true;
+#ifdef _WIN32
+        handle = static_cast<void*>(LoadLibraryA("librashader.dll"));
+        if (!handle) {
+            LOG_WARNING(Render, "librashader.dll not loaded (optional): error {}", GetLastError());
+            return false;
+        }
+        auto load = [&](const char* sym) -> void* {
+            return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), sym));
+        };
+#else
         handle = dlopen("liblibrashader.so", RTLD_NOW | RTLD_LOCAL);
         if (!handle) {
             LOG_WARNING(Render, "librashader not loaded (optional): {}", dlerror());
             return false;
         }
         auto load = [&](const char* sym) -> void* { return dlsym(handle, sym); };
+#endif
         error_free = reinterpret_cast<PFN_libra_error_free>(load("libra_error_free"));
         error_write = reinterpret_cast<PFN_libra_error_write>(load("libra_error_write"));
         error_free_string = reinterpret_cast<PFN_libra_error_free_string>(load("libra_error_free_string"));
@@ -357,7 +374,34 @@ bool StormLibrashader::ApplyOpenGL(GLuint source_tex, u32 source_width, u32 sour
             return false;
         }
 
+#ifdef __ANDROID__
         libra_gl_loader_t loader = reinterpret_cast<libra_gl_loader_t>(eglGetProcAddress);
+#elif defined(_WIN32)
+        auto win_gl_loader = [](const char* name) -> void* {
+            void* proc = nullptr;
+            HMODULE gl_mod = GetModuleHandleA("opengl32.dll");
+            if (!gl_mod) {
+                gl_mod = LoadLibraryA("opengl32.dll");
+            }
+            if (gl_mod) {
+                using PFN_wglGetProcAddress = PROC(WINAPI*)(LPCSTR);
+                auto wgl_get_proc = reinterpret_cast<PFN_wglGetProcAddress>(
+                    GetProcAddress(gl_mod, "wglGetProcAddress"));
+                if (wgl_get_proc) {
+                    proc = reinterpret_cast<void*>(wgl_get_proc(name));
+                }
+                if (proc == nullptr || proc == reinterpret_cast<void*>(0x1) ||
+                    proc == reinterpret_cast<void*>(0x2) || proc == reinterpret_cast<void*>(0x3) ||
+                    proc == reinterpret_cast<void*>(-1)) {
+                    proc = reinterpret_cast<void*>(GetProcAddress(gl_mod, name));
+                }
+            }
+            return proc;
+        };
+        libra_gl_loader_t loader = reinterpret_cast<libra_gl_loader_t>(+win_gl_loader);
+#else
+        libra_gl_loader_t loader = nullptr;
+#endif
         filter_chain_gl_opt_t c_opt{};
         c_opt.version = LIBRASHADER_CURRENT_ABI;
         c_opt.glsl_version = 0;

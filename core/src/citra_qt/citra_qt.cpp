@@ -2,7 +2,9 @@
 // Licensed under GPLv3 or any later version
 // Refer to the LICENSE.txt file included.
 
+#include <algorithm>
 #include <clocale>
+#include <cstdio>
 #include <format>
 #include <iostream>
 #include <memory>
@@ -15,6 +17,7 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPalette>
+#include <QSettings>
 #include <QSysInfo>
 #include <QtConcurrent/QtConcurrentMap>
 #include <QtConcurrent/QtConcurrentRun>
@@ -27,6 +30,7 @@
 #include <unistd.h> // for chdir
 #endif
 #ifdef _WIN32
+#include <dwmapi.h>
 #include <shlobj.h>
 #include <windows.h>
 #else
@@ -160,7 +164,6 @@ const int GMainWindow::max_recent_files_item;
 #endif
 
 #ifdef NEEDS_ROUND_CORNERS_FIX
-#include <dwmapi.h>
 class WindowCornerManager {
 public:
     static WindowCornerManager& instance() {
@@ -261,13 +264,22 @@ static bool ShouldCheckForPrereleaseUpdates() {
     return (IsPrereleaseBuild() || using_prerelease_channel);
 }
 
-static int GetMajorVersion(const std::string& version) {
-    size_t dot = version.find('.');
-    try {
-        return std::stoi(version.substr(0, dot));
-    } catch (...) {
-        return 0;
+static std::tuple<int, int, int> ParseSemVer(const std::string& raw) {
+    std::string s = raw;
+    if (!s.empty() && (s[0] == 'v' || s[0] == 'V')) {
+        s.erase(s.begin());
     }
+    int major = 0;
+    int minor = 0;
+    int patch = 0;
+    std::sscanf(s.c_str(), "%d.%d.%d", &major, &minor, &patch);
+    return {major, minor, patch};
+}
+
+static bool IsRemoteVersionNewer(const std::string& remote, const std::string& current) {
+    const auto r = ParseSemVer(remote);
+    const auto c = ParseSemVer(current);
+    return r > c;
 }
 #endif
 
@@ -389,7 +401,7 @@ GMainWindow::GMainWindow(Core::System& system_)
         }
 
         if (args[i] == QStringLiteral("--version") || args[i] == QStringLiteral("-v")) {
-            const std::string version_string = std::string("Azahar ") + Common::g_build_fullname;
+            const std::string version_string = std::string("STORM 3DS ") + Common::g_build_fullname;
             ShowCommandOutput("Version", version_string);
             exit(0);
         }
@@ -468,7 +480,7 @@ GMainWindow::GMainWindow(Core::System& system_)
     ConnectMenuEvents();
     ConnectWidgetEvents();
 
-    LOG_INFO(Frontend, "Azahar Version: {} | {}-{}", Common::g_build_fullname, Common::g_scm_branch,
+    LOG_INFO(Frontend, "STORM 3DS Version: {} | {}-{}", Common::g_build_fullname, Common::g_scm_branch,
              Common::g_scm_desc);
     std::string build_variant = Common::g_build_variant;
     if (build_variant == "") {
@@ -498,9 +510,10 @@ GMainWindow::GMainWindow(Core::System& system_)
     LOG_INFO(Frontend, "Host Swap: {:.2f} GiB", mem_info.total_swap_memory / f64{1_GiB});
     UpdateWindowTitle();
 
-    QIcon azahar_icon = QIcon(QString::fromStdString(":/icons/default/256x256/azahar.png"));
-    render_window->setWindowIcon(azahar_icon);
-    secondary_window->setWindowIcon(azahar_icon);
+    QIcon storm_icon = QIcon(QStringLiteral(":/icons/default/256x256/storm3ds.png"));
+    setWindowIcon(storm_icon);
+    render_window->setWindowIcon(storm_icon);
+    secondary_window->setWindowIcon(storm_icon);
 
     show();
 
@@ -528,12 +541,9 @@ GMainWindow::GMainWindow(Core::System& system_)
             const std::optional<std::string> latest_release_tag =
                 UpdateChecker::GetLatestRelease(ShouldCheckForPrereleaseUpdates());
 
-            if (latest_release_tag && latest_release_tag.value() != Common::g_build_fullname) {
-                const int latest_major_version = GetMajorVersion(latest_release_tag.value());
-                const int current_major_version = GetMajorVersion(Common::g_build_fullname);
-                if (current_major_version <= latest_major_version) {
-                    return QString::fromStdString(latest_release_tag.value());
-                }
+            if (latest_release_tag &&
+                IsRemoteVersionNewer(latest_release_tag.value(), Common::g_build_fullname)) {
+                return QString::fromStdString(latest_release_tag.value());
             }
             return QString{};
         });
@@ -1024,13 +1034,13 @@ void GMainWindow::InitializeHotkeys() {
 }
 
 void GMainWindow::SetDefaultUIGeometry() {
-    // geometry: 55% of the window contents are in the upper screen half, 45% in the lower half
-    const QRect screenRect = screen()->geometry();
+    setMinimumSize(640, 480);
+    const QRect avail = screen()->availableGeometry();
 
-    const int w = screenRect.width() * 2 / 3;
-    const int h = screenRect.height() / 2;
-    const int x = (screenRect.x() + screenRect.width()) / 2 - w / 2;
-    const int y = (screenRect.y() + screenRect.height()) / 2 - h * 55 / 100;
+    const int w = std::min(std::max(640, avail.width() - 48), std::max(1080, avail.width() * 72 / 100));
+    const int h = std::min(std::max(480, avail.height() - 48), std::max(700, avail.height() * 74 / 100));
+    const int x = avail.x() + (avail.width() - w) / 2;
+    const int y = avail.y() + (avail.height() - h) * 45 / 100;
 
     setGeometry(x, y, w, h);
 }
@@ -1252,7 +1262,7 @@ void GMainWindow::ConnectMenuEvents() {
     connect_menu(ui->action_Restart, [this] { BootGame(QString(game_path)); });
     connect_menu(ui->action_Report_Compatibility, []() {
         QDesktopServices::openUrl(QUrl(QStringLiteral(
-            "https://github.com/azahar-emu/compatibility-list/blob/master/CONTRIBUTING.md")));
+            "https://stormgamesworld.ru/programs?repo=STORM_3DS")));
     });
     connect_menu(ui->action_Configure, &GMainWindow::OnConfigure, QAction::PreferencesRole);
     connect_menu(ui->action_Configure_Current_Game, &GMainWindow::OnConfigurePerGame);
@@ -1344,7 +1354,7 @@ void GMainWindow::ConnectMenuEvents() {
         QDesktopServices::openUrl(QUrl::fromLocalFile(path));
     });
     connect_menu(ui->action_FAQ, []() {
-        QDesktopServices::openUrl(QUrl(QStringLiteral("https://azahar-emu.org/pages/faq/")));
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/ReiKatari/STORM_3DS")));
     });
     connect_menu(ui->action_About, &GMainWindow::OnMenuAboutCitra, QAction::AboutRole);
 }
@@ -1493,7 +1503,7 @@ bool GMainWindow::LoadROM(const QString& filename) {
         QString invalid_format_description =
             tr("The application file format not supported.<br>Please make sure you are using one "
                "of the compatible file formats:<ul><li>Cartridge images: "
-               "<b>.cci/.zcci/.bcci/.3ds</b></li><li>Installable archives: "
+               "<b>.cci/.zcci/.z3ds/.bcci/.3ds</b></li><li>Installable archives: "
                "<b>.cia/.zcia/.bcia</b></li><li>Homebrew titles: <b>.3dsx/.z3dsx</b></li><li>NCCH "
                "containers: <b>.cxi/.zcxi/.bcxi/.app</b></li><li>ELF files: "
                "<b>.elf/.axf</b></li></ul>");
@@ -3544,7 +3554,7 @@ void GMainWindow::OnDecompressFile() {
 
     QStringList filepaths = QFileDialog::getOpenFileNames(
         this, tr("Load 3DS Compressed ROM Files"), UISettings::values.roms_path,
-        tr("3DS Compressed ROM Files") + QStringLiteral(" (*.zcia *zcci *z3dsx *zcxi)") +
+        tr("3DS Compressed ROM Files") + QStringLiteral(" (*.zcia *.zcci *.z3ds *.z3dsx *.zcxi)") +
             QStringLiteral(";;") + tr("All Files") + QStringLiteral(" (*.*)"));
 
     QString out_path;
@@ -4341,9 +4351,9 @@ static bool IsSingleFileDropEvent(const QMimeData* mime) {
     return mime->hasUrls() && mime->urls().length() == 1;
 }
 
-static const std::array<std::string, 13> AcceptedExtensions = {
-    "cci",  "cxi",  "bin",   "3dsx", "app",  "elf", "axf",
-    "zcci", "zcxi", "z3dsx", "3ds",  "bcci", "bcxi"};
+static const std::array<std::string, 14> AcceptedExtensions = {
+    "cci",  "cxi",  "bin",   "3dsx", "app",  "elf",  "axf",
+    "zcci", "z3ds", "zcxi",  "z3dsx", "3ds", "bcci", "bcxi"};
 
 static bool IsCorrectFileExtension(const QMimeData* mime) {
     const QString& filename = mime->urls().at(0).toLocalFile();
@@ -4427,11 +4437,30 @@ inline bool isDarkMode() {
 #endif
 }
 
+#ifdef _WIN32
+static void ApplyWindowsTitleBarTheme(QWidget* widget, bool dark) {
+    if (!widget || !widget->isWindow() || !widget->windowHandle()) {
+        return;
+    }
+    HWND hwnd = reinterpret_cast<HWND>(widget->winId());
+    if (!hwnd) {
+        return;
+    }
+    const BOOL value = dark ? TRUE : FALSE;
+    // DWMWA_USE_IMMERSIVE_DARK_MODE (20 on Win10 2004+/Win11, 19 on Win10 1809-1909)
+    if (FAILED(DwmSetWindowAttribute(hwnd, 20, &value, sizeof(value)))) {
+        DwmSetWindowAttribute(hwnd, 19, &value, sizeof(value));
+    }
+}
+#endif
+
 void GMainWindow::UpdateUITheme() {
     const QString icons_base_path = QStringLiteral(":/icons/");
     const QString default_system_theme = QStringLiteral("default");
     const QString light_icon_system_theme = QStringLiteral("default_with_light_icons");
     const QString colorful_icon_system_theme = QStringLiteral("colorful");
+    const QString storm_flagship_theme = QStringLiteral("storm_flagship");
+    const QString storm_light_theme = QStringLiteral("storm_light");
 
     QString default_theme;
     if (!isDarkMode()) {
@@ -4451,8 +4480,9 @@ void GMainWindow::UpdateUITheme() {
         QFile f(theme_uri);
         if (f.open(QFile::ReadOnly | QFile::Text)) {
             QTextStream ts(&f);
-            qApp->setStyleSheet(ts.readAll());
-            setStyleSheet(ts.readAll());
+            const QString qss = ts.readAll();
+            qApp->setStyleSheet(qss);
+            setStyleSheet(qss);
         } else {
             LOG_ERROR(Frontend,
                       "Unable to open default stylesheet, falling back to empty stylesheet");
@@ -4466,21 +4496,44 @@ void GMainWindow::UpdateUITheme() {
         QFile f(theme_uri);
         if (f.open(QFile::ReadOnly | QFile::Text)) {
             QTextStream ts(&f);
-            qApp->setStyleSheet(ts.readAll());
-            setStyleSheet(ts.readAll());
+            const QString qss = ts.readAll();
+            qApp->setStyleSheet(qss);
+            setStyleSheet(qss);
         } else {
             LOG_ERROR(Frontend, "Unable to set style, stylesheet file not found");
         }
 
-        const QString current_theme_path = icons_base_path + current_theme;
-        theme_paths.append({default_theme_path, current_theme_path});
-        QIcon::setThemeName(current_theme);
+        if (current_theme == storm_flagship_theme) {
+            theme_paths.append(icons_base_path + light_icon_system_theme);
+            QIcon::setThemeName(light_icon_system_theme);
+        } else if (current_theme == storm_light_theme) {
+            theme_paths.append(icons_base_path + default_system_theme);
+            QIcon::setThemeName(default_system_theme);
+        } else {
+            const QString current_theme_path = icons_base_path + current_theme;
+            theme_paths.append({default_theme_path, current_theme_path});
+            QIcon::setThemeName(current_theme);
+        }
     }
 
 #ifdef _WIN32
     if (current_theme == default_system_theme || current_theme == light_icon_system_theme ||
         current_theme == colorful_icon_system_theme) {
         SetCustomWindowsScrollbar();
+    }
+    const bool use_dark_titlebar =
+        (current_theme == storm_flagship_theme ||
+         current_theme.contains(QStringLiteral("dark"), Qt::CaseInsensitive) ||
+         current_theme.contains(QStringLiteral("midnight"), Qt::CaseInsensitive) ||
+         ((current_theme.isEmpty() || current_theme == default_system_theme ||
+           current_theme == colorful_icon_system_theme) &&
+          isDarkMode()));
+    ApplyWindowsTitleBarTheme(this, use_dark_titlebar);
+    if (render_window) {
+        ApplyWindowsTitleBarTheme(render_window, use_dark_titlebar);
+    }
+    if (secondary_window) {
+        ApplyWindowsTitleBarTheme(secondary_window, use_dark_titlebar);
     }
 #endif
 
@@ -4604,15 +4657,16 @@ void GMainWindow::OnEmulatorUpdateAvailable() {
     update_prompt.setIcon(QMessageBox::Information);
     update_prompt.addButton(QMessageBox::Yes);
     update_prompt.addButton(QMessageBox::Ignore);
-    update_prompt.setText(tr("Update %1 for Azahar is available.\nWould you like to download it?")
-                              .arg(version_string));
+    update_prompt.setText(
+        tr("Update %1 for STORM 3DS is available.\nWould you like to download it?")
+            .arg(version_string));
     update_prompt.exec();
     if (update_prompt.button(QMessageBox::Yes) == update_prompt.clickedButton()) {
         std::string update_page_url;
         if (ShouldCheckForPrereleaseUpdates()) {
-            update_page_url = "https://github.com/azahar-emu/azahar/releases";
+            update_page_url = "https://github.com/ReiKatari/STORM_3DS/releases";
         } else {
-            update_page_url = "https://azahar-emu.org/pages/download/";
+            update_page_url = "https://stormgamesworld.ru/programs?repo=STORM_3DS";
         }
         QDesktopServices::openUrl(QUrl(QString::fromStdString(update_page_url)));
     }
@@ -4636,12 +4690,12 @@ void GMainWindow::UpdateWindowTitle() {
     const QString full_name = QString::fromUtf8(Common::g_build_fullname);
 
     if (game_title.isEmpty()) {
-        setWindowTitle(QStringLiteral("Azahar %1").arg(full_name));
+        setWindowTitle(QStringLiteral("STORM 3DS %1").arg(full_name));
     } else {
-        setWindowTitle(QStringLiteral("Azahar %1 | %2").arg(full_name, game_title));
+        setWindowTitle(QStringLiteral("STORM 3DS %1 | %2").arg(full_name, game_title));
         render_window->setWindowTitle(
-            QStringLiteral("Azahar %1 | %2 | %3").arg(full_name, game_title, tr("Primary Window")));
-        secondary_window->setWindowTitle(QStringLiteral("Azahar %1 | %2 | %3")
+            QStringLiteral("STORM 3DS %1 | %2 | %3").arg(full_name, game_title, tr("Primary Window")));
+        secondary_window->setWindowTitle(QStringLiteral("STORM 3DS %1 | %2 | %3")
                                              .arg(full_name, game_title, tr("Secondary Window")));
     }
 }
@@ -4750,46 +4804,35 @@ void GMainWindow::SetGamemodeEnabled(bool state) {
 #endif
 
 static Qt::HighDpiScaleFactorRoundingPolicy GetHighDpiRoundingPolicy() {
-#ifdef _WIN32
-    // For Windows, we want to avoid scaling artifacts on fractional scaling ratios.
-    // This is done by setting the optimal scaling policy for the primary screen.
-
-    // Create a temporary QApplication.
-    int temp_argc = 0;
-    char** temp_argv = nullptr;
-    QApplication temp{temp_argc, temp_argv};
-
-    // Get the current screen geometry.
-    const QScreen* primary_screen = QGuiApplication::primaryScreen();
-    if (!primary_screen) {
-        return Qt::HighDpiScaleFactorRoundingPolicy::PassThrough;
-    }
-
-    const QRect screen_rect = primary_screen->geometry();
-    const qreal real_ratio = primary_screen->devicePixelRatio();
-    const qreal real_width = std::trunc(screen_rect.width() * real_ratio);
-    const qreal real_height = std::trunc(screen_rect.height() * real_ratio);
-
-    // Recommended minimum width and height for proper window fit.
-    // Any screen with a lower resolution than this will still have a scale of 1.
-    constexpr qreal minimum_width = 1350.0;
-    constexpr qreal minimum_height = 900.0;
-
-    const qreal width_ratio = std::max(1.0, real_width / minimum_width);
-    const qreal height_ratio = std::max(1.0, real_height / minimum_height);
-
-    // Get the lower of the 2 ratios and truncate, this is the maximum integer scale.
-    const qreal max_ratio = std::trunc(std::min(width_ratio, height_ratio));
-
-    if (max_ratio > real_ratio) {
-        return Qt::HighDpiScaleFactorRoundingPolicy::Round;
-    } else {
-        return Qt::HighDpiScaleFactorRoundingPolicy::Floor;
-    }
-#else
-    // Other OSes should be better than Windows at fractional scaling.
     return Qt::HighDpiScaleFactorRoundingPolicy::PassThrough;
-#endif
+}
+
+static void ApplyConfiguredUiScaleBeforeQApp() {
+    if (qEnvironmentVariableIsSet("QT_SCALE_FACTOR")) {
+        return;
+    }
+    const std::string portable_cfg =
+        FileUtil::GetExeDirectory() + DIR_SEP USERDATA_DIR DIR_SEP CONFIG_DIR DIR_SEP "qt-config.ini";
+    std::string cfg_path;
+    if (FileUtil::Exists(portable_cfg)) {
+        cfg_path = portable_cfg;
+    } else {
+        const std::string data_cfg = FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + "qt-config.ini";
+        if (FileUtil::Exists(data_cfg)) {
+            cfg_path = data_cfg;
+        }
+    }
+    if (cfg_path.empty()) {
+        return;
+    }
+    QSettings ini(QString::fromStdString(cfg_path), QSettings::IniFormat);
+    ini.beginGroup(QStringLiteral("UI"));
+    const int scale_idx = ini.value(QStringLiteral("ui_scale"), 0).toInt();
+    ini.endGroup();
+    static constexpr const char* SCALE_VALUES[] = {"", "1.0", "1.25", "1.5", "1.75", "2.0"};
+    if (scale_idx >= 1 && scale_idx <= 5) {
+        qputenv("QT_SCALE_FACTOR", SCALE_VALUES[scale_idx]);
+    }
 }
 
 #ifdef _WIN32
@@ -4827,9 +4870,9 @@ void GMainWindow::SetCustomWindowsScrollbar() {
     const bool isDarkMode = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
 
     if (isDarkMode) {
-        setStyleSheet(darkCustomScrollbarStyle);
+        setStyleSheet(styleSheet() + QLatin1Char{'\n'} + darkCustomScrollbarStyle);
     } else {
-        setStyleSheet(lightCustomScrollbarStyle);
+        setStyleSheet(styleSheet() + QLatin1Char{'\n'} + lightCustomScrollbarStyle);
     }
 }
 #endif
@@ -4846,11 +4889,12 @@ int LaunchQtFrontend(int argc, char* argv[]) {
 #endif
 
     // Init settings params
-    QCoreApplication::setOrganizationName(QStringLiteral("Azahar Developers"));
-    QCoreApplication::setOrganizationDomain(QStringLiteral("azahar_emu.org"));
-    QCoreApplication::setApplicationName(QStringLiteral("Azahar"));
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.azahar_emu.Azahar"));
+    QCoreApplication::setOrganizationName(QStringLiteral("STORM TEAM"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("stormgamesworld.ru"));
+    QCoreApplication::setApplicationName(QStringLiteral("STORM 3DS"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("com.storm3ds.emulator"));
 
+    ApplyConfiguredUiScaleBeforeQApp();
     auto rounding_policy = GetHighDpiRoundingPolicy();
     QApplication::setHighDpiScaleFactorRoundingPolicy(rounding_policy);
 
@@ -4877,6 +4921,8 @@ int LaunchQtFrontend(int argc, char* argv[]) {
     Q_INIT_RESOURCE(theme_default);
     Q_INIT_RESOURCE(theme_qdarkstyle);
     Q_INIT_RESOURCE(theme_qdarkstyle_midnight_blue);
+    Q_INIT_RESOURCE(theme_storm_flagship);
+    Q_INIT_RESOURCE(theme_storm_light);
 #ifdef ENABLE_QT_TRANSLATION
     Q_INIT_RESOURCE(languages);
 #endif
@@ -4908,7 +4954,7 @@ int LaunchQtFrontend(int argc, char* argv[]) {
     QObject::connect(&app, &QGuiApplication::applicationStateChanged, &main_window,
                      &GMainWindow::OnAppFocusStateChanged);
 
-    // Process any pending events before executing the app (prevents freeze-on–boot on macOS)
+    // Process any pending events before executing the app (prevents freeze-on-boot on macOS)
     app.processEvents();
 
     int result = app.exec();

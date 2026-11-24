@@ -19,7 +19,7 @@
     <message>
         <location filename="../../src/citra_qt/aboutdialog.ui" line="14"/>
         <source>About Azahar</source>
-        <translation>Об Azahar</translation>
+        <translation>О STORM 3DS</translation>
     </message>
     <message>
         <location filename="../../src/citra_qt/aboutdialog.ui" line="118"/>
@@ -4797,7 +4797,7 @@ Reinstall the files anyway?</source>
     <message>
         <location filename="../../src/citra_qt/citra_qt.cpp" line="2622"/>
         <source>%1 is not a valid CIA</source>
-        <translation>%1 — недопустимый CIA-файл</translation>
+        <translation>%1 - недопустимый CIA-файл</translation>
     </message>
     <message>
         <location filename="../../src/citra_qt/citra_qt.cpp" line="2625"/>
@@ -6496,7 +6496,7 @@ Debug Message: </source>
     <message>
         <location filename="../../src/citra_qt/main.ui" line="81"/>
         <source>Open Azahar Folder</source>
-        <translation>Открыть папку Azahar</translation>
+        <translation>Открыть папку STORM 3DS</translation>
     </message>
     <message>
         <location filename="../../src/citra_qt/main.ui" line="104"/>
@@ -6611,7 +6611,7 @@ Debug Message: </source>
     <message>
         <location filename="../../src/citra_qt/main.ui" line="356"/>
         <source>About Azahar</source>
-        <translation>Об Azahar</translation>
+        <translation>О STORM 3DS</translation>
     </message>
     <message>
         <location filename="../../src/citra_qt/main.ui" line="367"/>
@@ -7976,6 +7976,67 @@ If you wish to clean up the files which were left in the old data location, you 
         <location filename="../../src/citra_qt/debugger/wait_tree.cpp" line="443"/>
         <source>Wait Tree</source>
         <translation>Дерево цепочки ожидания</translation>
+    </message>
+</context>
+<context>
+    <name>AboutDialog</name>
+    <message>
+        <source>About STORM 3DS</source>
+        <translation>О STORM 3DS</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Open STORM 3DS Folder</source>
+        <translation>Открыть папку STORM 3DS</translation>
+    </message>
+    <message>
+        <source>Opens the STORM 3DS Log folder</source>
+        <translation>Открыть папку журналов STORM 3DS</translation>
+    </message>
+    <message>
+        <source>About STORM 3DS</source>
+        <translation>О STORM 3DS</translation>
+    </message>
+    <message>
+        <source>Update %1 for STORM 3DS is available.
+Would you like to download it?</source>
+        <translation>Доступно обновление STORM 3DS (%1).
+Открыть страницу загрузки?</translation>
+    </message>
+</context>
+<context>
+    <name>ConfigureDialog</name>
+    <message>
+        <source>STORM 3DS Configuration</source>
+        <translation>Настройки STORM 3DS</translation>
+    </message>
+</context>
+<context>
+    <name>ConfigureUi</name>
+    <message>
+        <source>UI Scale</source>
+        <translation>Масштаб интерфейса</translation>
+    </message>
+    <message>
+        <source>Restart STORM 3DS to apply interface scaling changes</source>
+        <translation>Перезапустите STORM 3DS для применения масштаба интерфейса</translation>
+    </message>
+    <message>
+        <source>Auto (System DPI)</source>
+        <translation>Авто (DPI системы)</translation>
+    </message>
+    <message>
+        <source>Extra Large (64x64)</source>
+        <translation>Очень крупные (64x64)</translation>
+    </message>
+</context>
+<context>
+    <name>ConfigureEnhancements</name>
+    <message>
+        <source>3D Depth Parallax (Single Screen)</source>
+        <translation>3D-глубина (без двоения, 1 экран)</translation>
     </message>
 </context>
 </TS>

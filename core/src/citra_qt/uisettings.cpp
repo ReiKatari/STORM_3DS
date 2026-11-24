@@ -7,6 +7,8 @@
 namespace UISettings {
 
 const Themes themes{{
+    {"STORM Dark (Flagship)", "storm_flagship"},
+    {"STORM Light", "storm_light"},
     {"System", "default"},
     {"System With Colorful Icons", "colorful"},
     {"Dark", "qdarkstyle"},

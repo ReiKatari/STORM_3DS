@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
 #include <QDirIterator>
 #include "citra_qt/configuration/configure_ui.h"
 #include "citra_qt/uisettings.h"
@@ -53,7 +54,8 @@ void ConfigureUi::InitializeLanguageComboBox() {
 }
 
 void ConfigureUi::SetConfiguration() {
-    ui->theme_combobox->setCurrentIndex(ui->theme_combobox->findData(UISettings::values.theme));
+    ui->theme_combobox->setCurrentIndex(std::max(0, ui->theme_combobox->findData(UISettings::values.theme)));
+    ui->ui_scale_combobox->setCurrentIndex(std::clamp(UISettings::values.ui_scale, 0, ui->ui_scale_combobox->count() - 1));
     ui->language_combobox->setCurrentIndex(
         // findData returns -1 if nothing found; Use <System> in this case (index 0).
         std::max(0, ui->language_combobox->findData(UISettings::values.language)));
@@ -73,6 +75,7 @@ void ConfigureUi::SetConfiguration() {
 void ConfigureUi::ApplyConfiguration() {
     UISettings::values.theme =
         ui->theme_combobox->itemData(ui->theme_combobox->currentIndex()).toString();
+    UISettings::values.ui_scale = ui->ui_scale_combobox->currentIndex();
     UISettings::values.game_list_icon_size =
         static_cast<UISettings::GameListIconSize>(ui->icon_size_combobox->currentIndex());
     UISettings::values.game_list_row_1 =

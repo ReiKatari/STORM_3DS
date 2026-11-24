@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="storm_light">
+        <file>style.qss</file>
+    </qresource>
+</RCC>

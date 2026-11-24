@@ -306,7 +306,7 @@ target_link_libraries(citra_qt PUBLIC Boost::boost Qt6::Widgets)
 target_link_libraries(citra_qt PRIVATE nihstro-headers Qt6::Multimedia Qt6::Concurrent)
 target_link_libraries(citra_qt PRIVATE ${PLATFORM_LIBRARIES} Threads::Threads)
 
-if (MINGW)
+if (WIN32)
     target_link_libraries(citra_qt PRIVATE dwmapi)
 endif()
 

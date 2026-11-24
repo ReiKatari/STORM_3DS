@@ -30,7 +30,7 @@ struct Shortcut {
     ContextualShortcut shortcut;
 };
 
-using Themes = std::array<std::pair<const char*, const char*>, 6>;
+using Themes = std::array<std::pair<const char*, const char*>, 8>;
 extern const Themes themes;
 
 struct GameDir {
@@ -46,9 +46,10 @@ struct GameDir {
 };
 
 enum class GameListIconSize : u32 {
-    NoIcon,    ///< Do not display icons
-    SmallIcon, ///< Display a small (24x24) icon
-    LargeIcon, ///< Display a large (48x48) icon
+    NoIcon,         ///< Do not display icons
+    SmallIcon,      ///< Display a small (24x24) icon
+    LargeIcon,      ///< Display a large (48x48) icon
+    ExtraLargeIcon, ///< Display an extra large (64x64) icon
 };
 
 enum class GameListText : s32 {
@@ -142,6 +143,7 @@ struct Values {
     QString language;
 
     QString theme;
+    int ui_scale = 0;
 
     // Shortcut name <Shortcut, context>
     std::vector<Shortcut> shortcuts;

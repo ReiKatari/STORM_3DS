@@ -3,7 +3,7 @@
  <class>ConfigureDialog</class>
  <widget class="QDialog" name="ConfigureDialog">
   <property name="windowTitle">
-   <string>Azahar Configuration</string>
+   <string>STORM 3DS Configuration</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -11,10 +11,10 @@
      <item>
       <widget class="QListWidget" name="selectorList">
        <property name="minimumWidth">
-        <number>150</number>
+        <number>176</number>
        </property>
        <property name="maximumWidth">
-        <number>150</number>
+        <number>176</number>
        </property>
       </widget>
      </item>

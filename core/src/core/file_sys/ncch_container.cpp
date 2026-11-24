@@ -156,7 +156,8 @@ std::unique_ptr<FileUtil::IOFileBase> NCCHContainer::AutoOpenNCCHNCSD(
         for (const auto& f : files) {
             const std::string lower_name = Common::ToLower(f.name);
             if (lower_name.ends_with(".cci") || lower_name.ends_with(".zcci") ||
-                lower_name.ends_with(".3ds") || lower_name.ends_with(".cxi") ||
+                lower_name.ends_with(".z3ds") || lower_name.ends_with(".3ds") ||
+                lower_name.ends_with(".cxi") ||
                 lower_name.ends_with(".zcxi") || lower_name.ends_with(".app")) {
                 file = tar->OpenSubFile(f.name);
                 if (has_ncch_magic(file.get())) {

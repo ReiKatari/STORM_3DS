@@ -6,16 +6,16 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1081</width>
-    <height>730</height>
+    <width>1180</width>
+    <height>760</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string notr="true">Azahar</string>
+   <string notr="true">STORM 3DS</string>
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>dist/azahar.png</normaloff>dist/azahar.png</iconset>
+    <normaloff>:/icons/default/256x256/storm3ds.png</normaloff>:/icons/default/256x256/storm3ds.png</iconset>
   </property>
   <property name="tabShape">
    <enum>QTabWidget::Rounded</enum>
@@ -78,7 +78,7 @@
     </widget>
     <widget class="QMenu" name="menu_Open_Folder">
      <property name="title">
-      <string>Open Azahar Folder</string>
+      <string>Open STORM 3DS Folder</string>
      </property>
      <addaction name="action_Open_Citra_Folder"/>
      <addaction name="action_Open_NAND_Folder"/>
@@ -353,7 +353,7 @@
   </action>
   <action name="action_About">
    <property name="text">
-    <string>About Azahar</string>
+    <string>About STORM 3DS</string>
    </property>
    <property name="menuRole">
     <enum>QAction::AboutRole</enum>
@@ -595,7 +595,7 @@
     <string>Open Log Folder</string>
    </property>
    <property name="toolTip">
-    <string>Opens the Azahar Log folder</string>
+    <string>Opens the STORM 3DS Log folder</string>
    </property>
   </action>
   <action name="action_Screen_Layout_Default">

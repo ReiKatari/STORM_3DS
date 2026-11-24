@@ -34,6 +34,7 @@ public:
     void SetupPerGameUI();
 
 private:
+    void PopulateRender3dComboBox();
     void updateShaders(Settings::StereoRenderOption stereo_option);
     void updateTextureFilter(int index);
 

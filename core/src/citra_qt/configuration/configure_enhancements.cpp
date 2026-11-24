@@ -2,6 +2,7 @@
 // Licensed under GPLv3 or any later version
 // Refer to the LICENSE.txt file included.
 
+#include <algorithm>
 #include <QColorDialog>
 #include <QListView>
 #include "citra_qt/configuration/configuration_shared.h"
@@ -15,6 +16,7 @@
 ConfigureEnhancements::ConfigureEnhancements(QWidget* parent)
     : QWidget(parent), ui(std::make_unique<Ui::ConfigureEnhancements>()) {
     ui->setupUi(this);
+    PopulateRender3dComboBox();
 
     SetupPerGameUI();
     SetConfiguration();
@@ -38,7 +40,13 @@ ConfigureEnhancements::ConfigureEnhancements(QWidget* parent)
 
     connect(ui->render_3d_combobox, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int currentIndex) {
-                updateShaders(static_cast<Settings::StereoRenderOption>(currentIndex));
+                const auto option = static_cast<Settings::StereoRenderOption>(
+                    ui->render_3d_combobox->itemData(currentIndex).toInt());
+                if (option == Settings::StereoRenderOption::GyroParallax &&
+                    ui->factor_3d->value() == 0) {
+                    ui->factor_3d->setValue(50);
+                }
+                updateShaders(option);
             });
 
     ui->toggle_preload_textures->setEnabled(ui->toggle_custom_textures->isChecked());
@@ -73,8 +81,9 @@ void ConfigureEnhancements::SetConfiguration() {
             static_cast<int>(Settings::values.texture_filter.GetValue()));
     }
 
-    ui->render_3d_combobox->setCurrentIndex(
-        static_cast<int>(Settings::values.render_3d.GetValue()));
+    const int render_3d_value = static_cast<int>(Settings::values.render_3d.GetValue());
+    const int render_3d_idx = ui->render_3d_combobox->findData(render_3d_value);
+    ui->render_3d_combobox->setCurrentIndex(std::max(0, render_3d_idx));
     ui->swap_eyes_3d->setChecked(Settings::values.swap_eyes_3d.GetValue());
     ui->factor_3d->setValue(Settings::values.factor_3d.GetValue());
     ui->mono_rendering_eye->setCurrentIndex(
@@ -122,8 +131,41 @@ void ConfigureEnhancements::updateShaders(Settings::StereoRenderOption stereo_op
 #endif
 }
 
+void ConfigureEnhancements::PopulateRender3dComboBox() {
+    const QVariant prev_data = ui->render_3d_combobox->currentData();
+    ui->render_3d_combobox->blockSignals(true);
+    ui->render_3d_combobox->clear();
+    ui->render_3d_combobox->addItem(tr("Off"),
+                                    static_cast<int>(Settings::StereoRenderOption::Off));
+    ui->render_3d_combobox->addItem(
+        tr("3D Depth Parallax (Single Screen)"),
+        static_cast<int>(Settings::StereoRenderOption::GyroParallax));
+    ui->render_3d_combobox->addItem(tr("Anaglyph"),
+                                    static_cast<int>(Settings::StereoRenderOption::Anaglyph));
+    ui->render_3d_combobox->addItem(tr("Side by Side"),
+                                    static_cast<int>(Settings::StereoRenderOption::SideBySide));
+    ui->render_3d_combobox->addItem(
+        tr("Side by Side Full Width"),
+        static_cast<int>(Settings::StereoRenderOption::SideBySideFull));
+    ui->render_3d_combobox->addItem(tr("Interlaced"),
+                                    static_cast<int>(Settings::StereoRenderOption::Interlaced));
+    ui->render_3d_combobox->addItem(
+        tr("Reverse Interlaced"),
+        static_cast<int>(Settings::StereoRenderOption::ReverseInterlaced));
+    ui->render_3d_combobox->addItem(tr("Cardboard VR"),
+                                    static_cast<int>(Settings::StereoRenderOption::CardboardVR));
+    if (prev_data.isValid()) {
+        const int idx = ui->render_3d_combobox->findData(prev_data);
+        if (idx >= 0) {
+            ui->render_3d_combobox->setCurrentIndex(idx);
+        }
+    }
+    ui->render_3d_combobox->blockSignals(false);
+}
+
 void ConfigureEnhancements::RetranslateUI() {
     ui->retranslateUi(this);
+    PopulateRender3dComboBox();
 }
 
 void ConfigureEnhancements::ApplyConfiguration() {
@@ -131,8 +173,8 @@ void ConfigureEnhancements::ApplyConfiguration() {
                                              ui->resolution_factor_combobox);
     ConfigurationShared::ApplyPerGameSetting(&Settings::values.antialiasing,
                                              ui->antialiasing_combobox);
-    Settings::values.render_3d =
-        static_cast<Settings::StereoRenderOption>(ui->render_3d_combobox->currentIndex());
+    Settings::values.render_3d = static_cast<Settings::StereoRenderOption>(
+        ui->render_3d_combobox->currentData().toInt());
     Settings::values.swap_eyes_3d = ui->swap_eyes_3d->isChecked();
     Settings::values.factor_3d = ui->factor_3d->value();
     Settings::values.mono_render_option =

@@ -47,12 +47,17 @@ Q_DECLARE_METATYPE(GameListItemType);
  * @param large If true, returns large icon (48x48), otherwise returns small icon (24x24)
  * @return QPixmap game icon
  */
-static QPixmap GetQPixmapFromSMDH(const Loader::SMDH& smdh, bool large) {
+static QPixmap GetQPixmapFromSMDH(const Loader::SMDH& smdh, int target_size) {
+    const bool large = target_size >= 48;
     std::vector<u16> icon_data = smdh.GetIcon(large);
     const uchar* data = reinterpret_cast<const uchar*>(icon_data.data());
-    int size = large ? 48 : 24;
-    QImage icon(data, size, size, QImage::Format::Format_RGB16);
-    return QPixmap::fromImage(icon);
+    const int src_size = large ? 48 : 24;
+    QImage icon(data, src_size, src_size, QImage::Format::Format_RGB16);
+    QPixmap pixmap = QPixmap::fromImage(icon);
+    if (target_size > src_size) {
+        return pixmap.scaled(target_size, target_size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+    return pixmap;
 }
 
 /**
@@ -60,8 +65,8 @@ static QPixmap GetQPixmapFromSMDH(const Loader::SMDH& smdh, bool large) {
  * @param large If true, returns large icon (48x48), otherwise returns small icon (24x24)
  * @return QPixmap default icon
  */
-static QPixmap GetDefaultIcon(bool large) {
-    int size = large ? 48 : 24;
+static QPixmap GetDefaultIcon(int target_size) {
+    const int size = std::max(target_size, 24);
     QPixmap icon(size, size);
     icon.fill(Qt::transparent);
     return icon;
@@ -144,6 +149,7 @@ static const std::unordered_map<UISettings::GameListIconSize, int> IconSizes{
     {UISettings::GameListIconSize::NoIcon, 0},
     {UISettings::GameListIconSize::SmallIcon, 24},
     {UISettings::GameListIconSize::LargeIcon, 48},
+    {UISettings::GameListIconSize::ExtraLargeIcon, 64},
 };
 
 /**
@@ -179,14 +185,13 @@ public:
             setData(QPixmap(), Qt::DecorationRole);
         }
 
-        bool large = UISettings::values.game_list_icon_size.GetValue() ==
-                     UISettings::GameListIconSize::LargeIcon;
+        const int target_icon_size =
+            IconSizes.at(UISettings::values.game_list_icon_size.GetValue());
 
         if (!Loader::IsValidSMDH(smdh_data)) {
             // SMDH is not valid, set a default icon
-            if (UISettings::values.game_list_icon_size.GetValue() !=
-                UISettings::GameListIconSize::NoIcon)
-                setData(GetDefaultIcon(large), Qt::DecorationRole);
+            if (target_icon_size > 0)
+                setData(GetDefaultIcon(target_icon_size), Qt::DecorationRole);
             if (is_encrypted) {
                 setData(QObject::tr("Unsupported encrypted application"), TitleRole);
             }
@@ -197,9 +202,8 @@ public:
         std::memcpy(&smdh, smdh_data.data(), sizeof(Loader::SMDH));
 
         // Get icon from SMDH
-        if (UISettings::values.game_list_icon_size.GetValue() !=
-            UISettings::GameListIconSize::NoIcon) {
-            setData(GetQPixmapFromSMDH(smdh, large), Qt::DecorationRole);
+        if (target_icon_size > 0) {
+            setData(GetQPixmapFromSMDH(smdh, target_icon_size), Qt::DecorationRole);
         }
 
         // Get title from SMDH

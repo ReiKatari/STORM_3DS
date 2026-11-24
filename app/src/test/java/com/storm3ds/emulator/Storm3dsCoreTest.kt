@@ -977,4 +977,24 @@ class Storm3dsCoreTest {
         val cheatsLoaderTxt = File(srcJava, "com/storm3ds/emulator/common/cheats/BundledMmjCheatsLoader.kt").readText()
         assertTrue("BundledMmjCheatsLoader must expose populateAllBundled3dsCheats", "populateAllBundled3dsCheats" in cheatsLoaderTxt)
     }
+
+    @Test
+    fun `desktop qt frontend includes bcxi z3ds storm theme hidpi scale and gyro3d`() {
+        val coreDir = File("../core/src").canonicalFile.let {
+            if (it.exists()) it else File("core/src")
+        }
+        val gameListCpp = File(coreDir, "citra_qt/game_list.cpp").readText()
+        assertTrue("game_list.cpp must support bcxi", "QStringLiteral(\"bcxi\")" in gameListCpp)
+        assertTrue("game_list.cpp must support z3ds", "QStringLiteral(\"z3ds\")" in gameListCpp)
+
+        val uiSettingsCpp = File(coreDir, "citra_qt/uisettings.cpp").readText()
+        assertTrue("uisettings.cpp must register storm_flagship theme", "storm_flagship" in uiSettingsCpp)
+
+        val citraQtCpp = File(coreDir, "citra_qt/citra_qt.cpp").readText()
+        assertTrue("citra_qt.cpp must use STORM 3DS branding", "QStringLiteral(\"STORM 3DS\")" in citraQtCpp)
+        assertTrue("citra_qt.cpp must support ui_scale startup scaling", "ApplyConfiguredUiScaleBeforeQApp" in citraQtCpp)
+
+        val enhCpp = File(coreDir, "citra_qt/configuration/configure_enhancements.cpp").readText()
+        assertTrue("configure_enhancements.cpp must expose GyroParallax", "GyroParallax" in enhCpp)
+    }
 }

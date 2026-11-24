@@ -5,13 +5,13 @@
 <h1 align="center">STORM 3DS</h1>
 
 <p align="center">
-  <strong>Продвинутый гибридный эмулятор Nintendo 3DS для Android (Vulkan + OpenGL ES 3.2 + интерфейс STORM)</strong><br />
-  Версия <code>1.5.0</code> | Архитектуры: <code>arm64-v8a</code> и <code>x86_64</code> | Лицензия: <code>GPL-3.0-or-later</code>
+  <strong>Продвинутый гибридный эмулятор Nintendo 3DS для Android и Windows x64 (Vulkan + OpenGL ES 3.2 + интерфейс STORM)</strong><br />
+  Версия <code>1.6.0</code> | Платформы: <code>Android (arm64-v8a, x86_64)</code> и <code>Windows x64</code> | Лицензия: <code>GPL-3.0-or-later</code>
 </p>
 
 <p align="center">
   <a href="https://github.com/ReiKatari/STORM_3DS">GitHub Repository</a> -
-  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.5.0">Релиз STORM 3DS 1.5.0</a> -
+  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.6.0">Релиз STORM 3DS 1.6.0</a> -
   <a href="https://stormgamesworld.ru/programs?repo=STORM_3DS">Страница на STORM GAMES WORLD</a>
 </p>
 
@@ -53,33 +53,38 @@
 
 ---
 
-## Релиз 1.5.0
+## Релиз 1.6.0
 
-| Файл APK | Назначение | Поддержка Turnip / PanVK |
+| Файл релиза | Назначение | Ключевые возможности |
 | --- | --- | --- |
-| `STORM_3DS_1.5.0.apk` | Единая подписанная универсальная сборка для Android (`arm64-v8a` + `x86_64`) с чётким одноэкранным 3D-параллаксом (без разделения и двойного размытия), сквозным внутриприложенческим обновлением, оптимизациями `-O3`/CPU affinity/Vulkan/GLES и исправлениями функционала (`.z3ds`, читы, `.cst` сейвы, 10-язычная локализация) | Включена (`STORM_ENABLE_ADRENOTOOLS=ON`) с адаптивным загрузчиком и fallback на системный драйвер |
+| `STORM_3DS_1.6.0.apk` | Подписанная универсальная сборка для Android (`arm64-v8a` + `x86_64`) | Включает `STORM_ENABLE_ADRENOTOOLS=ON` (Turnip / PanVK), четкий одноэкранный 3D-параллакс (Vulkan + OpenGL ES), сквозное обновление внутри приложения, оптимизации `-O3`/CPU affinity/Vulkan/GLES |
+| `STORM_3DS_1.6.0_Windows_x64.zip` | Подписанная портативная сборка для Windows 10/11 (x64) | Поддержка `.bcxi` и `.z3ds` в библиотеке игр, темы `STORM Dark (Flagship)` / `STORM Light`, темный заголовок Windows, честный HiDPI `PassThrough` + выбор масштаба UI (`100%-200%`), 3D-параллакс глубины и проверка обновлений через WinHTTP |
 
 ---
 
 ## Сборка из исходного кода
 
-### Требования
+### Требования (Android)
 - **JDK**: 21
 - **Android SDK**: Platform 36 (`compileSdk = 36`, `minSdk = 29`)
 - **Android NDK**: `28.0.13004108`
 - **CMake**: `3.22.1` + `Ninja`
 - **Rust (`rustup` + `cargo`)**: канал `stable` с целями `aarch64-linux-android` и `x86_64-linux-android` (для сборки `liblibrashader.so`)
 
-### Команды сборки
+### Требования (Windows x64)
+- **Visual Studio / MSVC 14.51+**, **CMake**, **Ninja**, **Windows SDK 10.0**, **Qt 6** (`Widgets`, `Multimedia`, `Concurrent`, `LinguistTools`) и **SDL2**
+
+### Команды сборки (Android)
 ```bash
 git clone --recursive https://github.com/ReiKatari/STORM_3DS.git
 cd STORM_3DS
 
-# Низконагруженная релизная сборка
+# Низконагруженная релизная сборка Android
 ./gradlew assembleGitHubProdRelease --max-workers=3 -Dorg.gradle.priority=low
 ```
-Готовый подписанный APK сохраняется в папку `releases/`:
-- `releases/STORM_3DS_1.5.0.apk`
+Готовые артефакты релиза сохраняются в папку `releases/`:
+- `releases/STORM_3DS_1.6.0.apk`
+- `releases/STORM_3DS_1.6.0_Windows_x64.zip`
 
 ---
 
