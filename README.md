@@ -6,12 +6,12 @@
 
 <p align="center">
   <strong>Продвинутый гибридный эмулятор Nintendo 3DS для Android и Windows x64 (Vulkan + OpenGL ES 3.2 + интерфейс STORM)</strong><br />
-  Версия <code>1.6.0</code> | Платформы: <code>Android (arm64-v8a, x86_64)</code> и <code>Windows x64</code> | Лицензия: <code>GPL-3.0-or-later</code>
+  Версия <code>1.7.0</code> | Платформы: <code>Android (arm64-v8a, x86_64)</code> и <code>Windows x64</code> | Лицензия: <code>GPL-3.0-or-later</code>
 </p>
 
 <p align="center">
   <a href="https://github.com/ReiKatari/STORM_3DS">GitHub Repository</a> -
-  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.6.0">Релиз STORM 3DS 1.6.0</a> -
+  <a href="https://github.com/ReiKatari/STORM_3DS/releases/tag/1.7.0">Релиз STORM 3DS 1.7.0</a> -
   <a href="https://stormgamesworld.ru/programs?repo=STORM_3DS">Страница на STORM GAMES WORLD</a>
 </p>
 
@@ -53,12 +53,12 @@
 
 ---
 
-## Релиз 1.6.0
+## Релиз 1.7.0
 
 | Файл релиза | Назначение | Ключевые возможности |
 | --- | --- | --- |
-| `STORM_3DS_1.6.0.apk` | Подписанная универсальная сборка для Android (`arm64-v8a` + `x86_64`) | Включает `STORM_ENABLE_ADRENOTOOLS=ON` (Turnip / PanVK), четкий одноэкранный 3D-параллакс (Vulkan + OpenGL ES), сквозное обновление внутри приложения, оптимизации `-O3`/CPU affinity/Vulkan/GLES |
-| `STORM_3DS_1.6.0_Windows_x64.zip` | Подписанная портативная сборка для Windows 10/11 (x64) | Поддержка `.bcxi` и `.z3ds` в библиотеке игр, темы `STORM Dark (Flagship)` / `STORM Light`, темный заголовок Windows, честный HiDPI `PassThrough` + выбор масштаба UI (`100%-200%`), 3D-параллакс глубины и проверка обновлений через WinHTTP |
+| `STORM_3DS_1.7.0.apk` | Подписанная универсальная сборка для Android (`arm64-v8a` + `x86_64`) | Новый **STORM-компилятор** (`FastDispatch` ARM64, прямой `PageTable` + `UXTW`, многопроходная IR-оптимизация, MRU-кэш шейдеров PICA200), единое оформление окна «Система 3DS -> Ключи 3DS, спидхаки, SPIR-V и 3D» с `WatermelonSwitch` и карточками тем |
+| `STORM_3DS_1.7.0_Windows_x64.zip` | Подписанная портативная сборка для Windows 10/11 (x64) | Встроенный профиль **STORM-компилятора** (`Максимальный` с кэшем до 192 МБ, многопроходным IR и `IsReadOnlyMemory` кэшем) в настройках Debug/CPU и конфиге, плюс все улучшения интерфейса `STORM Dark`/`STORM Light` и HiDPI |
 
 ---
 
@@ -83,8 +83,8 @@ cd STORM_3DS
 ./gradlew assembleGitHubProdRelease --max-workers=3 -Dorg.gradle.priority=low
 ```
 Готовые артефакты релиза сохраняются в папку `releases/`:
-- `releases/STORM_3DS_1.6.0.apk`
-- `releases/STORM_3DS_1.6.0_Windows_x64.zip`
+- `releases/STORM_3DS_1.7.0.apk`
+- `releases/STORM_3DS_1.7.0_Windows_x64.zip`
 
 ---
 

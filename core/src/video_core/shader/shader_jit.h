@@ -26,6 +26,8 @@ public:
 
 private:
     std::unordered_map<u64, std::unique_ptr<JitShader>> cache;
+    u64 last_cache_key{0};
+    const JitShader* last_shader{nullptr};
 };
 
 } // namespace Pica::Shader

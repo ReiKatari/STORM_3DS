@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">Menu HOME 3DS belum terpasang</string>
     <string name="home_menu_3ds_not_installed_message">Game Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) berjalan langsung tanpa BIOS atau Menu HOME. Untuk membuka Menu HOME 3DS, instal arsip sistem 3DS (.cia) atau sambungkan Artic Base, serta letakkan boot9.bin / aes_keys.txt di STORM 3DS/sysdata untuk dump terenkripsi.</string>
     <string name="home_menu_3ds_open_setup">Kunci &amp; Pengaturan 3DS</string>
-    <string name="pref_3ds_jit_mode_title">Profil Optimasi ARM11 JIT</string>
+    <string name="pref_3ds_jit_mode_title">Profil Kompiler STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimalkan untuk Perangkat Lama &amp; Lemah</string>
     <string name="pref_3ds_low_end_preset_summary">Mengaktifkan Turbo ARM11 JIT, clock CPU 75%, resolusi 1x, lewati frame ganda, nonaktifkan mata kanan, hack FMV &amp; audio HLE untuk FPS maksimal</string>
     <string name="pref_3ds_low_end_preset_applied">Profil kecepatan perangkat lemah diterapkan (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Tidak ada</string>
     <string name="update_install_permission_required">Izinkan pemasangan aplikasi dari sumber ini untuk menerapkan pembaruan</string>
     <string name="save_state_copy_format">%1$s (Salinan)</string>
+    <string name="setup_3ds_fmv_hack_summary">Mempercepat timing CPU saat memutar adegan video FMV</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Melewati draw call lambat untuk menambah FPS di GPU ringan</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Melewati salinan tekstur CPU agar lebih cepat</string>
+    <string name="setup_3ds_audio_stretch_summary">Menjaga audio tetap halus saat FPS turun tanpa mengubah nada</string>
+    <string name="setup_3ds_spirv_opt_summary">Mengoptimalkan shader Vulkan SPIR-V saat kompilasi</string>
+    <string name="setup_3ds_3d_section_header">Mesin 3D Stereoskopik</string>
+    <string name="setup_3ds_3d_mode_label">Mode Output 3D</string>
+    <string name="setup_3ds_3d_depth_label">Kekuatan Kedalaman 3D</string>
+    <string name="setup_3ds_artic_controller_summary">Gunakan konsol 3DS asli sebagai pengontrol lewat Artic Base</string>
 </resources>

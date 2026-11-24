@@ -99,9 +99,9 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setStormJitOptions(
     JNIEnv*, jobject, jint jit_mode, jint code_cache_mb) {
-    Settings::values.storm_jit_mode = static_cast<u32>(std::clamp<int>(jit_mode, 0, 2));
+    Settings::values.storm_jit_mode = static_cast<u32>(std::clamp<int>(jit_mode, 0, 3));
     Settings::values.storm_jit_cache_mb =
-        code_cache_mb <= 0 ? 0u : static_cast<u32>(std::clamp<int>(code_cache_mb, 32, 128));
+        code_cache_mb <= 0 ? 0u : static_cast<u32>(std::clamp<int>(code_cache_mb, 32, 256));
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setCustomScreenLayout(

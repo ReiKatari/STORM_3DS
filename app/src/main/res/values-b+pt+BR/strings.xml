@@ -623,8 +623,8 @@
     <string name="dsiware_boot_mode_autoload">Carregamento automático do sistema</string>
     <string name="dsiware_boot_mode_direct">Inicialização direta</string>
     <string name="dsiware_boot_mode_system_menu">Menu do sistema DSi (inicializador NAND)</string>
-    <string name="enable_storm_compiler">Enable STORM Compiler</string>
-    <string name="enable_storm_compiler_summary">Mecanismo ARM64 vetorizado LLVM/Clang otimizado com pipeline rápido de decodificação de memória.</string>
+    <string name="enable_storm_compiler">Compilador STORM (ARM11 + FastDispatch)</string>
+    <string name="enable_storm_compiler_summary">Motor ARM11 Dynarmic com tabela FastDispatch por hardware, acesso direto PageTable, otimizacao IR multipasse e cache de shaders.</string>
     <string name="save_internal_config_as_file">Salvar configuração interna como arquivo</string>
     <string name="save_internal_config_as_file_summary">Mantém o arquivo STORM 3DS.opts sincronizado no diretório de salvamento ou em um diretório de ROM.</string>
     <string name="system_app_log_file_enabled">Gravar log do aplicativo na pasta de ROMs</string>

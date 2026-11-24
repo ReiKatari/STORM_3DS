@@ -122,7 +122,7 @@ class MainPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTitl
         findPreference<Preference>("settings_home_system")?.let { pref ->
             val isNew3ds = prefs.getBoolean("3ds_is_new_3ds", true)
             val compilerEnabled = prefs.getBoolean("enable_storm_compiler", true)
-            val jitModeVal = prefs.getString("3ds_jit_mode", "1") ?: "1"
+            val jitModeVal = prefs.getString("3ds_jit_mode", "3") ?: "3"
             val cpuPct = prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100"
             val modelStr = getString(if (isNew3ds) R.string.pref_model_new_3ds else R.string.pref_model_old_3ds)
             val jitStateStr = if (!compilerEnabled) {

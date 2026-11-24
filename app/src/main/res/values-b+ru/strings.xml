@@ -882,8 +882,8 @@
   <string name="generate_new_mac_address_description">Обновить MAC-адрес сетевого адаптера</string>
   <string name="enable_jit">Включить JIT-компилятор</string>
   <string name="enable_jit_summary">Динамическая рекомпиляция ЦП для максимальной скорости</string>
-  <string name="enable_storm_compiler">ARM11 JIT-компилятор (Dynarmic)</string>
-  <string name="enable_storm_compiler_summary">Динамическая рекомпиляция ARM11 для высокой скорости игр 3DS.</string>
+  <string name="enable_storm_compiler">STORM-компилятор (ARM11 + FastDispatch)</string>
+  <string name="enable_storm_compiler_summary">Ускоренный ARM11-движок: таблица FastDispatch, прямой доступ PageTable, многопроходная IR-оптимизация и MRU-кэш шейдеров.</string>
   <string name="jit_not_supported">JIT не поддерживается на данном устройстве</string>
   <string name="save_internal_config_as_file">Сохранять настройки в файл</string>
   <string name="save_internal_config_as_file_summary">Экспорт конфигурации эмулятора</string>

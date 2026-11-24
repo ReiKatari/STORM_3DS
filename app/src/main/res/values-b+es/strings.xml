@@ -814,8 +814,8 @@
     <string name="dsiware_boot_mode_autoload">Carga automática del sistema</string>
     <string name="dsiware_boot_mode_direct">Arranque directo</string>
     <string name="dsiware_boot_mode_system_menu">Menú del sistema DSi (lanzador NAND)</string>
-    <string name="enable_storm_compiler">Enable STORM Compiler</string>
-    <string name="enable_storm_compiler_summary">Motor ARM64 vectorizado LLVM/Clang optimizado con canalización rápida de decodificación de memoria.</string>
+    <string name="enable_storm_compiler">Compilador STORM (ARM11 + FastDispatch)</string>
+    <string name="enable_storm_compiler_summary">Motor ARM11 Dynarmic con tabla FastDispatch por hardware, acceso directo PageTable, optimizacion IR multipasada y cache de shaders.</string>
     <string name="system_dldi_sd_card_enabled">Enable DLDI / Homebrew SD</string>
     <string name="system_dldi_sd_card_enabled_summary">Mounts a virtual SD card for DLDI homebrew. Needed by apps like ZXDS.</string>
     <string name="system_dldi_sd_card_dir">DLDI SD folder</string>

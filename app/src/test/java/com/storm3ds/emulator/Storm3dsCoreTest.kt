@@ -997,4 +997,61 @@ class Storm3dsCoreTest {
         val enhCpp = File(coreDir, "citra_qt/configuration/configure_enhancements.cpp").readText()
         assertTrue("configure_enhancements.cpp must expose GyroParallax", "GyroParallax" in enhCpp)
     }
+
+    @Test
+    fun `system 3ds setup dialog uses unified STORM watermelon components without raw material controls`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val setupTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/System3dsSetupDialog.kt").readText()
+
+        assertTrue("System3dsSetupDialog must use WatermelonSwitch", "WatermelonSwitch(" in setupTxt)
+        assertTrue("System3dsSetupDialog must use SetupSectionCard", "SetupSectionCard" in setupTxt)
+        assertTrue("System3dsSetupDialog must use SetupSectionHeader", "SetupSectionHeader" in setupTxt)
+        assertTrue("System3dsSetupDialog must use WatermelonMono typography", "WatermelonMono" in setupTxt)
+        assertFalse("System3dsSetupDialog must not use raw Material OutlinedButton", "OutlinedButton(" in setupTxt)
+        assertFalse("System3dsSetupDialog must not use raw Material OutlinedTextField", "OutlinedTextField(" in setupTxt)
+        assertFalse("System3dsSetupDialog must not hardcode KeyBadge dark hex colors", "0xFF123B26" in setupTxt)
+        assertFalse("System3dsSetupDialog must not use raw Material Switch", Regex("(?<![A-Za-z0-9_])Switch\\(").containsMatchIn(setupTxt))
+    }
+
+    @Test
+    fun `storm compiler core optimizations and desktop android mode 3 wiring are present`() {
+        val coreDir = File("../core/src").canonicalFile.let {
+            if (it.exists()) it else File("core/src")
+        }
+        val patchesDir = File("../core/patches").canonicalFile.let {
+            if (it.exists()) it else File("core/patches")
+        }
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+
+        val dynarmicCpp = File(coreDir, "core/arm/dynarmic/arm_dynarmic.cpp").readText()
+        assertTrue("arm_dynarmic.cpp must configure ARM64 absolute_offset_page_table", "absolute_offset_page_table = true" in dynarmicCpp)
+        assertTrue("arm_dynarmic.cpp must expose generation-coherent RO cache", "ResetRoCache" in dynarmicCpp)
+        assertTrue("arm_dynarmic.cpp must configure STORM Compiler code cache tiers", "kMaxCacheMb" in dynarmicCpp)
+
+        val shaderJitCpp = File(coreDir, "video_core/shader/shader_jit.cpp").readText()
+        assertTrue("shader_jit.cpp must maintain 1-entry MRU shader cache", "last_cache_key" in shaderJitCpp)
+
+        val vmMgrH = File(coreDir, "core/hle/kernel/vm_manager.h").readText()
+        assertTrue("vm_manager.h must expose GetGeneration", "GetGeneration()" in vmMgrH)
+
+        val patchTxt = File(patchesDir, "storm_dynarmic_compiler.patch").readText()
+        assertTrue("Dynarmic patch must include ARM64 FastDispatch", "LinkTarget::FastDispatch" in patchTxt)
+        assertTrue("Dynarmic patch must pass extend32 for absolute page table", "extend32" in patchTxt)
+        assertTrue("Dynarmic patch must guard VerificationPass in Release", "#ifndef NDEBUG" in patchTxt)
+
+        val prefSystem = File(resRoot, "xml/pref_system.xml").readText()
+        assertTrue(
+            "pref_system.xml 3ds_jit_mode must default to mode 3",
+            Regex("""android:key="3ds_jit_mode"[\s\S]*?android:defaultValue="3"""").containsMatchIn(prefSystem),
+        )
+        val arraysXml = File(resRoot, "values/arrays.xml").readText()
+        assertTrue("arrays.xml must include STORM Compiler mode 3", "<item>3</item>" in arraysXml)
+
+        val melonTxt = File(srcJava, "com/storm3ds/emulator/MelonEmulator.kt").readText()
+        assertTrue("MelonEmulator must default to STORM Compiler mode 3", "coerceIn(0, 3)" in melonTxt)
+
+        val dbgUi = File(coreDir, "citra_qt/configuration/configure_debug.ui").readText()
+        assertTrue("configure_debug.ui must expose storm_jit_mode_combo", "storm_jit_mode_combo" in dbgUi)
+    }
 }

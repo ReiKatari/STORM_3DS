@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">尚未安装 3DS 主菜单</string>
     <string name="home_menu_3ds_not_installed_message">Nintendo 3DS 游戏 (.3ds, .cci, .cia, .3dsx, .zcci) 可直接启动，无需 BIOS 或主菜单。如需启动 3DS 主菜单本身，请安装 3DS 系统档案 (.cia) 或连接 Artic Base；若游戏镜像已加密，请将 boot9.bin / aes_keys.txt 放入 STORM 3DS/sysdata。</string>
     <string name="home_menu_3ds_open_setup">3DS 密钥与设置</string>
-    <string name="pref_3ds_jit_mode_title">ARM11 JIT 优化模式</string>
+    <string name="pref_3ds_jit_mode_title">STORM 编译器优化模式</string>
     <string name="pref_3ds_low_end_preset_title">为老旧及低配设备优化性能</string>
     <string name="pref_3ds_low_end_preset_summary">开启 Turbo ARM11 JIT、75% CPU 频率、1x 分辨率、跳过重复帧、禁用右眼渲染、FMV 加速与 HLE 音频以获取最高帧率</string>
     <string name="pref_3ds_low_end_preset_applied">已应用低配设备极速配置 (Turbo JIT, 75% CPU, 1x, HLE 音频)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">缺失</string>
     <string name="update_install_permission_required">请允许从此来源安装应用以完成更新</string>
     <string name="save_state_copy_format">%1$s (副本)</string>
+    <string name="setup_3ds_fmv_hack_summary">在过场动画与 FMV 视频播放期间加速 CPU 时序</string>
+    <string name="setup_3ds_skip_slow_draw_summary">跳过高开销绘制调用以提升低端 GPU 帧率</string>
+    <string name="setup_3ds_skip_tex_copy_summary">跳过 CPU 纹理回读以获得更快运行速度</string>
+    <string name="setup_3ds_audio_stretch_summary">帧率波动时平滑音频速度而不变调</string>
+    <string name="setup_3ds_spirv_opt_summary">在编译阶段优化 Vulkan SPIR-V 着色器</string>
+    <string name="setup_3ds_3d_section_header">立体 3D 渲染引擎</string>
+    <string name="setup_3ds_3d_mode_label">3D 输出模式</string>
+    <string name="setup_3ds_3d_depth_label">3D 景深强度</string>
+    <string name="setup_3ds_artic_controller_summary">通过 Artic Base 服务器接收实机按键输入</string>
 </resources>

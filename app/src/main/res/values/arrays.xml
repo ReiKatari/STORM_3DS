@@ -707,6 +707,7 @@
         <item>0</item>
         <item>1</item>
         <item>2</item>
+        <item>3</item>
     </string-array>
     <string-array name="audio_emulation_3ds_values" translatable="false">
         <item>0</item>
@@ -715,8 +716,9 @@
     </string-array>
     <string-array name="jit_perf_mode_options">
         <item>Accurate (Safe)</item>
-        <item>Fast (Recommended)</item>
+        <item>Fast (Balanced)</item>
         <item>Turbo (Weak &amp; Old Devices)</item>
+        <item>STORM Compiler (Maximum - Recommended)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (Fast / Recommended)</item>

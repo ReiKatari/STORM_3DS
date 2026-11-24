@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
 #include <QDesktopServices>
 #include <QMessageBox>
 #include <QUrl>
@@ -88,6 +89,10 @@ ConfigureDebug::ConfigureDebug(bool is_powered_on_, QWidget* parent)
     });
 
     ui->toggle_cpu_jit->setEnabled(!is_powered_on);
+    ui->storm_jit_mode_combo->setEnabled(!is_powered_on && Settings::values.use_cpu_jit.GetValue());
+    connect(ui->toggle_cpu_jit, &QCheckBox::toggled, this, [this](bool checked) {
+        ui->storm_jit_mode_combo->setEnabled(!is_powered_on && checked);
+    });
     ui->toggle_fastinterp->setEnabled(!is_powered_on);
     ui->toggle_renderer_debug->setEnabled(!is_powered_on);
     ui->toggle_pica_debugging->setEnabled(!is_powered_on);
@@ -128,6 +133,9 @@ void ConfigureDebug::SetConfiguration() {
     ui->log_regex_filter_edit->setText(
         QString::fromStdString(Settings::values.log_regex_filter.GetValue()));
     ui->toggle_cpu_jit->setChecked(Settings::values.use_cpu_jit.GetValue());
+    ui->storm_jit_mode_combo->setCurrentIndex(
+        static_cast<int>(std::min<u32>(Settings::values.storm_jit_mode, 3u)));
+    ui->storm_jit_mode_combo->setEnabled(!is_powered_on && ui->toggle_cpu_jit->isChecked());
     ui->toggle_fastinterp->setChecked(Settings::values.use_fastinterp.GetValue());
     ui->delay_start_for_lle_modules->setChecked(
         Settings::values.delay_start_for_lle_modules.GetValue());
@@ -180,6 +188,8 @@ void ConfigureDebug::ApplyConfiguration() {
     Common::Log::SetGlobalFilter(filter);
     Common::Log::SetRegexFilter(Settings::values.log_regex_filter.GetValue());
     Settings::values.use_cpu_jit = ui->toggle_cpu_jit->isChecked();
+    Settings::values.storm_jit_mode =
+        static_cast<u32>(std::clamp(ui->storm_jit_mode_combo->currentIndex(), 0, 3));
     Settings::values.use_fastinterp = ui->toggle_fastinterp->isChecked();
     Settings::values.delay_start_for_lle_modules = ui->delay_start_for_lle_modules->isChecked();
     Settings::values.deterministic_async_operations =
@@ -215,6 +225,7 @@ void ConfigureDebug::SetupPerGameUI() {
     ui->enable_rpc_server->setVisible(false);
     ui->toggle_unique_data_console_type->setVisible(false);
     ui->toggle_cpu_jit->setVisible(false);
+    ui->storm_jit_mode_widget->setVisible(false);
     ui->toggle_fastinterp->setVisible(false);
 }
 

@@ -46,6 +46,7 @@ namespace Memory {
 
 void PageTable::Clear() {
     pointers.raw.fill(nullptr);
+    pointers.abs_raw.fill(nullptr);
     pointers.refs.fill(MemoryRef());
     attributes.fill(PageType::Unmapped);
 }

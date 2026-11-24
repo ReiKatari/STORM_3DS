@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">Menu HOME 3DS non installé</string>
     <string name="home_menu_3ds_not_installed_message">Les jeux Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) se lancent directement sans BIOS ni menu HOME. Pour démarrer le menu HOME 3DS, installez les archives système 3DS (.cia) ou connectez Artic Base, et placez boot9.bin / aes_keys.txt dans STORM 3DS/sysdata si vos fichiers sont chiffrés.</string>
     <string name="home_menu_3ds_open_setup">Clés et configuration 3DS</string>
-    <string name="pref_3ds_jit_mode_title">Profil d\'optimisation ARM11 JIT</string>
+    <string name="pref_3ds_jit_mode_title">Profil du compilateur STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimiser pour appareils anciens ou faibles</string>
     <string name="pref_3ds_low_end_preset_summary">Active Turbo ARM11 JIT, horloge processeur 75%, résolution 1x, saut d\'images doublons, œil droit désactivé, hack FMV et audio HLE pour un FPS maximal</string>
     <string name="pref_3ds_low_end_preset_applied">Profil rapide pour appareils modestes appliqué (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
@@ -309,4 +309,13 @@ SDMC : %7$s</string>
     <string name="setup_3ds_key_missing">Manquant</string>
     <string name="update_install_permission_required">Autorisez l\'installation d\'applications depuis cette source pour appliquer la mise à jour</string>
     <string name="save_state_copy_format">%1$s (Copie)</string>
+    <string name="setup_3ds_fmv_hack_summary">Accelere le timing CPU pendant les cinematiques FMV</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Ignore les appels graphiques lents pour gagner en FPS</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Contourne la copie de textures CPU pour plus de rapidite</string>
+    <string name="setup_3ds_audio_stretch_summary">Lisse le son lors des chutes de FPS sans alterer la tonalite</string>
+    <string name="setup_3ds_spirv_opt_summary">Optimise les shaders Vulkan SPIR-V a la compilation</string>
+    <string name="setup_3ds_3d_section_header">Moteur 3D stereoscopique</string>
+    <string name="setup_3ds_3d_mode_label">Mode d\'affichage 3D</string>
+    <string name="setup_3ds_3d_depth_label">Intensite de profondeur 3D</string>
+    <string name="setup_3ds_artic_controller_summary">Recoit les controles d\'une console via Artic Base</string>
 </resources>

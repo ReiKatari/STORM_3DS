@@ -408,8 +408,8 @@
     <string name="generate_new_mac_address_description">Das Generieren einer neuen MAC-Adresse lässt Spiele annehmen, dass sie auf einem anderen System laufen.</string>
     <string name="enable_jit">JIT aktivieren</string>
     <string name="enable_jit_summary">Verbessert die Leistung, kann jedoch zu Abstürzen oder Einfrieren führen.</string>
-    <string name="enable_storm_compiler">STORM-Compiler aktivieren</string>
-    <string name="enable_storm_compiler_summary">Optimierte vektorisierte LLVM/Clang ARM64-Engine mit schnellem Speicher-Decodierungs-Pipeline.</string>
+    <string name="enable_storm_compiler">STORM-Compiler (ARM11 + FastDispatch)</string>
+    <string name="enable_storm_compiler_summary">Dynarmic ARM11-Engine mit Hardware-FastDispatch-Tabelle, direktem PageTable-Zugriff, Multi-Pass-IR-Optimierung und Shader-Cache.</string>
     <string name="jit_not_supported">JIT wird nur auf 64-Bit-Geräten unterstützt.</string>
     <string name="save_internal_config_as_file">Interne Konfiguration als Datei speichern</string>
     <string name="save_internal_config_as_file_summary">Hält STORM 3DS.opts im Speicherstandsverzeichnis bzw. im ROM-Verzeichnis synchron, falls kein Speicherstandsverzeichnis konfiguriert ist.</string>

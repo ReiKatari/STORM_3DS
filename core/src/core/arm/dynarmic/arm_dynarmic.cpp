@@ -3,8 +3,10 @@
 // Refer to the misc/licenses/gplv2.txt file included.
 
 #include <algorithm>
+#include <array>
 #include <csignal>
 #include <cstring>
+#include "common/arch.h"
 #include <dynarmic/interface/A32/a32.h>
 #include <dynarmic/interface/optimization_flags.h>
 #include "common/assert.h"
@@ -43,6 +45,14 @@ public:
     ~DynarmicUserCallbacks() = default;
 
     std::optional<std::uint32_t> MemoryReadCode(VAddr vaddr) override {
+        if (parent.current_page_table && (vaddr & 3u) == 0u) [[likely]] {
+            const u8* const page = parent.current_page_table->GetPointerArray()[vaddr >> Memory::CITRA_PAGE_BITS];
+            if (page) [[likely]] {
+                std::uint32_t inst = 0;
+                std::memcpy(&inst, page + (vaddr & Memory::CITRA_PAGE_MASK), sizeof(inst));
+                return inst;
+            }
+        }
         return memory.Read32OrNullopt(vaddr);
     }
 
@@ -173,10 +183,15 @@ public:
         return static_cast<u64>(ticks <= 0 ? 0 : ticks);
     }
     std::uint64_t GetTicksForCode(bool is_thumb, VAddr, std::uint32_t instruction) override {
-        if (Settings::values.storm_jit_mode >= 2) {
+        if (Settings::values.storm_jit_mode == 2) {
             return 1;
         }
         return Core::TicksForInstruction(is_thumb, instruction);
+    }
+
+    void ResetRoCache() noexcept {
+        ro_cache.fill(RoRangeSlot{});
+        ro_cache_next = 0;
     }
 
     bool IsReadOnlyMemory(VAddr vaddr) override {
@@ -187,16 +202,38 @@ public:
         if (!process) {
             return false;
         }
+        const u64 gen = process->vm_manager.GetGeneration();
+        if (gen != 0) {
+            for (const auto& slot : ro_cache) {
+                if (slot.generation == gen && vaddr >= slot.start && vaddr < slot.end) {
+                    return slot.is_ro;
+                }
+            }
+        }
         const auto vma = process->vm_manager.FindVMA(vaddr);
         if (vma == process->vm_manager.vma_map.end()) {
             return false;
         }
         const auto& area = vma->second;
-        return area.type == Kernel::VMAType::BackingMemory &&
-               area.meminfo_state == Kernel::MemoryState::Code &&
-               (area.permissions == Kernel::VMAPermission::Read ||
-                area.permissions == Kernel::VMAPermission::ReadExecute);
+        const bool is_ro = area.type == Kernel::VMAType::BackingMemory &&
+                           area.meminfo_state == Kernel::MemoryState::Code &&
+                           (area.permissions == Kernel::VMAPermission::Read ||
+                            area.permissions == Kernel::VMAPermission::ReadExecute);
+        if (gen != 0) {
+            ro_cache[ro_cache_next] = RoRangeSlot{area.base, area.base + area.size, gen, is_ro};
+            ro_cache_next = (ro_cache_next + 1) & 3u;
+        }
+        return is_ro;
     }
+
+    struct RoRangeSlot {
+        VAddr start = 0;
+        VAddr end = 0;
+        u64 generation = 0;
+        bool is_ro = false;
+    };
+    std::array<RoRangeSlot, 4> ro_cache{};
+    std::size_t ro_cache_next = 0;
 
     ARM_Dynarmic& parent;
     Kernel::SVCContext svc_context;
@@ -360,6 +397,7 @@ std::shared_ptr<Memory::PageTable> ARM_Dynarmic::GetPageTable() const {
 
 void ARM_Dynarmic::SetPageTable(const std::shared_ptr<Memory::PageTable>& page_table) {
     current_page_table = page_table;
+    cb->ResetRoCache();
     ThreadContext ctx{};
     if (jit) {
         SaveContext(ctx);
@@ -387,8 +425,20 @@ void ARM_Dynarmic::ServeBreak([[maybe_unused]] int signal) {
 std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     Dynarmic::A32::UserConfig config;
     config.callbacks = cb.get();
+    const u32 jit_mode = std::min<u32>(Settings::values.storm_jit_mode, 3u);
     if (current_page_table) {
+#if CITRA_ARCH(arm64)
+        if (jit_mode >= 1) {
+            config.page_table = &current_page_table->GetAbsolutePointerArray();
+            config.absolute_offset_page_table = true;
+        } else {
+            config.page_table = &current_page_table->GetPointerArray();
+            config.absolute_offset_page_table = false;
+        }
+#else
         config.page_table = &current_page_table->GetPointerArray();
+        config.absolute_offset_page_table = false;
+#endif
     }
     config.coprocessors[15] = std::make_shared<DynarmicCP15>(cp15_state);
     config.arch_version = Dynarmic::A32::ArchVersion::v6K;
@@ -398,10 +448,15 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     config.check_halt_on_memory_access = false;
     config.define_unpredictable_behaviour = true;
 
-    const u32 jit_mode = Settings::values.storm_jit_mode;
+#if CITRA_ARCH(x86_64)
+    constexpr u32 kMaxCacheMb = 256u;
+    const u32 default_mb = (jit_mode == 3) ? 192u : ((jit_mode == 2) ? 64u : 96u);
+#else
+    constexpr u32 kMaxCacheMb = 128u;
+    const u32 default_mb = (jit_mode == 3) ? 128u : ((jit_mode == 2) ? 48u : 64u);
+#endif
     const u32 configured_mb = Settings::values.storm_jit_cache_mb;
-    const u32 default_mb = (jit_mode >= 2) ? 48u : 64u;
-    const u32 cache_mb = std::clamp(configured_mb > 0 ? configured_mb : default_mb, 32u, 128u);
+    const u32 cache_mb = std::clamp(configured_mb > 0 ? configured_mb : default_mb, 32u, kMaxCacheMb);
     config.code_cache_size = static_cast<std::size_t>(cache_mb) * 1024ULL * 1024ULL;
 
     if (jit_mode == 0) {

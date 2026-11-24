@@ -41,8 +41,9 @@
     </string-array>
     <string-array name="jit_perf_mode_options">
         <item>Точный (безопасный)</item>
-        <item>Быстрый (рекомендуется)</item>
+        <item>Быстрый (сбалансированный)</item>
         <item>Турбо (слабые и старые устройства)</item>
+        <item>STORM-компилятор (Максимальный - рекомендуется)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (быстрый / рекомендуется)</item>

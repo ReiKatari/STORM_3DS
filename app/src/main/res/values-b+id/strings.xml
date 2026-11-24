@@ -813,8 +813,8 @@
     <string name="dsiware_boot_mode_autoload">Muat otomatis sistem</string>
     <string name="dsiware_boot_mode_direct">Boot langsung</string>
     <string name="dsiware_boot_mode_system_menu">Menu sistem DSi (peluncur NAND)</string>
-    <string name="enable_storm_compiler">Enable STORM Compiler</string>
-    <string name="enable_storm_compiler_summary">Mesin ARM64 tervektorisasi LLVM/Clang yang dioptimalkan dengan pipeline dekode memori cepat.</string>
+    <string name="enable_storm_compiler">Kompiler STORM (ARM11 + FastDispatch)</string>
+    <string name="enable_storm_compiler_summary">Mesin ARM11 Dynarmic dengan tabel FastDispatch perangkat keras, akses langsung PageTable, optimasi IR multi-pass, dan cache shader.</string>
     <string name="save_internal_config_as_file">Simpan konfigurasi internal sebagai file</string>
     <string name="save_internal_config_as_file_summary">Menjaga STORM 3DS.opts tetap sinkron di direktori file simpanan atau di direktori ROM.</string>
     <string name="system_app_log_file_enabled">Tulis log aplikasi ke folder ROM</string>

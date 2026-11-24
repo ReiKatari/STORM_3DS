@@ -3,6 +3,7 @@
 // Refer to the misc/licenses/gplv2.txt file included.
 
 #include <algorithm>
+#include <atomic>
 #include <iterator>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/shared_ptr.hpp>
@@ -361,7 +362,13 @@ VMManager::VMAIter VMManager::MergeAdjacent(VMAIter iter) {
     return iter;
 }
 
+static u64 NextVMAGeneration() noexcept {
+    static std::atomic<u64> s_next{1};
+    return s_next.fetch_add(1, std::memory_order_relaxed);
+}
+
 void VMManager::UpdatePageTableForVMA(const VirtualMemoryArea& vma) {
+    vma_generation = NextVMAGeneration();
     switch (vma.type) {
     case VMAType::Free:
         memory.UnmapRegion(*page_table, vma.base, vma.size);
@@ -403,6 +410,7 @@ void VMManager::serialize(Archive& ar, const unsigned int) {
     ar & page_table;
     if (Archive::is_loading::value) {
         is_locked = true;
+        vma_generation = NextVMAGeneration();
     }
 }
 SERIALIZE_IMPL(VMManager)

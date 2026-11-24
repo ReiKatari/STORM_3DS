@@ -266,7 +266,7 @@
     <string name="home_menu_3ds_not_installed_title">HOME Menu 3DS не установлено</string>
     <string name="home_menu_3ds_not_installed_message">Игры Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) запускаются напрямую без BIOS и HOME Menu. Чтобы запустить само HOME Menu 3DS, установите системные архивы 3DS (.cia) или подключите Artic Base, а для зашифрованных дампов добавьте boot9.bin / aes_keys.txt в STORM 3DS/sysdata.</string>
     <string name="home_menu_3ds_open_setup">Ключи и настройки 3DS</string>
-    <string name="pref_3ds_jit_mode_title">Профиль оптимизации ARM11 JIT</string>
+    <string name="pref_3ds_jit_mode_title">Профиль STORM-компилятора</string>
     <string name="pref_3ds_low_end_preset_title">Оптимизация для слабых и старых устройств</string>
     <string name="pref_3ds_low_end_preset_summary">Включает Турбо ARM11 JIT, 75% частоты ЦП, разрешение 1x, пропуск дублей кадров, отключение 2-го глаза, FMV-хак и HLE-звук для макс. FPS</string>
     <string name="pref_3ds_low_end_preset_applied">Профиль для слабых устройств применен (Турбо JIT, ЦП 75%, 1x, HLE-звук)</string>
@@ -310,5 +310,14 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Отсутствует</string>
     <string name="update_install_permission_required">Разрешите установку приложений из этого источника для применения обновления</string>
     <string name="save_state_copy_format">%1$s (Копия)</string>
+    <string name="setup_3ds_fmv_hack_summary">Ускоряет тайминги ЦП в видеороликах и заставках FMV</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Пропускает тяжелые вызовы отрисовки для роста FPS на слабых ГП</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Отключает чтение текстур на ЦП (быстрее, но возможны мелкие артефакты)</string>
+    <string name="setup_3ds_audio_stretch_summary">Выравнивает звук при просадках FPS без искажения тона</string>
+    <string name="setup_3ds_spirv_opt_summary">Оптимизирует шейдеры Vulkan SPIR-V при компиляции</string>
+    <string name="setup_3ds_3d_section_header">Стереоскопический 3D-движок</string>
+    <string name="setup_3ds_3d_mode_label">Режим 3D-вывода</string>
+    <string name="setup_3ds_3d_depth_label">Интенсивность 3D-глубины</string>
+    <string name="setup_3ds_artic_controller_summary">Принимает ввод с реальной консоли через сервер Artic Base</string>
 </resources>
 

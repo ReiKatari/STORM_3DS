@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">Menu HOME 3DS non installato</string>
     <string name="home_menu_3ds_not_installed_message">I giochi Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) si avviano direttamente senza BIOS né menu HOME. Per avviare il menu HOME 3DS, installa gli archivi di sistema (.cia) o collega Artic Base e inserisci boot9.bin / aes_keys.txt in STORM 3DS/sysdata se i file sono cifrati.</string>
     <string name="home_menu_3ds_open_setup">Chiavi e configurazione 3DS</string>
-    <string name="pref_3ds_jit_mode_title">Profilo ottimizzazione ARM11 JIT</string>
+    <string name="pref_3ds_jit_mode_title">Profilo compilatore STORM</string>
     <string name="pref_3ds_low_end_preset_title">Ottimizza per dispositivi vecchi e lenti</string>
     <string name="pref_3ds_low_end_preset_summary">Attiva Turbo ARM11 JIT, clock CPU 75%, risoluzione 1x, salto fotogrammi duplicati, disattiva occhio destro, hack FMV e audio HLE per FPS massimi</string>
     <string name="pref_3ds_low_end_preset_applied">Profilo velocità per dispositivi lenti applicato (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Mancante</string>
     <string name="update_install_permission_required">Consenti l\'installazione di app da questa origine per applicare l\'aggiornamento</string>
     <string name="save_state_copy_format">%1$s (Copia)</string>
+    <string name="setup_3ds_fmv_hack_summary">Accelera il timing CPU durante i filmati FMV</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Salta chiamate grafiche lente per aumentare gli FPS</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Salta la copia delle texture su CPU per maggiore velocita</string>
+    <string name="setup_3ds_audio_stretch_summary">Mantiene l\'audio fluido durante i cali di FPS</string>
+    <string name="setup_3ds_spirv_opt_summary">Ottimizza gli shader Vulkan SPIR-V in compilazione</string>
+    <string name="setup_3ds_3d_section_header">Motore 3D stereoscopico</string>
+    <string name="setup_3ds_3d_mode_label">Modalita uscita 3D</string>
+    <string name="setup_3ds_3d_depth_label">Profondita 3D</string>
+    <string name="setup_3ds_artic_controller_summary">Usa i controlli della console reale tramite Artic Base</string>
 </resources>

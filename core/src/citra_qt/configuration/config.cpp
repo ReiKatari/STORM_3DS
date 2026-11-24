@@ -493,6 +493,8 @@ void QtConfig::ReadCoreValues() {
 
     if (global) {
         ReadBasicSetting(Settings::values.use_cpu_jit);
+        Settings::values.storm_jit_mode = std::clamp<u32>(
+            ReadSetting(QStringLiteral("storm_jit_mode"), 3).toUInt(), 0u, 3u);
         ReadBasicSetting(Settings::values.use_fastinterp);
         ReadBasicSetting(Settings::values.delay_start_for_lle_modules);
     }
@@ -1099,6 +1101,8 @@ void QtConfig::SaveCoreValues() {
 
     if (global) {
         WriteBasicSetting(Settings::values.use_cpu_jit);
+        WriteSetting(QStringLiteral("storm_jit_mode"),
+                     static_cast<u32>(std::clamp<u32>(Settings::values.storm_jit_mode, 0u, 3u)), 3u);
         WriteBasicSetting(Settings::values.use_fastinterp);
         WriteBasicSetting(Settings::values.delay_start_for_lle_modules);
     }

@@ -901,7 +901,31 @@ Would you like to ignore the error and continue?</source>
     <message>
         <location filename="../../src/citra_qt/configuration/configure_debug.cpp" line="87"/>
         <source>Please relaunch Azahar for this setting to take effect.</source>
-        <translation>Пожалуйста, перезапустите Azahar, чтобы выбранная настройка вступила в силу.</translation>
+        <translation>Пожалуйста, перезапустите STORM 3DS, чтобы выбранная настройка вступила в силу.</translation>
+    </message>
+    <message>
+        <source>Enable STORM Compiler (ARM11 JIT)</source>
+        <translation>Включить STORM-компилятор (ARM11 JIT)</translation>
+    </message>
+    <message>
+        <source>STORM Compiler Profile</source>
+        <translation>Профиль STORM-компилятора</translation>
+    </message>
+    <message>
+        <source>Accurate (Safe)</source>
+        <translation>Точный (безопасный)</translation>
+    </message>
+    <message>
+        <source>Fast (Balanced)</source>
+        <translation>Быстрый (сбалансированный)</translation>
+    </message>
+    <message>
+        <source>Turbo (Weak Devices)</source>
+        <translation>Турбо (слабые устройства)</translation>
+    </message>
+    <message>
+        <source>STORM Compiler (Maximum - Recommended)</source>
+        <translation>STORM-компилятор (Максимальный - рекомендуется)</translation>
     </message>
 </context>
 <context>

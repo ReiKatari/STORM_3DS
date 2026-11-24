@@ -407,8 +407,8 @@
     <string name="generate_new_mac_address_description">新しいMACアドレスを生成すると、ゲーム側で別の本体として認識されます。</string>
     <string name="enable_jit">JITを有効化</string>
     <string name="enable_jit_summary">パフォーマンスを向上させますが、フリーズやクラッシュの原因になることがあります。</string>
-    <string name="enable_storm_compiler">STORMコンパイラを有効化</string>
-    <string name="enable_storm_compiler_summary">高速メモリデコードパイプラインを備えた最適化LLVM/Clangベクトル化ARM64エンジン。</string>
+    <string name="enable_storm_compiler">STORM コンパイラ (ARM11 + FastDispatch)</string>
+    <string name="enable_storm_compiler_summary">ハードウェアFastDispatchテーブル、PageTable直接参照、マルチパスIR最適化、シェーダーキャッシュを備えたDynarmic ARM11エンジン。</string>
     <string name="jit_not_supported">JITは64ビットデバイスのみ対応しています。</string>
     <string name="save_internal_config_as_file">内部設定をファイルとして保存</string>
     <string name="save_internal_config_as_file_summary">セーブデータディレクトリ（設定されていない場合はROMディレクトリ）内のSTORM 3DS.optsと同期を維持します。</string>

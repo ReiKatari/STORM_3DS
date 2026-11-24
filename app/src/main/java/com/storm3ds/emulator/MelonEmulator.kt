@@ -120,19 +120,23 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.use_virtual_sd(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
 
-        val jitMode = (prefs.getString("3ds_jit_mode", "1") ?: "1").toIntOrNull()?.coerceIn(0, 2) ?: 1
+        val jitMode = (prefs.getString("3ds_jit_mode", "3") ?: "3").toIntOrNull()?.coerceIn(0, 3) ?: 3
         val adaptiveCacheMb = runCatching {
             val am = NativeBridgeHost.appContext.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
             val mi = android.app.ActivityManager.MemoryInfo()
             am?.getMemoryInfo(mi)
             val totalMb = (mi.totalMem / (1024L * 1024L)).toInt()
             when {
-                jitMode >= 2 -> 48
+                jitMode == 3 && totalMb >= 7000 -> 128
+                jitMode == 3 && totalMb >= 5000 -> 96
+                jitMode == 3 && totalMb in 1..3399 -> 48
+                jitMode == 3 -> 64
+                jitMode == 2 -> 48
                 totalMb in 1..3200 -> 48
                 totalMb in 3201..6400 -> 64
                 else -> 96
             }
-        }.getOrDefault(64)
+        }.getOrDefault(if (jitMode == 3) 96 else 64)
         runCatching { NativeLibrary.setStormJitOptions(jitMode, adaptiveCacheMb) }
 
         val isNew3ds = cfg.isNew3dsOverride ?: prefs.getBoolean("3ds_is_new_3ds", true)

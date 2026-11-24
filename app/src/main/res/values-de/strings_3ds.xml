@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">3DS HOME-Menü nicht installiert</string>
     <string name="home_menu_3ds_not_installed_message">Nintendo-3DS-Spiele (.3ds, .cci, .cia, .3dsx, .zcci) starten direkt ohne BIOS oder HOME-Menü. Um das 3DS-HOME-Menü selbst zu starten, installiere 3DS-Systemarchive (.cia) oder verbinde Artic Base und lege boot9.bin / aes_keys.txt bei verschlüsselten Dumps in STORM 3DS/sysdata ab.</string>
     <string name="home_menu_3ds_open_setup">3DS-Schlüssel &amp; Setup</string>
-    <string name="pref_3ds_jit_mode_title">ARM11-JIT-Optimierungsprofil</string>
+    <string name="pref_3ds_jit_mode_title">STORM-Compiler-Optimierungsprofil</string>
     <string name="pref_3ds_low_end_preset_title">Für schwache &amp; ältere Geräte optimieren</string>
     <string name="pref_3ds_low_end_preset_summary">Aktiviert Turbo ARM11 JIT, 75% CPU-Takt, 1x Auflösung, Frame-Skip, Rechtes-Auge-Skip, FMV-Hack &amp; HLE-Audio für maximale FPS</string>
     <string name="pref_3ds_low_end_preset_applied">Leistungsprofil für schwache Geräte angewendet (Turbo JIT, 75% CPU, 1x, HLE-Audio)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Fehlt</string>
     <string name="update_install_permission_required">Erlaube die Installation von Apps aus dieser Quelle, um das Update anzuwenden</string>
     <string name="save_state_copy_format">%1$s (Kopie)</string>
+    <string name="setup_3ds_fmv_hack_summary">Beschleunigt CPU-Timing bei Zwischensequenzen und FMV-Videos</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Ueberspringt langsame Draw-Calls fuer mehr FPS</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Ueberspringt CPU-Texturkopien fuer hoehere Geschwindigkeit</string>
+    <string name="setup_3ds_audio_stretch_summary">Glaettet Audio bei FPS-Einbruechen ohne Tonhoehenaenderung</string>
+    <string name="setup_3ds_spirv_opt_summary">Optimiert Vulkan SPIR-V-Shader beim Kompilieren</string>
+    <string name="setup_3ds_3d_section_header">Stereoskopische 3D-Engine</string>
+    <string name="setup_3ds_3d_mode_label">3D-Ausgabemodus</string>
+    <string name="setup_3ds_3d_depth_label">3D-Tiefenstaerke</string>
+    <string name="setup_3ds_artic_controller_summary">Nutzt Steuerung einer echten Konsole ueber Artic Base</string>
 </resources>

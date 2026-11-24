@@ -266,7 +266,7 @@ If the second phone shares a hotspot and the room does not appear, enter its IP 
     <string name="home_menu_3ds_not_installed_title">3DS HOME Menu not installed</string>
     <string name="home_menu_3ds_not_installed_message">Nintendo 3DS games (.3ds, .cci, .cia, .3dsx, .zcci) launch directly without BIOS or HOME Menu. To boot the 3DS HOME Menu itself, install 3DS System Archives (.cia) or connect Artic Base, and place boot9.bin / aes_keys.txt in STORM 3DS/sysdata if your dumps are encrypted.</string>
     <string name="home_menu_3ds_open_setup">3DS Keys &amp; Setup</string>
-    <string name="pref_3ds_jit_mode_title">ARM11 JIT Optimization Profile</string>
+    <string name="pref_3ds_jit_mode_title">STORM Compiler Optimization Profile</string>
     <string name="pref_3ds_low_end_preset_title">Optimize for Weak &amp; Old Devices</string>
     <string name="pref_3ds_low_end_preset_summary">Enables Turbo ARM11 JIT, 75% CPU clock, 1x resolution, frame skip, 2D right-eye skip, FMV hack &amp; HLE audio for maximum FPS</string>
     <string name="pref_3ds_low_end_preset_applied">Low-end device speed profile applied (Turbo JIT, 75% CPU, 1x, HLE audio)</string>
@@ -310,5 +310,14 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Missing</string>
     <string name="update_install_permission_required">Allow installing apps from this source to apply the update</string>
     <string name="save_state_copy_format">%1$s (Copy)</string>
+    <string name="setup_3ds_fmv_hack_summary">Accelerates CPU timing during cutscenes and FMV playback</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Skips redundant heavy draw calls for extra FPS on weak GPUs</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Bypasses CPU texture readback; faster but may break minor effects</string>
+    <string name="setup_3ds_audio_stretch_summary">Smooths sound speed during frame rate drops without pitch shifts</string>
+    <string name="setup_3ds_spirv_opt_summary">Optimizes Vulkan SPIR-V shaders on compile (may increase shader hitching)</string>
+    <string name="setup_3ds_3d_section_header">Stereoscopic 3D Engine</string>
+    <string name="setup_3ds_3d_mode_label">3D Output Mode</string>
+    <string name="setup_3ds_3d_depth_label">3D Depth Strength</string>
+    <string name="setup_3ds_artic_controller_summary">Routes physical Nintendo 3DS controls from Artic Base server</string>
 </resources>
 

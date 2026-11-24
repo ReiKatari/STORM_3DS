@@ -233,14 +233,66 @@
       <item row="3" column="0">
        <widget class="QCheckBox" name="toggle_cpu_jit">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables the use of the ARM JIT compiler for emulating the 3DS CPUs. Don't disable unless for debugging purposes&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enables the STORM Compiler (ARM11 Dynarmic JIT with multi-pass IR folding and optimized code cache). Don't disable unless for debugging purposes&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="text">
-         <string>Enable CPU JIT</string>
+         <string>Enable STORM Compiler (ARM11 JIT)</string>
         </property>
        </widget>
       </item>
       <item row="4" column="0">
+       <widget class="QWidget" name="storm_jit_mode_widget" native="true">
+        <layout class="QHBoxLayout" name="storm_jit_mode_layout">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="storm_jit_mode_label">
+           <property name="text">
+            <string>STORM Compiler Profile</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="storm_jit_mode_combo">
+           <item>
+            <property name="text">
+             <string>Accurate (Safe)</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Fast (Balanced)</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Turbo (Weak Devices)</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>STORM Compiler (Maximum - Recommended)</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="5" column="0">
        <widget class="QCheckBox" name="toggle_fastinterp">
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When JIT is disabled, use the fast interpreter instead of the legacy interpreter&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -250,21 +302,21 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
        <widget class="QCheckBox" name="toggle_renderer_debug">
         <property name="text">
          <string>Enable debug renderer</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QCheckBox" name="toggle_pica_debugging">
         <property name="text">
          <string>Enable PICA200 debugging</string>
         </property>
        </widget>
       </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QCheckBox" name="toggle_dump_command_buffers">
         <property name="text">
          <string>Dump command buffers</string>

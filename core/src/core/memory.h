@@ -72,7 +72,9 @@ struct PageTable {
             Entry(Pointers& pointers_, VAddr idx_) : pointers(pointers_), idx(idx_) {}
 
             Entry& operator=(MemoryRef value) {
-                pointers.raw[idx] = value.GetPtr();
+                u8* const ptr = value.GetPtr();
+                pointers.raw[idx] = ptr;
+                pointers.abs_raw[idx] = Pointers::MakeAbsolutePtr(ptr, idx);
                 pointers.refs[idx] = std::move(value);
                 return *this;
             }
@@ -94,8 +96,18 @@ struct PageTable {
             return refs[idx];
         }
 
+        static u8* MakeAbsolutePtr(u8* ptr, VAddr page_idx) noexcept {
+            if (!ptr) {
+                return nullptr;
+            }
+            const auto adjusted = reinterpret_cast<std::uintptr_t>(ptr) -
+                                  (static_cast<std::uintptr_t>(page_idx) << CITRA_PAGE_BITS);
+            return adjusted ? reinterpret_cast<u8*>(adjusted) : nullptr;
+        }
+
     private:
         std::array<u8*, PAGE_TABLE_NUM_ENTRIES> raw;
+        std::array<u8*, PAGE_TABLE_NUM_ENTRIES> abs_raw{};
         std::array<MemoryRef, PAGE_TABLE_NUM_ENTRIES> refs;
         friend struct PageTable;
     };
@@ -110,6 +122,10 @@ struct PageTable {
 
     std::array<u8*, PAGE_TABLE_NUM_ENTRIES>& GetPointerArray() {
         return pointers.raw;
+    }
+
+    std::array<u8*, PAGE_TABLE_NUM_ENTRIES>& GetAbsolutePointerArray() {
+        return pointers.abs_raw;
     }
 
     struct WatchpointPageInfo {
@@ -137,7 +153,9 @@ private:
         ar & attributes;
         ar & watchpoint_pages_map;
         for (std::size_t i = 0; i < PAGE_TABLE_NUM_ENTRIES; i++) {
-            pointers.raw[i] = pointers.refs[i].GetPtr();
+            u8* const ptr = pointers.refs[i].GetPtr();
+            pointers.raw[i] = ptr;
+            pointers.abs_raw[i] = Pointers::MakeAbsolutePtr(ptr, static_cast<VAddr>(i));
         }
     }
     friend class boost::serialization::access;

@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">Menú HOME de 3DS no instalado</string>
     <string name="home_menu_3ds_not_installed_message">Los juegos de Nintendo 3DS (.3ds, .cci, .cia, .3dsx, .zcci) se inician directamente sin BIOS ni menú HOME. Para iniciar el menú HOME de 3DS, instala los archivos del sistema (.cia) o conecta Artic Base, y coloca boot9.bin / aes_keys.txt en STORM 3DS/sysdata para volcados cifrados.</string>
     <string name="home_menu_3ds_open_setup">Claves y ajustes 3DS</string>
-    <string name="pref_3ds_jit_mode_title">Perfil de optimización ARM11 JIT</string>
+    <string name="pref_3ds_jit_mode_title">Perfil del compilador STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimizar para dispositivos antiguos y básicos</string>
     <string name="pref_3ds_low_end_preset_summary">Activa Turbo ARM11 JIT, reloj al 75%, resolución 1x, omisión de fotogramas duplicados, omisión de ojo derecho, hack FMV y audio HLE para máximo FPS</string>
     <string name="pref_3ds_low_end_preset_applied">Perfil de velocidad para equipos básicos aplicado (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">Falta</string>
     <string name="update_install_permission_required">Permite instalar aplicaciones desde esta fuente para aplicar la actualización</string>
     <string name="save_state_copy_format">%1$s (Copia)</string>
+    <string name="setup_3ds_fmv_hack_summary">Acelera los tiempos de CPU durante escenas de video FMV</string>
+    <string name="setup_3ds_skip_slow_draw_summary">Omite llamadas de renderizado lentas para ganar FPS en GPU modestas</string>
+    <string name="setup_3ds_skip_tex_copy_summary">Omite la copia de texturas en CPU para mayor velocidad</string>
+    <string name="setup_3ds_audio_stretch_summary">Suaviza el audio cuando baja la tasa de cuadros sin cambiar el tono</string>
+    <string name="setup_3ds_spirv_opt_summary">Optimiza shaders Vulkan SPIR-V al compilar</string>
+    <string name="setup_3ds_3d_section_header">Motor 3D estereoscopico</string>
+    <string name="setup_3ds_3d_mode_label">Modo de salida 3D</string>
+    <string name="setup_3ds_3d_depth_label">Profundidad 3D</string>
+    <string name="setup_3ds_artic_controller_summary">Usa una consola 3DS real como mando desde Artic Base</string>
 </resources>

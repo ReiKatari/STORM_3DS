@@ -265,7 +265,7 @@
     <string name="home_menu_3ds_not_installed_title">3DS HOMEメニューが未インストールです</string>
     <string name="home_menu_3ds_not_installed_message">Nintendo 3DSソフト(.3ds, .cci, .cia, .3dsx, .zcci)はBIOSやHOMEメニューなしで直接起動できます。3DS HOMEメニュー自体を起動するには3DSシステムアーカイブ(.cia)をインストールするかArtic Baseを接続し、暗号化済みの場合はboot9.bin / aes_keys.txtをSTORM 3DS/sysdataに配置してください。</string>
     <string name="home_menu_3ds_open_setup">3DSキーと設定</string>
-    <string name="pref_3ds_jit_mode_title">ARM11 JIT最適化プロファイル</string>
+    <string name="pref_3ds_jit_mode_title">STORM コンパイラ最適化プロファイル</string>
     <string name="pref_3ds_low_end_preset_title">低スペック・旧型端末向けに最適化</string>
     <string name="pref_3ds_low_end_preset_summary">Turbo ARM11 JIT、CPUクロック75%、1x解像度、重複フレームスキップ、右目描画無効、FMVハック、HLE音声を有効化しFPSを最大化します</string>
     <string name="pref_3ds_low_end_preset_applied">低スペック端末向け高速プロファイルを適用しました (Turbo JIT, CPU 75%, 1x, HLE音声)</string>
@@ -309,4 +309,13 @@ SDMC: %7$s</string>
     <string name="setup_3ds_key_missing">未検出</string>
     <string name="update_install_permission_required">アップデートを適用するには、この提供元からのアプリインストールを許可してください</string>
     <string name="save_state_copy_format">%1$s (コピー)</string>
+    <string name="setup_3ds_fmv_hack_summary">ムービーおよびFMV再生時のCPUタイミングを高速化します</string>
+    <string name="setup_3ds_skip_slow_draw_summary">負荷の高い描画呼び出しを省略してFPSを向上させます</string>
+    <string name="setup_3ds_skip_tex_copy_summary">CPUテクスチャコピーを省略して処理速度を向上させます</string>
+    <string name="setup_3ds_audio_stretch_summary">フレーム低下時に音程を変えず音声の途切れを抑えます</string>
+    <string name="setup_3ds_spirv_opt_summary">コンパイル時にVulkan SPIR-Vシェーダーを最適化します</string>
+    <string name="setup_3ds_3d_section_header">ステレオ3Dエンジン</string>
+    <string name="setup_3ds_3d_mode_label">3D出力モード</string>
+    <string name="setup_3ds_3d_depth_label">3D奥行き強度</string>
+    <string name="setup_3ds_artic_controller_summary">Artic Baseサーバー経由で実機コントローラー入力を使用します</string>
 </resources>

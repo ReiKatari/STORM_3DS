@@ -185,6 +185,10 @@ public:
      */
     void Unlock();
 
+    [[nodiscard]] u64 GetGeneration() const noexcept {
+        return vma_generation;
+    }
+
 private:
     using VMAIter = decltype(vma_map)::iterator;
 
@@ -227,6 +231,7 @@ private:
     // When locked, ChangeMemoryState calls will be ignored, other modification calls will hit an
     // assert. VMManager locks itself after deserialization.
     bool is_locked{};
+    u64 vma_generation{0};
 
     template <class Archive>
     void serialize(Archive& ar, const unsigned int);

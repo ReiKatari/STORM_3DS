@@ -1,0 +1,355 @@
+diff --git a/src/dynarmic/backend/arm64/a32_address_space.cpp b/src/dynarmic/backend/arm64/a32_address_space.cpp
+index bbdf925..c817567 100644
+--- a/src/dynarmic/backend/arm64/a32_address_space.cpp
++++ b/src/dynarmic/backend/arm64/a32_address_space.cpp
+@@ -158,9 +158,18 @@ static void* EmitExclusiveWriteCallTrampoline(oaknut::CodeGenerator& code, const
+ A32AddressSpace::A32AddressSpace(const A32::UserConfig& conf)
+         : AddressSpace(conf.code_cache_size)
+         , conf(conf) {
++    ClearFastDispatchTable();
+     EmitPrelude();
+ }
+ 
++void A32AddressSpace::ClearFastDispatchTable() {
++    fast_dispatch_table.fill(FastDispatchEntry{});
++}
++
++void A32AddressSpace::InvalidateFastDispatchEntry(IR::LocationDescriptor descriptor) {
++    fast_dispatch_table[FastDispatchHash(descriptor.Value())] = FastDispatchEntry{};
++}
++
+ IR::Block A32AddressSpace::GenerateIR(IR::LocationDescriptor descriptor) const {
+     IR::Block ir_block = A32::Translate(A32::LocationDescriptor{descriptor}, conf.callbacks, {conf.arch_version, conf.define_unpredictable_behaviour, conf.hook_hint_instructions});
+ 
+@@ -171,12 +180,23 @@ IR::Block A32AddressSpace::GenerateIR(IR::LocationDescriptor descriptor) const {
+         Optimization::DeadCodeElimination(ir_block);
+     }
+     if (conf.HasOptimization(OptimizationFlag::ConstProp)) {
+-        Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks);
++        const bool folded_ro = Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks);
+         Optimization::ConstantPropagation(ir_block);
+         Optimization::DeadCodeElimination(ir_block);
++        if (folded_ro && conf.HasOptimization(OptimizationFlag::MiscIROpt)) {
++            if (Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks)) {
++                Optimization::ConstantPropagation(ir_block);
++            }
++            if (conf.HasOptimization(OptimizationFlag::GetSetElimination)) {
++                Optimization::A32GetSetElimination(ir_block, {.convert_nzc_to_nz = true});
++            }
++            Optimization::DeadCodeElimination(ir_block);
++        }
+     }
+     Optimization::IdentityRemovalPass(ir_block);
++#ifndef NDEBUG
+     Optimization::VerificationPass(ir_block);
++#endif
+ 
+     return ir_block;
+ }
+@@ -333,6 +353,54 @@ void A32AddressSpace::EmitPrelude() {
+         code.dx(mcl::bit_cast<u64>(Common::FptrCast(fn)));
+     }
+ 
++    prelude_info.fast_dispatch = code.xptr<void*>();
++    {
++        oaknut::Label l_miss, l_table, l_self, l_fn;
++
++        code.LDAR(Wscratch0, Xhalt);
++        code.CBNZ(Wscratch0, return_from_run_code);
++
++        if (conf.enable_cycle_counting) {
++            code.CMP(Xticks, 0);
++            code.B(LE, return_from_run_code);
++        }
++
++        static_assert(offsetof(A32JitState, regs) + 16 * sizeof(u32) == offsetof(A32JitState, upper_location_descriptor));
++        code.LDUR(X0, Xstate, offsetof(A32JitState, regs) + 15 * sizeof(u32));
++        code.LSR(Xscratch0, X0, 1);
++        code.EOR(Xscratch0, Xscratch0, X0, LSR, 14);
++        code.AND(Xscratch0, Xscratch0, FastDispatchTableMask);
++        code.LDR(X2, l_table);
++        code.ADD(X2, X2, Xscratch0, oaknut::AddSubShift::LSL, 4);
++        code.LDP(Xscratch0, Xscratch1, X2);
++        code.CMP(X0, Xscratch0);
++        code.B(NE, l_miss);
++        code.BR(Xscratch1);
++
++        code.l(l_miss);
++        code.LDR(X0, l_self);
++        code.MOV(X1, Xstate);
++        code.LDR(Xscratch0, l_fn);
++        code.BLR(Xscratch0);
++        code.BR(X0);
++
++        const auto fn = [](A32AddressSpace& self, A32JitState& context, FastDispatchEntry* entry) -> CodePtr {
++            const IR::LocationDescriptor desc = context.GetLocationDescriptor();
++            const CodePtr ptr = self.GetOrEmit(desc);
++            entry->location_descriptor = desc.Value();
++            entry->code_ptr = ptr;
++            return ptr;
++        };
++
++        code.align(8);
++        code.l(l_table);
++        code.dx(mcl::bit_cast<u64>(fast_dispatch_table.data()));
++        code.l(l_self);
++        code.dx(mcl::bit_cast<u64>(this));
++        code.l(l_fn);
++        code.dx(mcl::bit_cast<u64>(Common::FptrCast(fn)));
++    }
++
+     prelude_info.return_from_run_code = code.xptr<void*>();
+     {
+         code.l(return_from_run_code);
+diff --git a/src/dynarmic/backend/arm64/a32_address_space.h b/src/dynarmic/backend/arm64/a32_address_space.h
+index 3b9e9fb..77c0976 100644
+--- a/src/dynarmic/backend/arm64/a32_address_space.h
++++ b/src/dynarmic/backend/arm64/a32_address_space.h
+@@ -5,6 +5,8 @@
+ 
+ #pragma once
+ 
++#include <array>
++
+ #include "dynarmic/backend/arm64/address_space.h"
+ #include "dynarmic/backend/block_range_information.h"
+ #include "dynarmic/interface/A32/config.h"
+@@ -28,8 +30,23 @@ protected:
+     EmitConfig GetEmitConfig() override;
+     void RegisterNewBasicBlock(const IR::Block& block, const EmittedBlockInfo& block_info) override;
+ 
++    struct alignas(16) FastDispatchEntry {
++        u64 location_descriptor = ~u64(0);
++        CodePtr code_ptr = nullptr;
++    };
++    static constexpr size_t FastDispatchTableBits = 13;
++    static constexpr size_t FastDispatchTableSize = 1ULL << FastDispatchTableBits;
++    static constexpr u64 FastDispatchTableMask = FastDispatchTableSize - 1;
++    static constexpr size_t FastDispatchHash(u64 desc) noexcept {
++        return static_cast<size_t>(((desc >> 1) ^ (desc >> 14)) & FastDispatchTableMask);
++    }
++
++    void ClearFastDispatchTable() override;
++    void InvalidateFastDispatchEntry(IR::LocationDescriptor descriptor) override;
++
+     const A32::UserConfig conf;
+     BlockRangeInformation<u32> block_ranges;
++    std::array<FastDispatchEntry, FastDispatchTableSize> fast_dispatch_table{};
+ };
+ 
+ }  // namespace Dynarmic::Backend::Arm64
+diff --git a/src/dynarmic/backend/arm64/a64_address_space.cpp b/src/dynarmic/backend/arm64/a64_address_space.cpp
+index d4fe9a9..fc854af 100644
+--- a/src/dynarmic/backend/arm64/a64_address_space.cpp
++++ b/src/dynarmic/backend/arm64/a64_address_space.cpp
+@@ -509,6 +509,7 @@ void A64AddressSpace::EmitPrelude() {
+         code.dx(mcl::bit_cast<u64>(Common::FptrCast(fn)));
+     }
+ 
++    prelude_info.fast_dispatch = prelude_info.return_to_dispatcher;
+     prelude_info.return_from_run_code = code.xptr<void*>();
+     {
+         code.l(return_from_run_code);
+diff --git a/src/dynarmic/backend/arm64/address_space.cpp b/src/dynarmic/backend/arm64/address_space.cpp
+index 2c7ae77..5b04631 100644
+--- a/src/dynarmic/backend/arm64/address_space.cpp
++++ b/src/dynarmic/backend/arm64/address_space.cpp
+@@ -81,6 +81,7 @@ void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescri
+ 
+         // Unlink before removal because InvalidateBasicBlocks can be called within a fastmem callback,
+         // and the currently executing block may have references to itself which need to be unlinked.
++        InvalidateFastDispatchEntry(descriptor);
+         RelinkForDescriptor(descriptor, nullptr);
+ 
+         block_entries.erase(iter);
+@@ -90,6 +91,7 @@ void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescri
+ }
+ 
+ void AddressSpace::ClearCache() {
++    ClearFastDispatchTable();
+     block_entries.clear();
+     reverse_block_entries.clear();
+     block_infos.clear();
+@@ -146,6 +148,9 @@ void AddressSpace::Link(EmittedBlockInfo& block_info) {
+         case LinkTarget::ReturnFromRunCode:
+             c.B(prelude_info.return_from_run_code);
+             break;
++        case LinkTarget::FastDispatch:
++            c.B(prelude_info.fast_dispatch ? prelude_info.fast_dispatch : prelude_info.return_to_dispatcher);
++            break;
+         case LinkTarget::ReadMemory8:
+             c.BL(prelude_info.read_memory_8);
+             break;
+diff --git a/src/dynarmic/backend/arm64/address_space.h b/src/dynarmic/backend/arm64/address_space.h
+index 835566b..aea9709 100644
+--- a/src/dynarmic/backend/arm64/address_space.h
++++ b/src/dynarmic/backend/arm64/address_space.h
+@@ -48,6 +48,8 @@ public:
+ protected:
+     virtual EmitConfig GetEmitConfig() = 0;
+     virtual void RegisterNewBasicBlock(const IR::Block& block, const EmittedBlockInfo& block_info) = 0;
++    virtual void ClearFastDispatchTable() {}
++    virtual void InvalidateFastDispatchEntry(IR::LocationDescriptor) {}
+ 
+     void ProtectCodeMemory() {
+ #if defined(DYNARMIC_ENABLE_NO_EXECUTE_SUPPORT) || defined(__APPLE__) || defined(__OpenBSD__)
+@@ -91,6 +93,7 @@ protected:
+         RunCodeFuncType step_code;
+         void* return_to_dispatcher;
+         void* return_from_run_code;
++        void* fast_dispatch = nullptr;
+ 
+         void* read_memory_8;
+         void* read_memory_16;
+diff --git a/src/dynarmic/backend/arm64/emit_arm64.h b/src/dynarmic/backend/arm64/emit_arm64.h
+index 58ccb0e..9fc18f7 100644
+--- a/src/dynarmic/backend/arm64/emit_arm64.h
++++ b/src/dynarmic/backend/arm64/emit_arm64.h
+@@ -43,6 +43,7 @@ using CodePtr = std::byte*;
+ enum class LinkTarget {
+     ReturnToDispatcher,
+     ReturnFromRunCode,
++    FastDispatch,
+     ReadMemory8,
+     ReadMemory16,
+     ReadMemory32,
+diff --git a/src/dynarmic/backend/arm64/emit_arm64_a32.cpp b/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
+index 909dde7..d85ba32 100644
+--- a/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
++++ b/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
+@@ -118,10 +118,12 @@ void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::Po
+     EmitRelocation(code, ctx, LinkTarget::ReturnToDispatcher);
+ }
+ 
+-void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::FastDispatchHint, IR::LocationDescriptor, bool) {
++void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::FastDispatchHint, IR::LocationDescriptor, bool is_single_step) {
++    if (ctx.conf.HasOptimization(OptimizationFlag::FastDispatch) && !is_single_step) {
++        EmitRelocation(code, ctx, LinkTarget::FastDispatch);
++        return;
++    }
+     EmitRelocation(code, ctx, LinkTarget::ReturnToDispatcher);
+-
+-    // TODO: Implement FastDispatchHint optimization
+ }
+ 
+ void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::If terminal, IR::LocationDescriptor initial_location, bool is_single_step) {
+diff --git a/src/dynarmic/backend/arm64/emit_arm64_memory.cpp b/src/dynarmic/backend/arm64/emit_arm64_memory.cpp
+index 339e2c5..7941a55 100644
+--- a/src/dynarmic/backend/arm64/emit_arm64_memory.cpp
++++ b/src/dynarmic/backend/arm64/emit_arm64_memory.cpp
+@@ -421,7 +421,8 @@ void InlinePageTableEmitReadMemory(oaknut::CodeGenerator& code, EmitContext& ctx
+     SharedLabel fallback = GenSharedLabel(), end = GenSharedLabel();
+ 
+     const auto [Xbase, Xoffset] = InlinePageTableEmitVAddrLookup<bitsize>(code, ctx, Xaddr, fallback);
+-    EmitMemoryLdr<bitsize>(code, Rvalue->index(), Xbase, Xoffset, ordered);
++    const bool extend32 = ctx.conf.absolute_offset_page_table && ctx.conf.page_table_address_space_bits == 32;
++    EmitMemoryLdr<bitsize>(code, Rvalue->index(), Xbase, Xoffset, ordered, extend32);
+ 
+     ctx.deferred_emits.emplace_back([&code, &ctx, inst, Xaddr = *Xaddr, Rvalue = *Rvalue, ordered, fallback, end] {
+         code.l(*fallback);
+@@ -461,7 +462,8 @@ void InlinePageTableEmitWriteMemory(oaknut::CodeGenerator& code, EmitContext& ct
+     SharedLabel fallback = GenSharedLabel(), end = GenSharedLabel();
+ 
+     const auto [Xbase, Xoffset] = InlinePageTableEmitVAddrLookup<bitsize>(code, ctx, Xaddr, fallback);
+-    EmitMemoryStr<bitsize>(code, Rvalue->index(), Xbase, Xoffset, ordered);
++    const bool extend32 = ctx.conf.absolute_offset_page_table && ctx.conf.page_table_address_space_bits == 32;
++    EmitMemoryStr<bitsize>(code, Rvalue->index(), Xbase, Xoffset, ordered, extend32);
+ 
+     ctx.deferred_emits.emplace_back([&code, &ctx, inst, Xaddr = *Xaddr, Rvalue = *Rvalue, ordered, fallback, end] {
+         code.l(*fallback);
+diff --git a/src/dynarmic/backend/x64/a32_interface.cpp b/src/dynarmic/backend/x64/a32_interface.cpp
+index d690aad..16821a8 100644
+--- a/src/dynarmic/backend/x64/a32_interface.cpp
++++ b/src/dynarmic/backend/x64/a32_interface.cpp
+@@ -221,12 +221,23 @@ private:
+             Optimization::DeadCodeElimination(ir_block);
+         }
+         if (conf.HasOptimization(OptimizationFlag::ConstProp)) {
+-            Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks);
++            const bool folded_ro = Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks);
+             Optimization::ConstantPropagation(ir_block);
+             Optimization::DeadCodeElimination(ir_block);
++            if (folded_ro && conf.HasOptimization(OptimizationFlag::MiscIROpt)) {
++                if (Optimization::A32ConstantMemoryReads(ir_block, conf.callbacks)) {
++                    Optimization::ConstantPropagation(ir_block);
++                }
++                if (conf.HasOptimization(OptimizationFlag::GetSetElimination) && !conf.check_halt_on_memory_access) {
++                    Optimization::A32GetSetElimination(ir_block, {.convert_nz_to_nzc = true});
++                }
++                Optimization::DeadCodeElimination(ir_block);
++            }
+         }
+         Optimization::IdentityRemovalPass(ir_block);
++#ifndef NDEBUG
+         Optimization::VerificationPass(ir_block);
++#endif
+         return emitter.Emit(ir_block);
+     }
+ 
+diff --git a/src/dynarmic/ir/opt/a32_constant_memory_reads_pass.cpp b/src/dynarmic/ir/opt/a32_constant_memory_reads_pass.cpp
+index 9699f18..76d9564 100644
+--- a/src/dynarmic/ir/opt/a32_constant_memory_reads_pass.cpp
++++ b/src/dynarmic/ir/opt/a32_constant_memory_reads_pass.cpp
+@@ -10,7 +10,8 @@
+ 
+ namespace Dynarmic::Optimization {
+ 
+-void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
++bool A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
++    bool changed = false;
+     for (auto& inst : block) {
+         switch (inst.GetOpcode()) {
+         case IR::Opcode::A32ReadMemory8: {
+@@ -21,6 +22,7 @@ void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
+             const u32 vaddr = inst.GetArg(1).GetU32();
+             if (cb->IsReadOnlyMemory(vaddr)) {
+                 const u8 value_from_memory = cb->MemoryRead8(vaddr);
++                changed = true;
+                 inst.ReplaceUsesWith(IR::Value{value_from_memory});
+             }
+             break;
+@@ -33,6 +35,7 @@ void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
+             const u32 vaddr = inst.GetArg(1).GetU32();
+             if (cb->IsReadOnlyMemory(vaddr)) {
+                 const u16 value_from_memory = cb->MemoryRead16(vaddr);
++                changed = true;
+                 inst.ReplaceUsesWith(IR::Value{value_from_memory});
+             }
+             break;
+@@ -45,6 +48,7 @@ void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
+             const u32 vaddr = inst.GetArg(1).GetU32();
+             if (cb->IsReadOnlyMemory(vaddr)) {
+                 const u32 value_from_memory = cb->MemoryRead32(vaddr);
++                changed = true;
+                 inst.ReplaceUsesWith(IR::Value{value_from_memory});
+             }
+             break;
+@@ -57,6 +61,7 @@ void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
+             const u32 vaddr = inst.GetArg(1).GetU32();
+             if (cb->IsReadOnlyMemory(vaddr)) {
+                 const u64 value_from_memory = cb->MemoryRead64(vaddr);
++                changed = true;
+                 inst.ReplaceUsesWith(IR::Value{value_from_memory});
+             }
+             break;
+@@ -65,6 +70,7 @@ void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb) {
+             break;
+         }
+     }
++    return changed;
+ }
+ 
+ }  // namespace Dynarmic::Optimization
+diff --git a/src/dynarmic/ir/opt/passes.h b/src/dynarmic/ir/opt/passes.h
+index 703145b..9e827ea 100644
+--- a/src/dynarmic/ir/opt/passes.h
++++ b/src/dynarmic/ir/opt/passes.h
+@@ -33,7 +33,7 @@ struct A32GetSetEliminationOptions {
+ };
+ 
+ void PolyfillPass(IR::Block& block, const PolyfillOptions& opt);
+-void A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb);
++bool A32ConstantMemoryReads(IR::Block& block, A32::UserCallbacks* cb);
+ void A32GetSetElimination(IR::Block& block, A32GetSetEliminationOptions opt);
+ void A64CallbackConfigPass(IR::Block& block, const A64::UserConfig& conf);
+ void A64GetSetElimination(IR::Block& block);

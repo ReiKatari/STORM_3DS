@@ -19,7 +19,10 @@
 
 namespace Pica::Shader {
 
-JitEngine::JitEngine() = default;
+JitEngine::JitEngine() {
+    cache.reserve(512);
+}
+
 JitEngine::~JitEngine() = default;
 
 void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {
@@ -31,6 +34,11 @@ void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {
     const u64 swizzle_hash = setup.GetSwizzleDataHash();
 
     const u64 cache_key = Common::HashCombine(code_hash, swizzle_hash);
+    if (last_shader != nullptr && cache_key == last_cache_key) [[likely]] {
+        setup.cached_shader = last_shader;
+        return;
+    }
+
     auto iter = cache.find(cache_key);
     if (iter != cache.end()) {
         setup.cached_shader = iter->second.get();
@@ -40,6 +48,8 @@ void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {
         setup.cached_shader = shader.get();
         cache.emplace_hint(iter, cache_key, std::move(shader));
     }
+    last_cache_key = cache_key;
+    last_shader = static_cast<const JitShader*>(setup.cached_shader);
 }
 
 MICROPROFILE_DECLARE(GPU_Shader);

@@ -74,7 +74,7 @@
                 android:dependency="enable_storm_compiler"
                 android:entries="@array/jit_perf_mode_options"
                 android:entryValues="@array/jit_perf_mode_values"
-                android:defaultValue="1" />
+                android:defaultValue="3" />
 
         <Preference
                 android:key="3ds_low_end_preset"
