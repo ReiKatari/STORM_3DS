@@ -308,5 +308,7 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Отключает рендер буфера второго глаза в режиме без 3D-стерео (+FPS)</string>
     <string name="setup_3ds_key_ok">Найден (OK)</string>
     <string name="setup_3ds_key_missing">Отсутствует</string>
+    <string name="update_install_permission_required">Разрешите установку приложений из этого источника для применения обновления</string>
+    <string name="save_state_copy_format">%1$s (Копия)</string>
 </resources>
 

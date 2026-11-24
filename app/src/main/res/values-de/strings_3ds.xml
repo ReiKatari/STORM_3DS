@@ -307,4 +307,6 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Überspringt das Rendern des rechten Auges bei deaktiviertem 3D (+FPS)</string>
     <string name="setup_3ds_key_ok">Gefunden (OK)</string>
     <string name="setup_3ds_key_missing">Fehlt</string>
+    <string name="update_install_permission_required">Erlaube die Installation von Apps aus dieser Quelle, um das Update anzuwenden</string>
+    <string name="save_state_copy_format">%1$s (Kopie)</string>
 </resources>

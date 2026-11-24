@@ -36,7 +36,7 @@ abstract class CompressedRomFileProcessor(
 
     companion object {
         private val PLAYABLE_ROM_EXTENSIONS = setOf(
-            "3ds", "cci", "zcci", "bcci", "cxi", "zcxi", "bcxi", "app", "3dsx", "z3dsx",
+            "3ds", "z3ds", "cci", "zcci", "bcci", "cxi", "zcxi", "bcxi", "app", "3dsx", "z3dsx",
         )
         private val INSTALLABLE_CIA_EXTENSIONS = setOf("cia", "zcia", "bcia")
         private val OTHER_SUPPORTED_EXTENSIONS = setOf("elf", "axf", "artic")

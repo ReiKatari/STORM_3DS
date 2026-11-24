@@ -114,7 +114,7 @@ else()
         # Build fortification options
         -fstack-protector-strong
     )
-    if (NOT ENABLE_LIBRETRO)
+    if (NOT ENABLE_LIBRETRO AND NOT (ANDROID AND NOT CMAKE_BUILD_TYPE STREQUAL Debug))
         add_compile_options(
             -Wp,-D_GLIBCXX_ASSERTIONS
             -fstack-clash-protection

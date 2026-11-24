@@ -49,7 +49,9 @@ import com.storm3ds.emulator.domain.model.Version
 import com.storm3ds.emulator.domain.model.appupdate.AppUpdate
 import com.storm3ds.emulator.domain.model.rom.Rom
 import com.storm3ds.emulator.ui.common.rom.EmulatorLaunchValidatorDelegate
+import com.storm3ds.emulator.github.services.GitHubUpdateInstallManager
 import com.storm3ds.emulator.ui.emulator.EmulatorActivity
+import java.io.File
 import com.storm3ds.emulator.ui.settings.SettingsActivity
 import javax.inject.Inject
 
@@ -66,7 +68,9 @@ class RomListActivity : AppCompatActivity() {
     private val updatesViewModel: UpdatesViewModel by viewModels()
     private lateinit var emulatorLauncherValidatorDelegate: EmulatorLaunchValidatorDelegate
 
+    private var activeUpdateDialog: AlertDialog? = null
     private var downloadProgressDialog: AlertDialog? = null
+    private var pendingUpdateApkPath: String? = null
     private var romBrowserDpadDownGate: (() -> Boolean)? = null
     private var hasPromptedStoragePermissionThisSession = false
     private val externalInfoController by lazy { com.storm3ds.emulator.ui.common.ExternalInfoDisplayController(this) }
@@ -279,9 +283,9 @@ class RomListActivity : AppCompatActivity() {
                             // Handled by appUpdate flow
                         }
                         is ManualUpdateResult.UpToDate -> {
-                            val curVer = runCatching {
+                            val curVer = (runCatching {
                                 packageManager.getPackageInfo(packageName, 0).versionName
-                            }.getOrNull() ?: BuildConfig.VERSION_NAME
+                            }.getOrNull() ?: BuildConfig.VERSION_NAME).removePrefix("v").removePrefix("V")
                             AlertDialog.Builder(this@RomListActivity)
                                 .setTitle(R.string.v800_update_up_to_date_title)
                                 .setMessage(getString(R.string.v800_update_up_to_date_msg, curVer))
@@ -530,13 +534,17 @@ class RomListActivity : AppCompatActivity() {
     }
 
     private fun showProdUpdateAvailableDialog(update: AppUpdate) {
+        if (isFinishing || isDestroyed) return
         val currentVersionStr = runCatching {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
             pInfo.versionName ?: BuildConfig.VERSION_NAME
         }.getOrDefault(BuildConfig.VERSION_NAME)
 
         val newVersionStr = getReadableVersionString(update.newVersion)
-        val message = markwon.toMarkdown(update.description)
+        val rawDescription = update.description.ifBlank {
+            "STORM 3DS ${newVersionStr.removePrefix("v").removePrefix("V")}"
+        }
+        val message = markwon.toMarkdown(rawDescription)
 
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_styled_update, null, false)
         val tvCurrentVersion = dialogView.findViewById<android.widget.TextView>(R.id.tv_current_version)
@@ -550,10 +558,12 @@ class RomListActivity : AppCompatActivity() {
         tvNewVersion?.text = newVersionStr.removePrefix("v").removePrefix("V")
         tvChangelog?.text = message
 
+        activeUpdateDialog?.dismiss()
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .setCancelable(true)
             .create()
+        activeUpdateDialog = dialog
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
@@ -573,7 +583,9 @@ class RomListActivity : AppCompatActivity() {
     }
 
     private fun showNightlyUpdateAvailableDialog(update: AppUpdate) {
-        AlertDialog.Builder(this)
+        if (isFinishing || isDestroyed) return
+        activeUpdateDialog?.dismiss()
+        activeUpdateDialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.nightly_update_available))
             .setMessage(getString(R.string.nightly_update_available_message))
             .setPositiveButton(R.string.update) { _, _ ->
@@ -600,37 +612,57 @@ class RomListActivity : AppCompatActivity() {
     }
 
     private fun onDownloadProgressUpdated(downloadProgress: DownloadProgress) {
-        downloadProgressDialog?.let {
-            when (downloadProgress) {
-                is DownloadProgress.DownloadUpdate -> {
-                    val progressBar = it.findViewById<ProgressBar>(R.id.progress_bar_download_progress)!!
-                    val progressText = it.findViewById<TextView>(R.id.text_download_progress)!!
+        when (downloadProgress) {
+            is DownloadProgress.DownloadUpdate -> {
+                val dlg = downloadProgressDialog ?: return
+                val progressBar = dlg.findViewById<ProgressBar>(R.id.progress_bar_download_progress) ?: return
+                val progressText = dlg.findViewById<TextView>(R.id.text_download_progress)
 
-                    val totalSize = downloadProgress.totalSize
-                    if (totalSize > 0) {
-                        val progress = (downloadProgress.downloadedBytes.toDouble() / totalSize) * 100
-                        val downloadedMb = (downloadProgress.downloadedBytes.toDouble() / 1024 / 1024)
-                        val totalMb = (totalSize.toDouble() / 1024 / 1024)
+                val totalSize = downloadProgress.totalSize
+                if (totalSize > 0) {
+                    val progress = ((downloadProgress.downloadedBytes.toDouble() / totalSize) * 100.0).toInt().coerceIn(0, 100)
+                    val downloadedMb = downloadProgress.downloadedBytes.toDouble() / (1024.0 * 1024.0)
+                    val totalMb = totalSize.toDouble() / (1024.0 * 1024.0)
 
-                        progressBar.apply {
-                            isIndeterminate = false
-                            this.progress = progress.toInt()
-                        }
-
-                        progressText.text = getString(R.string.download_progress_sizes, downloadedMb, totalMb)
+                    progressBar.isIndeterminate = false
+                    progressBar.progress = progress
+                    progressText?.text = getString(R.string.download_progress_sizes, downloadedMb, totalMb)
+                } else {
+                    val downloadedMb = downloadProgress.downloadedBytes.toDouble() / (1024.0 * 1024.0)
+                    progressBar.isIndeterminate = true
+                    progressText?.text = if (downloadedMb > 0.01) {
+                        String.format(java.util.Locale.US, "%.1f MB", downloadedMb)
                     } else {
-                        progressBar.isIndeterminate = true
-                        progressText.text = ""
+                        ""
                     }
                 }
-                is DownloadProgress.DownloadComplete -> {
-                    it.dismiss()
-                    downloadProgressDialog = null
-                }
-                is DownloadProgress.DownloadFailed -> {
-                    it.dismiss()
-                    downloadProgressDialog = null
-                    Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+            }
+            is DownloadProgress.DownloadComplete -> {
+                runCatching { downloadProgressDialog?.dismiss() }
+                downloadProgressDialog = null
+            }
+            is DownloadProgress.DownloadFailed -> {
+                runCatching { downloadProgressDialog?.dismiss() }
+                downloadProgressDialog = null
+                Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+            }
+            is DownloadProgress.InstallPermissionRequired -> {
+                runCatching { downloadProgressDialog?.dismiss() }
+                downloadProgressDialog = null
+                pendingUpdateApkPath = downloadProgress.apkPath
+                Toast.makeText(this, R.string.update_install_permission_required, Toast.LENGTH_LONG).show()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    runCatching {
+                        startActivity(
+                            Intent(
+                                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                android.net.Uri.parse("package:$packageName"),
+                            )
+                        )
+                    }.onFailure {
+                        pendingUpdateApkPath = null
+                        Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
@@ -665,6 +697,8 @@ class RomListActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        activeUpdateDialog?.dismiss()
+        activeUpdateDialog = null
         downloadProgressDialog?.dismiss()
         downloadProgressDialog = null
         super.onDestroy()
@@ -704,6 +738,17 @@ class RomListActivity : AppCompatActivity() {
         com.storm3ds.emulator.MelonDSApplication.migrateStorageToRoot(this)
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             settingsBackupManager.syncExternalSettingsIfModified(force = false)
+        }
+        val pendingPath = pendingUpdateApkPath
+        if (pendingPath != null) {
+            val installManager = GitHubUpdateInstallManager(this)
+            if (installManager.canRequestPackageInstalls()) {
+                pendingUpdateApkPath = null
+                val apkFile = File(pendingPath)
+                if (!installManager.openInstaller(apkFile)) {
+                    Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 

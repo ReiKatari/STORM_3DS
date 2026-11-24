@@ -307,4 +307,6 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">关闭 3D 景深时跳过右眼画面渲染以提升帧率 (+FPS)</string>
     <string name="setup_3ds_key_ok">已找到 (OK)</string>
     <string name="setup_3ds_key_missing">缺失</string>
+    <string name="update_install_permission_required">请允许从此来源安装应用以完成更新</string>
+    <string name="save_state_copy_format">%1$s (副本)</string>
 </resources>

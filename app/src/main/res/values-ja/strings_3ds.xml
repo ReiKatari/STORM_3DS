@@ -307,4 +307,6 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">3D立体視オフ時に右目用バッファの描画を省き、パフォーマンスを向上させます</string>
     <string name="setup_3ds_key_ok">検出済み (OK)</string>
     <string name="setup_3ds_key_missing">未検出</string>
+    <string name="update_install_permission_required">アップデートを適用するには、この提供元からのアプリインストールを許可してください</string>
+    <string name="save_state_copy_format">%1$s (コピー)</string>
 </resources>

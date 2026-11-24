@@ -56,7 +56,11 @@ open class BaseMirrorUpdatesRepository(
         }
 
         return suspendRunCatching {
-            StormUpdateMirrorClient.fetchReleasesWithMirror(primaryFetcher)
+            val result = StormUpdateMirrorClient.fetchReleasesWithStatus(primaryFetcher)
+            if (!result.anySourceSucceeded && result.releases.isEmpty()) {
+                throw java.io.IOException("Unable to reach update servers")
+            }
+            result.releases
         }.suspendMapCatching { releases ->
             if (releases.isEmpty()) {
                 return@suspendMapCatching null

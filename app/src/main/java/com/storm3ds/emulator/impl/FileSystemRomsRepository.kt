@@ -103,6 +103,9 @@ class FileSystemRomsRepository(
     @Volatile private var hasUnavailableSearchDirectories = false
     private val scanMutex = Mutex()
     private val romDataMutex = Mutex()
+    private val metadataMirrorLock = Any()
+    private var cachedMetadataMirrorMtime: Long = -1L
+    private var cachedMetadataMirrorList: List<RomMetadataMirrorDto> = emptyList()
     private val initJob = coroutineScope.launch {
         loadDirectoryStates()
         ensureRomSearchDirectoriesInitialized()
@@ -535,14 +538,24 @@ class FileSystemRomsRepository(
         if (!metadataFile.isFile) {
             return emptyList()
         }
-
-        return runCatching {
+        val mtime = metadataFile.lastModified()
+        synchronized(metadataMirrorLock) {
+            if (cachedMetadataMirrorMtime == mtime && mtime > 0L) {
+                return cachedMetadataMirrorList
+            }
+        }
+        val parsed = runCatching {
             FileReader(metadataFile).use { reader ->
                 gson.fromJson<List<RomMetadataMirrorDto>>(reader, romMetadataMirrorListType).orEmpty()
             }
         }.onFailure {
             Log.w(TAG, "Failed to parse restored ROM metadata", it)
         }.getOrElse { emptyList() }
+        synchronized(metadataMirrorLock) {
+            cachedMetadataMirrorMtime = mtime
+            cachedMetadataMirrorList = parsed
+        }
+        return parsed
     }
 
     private fun syncRomOptionsFile(rom: Rom) {

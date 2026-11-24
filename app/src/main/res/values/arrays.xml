@@ -10,9 +10,11 @@
     </string-array>
     <string-array name="update_channel_options">
         <item>@string/update_channel_stable</item>
+        <item>@string/update_channel_prerelease</item>
     </string-array>
     <string-array name="update_channel_values">
         <item>stable</item>
+        <item>stable_and_prerelease</item>
     </string-array>
 
     <!-- Auto-Translator Arrays -->
@@ -525,23 +527,23 @@
 
     <string-array name="video_vulkan_3d_depth_mode_options">
         <item>@string/video_vulkan_3d_depth_mode_off</item>
+        <item>@string/video_vulkan_3d_depth_mode_gyro</item>
+        <item>@string/video_vulkan_3d_depth_mode_anaglyph</item>
         <item>@string/video_vulkan_3d_depth_mode_sbs</item>
         <item>@string/video_vulkan_3d_depth_mode_sbs_full</item>
-        <item>@string/video_vulkan_3d_depth_mode_anaglyph</item>
         <item>@string/video_vulkan_3d_depth_mode_interlaced</item>
         <item>@string/video_vulkan_3d_depth_mode_reverse_interlaced</item>
         <item>@string/video_vulkan_3d_depth_mode_cardboard_vr</item>
-        <item>@string/video_vulkan_3d_depth_mode_gyro</item>
     </string-array>
     <string-array name="video_vulkan_3d_depth_mode_values">
         <item>off</item>
+        <item>gyro_parallax</item>
+        <item>anaglyph</item>
         <item>sbs_xr</item>
         <item>sbs_full</item>
-        <item>anaglyph</item>
         <item>interlaced</item>
         <item>reverse_interlaced</item>
         <item>cardboard_vr</item>
-        <item>gyro_parallax</item>
     </string-array>
 
     <string-array name="video_vulkan_3d_depth_strength_options">

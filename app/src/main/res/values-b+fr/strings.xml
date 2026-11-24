@@ -862,7 +862,7 @@
     <string name="keep_ds_ratio">Conserver le ratio d\'aspect 3DS (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Préréglages</string>
     <string name="dual_screen_presets_settings_title">Préréglages double écran</string>
-    <string name="dual_screen_presets_summary">Préréglage : %1$s\nProportions DS : %2$s • Échelle entière : %3$s\nH interne : %4$s • L interne : %5$s\nH externe : %6$s • L externe : %7$s</string>
+    <string name="dual_screen_presets_summary">Préréglage : %1$s\nProportions 3DS : %2$s • Échelle entière : %3$s\nH interne : %4$s • L interne : %5$s\nH externe : %6$s • L externe : %7$s</string>
     <string name="dual_screen_presets_disabled_hint">Préréglages désactivés. Sélectionnez un préréglage pour activer les options ci-dessous.</string>
     <string name="dual_screen_preset_off">Désactivé (disposition manuelle)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">Interne : haut, externe : bas</string>
@@ -874,8 +874,8 @@
     <string name="dual_screen_external_fill_width">Remplir la largeur externe</string>
     <string name="dual_screen_fill_area_button">Options de remplissage de zone</string>
     <string name="dual_screen_fill_area_title">Options de remplissage de zone</string>
-    <string name="dual_screen_fill_area_description">Choisissez quels écrans DS s\'étirent verticalement ou horizontalement lorsque l\'échelle entière ou les proportions DS sont actives.</string>
-    <string name="dual_screen_fill_area_requires_integer">Activez l\'échelle entière ou les proportions DS pour ajuster ces options.</string>
+    <string name="dual_screen_fill_area_description">Choisissez quels écrans 3DS s\'étirent verticalement ou horizontalement lorsque l\'échelle entière ou les proportions 3DS sont actives.</string>
+    <string name="dual_screen_fill_area_requires_integer">Activez l\'échelle entière ou les proportions 3DS pour ajuster ces options.</string>
     <string name="dual_screen_fill_section_internal">Écran interne</string>
     <string name="dual_screen_fill_section_external">Écran externe</string>
     <string name="dual_screen_fill_height_label">Hauteur</string>
@@ -1245,7 +1245,7 @@ Les importer dans STORM 3DS ?</string>
     <string name="app_language">Langue de l\'application</string>
     <string name="app_language_summary">Choisir la langue de l\'interface de STORM 3DS</string>
     <string name="dual_screen_info_title">Fonctionnement des préréglages double écran</string>
-    <string name="dual_screen_info_desc">Allows distributing the top and bottom Nintendo 3DS screens between your device screen and an external monitor/TV (via USB-C, HDMI, or wireless cast).\n\n• 📱 Keep DS Aspect Ratio: maintains authentic 4:3 aspect ratio without image stretching.\n• 🔲 Integer Scale: scales pixels in exact integer multipliers (1x, 2x, 3x) for crisp pixel-perfect visuals without blur.\n• 📏 Fill Area et Alignment: customize vertical alignment and display coverage.</string>
+    <string name="dual_screen_info_desc">Permet de répartir les écrans supérieur et inférieur de la Nintendo 3DS entre l\'écran de votre appareil et un moniteur ou téléviseur externe (via USB-C, HDMI ou diffusion sans fil).\n\n• 📱 Conserver le ratio 3DS : maintient les proportions authentiques 5:3 / 4:3 sans déformation.\n• 🔲 Échelle entière : met les pixels à l\'échelle par multiples entiers (1x, 2x, 3x) pour un rendu net sans flou.\n• 📏 Zone de remplissage et alignement : personnalisez l\'alignement vertical et la couverture de l\'écran.</string>
     <string name="theme_accent_color_title">Couleur d\'accentuation</string>
     <string name="theme_accent_color_summary">Choisir la couleur néon d\'accentuation pour le thème STORM NIGHT</string>
     <string name="accent_theme_default">Couleur du thème</string>
@@ -1423,7 +1423,7 @@ Les importer dans STORM 3DS ?</string>
     <string name="vulkan_debug_dump_report">Enregistrer le rapport de débogage Vulkan</string>
     <string name="vulkan_debug_dump_report_success">Rapport de débogage Vulkan enregistré dans %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Échec de l\'enregistrement du rapport de débogage Vulkan</string>
-    <string name="video_vulkan_3d_depth_mode_title">Effet de profondeur 3D réel (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Effet de profondeur 3D réel</string>
     <string name="video_vulkan_3d_depth_mode_off">Désactivé</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Parallaxe 3D gyroscopique (profondeur de fenêtre)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Anaglyphe 3D stéréoscopique (rouge / cyan)</string>

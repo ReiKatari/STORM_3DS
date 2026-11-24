@@ -782,7 +782,7 @@
     <string name="keep_ds_ratio">Keep 3DS aspect ratio (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Presets</string>
     <string name="dual_screen_presets_settings_title">Dual screen presets</string>
-    <string name="dual_screen_presets_summary">Preset: %1$s\nKeep DS ratio: %2$s • Integer scale: %3$s\nInternal H: %4$s • Internal W: %5$s\nExternal H: %6$s • External W: %7$s</string>
+    <string name="dual_screen_presets_summary">Preset: %1$s\nKeep 3DS ratio: %2$s • Integer scale: %3$s\nInternal H: %4$s • Internal W: %5$s\nExternal H: %6$s • External W: %7$s</string>
     <string name="dual_screen_presets_disabled_hint">Presets disabled. Select a preset to enable the options below.</string>
     <string name="dual_screen_preset_off">Disabled (manual layout)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">Internal: top, external: bottom</string>
@@ -794,8 +794,8 @@
     <string name="dual_screen_external_fill_width">Fill external width</string>
     <string name="dual_screen_fill_area_button">Fill area options</string>
     <string name="dual_screen_fill_area_title">Fill area options</string>
-    <string name="dual_screen_fill_area_description">Choose which DS screens stretch vertically or horizontally when Integer scale or Keep DS ratio is active.</string>
-    <string name="dual_screen_fill_area_requires_integer">Enable Integer scale or Keep DS ratio to adjust these options.</string>
+    <string name="dual_screen_fill_area_description">Choose which 3DS screens stretch vertically or horizontally when Integer scale or Keep 3DS ratio is active.</string>
+    <string name="dual_screen_fill_area_requires_integer">Enable Integer scale or Keep 3DS ratio to adjust these options.</string>
     <string name="dual_screen_fill_section_internal">Internal screen</string>
     <string name="dual_screen_fill_section_external">External screen</string>
     <string name="dual_screen_fill_height_label">Height</string>
@@ -1503,7 +1503,7 @@
     <string name="app_language">App language</string>
     <string name="app_language_summary">Select the interface language for STORM 3DS</string>
     <string name="dual_screen_info_title">How dual screen presets work</string>
-    <string name="dual_screen_info_desc">Allows distributing the top and bottom Nintendo 3DS screens between your device screen and an external monitor/TV (via USB-C, HDMI, or wireless cast).\n\n• 📱 Keep DS Aspect Ratio: maintains authentic 4:3 aspect ratio without image stretching.\n• 🔲 Integer Scale: scales pixels in exact integer multipliers (1x, 2x, 3x) for crisp pixel-perfect visuals without blur.\n• 📏 Fill Area and Alignment: customize vertical alignment and display coverage.</string>
+    <string name="dual_screen_info_desc">Allows distributing the top and bottom Nintendo 3DS screens between your device screen and an external monitor/TV (via USB-C, HDMI, or wireless cast).\n\n• 📱 Keep 3DS Aspect Ratio: maintains authentic 5:3 / 4:3 aspect ratio without image stretching.\n• 🔲 Integer Scale: scales pixels in exact integer multipliers (1x, 2x, 3x) for crisp pixel-perfect visuals without blur.\n• 📏 Fill Area and Alignment: customize vertical alignment and display coverage.</string>
 
     <!-- STORM Theme Studio and Colors -->
     <string name="theme_accent_color_title">Accent color</string>
@@ -1644,7 +1644,7 @@
     <string name="vulkan_debug_dump_report">Save Vulkan debug report</string>
     <string name="vulkan_debug_dump_report_success">Vulkan debug report saved to %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Failed to save Vulkan debug report</string>
-    <string name="video_vulkan_3d_depth_mode_title">Real 3D depth effect (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Real 3D depth effect</string>
     <string name="video_vulkan_3d_depth_mode_off">Off</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Gyroscopic 3D parallax (window depth)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Stereoscopic 3D anaglyph (red / cyan)</string>

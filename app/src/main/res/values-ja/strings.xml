@@ -735,7 +735,7 @@
     <string name="keep_ds_ratio">3DSのアスペクト比を維持 (5:3 / 4:3)</string>
     <string name="dual_screen_presets">プリセット</string>
     <string name="dual_screen_presets_settings_title">デュアルスクリーンプリセット</string>
-    <string name="dual_screen_presets_summary">プリセット: %1$s\nDS比率維持: %2$s • 整数スケーリング: %3$s\n内蔵 縦: %4$s • 内蔵 横: %5$s\n外部 縦: %6$s • 外部 横: %7$s</string>
+    <string name="dual_screen_presets_summary">プリセット: %1$s\n3DS比率維持: %2$s • 整数スケーリング: %3$s\n内蔵 縦: %4$s • 内蔵 横: %5$s\n外部 縦: %6$s • 外部 横: %7$s</string>
     <string name="dual_screen_presets_disabled_hint">プリセットが無効です。以下のオプションを有効にするにはプリセットを選択してください。</string>
     <string name="dual_screen_preset_off">無効 (手動レイアウト)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">内蔵: 上画面、外部: 下画面</string>
@@ -747,8 +747,8 @@
     <string name="dual_screen_external_fill_width">外部の幅を満たす</string>
     <string name="dual_screen_fill_area_button">エリア充填オプション</string>
     <string name="dual_screen_fill_area_title">エリア充填オプション</string>
-    <string name="dual_screen_fill_area_description">整数スケーリングまたはDS比率維持が有効な際、どちらのDS画面を縦または横に引き伸ばすか選択します。</string>
-    <string name="dual_screen_fill_area_requires_integer">これらのオプションを調整するには整数スケーリングまたはDS比率維持を有効にしてください。</string>
+    <string name="dual_screen_fill_area_description">整数スケーリングまたは3DS比率維持が有効な際、どちらの3DS画面を縦または横に引き伸ばすか選択します。</string>
+    <string name="dual_screen_fill_area_requires_integer">これらのオプションを調整するには整数スケーリングまたは3DS比率維持を有効にしてください。</string>
     <string name="dual_screen_fill_section_internal">内蔵画面</string>
     <string name="dual_screen_fill_section_external">外部画面</string>
     <string name="dual_screen_fill_height_label">高さ</string>
@@ -1169,7 +1169,7 @@
     <string name="app_language">アプリ言語</string>
     <string name="app_language_summary">STORM 3DSの表示言語を選択</string>
     <string name="dual_screen_info_title">デュアルスクリーンプリセットの仕組み</string>
-    <string name="dual_screen_info_desc">端末画面と外部モニター/テレビ (USB-C、HDMI、ワイヤレスキャスト) の間でNintendo 3DSの上下画面を振り分けて表示できます。\n\n• 📱 DSアスペクト比を維持: 画像を引き伸ばさずに本来の4:3比率を維持します。\n• 🔲 整数スケーリング: ぼやけのないクッキリとしたピクセル表示のため、整数倍 (1x, 2x, 3x) で拡大します。\n• 📏 充填領域と配置: 垂直配置や画面カバー範囲をカスタマイズできます。</string>
+    <string name="dual_screen_info_desc">端末画面と外部モニター/テレビ (USB-C、HDMI、ワイヤレスキャスト) の間でNintendo 3DSの上下画面を振り分けて表示できます。\n\n• 📱 3DSアスペクト比を維持: 画像を引き伸ばさずに本来の4:3比率を維持します。\n• 🔲 整数スケーリング: ぼやけのないクッキリとしたピクセル表示のため、整数倍 (1x, 2x, 3x) で拡大します。\n• 📏 充填領域と配置: 垂直配置や画面カバー範囲をカスタマイズできます。</string>
     <string name="theme_accent_color_title">アクセントカラー</string>
     <string name="theme_accent_color_summary">STORM NIGHTテーマ用のネオンアクセントカラーを選択</string>
     <string name="accent_theme_default">テーマのデフォルト</string>
@@ -1575,7 +1575,7 @@
     <string name="vulkan_debug_dump_report">Vulkan デバッグレポートを保存</string>
     <string name="vulkan_debug_dump_report_success">Vulkan デバッグレポートを %1$s に保存しました</string>
     <string name="vulkan_debug_dump_report_failed">Vulkan デバッグレポートの保存に失敗しました</string>
-    <string name="video_vulkan_3d_depth_mode_title">リアル3D立体視エフェクト (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">リアル3D立体視エフェクト</string>
     <string name="video_vulkan_3d_depth_mode_off">オフ</string>
     <string name="video_vulkan_3d_depth_mode_gyro">ジャイロ3D視差 (ウィンドウ奥行き)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">ステレオ3Dアナグリフ (赤 / シアン)</string>

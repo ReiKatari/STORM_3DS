@@ -307,4 +307,6 @@ SDMC : %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Ignore le rendu du second œil lorsque la 3D stéréo est désactivée (+FPS)</string>
     <string name="setup_3ds_key_ok">Trouvé (OK)</string>
     <string name="setup_3ds_key_missing">Manquant</string>
+    <string name="update_install_permission_required">Autorisez l\'installation d\'applications depuis cette source pour appliquer la mise à jour</string>
+    <string name="save_state_copy_format">%1$s (Copie)</string>
 </resources>

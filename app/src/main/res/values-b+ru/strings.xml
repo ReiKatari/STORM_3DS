@@ -265,7 +265,7 @@
     <string name="keep_ds_ratio">Сохранять пропорции 3DS (5:3 / 4:3)</string>
   <string name="dual_screen_presets">Пресеты экранов</string>
   <string name="dual_screen_presets_settings_title">Пресеты двух экранов</string>
-  <string name="dual_screen_presets_summary">Пресет: %1$s\nПропорции DS: %2$s • Целочисленный масштаб: %3$s\nВнутренний В: %4$s • Внутренний Ш: %5$s\nВнешний В: %6$s • Внешний Ш: %7$s</string>
+  <string name="dual_screen_presets_summary">Пресет: %1$s\nПропорции 3DS: %2$s • Целочисленный масштаб: %3$s\nВнутренний В: %4$s • Внутренний Ш: %5$s\nВнешний В: %6$s • Внешний Ш: %7$s</string>
   <string name="dual_screen_presets_disabled_hint">Пресеты отключены. Выберите пресет для активации параметров.</string>
   <string name="dual_screen_preset_off">Отключены (ручная настройка)</string>
   <string name="dual_screen_preset_internal_top_external_bottom">Внутренний: верхний, внешний: нижний</string>
@@ -277,8 +277,8 @@
   <string name="dual_screen_external_fill_width">Заполнить ширину внешнего экрана</string>
   <string name="dual_screen_fill_area_button">Параметры заполнения</string>
   <string name="dual_screen_fill_area_title">Параметры заполнения области</string>
-  <string name="dual_screen_fill_area_description">Выберите растяжение экранов DS по горизонтали и вертикали.</string>
-  <string name="dual_screen_fill_area_requires_integer">Включите целочисленный масштаб или сохранение пропорций DS.</string>
+  <string name="dual_screen_fill_area_description">Выберите растяжение экранов 3DS по горизонтали и вертикали.</string>
+  <string name="dual_screen_fill_area_requires_integer">Включите целочисленный масштаб или сохранение пропорций 3DS.</string>
   <string name="dual_screen_fill_section_internal">Внутренний экран</string>
   <string name="dual_screen_fill_section_external">Внешний экран</string>
   <string name="dual_screen_fill_height_label">Высота</string>
@@ -1438,7 +1438,7 @@
   <string name="app_language">Язык приложения</string>
   <string name="app_language_summary">Выбор языка интерфейса STORM 3DS</string>
   <string name="dual_screen_info_title">Как работают пресеты двух экранов</string>
-  <string name="dual_screen_info_desc">Позволяет разделить верхний и нижний дисплеи Nintendo 3DS между экраном смартфона и внешним подключенным монитором/ТВ (через USB-C, HDMI или трансляцию).\n\n• 📱 Сохранять пропорции DS: фиксирует классическое соотношение сторон 4:3 без растягивания.\n• 🔲 Целочисленный масштаб (Integer Scale): пиксели увеличиваются строго кратно (1x, 2x, 3x), обеспечивая идеальную четкость без мыла и размытия.\n• 📏 Области заполнения и выравнивание: точная подгонка позиции картинки по вертикали и заполнения краев.</string>
+  <string name="dual_screen_info_desc">Позволяет разделить верхний и нижний дисплеи Nintendo 3DS между экраном смартфона и внешним подключенным монитором/ТВ (через USB-C, HDMI или трансляцию).\n\n• 📱 Сохранять пропорции 3DS: фиксирует оригинальное соотношение сторон 5:3 / 4:3 без растягивания.\n• 🔲 Целочисленный масштаб (Integer Scale): пиксели увеличиваются строго кратно (1x, 2x, 3x), обеспечивая идеальную четкость без мыла и размытия.\n• 📏 Области заполнения и выравнивание: точная подгонка позиции картинки по вертикали и заполнения краев.</string>
     <!-- STORM Theme Studio  and  Colors -->
     <string name="theme_accent_color_title">Акцентный цвет темы</string>
     <string name="theme_accent_color_summary">Выбор неонового акцента для темы STORM NIGHT</string>
@@ -1573,7 +1573,7 @@
     <string name="vulkan_debug_dump_report">Сохранить отчёт Vulkan</string>
     <string name="vulkan_debug_dump_report_success">Отчёт Vulkan сохранён в %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Не удалось сохранить отчёт Vulkan</string>
-    <string name="video_vulkan_3d_depth_mode_title">Реальный 3D-эффект глубины (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Реальный 3D-эффект глубины</string>
     <string name="video_vulkan_3d_depth_mode_off">Отключён</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Гироскопический 3D-параллакс (окно в глубину)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Стереоскопический 3D-анаглиф (красный / голубой)</string>
@@ -1589,7 +1589,7 @@
     <string name="video_ds_hinge_gap_title">Физический зазор петли между экранами</string>
     <string name="video_ds_hinge_gap_0">Без зазора (0 пикс.)</string>
     <string name="video_ds_hinge_gap_32">Малый зазор (32 пикс.)</string>
-    <string name="video_ds_hinge_gap_64">Стандарт DS Lite (64 пикс.)</string>
+    <string name="video_ds_hinge_gap_64">Nintendo 3DS Lite (64 пикс.)</string>
     <string name="video_ds_hinge_gap_90">Широкий зазор DSi XL (90 пикс.)</string>
     <string name="enhancement_active_notification">Активно: %1$s</string>
     <string name="rom_settings_slot2_addon_title">Аксессуар Slot-2 (GBA)</string>

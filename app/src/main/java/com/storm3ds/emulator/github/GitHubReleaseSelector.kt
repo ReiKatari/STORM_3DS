@@ -78,17 +78,17 @@ object GitHubReleaseSelector {
     }
 
     private fun belongsToConfiguredRepository(release: ReleaseDto): Boolean {
-        return release.htmlUrl.startsWith("${GITHUB_RELEASE_URL_PREFIX}tag/") ||
-            release.htmlUrl.startsWith(STORM_GAMES_WORLD_RELEASE_URL_PREFIX) ||
-            release.htmlUrl.startsWith(STORM_GAMES_WORLD_ALT_RELEASE_URL_PREFIX)
+        return release.htmlUrl.startsWith("${GITHUB_RELEASE_URL_PREFIX}tag/", ignoreCase = true) ||
+            release.htmlUrl.startsWith(STORM_GAMES_WORLD_RELEASE_URL_PREFIX, ignoreCase = true) ||
+            release.htmlUrl.startsWith(STORM_GAMES_WORLD_ALT_RELEASE_URL_PREFIX, ignoreCase = true)
     }
 
     private fun isRepositoryDownload(asset: AssetDto): Boolean {
         return asset.id > 0 &&
             asset.size >= 0 &&
-            (asset.url.startsWith("${GITHUB_RELEASE_URL_PREFIX}download/") ||
-                asset.url.startsWith(STORM_GAMES_WORLD_DOWNLOAD_URL_PREFIX) ||
-                asset.url.startsWith(STORM_GAMES_WORLD_ALT_DOWNLOAD_URL_PREFIX))
+            (asset.url.startsWith("${GITHUB_RELEASE_URL_PREFIX}download/", ignoreCase = true) ||
+                asset.url.startsWith(STORM_GAMES_WORLD_DOWNLOAD_URL_PREFIX, ignoreCase = true) ||
+                asset.url.startsWith(STORM_GAMES_WORLD_ALT_DOWNLOAD_URL_PREFIX, ignoreCase = true))
     }
 
     private fun parsePublishedAt(release: ReleaseDto): Instant? {

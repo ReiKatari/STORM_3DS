@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.system.Os
 import androidx.documentfile.provider.DocumentFile
+import com.storm3ds.emulator.R
 import com.storm3ds.emulator.common.uridelegates.UriHandler
 import com.storm3ds.emulator.domain.model.rom.Rom
 import com.storm3ds.emulator.domain.model.SaveStateSlot
@@ -158,11 +159,12 @@ class FileSystemSaveStatesRepository(
             }
         }
 
+        copyNativeCstForSlot(rom, sourceSlot.slot, targetSlotNumber)
         saveStateScreenshotProvider.duplicateRomSaveStateScreenshot(rom, sourceSlot, targetSlotNumber)
 
         val srcName = getSaveStateCustomName(rom, sourceSlot.slot)
         if (!srcName.isNullOrBlank()) {
-            setSaveStateCustomName(rom, targetSlotNumber, "$srcName (Копия)")
+            setSaveStateCustomName(rom, targetSlotNumber, context.getString(R.string.save_state_copy_format, srcName))
         }
     }
 
@@ -198,25 +200,44 @@ class FileSystemSaveStatesRepository(
         return uriHandler.getUriTreeDocument(saveStateDirectoryUri)
     }
 
-    private fun deleteNativeCstForSlot(rom: Rom, slotNumber: Int) {
+    private fun resolveNativeCstFile(rom: Rom, slotNumber: Int): java.io.File? {
         val nativeSlot = when (slotNumber) {
             SaveStateSlot.PERIODIC_AUTO_SAVE_SLOT -> 9
             else -> slotNumber.coerceIn(0, 10)
         }
+        val tidHex = rom.gameCode.trim().uppercase().takeIf { it.length == 16 && it.all { ch -> ch in '0'..'9' || ch in 'A'..'F' } }
+            ?: String.format(java.util.Locale.US, "%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
+        if (tidHex == "0000000000000000") return null
+        val statesDir = java.io.File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "states")
+        return java.io.File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, nativeSlot))
+    }
+
+    private fun deleteNativeCstForSlot(rom: Rom, slotNumber: Int) {
         runCatching {
-            val tidHex = rom.gameCode.trim().uppercase().takeIf { it.length == 16 && it.all { ch -> ch in '0'..'9' || ch in 'A'..'F' } }
-                ?: String.format(java.util.Locale.US, "%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
-            if (tidHex == "0000000000000000") return@runCatching
-            val statesDir = java.io.File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "states")
-            val cst = java.io.File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, nativeSlot))
+            val cst = resolveNativeCstFile(rom, slotNumber) ?: return@runCatching
             if (cst.isFile) {
                 cst.delete()
             }
         }
     }
 
+    private fun copyNativeCstForSlot(rom: Rom, sourceSlotNumber: Int, targetSlotNumber: Int) {
+        runCatching {
+            val srcCst = resolveNativeCstFile(rom, sourceSlotNumber) ?: return@runCatching
+            val dstCst = resolveNativeCstFile(rom, targetSlotNumber) ?: return@runCatching
+            if (srcCst.isFile) {
+                dstCst.parentFile?.mkdirs()
+                srcCst.copyTo(dstCst, overwrite = true)
+            } else if (dstCst.isFile) {
+                dstCst.delete()
+            }
+        }
+    }
+
     private fun getRomFileNameWithoutExtension(rom: Rom): String? {
         val romDocument = uriHandler.getUriDocument(rom.uri)
-        return romDocument?.nameWithoutExtension
+        return romDocument?.nameWithoutExtension?.takeIf { it.isNotBlank() }
+            ?: rom.fileName.substringBeforeLast('.').takeIf { it.isNotBlank() }
+            ?: rom.uri.lastPathSegment?.substringAfterLast('/')?.substringBeforeLast('.')?.takeIf { it.isNotBlank() }
     }
 }

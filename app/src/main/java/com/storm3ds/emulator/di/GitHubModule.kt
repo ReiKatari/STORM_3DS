@@ -15,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import javax.inject.Singleton
@@ -24,8 +25,18 @@ import javax.inject.Singleton
 object GitHubModule {
     @Provides
     @Singleton
-    fun provideGitHubApi(json: Json): GitHubApi {
+    fun provideGitHubApi(json: Json, okHttpClient: OkHttpClient): GitHubApi {
+        val updaterClient = okHttpClient.newBuilder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "STORM-3DS-Updater")
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
         val retrofit = Retrofit.Builder()
+            .client(updaterClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .baseUrl("https://api.github.com")
             .build()

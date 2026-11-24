@@ -109,6 +109,7 @@ private:
     GLuint uniform_o_resolution;
     GLuint uniform_layer;
     GLuint uniform_gyro_params = 0;
+    Settings::StereoRenderOption current_render_3d_mode = Settings::StereoRenderOption::Off;
     VideoCore::StormLibrashader librashader;
 
     // Shader attribute input indices

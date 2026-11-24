@@ -134,6 +134,26 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile != null }
                 ?: signingConfigs.getByName("debug")
+            externalNativeBuild {
+                cmake {
+                    cFlags(
+                        "-O3", "-fomit-frame-pointer", "-finline-functions",
+                        "-fvectorize", "-fslp-vectorize", "-funroll-loops",
+                        "-fno-semantic-interposition", "-fno-math-errno", "-fno-trapping-math",
+                        "-ffunction-sections", "-fdata-sections",
+                    )
+                    cppFlags(
+                        "-O3", "-fomit-frame-pointer", "-fvisibility-inlines-hidden",
+                        "-finline-functions", "-fvectorize", "-fslp-vectorize", "-funroll-loops",
+                        "-fno-semantic-interposition", "-fno-math-errno", "-fno-trapping-math",
+                        "-ffunction-sections", "-fdata-sections",
+                    )
+                    arguments(
+                        "-DDYNARMIC_IGNORE_ASSERTS=ON",
+                        "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-Wl,-O3,--gc-sections,--icf=safe",
+                    )
+                }
+            }
         }
         getByName("debug") {
             applicationIdSuffix = ".dev"

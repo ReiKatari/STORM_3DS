@@ -732,6 +732,7 @@ void RendererVulkan::FillScreen(Common::Vec3<u8> color, const TextureInfo& textu
 }
 
 void RendererVulkan::ReloadPipeline(Settings::StereoRenderOption render_3d) {
+    current_render_3d_mode = render_3d;
     switch (render_3d) {
     case Settings::StereoRenderOption::Anaglyph:
         current_pipeline = 1;
@@ -1026,7 +1027,8 @@ void RendererVulkan::DrawScreens(Frame* frame, const Layout::FramebufferLayout& 
         clear_color.float32[1] = Settings::values.bg_green.GetValue();
         clear_color.float32[2] = Settings::values.bg_blue.GetValue();
     }
-    if (settings.shader_update_requested.exchange(false)) {
+    if (settings.shader_update_requested.exchange(false) ||
+        layout.render_3d_mode != current_render_3d_mode) {
         ReloadPipeline(layout.render_3d_mode);
     }
 

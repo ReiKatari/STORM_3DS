@@ -17,6 +17,9 @@
 #include "common/polyfill_thread.h"
 #include "common/thread.h"
 #include "common/unique_function.h"
+#ifdef ANDROID
+#include <sys/resource.h>
+#endif
 
 namespace Common {
 
@@ -41,6 +44,12 @@ public:
         : workers_queued{num_workers}, thread_name{name} {
         const auto lambda = [this, func](std::stop_token stop_token, std::size_t index) {
             Common::SetCurrentThreadName(thread_name.data());
+#ifdef ANDROID
+            if (thread_name.find("Shader") != std::string::npos ||
+                thread_name.find("Pipeline") != std::string::npos) {
+                setpriority(PRIO_PROCESS, 0, 4);
+            }
+#endif
             {
                 [[maybe_unused]] std::conditional_t<with_state, StateType, int> state{func(index)};
                 while (!stop_token.stop_requested()) {

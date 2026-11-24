@@ -67,6 +67,14 @@
 -keep class com.storm3ds.emulator.domain.model.Background { *; }
 -keep class com.storm3ds.emulator.domain.model.BackgroundThumbnail { *; }
 
+# Keep in-app updater Retrofit API and kotlinx.serialization DTOs under R8 fullMode
+-keep interface com.storm3ds.emulator.github.GitHubApi { *; }
+-keep class com.storm3ds.emulator.github.dtos.** { *; }
+-keepclassmembers class com.storm3ds.emulator.github.dtos.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
 # Preserve Gson annotations and field names
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 -keepclassmembers class * {

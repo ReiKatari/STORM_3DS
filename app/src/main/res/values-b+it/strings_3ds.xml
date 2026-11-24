@@ -307,4 +307,6 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Salta il rendering del secondo occhio quando la profondità 3D è spenta (+FPS)</string>
     <string name="setup_3ds_key_ok">Trovato (OK)</string>
     <string name="setup_3ds_key_missing">Mancante</string>
+    <string name="update_install_permission_required">Consenti l\'installazione di app da questa origine per applicare l\'aggiornamento</string>
+    <string name="save_state_copy_format">%1$s (Copia)</string>
 </resources>

@@ -82,10 +82,7 @@ object CoilModule {
     private fun isDirectoryWritable(dir: File): Boolean {
         return runCatching {
             if (!dir.exists() && !dir.mkdirs()) return@runCatching false
-            if (!dir.isDirectory || !dir.canWrite()) return@runCatching false
-            val probe = File.createTempFile(".storm_write_probe_", null, dir)
-            probe.delete()
-            true
+            dir.isDirectory && dir.canWrite()
         }.getOrDefault(false)
     }
 }

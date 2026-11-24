@@ -60,7 +60,11 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
                                    std::to_string(static_cast<int>(which_display)));
     auto& system = Core::System::GetInstance();
     if (system.IsPoweredOn()) {
-        system.GPU().Renderer().NotifySurfaceChanged(false);
+        system.GPU().Renderer().Settings().shader_update_requested = true;
+    }
+    std::scoped_lock lock{StormBridge::GetSurfaceMutex()};
+    if (auto* w = StormBridge::GetPrimaryWindow()) {
+        w->RefreshFramebufferLayout();
     }
 }
 

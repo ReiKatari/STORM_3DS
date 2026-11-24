@@ -308,5 +308,7 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Skips rendering the second stereo eye buffer when 3D depth is disabled (+FPS)</string>
     <string name="setup_3ds_key_ok">Found (OK)</string>
     <string name="setup_3ds_key_missing">Missing</string>
+    <string name="update_install_permission_required">Allow installing apps from this source to apply the update</string>
+    <string name="save_state_copy_format">%1$s (Copy)</string>
 </resources>
 

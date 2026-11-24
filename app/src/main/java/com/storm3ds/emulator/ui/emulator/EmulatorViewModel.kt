@@ -3416,6 +3416,7 @@ class EmulatorViewModel @Inject constructor(
                 val updatedRom = runningRom.copy(
                     config = runningRom.config.copy(internalResolutionScaling = scaling)
                 )
+                romsRepository.updateRomConfig(updatedRom, updatedRom.config)
                 emulatorManager.updateRomEmulatorConfiguration(updatedRom)
             }
         }

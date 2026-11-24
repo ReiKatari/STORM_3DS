@@ -307,4 +307,6 @@ SDMC: %7$s</string>
     <string name="setup_3ds_disable_right_eye_summary">Melewati rendering mata kedua saat kedalaman 3D dimatikan (+FPS)</string>
     <string name="setup_3ds_key_ok">Ditemukan (OK)</string>
     <string name="setup_3ds_key_missing">Tidak ada</string>
+    <string name="update_install_permission_required">Izinkan pemasangan aplikasi dari sumber ini untuk menerapkan pembaruan</string>
+    <string name="save_state_copy_format">%1$s (Salinan)</string>
 </resources>

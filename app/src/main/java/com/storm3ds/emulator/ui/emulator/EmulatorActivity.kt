@@ -2414,8 +2414,14 @@ class EmulatorActivity : AppCompatActivity() {
         super.onStart()
         com.storm3ds.emulator.nativebridge.NativeLibrary.setEmulationActivity(this)
         Storm3dsForegroundService.onTogglePauseRequested = {
-            if (com.storm3ds.emulator.nativebridge.NativeLibrary.isRunning()) {
-                MelonEmulator.pauseEmulation()
+            runOnUiThread {
+                if (com.storm3ds.emulator.nativebridge.NativeLibrary.isRunning()) {
+                    if (viewModel.isEmulatorPaused()) {
+                        viewModel.resumeEmulator()
+                    } else {
+                        viewModel.pauseEmulator(false)
+                    }
+                }
             }
         }
         Storm3dsForegroundService.onStopRequested = { finish() }
@@ -2812,8 +2818,8 @@ class EmulatorActivity : AppCompatActivity() {
             val curFps = viewModel.currentFps.value ?: 60
             val frameTime = if (curFps > 0) String.format(java.util.Locale.US, "%.1f", 1000.0 / curFps) else "16.6"
             val scale = if (renderer == VideoRenderer.SOFTWARE) 1 else liveDrsScale
-            val width = 256 * scale
-            val height = 384 * scale
+            val width = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_WIDTH * scale
+            val height = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_HEIGHT * scale
             val rendererName = when (renderer) {
                 VideoRenderer.SOFTWARE -> "Software"
                 VideoRenderer.OPENGL -> "OpenGL"
@@ -2964,8 +2970,8 @@ class EmulatorActivity : AppCompatActivity() {
             VideoRenderer.VULKAN -> "Vulkan"
             else -> "Compute"
         }
-        val width = 256 * scale
-        val height = 384 * scale
+        val width = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_WIDTH * scale
+        val height = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_HEIGHT * scale
 
         val frameTimeStr = if (fps != null && fps > 0) {
             val ms = 1000.0 / fps
@@ -4494,26 +4500,33 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         }
     }
 
+    private val stereoModeUiOrder = listOf(0, 7, 3, 1, 2, 4, 5, 6)
+
     private fun vulkan3dDepthModeLabels(): List<String> =
         resources.getStringArray(R.array.video_vulkan_3d_depth_mode_options).toList()
 
     private fun vulkan3dDepthModeLabel(mode: Int): String {
         val labels = vulkan3dDepthModeLabels()
-        return labels.getOrElse(mode.coerceIn(0, labels.lastIndex)) { labels.first() }
+        val idx = stereoModeUiOrder.indexOf(mode).let { if (it < 0) 0 else it }
+        return labels.getOrElse(idx.coerceIn(0, labels.lastIndex)) { labels.first() }
     }
 
     private fun showVulkan3dDepthModeChoiceOverlay() {
         val labels = vulkan3dDepthModeLabels()
-        val current = settingsRepository.getVulkan3dDepthMode().coerceIn(0, labels.lastIndex)
+        val currentMode = settingsRepository.getVulkan3dDepthMode()
+        val selectedIdx = stereoModeUiOrder.indexOf(currentMode).let { if (it < 0) 0 else it }.coerceIn(0, labels.lastIndex)
         pushConsoleOverlay(
             ConsoleOverlayNode.Choice(
                 title = getString(R.string.video_vulkan_3d_depth_mode_title),
                 labels = labels,
-                selectedIndex = current,
+                selectedIndex = selectedIdx,
                 onSelect = { which ->
-                    val mode = which.coerceIn(0, 7)
+                    val mode = stereoModeUiOrder.getOrElse(which) { 0 }.coerceIn(0, 7)
                     settingsRepository.setVulkan3dDepthMode(mode)
                     val parallax = (mode == com.storm3ds.emulator.nativebridge.NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue)
+                    if (parallax && settingsRepository.getVulkan3dDepthStrength() <= 0) {
+                        settingsRepository.setVulkan3dDepthStrength(50)
+                    }
                     motionSensorManager.threeDParallaxEnabled = parallax
                     if (parallax) {
                         motionSensorManager.calibrateCenter()

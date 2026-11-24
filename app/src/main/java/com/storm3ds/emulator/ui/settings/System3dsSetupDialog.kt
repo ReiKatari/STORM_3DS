@@ -73,8 +73,8 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     var skipSlowDraw by remember { mutableStateOf(prefs.getBoolean("3ds_skip_slow_draw", false)) }
     var skipTexCopy by remember { mutableStateOf(prefs.getBoolean("3ds_skip_tex_copy", false)) }
     var accurateMul by remember { mutableStateOf(prefs.getBoolean("3ds_accurate_mul", false)) }
-    var audioStretch by remember { mutableStateOf(prefs.getBoolean("3ds_audio_stretch", true)) }
-    var spirvOpt by remember { mutableStateOf(prefs.getBoolean("3ds_spirv_opt", true)) }
+    var audioStretch by remember { mutableStateOf(prefs.getBoolean("3ds_audio_stretch", false)) }
+    var spirvOpt by remember { mutableStateOf(prefs.getBoolean("3ds_spirv_opt", false)) }
     var disableRightEye by remember { mutableStateOf(prefs.getBoolean("3ds_disable_right_eye", false)) }
     val initialVideoMode = when (prefs.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()) {
         "sbs_xr" -> 1
@@ -86,13 +86,14 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
         "gyro_parallax" -> 7
         else -> 0
     }
+    val stereoUiOrder = remember { listOf(0, 7, 3, 1, 2, 4, 5, 6) }
     var render3dMode by remember { mutableStateOf(prefs.getInt("3ds_render_mode", initialVideoMode).coerceIn(0, 7)) }
     val initialVideoDepth = prefs.getString("video_vulkan_3d_depth_strength", "50")?.toIntOrNull()?.coerceIn(0, 100) ?: 50
     var depth3d by remember { mutableStateOf(prefs.getInt("3ds_depth_factor", initialVideoDepth).coerceIn(0, 100)) }
     var pretendoEnabled by remember { mutableStateOf(prefs.getBoolean("3ds_pretendo_enabled", false)) }
     var articIp by remember { mutableStateOf(prefs.getString("3ds_artic_ip", "192.168.1.100") ?: "192.168.1.100") }
     var articController by remember { mutableStateOf(prefs.getBoolean("3ds_artic_controller", false)) }
-    var logFilter by remember { mutableStateOf(prefs.getString("3ds_log_filter", "*:Info") ?: "*:Info") }
+    var logFilter by remember { mutableStateOf(prefs.getString("3ds_log_filter", "*:Warning") ?: "*:Warning") }
     var logRegex by remember { mutableStateOf(prefs.getString("3ds_log_regex", "") ?: "") }
 
     val modes3d = stringArrayResource(R.array.video_vulkan_3d_depth_mode_options)
@@ -167,11 +168,19 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
             SetupToggleRow(stringResource(R.string.setup_3ds_spirv_opt), spirvOpt) { spirvOpt = it }
 
             Divider(color = colors.line)
-            Text(stringResource(R.string.setup_3ds_3d_header_fmt, modes3d.getOrElse(render3dMode) { stringResource(R.string.video_vulkan_3d_depth_mode_off) }, depth3d), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
+            val currentUiIdx = stereoUiOrder.indexOf(render3dMode).let { if (it < 0) 0 else it }
+            val currentModeLabel = modes3d.getOrElse(currentUiIdx) { stringResource(R.string.video_vulkan_3d_depth_mode_off) }
+            Text(stringResource(R.string.setup_3ds_3d_header_fmt, currentModeLabel, depth3d), fontWeight = FontWeight.Bold, color = colors.green, fontFamily = SpaceGrotesk)
             Slider(value = depth3d.toFloat(), onValueChange = { depth3d = it.toInt() }, valueRange = 0f..100f)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Button(onClick = { render3dMode = (render3dMode + 1) % modes3d.size }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.setup_3ds_3d_mode_btn_fmt, modes3d[render3dMode]), maxLines = 1, fontSize = 11.sp)
+                Button(
+                    onClick = {
+                        val nextUiIdx = (currentUiIdx + 1) % stereoUiOrder.size
+                        render3dMode = stereoUiOrder[nextUiIdx]
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.setup_3ds_3d_mode_btn_fmt, currentModeLabel), maxLines = 1, fontSize = 11.sp)
                 }
             }
             SetupToggleRow(stringResource(R.string.setup_3ds_disable_right_eye), disableRightEye) { disableRightEye = it }

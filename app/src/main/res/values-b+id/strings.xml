@@ -970,7 +970,7 @@
     <string name="label_position">Posisi</string>
     <string name="dual_screen_presets">Preset</string>
     <string name="dual_screen_presets_settings_title">Preset layar ganda</string>
-    <string name="dual_screen_presets_summary">Preset: %1$s\nRasio DS: %2$s • Skala bulat: %3$s\nT internal: %4$s • L internal: %5$s\nT eksternal: %6$s • L eksternal: %7$s</string>
+    <string name="dual_screen_presets_summary">Preset: %1$s\nRasio 3DS: %2$s • Skala bulat: %3$s\nT internal: %4$s • L internal: %5$s\nT eksternal: %6$s • L eksternal: %7$s</string>
     <string name="dual_screen_presets_disabled_hint">Preset dinonaktifkan. Pilih salah satu preset untuk mengaktifkan opsi di bawah ini.</string>
     <string name="dual_screen_preset_off">Dinonaktifkan (tata letak manual)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">Internal: atas, eksternal: bawah</string>
@@ -982,8 +982,8 @@
     <string name="dual_screen_external_fill_width">Isi lebar eksternal</string>
     <string name="dual_screen_fill_area_button">Opsi pengisian area</string>
     <string name="dual_screen_fill_area_title">Opsi pengisian area</string>
-    <string name="dual_screen_fill_area_description">Pilih layar DS mana yang diregangkan secara vertikal atau horizontal saat skala bulat atau rasio DS aktif.</string>
-    <string name="dual_screen_fill_area_requires_integer">Aktifkan skala bulat atau pertahankan rasio DS untuk menyesuaikan opsi ini.</string>
+    <string name="dual_screen_fill_area_description">Pilih layar 3DS mana yang diregangkan secara vertikal atau horizontal saat skala bulat atau rasio 3DS aktif.</string>
+    <string name="dual_screen_fill_area_requires_integer">Aktifkan skala bulat atau pertahankan rasio 3DS untuk menyesuaikan opsi ini.</string>
     <string name="dual_screen_fill_section_internal">Layar internal</string>
     <string name="dual_screen_fill_section_external">Layar eksternal</string>
     <string name="dual_screen_fill_height_label">Tinggi</string>
@@ -1339,7 +1339,7 @@ Impor ke STORM 3DS?</string>
     <string name="dual_screen_info_title">Cara kerja preset layar ganda</string>
     <string name="dual_screen_info_desc">Memungkinkan pembagian layar atas dan bawah Nintendo 3DS antara layar perangkat Anda dan monitor/TV eksternal (melalui USB-C, HDMI, atau transmisi nirkabel).
 
-• 📱 Pertahankan rasio aspek DS: menjaga rasio asli 4:3 tanpa meregangkan gambar.
+• 📱 Pertahankan rasio aspek 3DS: menjaga rasio asli 4:3 tanpa meregangkan gambar.
 • 🔲 Skala bilangan bulat: menskalakan piksel dalam kelipatan bulat (1x, 2x, 3x) untuk visual tajam tanpa buram.
 • 📏 Area isi dan perataan: sesuaikan perataan vertikal dan cakupan tampilan.</string>
     <string name="theme_accent_color_title">Warna aksen</string>
@@ -1466,7 +1466,7 @@ Impor ke STORM 3DS?</string>
     <string name="vulkan_debug_dump_report">Simpan laporan debug Vulkan</string>
     <string name="vulkan_debug_dump_report_success">Laporan debug Vulkan disimpan ke %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Gagal menyimpan laporan debug Vulkan</string>
-    <string name="video_vulkan_3d_depth_mode_title">Efek kedalaman 3D nyata (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Efek kedalaman 3D nyata</string>
     <string name="video_vulkan_3d_depth_mode_off">Nonaktif</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Paralaks 3D giroskopik (kedalaman jendela)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Anaglif 3D stereoskopik (merah / sian)</string>

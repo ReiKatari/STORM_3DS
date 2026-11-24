@@ -143,6 +143,7 @@ private:
     std::array<vk::Sampler, 2> present_samplers;
     vk::ShaderModule present_vertex_shader;
     u32 current_pipeline = 0;
+    Settings::StereoRenderOption current_render_3d_mode = Settings::StereoRenderOption::Off;
 
     std::array<ScreenInfo, 3> screen_infos{};
     PresentUniformData draw_info{};

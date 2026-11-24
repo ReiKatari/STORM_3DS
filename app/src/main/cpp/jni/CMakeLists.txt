@@ -33,6 +33,8 @@ add_library(storm3ds SHARED
     system_save_game.cpp
     native_log.cpp
     storm3ds_memory.cpp
+    EmulationThreadCpuPolicy.cpp
+    EmulationThreadCpuPolicy.h
     storm3ds_rewind.cpp
     storm3ds_extensions.cpp
 )

@@ -128,6 +128,35 @@ object BundledMmjCheatsLoader {
         return true
     }
 
+    suspend fun populateAllBundled3dsCheats(
+        context: Context,
+        database: MelonDatabase,
+    ): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val tidRegex = Regex("""^([0-9A-Fa-f]{16})""")
+        val titleIds = linkedSetOf<String>()
+        runCatching {
+            context.assets.list("cheats").orEmpty().forEach { name ->
+                if (name.endsWith(".txt", ignoreCase = true)) {
+                    tidRegex.find(name)?.groupValues?.getOrNull(1)?.uppercase()?.let(titleIds::add)
+                }
+            }
+        }
+        val cheatsDir = File(android.os.Environment.getExternalStorageDirectory(), "STORM 3DS/cheats")
+        if (cheatsDir.isDirectory) {
+            cheatsDir.listFiles { f -> f.isFile && f.name.endsWith(".txt", ignoreCase = true) }?.forEach { file ->
+                tidRegex.find(file.name)?.groupValues?.getOrNull(1)?.uppercase()?.let(titleIds::add)
+            }
+        }
+        var importedGames = 0
+        for (tid in titleIds) {
+            val existingTitle = database.gameDao().findGameByCode(tid)?.name.orEmpty().ifBlank { "3DS ($tid)" }
+            if (populate3dsCheatsIfEmpty(context, database, tid, existingTitle)) {
+                importedGames++
+            }
+        }
+        importedGames
+    }
+
     suspend fun insertParsedCheats(
         database: MelonDatabase,
         titleIdHex: String,

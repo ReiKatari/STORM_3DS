@@ -10,7 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import com.storm3ds.emulator.common.cheats.EmbeddedActionReplayCheats
+import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
 import com.storm3ds.emulator.common.network.SharedOkHttpClient
 import com.storm3ds.emulator.database.MelonDatabase
 import com.storm3ds.emulator.domain.model.CheatGameSearchResult
@@ -107,78 +107,14 @@ class CheatsPreferencesViewModel @Inject constructor(
     }
 
     suspend fun downloadAndImportOnlineCheats(mirrorKey: String? = null): OnlineCheatsDownloadResult = withContext(Dispatchers.IO) {
-        val selectedMirror = mirrorKey
-            ?: PreferenceManager.getDefaultSharedPreferences(appContext).getString(PREF_CHEATS_DOWNLOAD_MIRROR, MIRROR_AUTO)
-            ?: MIRROR_AUTO
-        val candidateUrls = resolveCandidateUrls(selectedMirror)
-
-        val client = SharedOkHttpClient.instance.newBuilder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .connectTimeout(12, TimeUnit.SECONDS)
-            .readTimeout(40, TimeUnit.SECONDS)
-            .build()
-
-        val targetDir = runCatching {
-            val extDir = File(Environment.getExternalStorageDirectory(), "STORM 3DS/cheats")
-            if (extDir.exists() || extDir.mkdirs()) extDir else File(appContext.filesDir, "cheats").apply { mkdirs() }
-        }.getOrElse {
-            File(appContext.filesDir, "cheats").apply { mkdirs() }
-        }
-        val targetFile = File(targetDir, "usrcheat.dat")
-        val tempFile = File(targetDir, "usrcheat.dat.tmp")
-
-        var downloadedValidDat = false
-        for (url in candidateUrls) {
-            try {
-                val request = Request.Builder()
-                    .url(url)
-                    .header("User-Agent", "STORM-3DS/1.0.0")
-                    .build()
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@use
-                    val body = response.body ?: return@use
-                    body.byteStream().use { input ->
-                        val header = ByteArray(16)
-                        val headerRead = input.read(header)
-                        // Verify authentic R4 CheatCode header so we never import an HTML 404/error page
-                        if (headerRead >= 12 && String(header, 0, 12, Charsets.US_ASCII).startsWith("R4 CheatCode")) {
-                            FileOutputStream(tempFile).use { fos ->
-                                fos.write(header, 0, headerRead)
-                                input.copyTo(fos, 32 * 1024)
-                            }
-                            if (tempFile.length() > 1024L) {
-                                if (targetFile.exists()) targetFile.delete()
-                                if (!tempFile.renameTo(targetFile)) {
-                                    tempFile.copyTo(targetFile, overwrite = true)
-                                    tempFile.delete()
-                                }
-                                downloadedValidDat = true
-                            }
-                        }
-                    }
-                }
-                if (downloadedValidDat) break
-            } catch (_: Throwable) {
-                runCatching { if (tempFile.exists()) tempFile.delete() }
-            }
-        }
-
-        if (downloadedValidDat) {
-            cheatsRepository.importCheats(Uri.fromFile(targetFile))
-            return@withContext OnlineCheatsDownloadResult.OnlineUsrCheatImportStarted
-        }
-
-        // Offline / mirror fallback: populate built-in Action Replay standard games
-        val count = runCatching {
-            EmbeddedActionReplayCheats.populateAllStandardGames(database)
+        val imported3dsCount = runCatching {
+            BundledMmjCheatsLoader.populateAllBundled3dsCheats(appContext, database)
         }.getOrDefault(0)
-        if (count > 0) {
+        if (imported3dsCount > 0) {
             saveDatabaseUpdatedNow()
-            OnlineCheatsDownloadResult.EmbeddedFallbackLoaded(count)
-        } else {
-            OnlineCheatsDownloadResult.Failed
+            return@withContext OnlineCheatsDownloadResult.EmbeddedFallbackLoaded(imported3dsCount)
         }
+        OnlineCheatsDownloadResult.Failed
     }
 
     fun areCheatsBeingImported(): Boolean {

@@ -15,6 +15,7 @@
 #include <thread>
 #include <vector>
 #include <dlfcn.h>
+#include <sys/resource.h>
 
 #include <android/api-level.h>
 #include <android/native_window_jni.h>
@@ -61,6 +62,7 @@
 #include "jni/applets/swkbd.h"
 #include "jni/camera/ndk_camera.h"
 #include "jni/camera/still_image_camera.h"
+#include "jni/EmulationThreadCpuPolicy.h"
 #include "jni/config.h"
 #include "network/announce_multiplayer_session.h"
 
@@ -467,6 +469,10 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     }
 
     system.RegisterCoreLoopThreadId();
+
+    Storm3ds::EmulationThreadCpuPolicy cpu_policy;
+    cpu_policy.setActive(true);
+    setpriority(PRIO_PROCESS, 0, -8);
 
     const auto process_pending_emu_task = [&]() {
         if (!has_emu_task.load(std::memory_order_acquire)) {

@@ -733,10 +733,10 @@
     <string name="aspect_ratio_4_3">4:3 (Original)</string>
     <string name="aspect_ratio_16_9">16:9 (Breitbild)</string>
     <string name="aspect_ratio_unrestricted">Uneingeschränkt</string>
-    <string name="keep_ds_ratio">3DS-Seitenverhältnis beibehalten (5:3 / 4:3)</string>
+    <string name="keep_ds_ratio">33DS-Seitenverhältnis beibehalten (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Voreinstellungen</string>
     <string name="dual_screen_presets_settings_title">Dual-Screen-Voreinstellungen</string>
-    <string name="dual_screen_presets_summary">Voreinstellung: %1$s\nDS-Verhältnis beibehalten: %2$s • Ganzzahlige Skalierung: %3$s\nIntern H: %4$s • Intern B: %5$s\nExtern H: %6$s • Extern B: %7$s</string>
+    <string name="dual_screen_presets_summary">Voreinstellung: %1$s\n3DS-Verhältnis beibehalten: %2$s • Ganzzahlige Skalierung: %3$s\nIntern H: %4$s • Intern B: %5$s\nExtern H: %6$s • Extern B: %7$s</string>
     <string name="dual_screen_presets_disabled_hint">Voreinstellungen deaktiviert. Wähle eine Voreinstellung, um die folgenden Optionen zu aktivieren.</string>
     <string name="dual_screen_preset_off">Deaktiviert (manuelles Layout)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">Intern: Oben, Extern: Unten</string>
@@ -748,8 +748,8 @@
     <string name="dual_screen_external_fill_width">Externe Breite ausfüllen</string>
     <string name="dual_screen_fill_area_button">Bereichsausfüll-Optionen</string>
     <string name="dual_screen_fill_area_title">Bereichsausfüll-Optionen</string>
-    <string name="dual_screen_fill_area_description">Wähle aus, welche DS-Bildschirme vertikal oder horizontal gedehnt werden, wenn Ganzzahlige Skalierung oder DS-Verhältnis aktiv ist.</string>
-    <string name="dual_screen_fill_area_requires_integer">Aktiviere Ganzzahlige Skalierung oder DS-Verhältnis, um diese Optionen anzupassen.</string>
+    <string name="dual_screen_fill_area_description">Wähle aus, welche 3DS-Bildschirme vertikal oder horizontal gedehnt werden, wenn Ganzzahlige Skalierung oder 3DS-Verhältnis aktiv ist.</string>
+    <string name="dual_screen_fill_area_requires_integer">Aktiviere Ganzzahlige Skalierung oder 3DS-Verhältnis, um diese Optionen anzupassen.</string>
     <string name="dual_screen_fill_section_internal">Interner Bildschirm</string>
     <string name="dual_screen_fill_section_external">Externer Bildschirm</string>
     <string name="dual_screen_fill_height_label">Höhe</string>
@@ -1173,7 +1173,7 @@
     <string name="app_language">App-Sprache</string>
     <string name="app_language_summary">Wähle die Sprache der Benutzeroberfläche für STORM 3DS</string>
     <string name="dual_screen_info_title">Wie Dual-Screen-Voreinstellungen funktionieren</string>
-    <string name="dual_screen_info_desc">Ermöglicht die Verteilung des oberen und unteren Nintendo 3DS-Bildschirms zwischen deinem Gerät und einem externen Monitor/Fernseher (über USB-C, HDMI oder drahtlose Übertragung).\n\n• 📱 DS-Seitenverhältnis beibehalten: behält das authentische 4:3-Seitenverhältnis ohne Verzerrung bei.\n• 🔲 Ganzzahlige Skalierung: skaliert Pixel in ganzzahligen Multiplikatoren (1x, 2x, 3x) für gestochen scharfe Grafik ohne Weichzeichner.\n• 📏 Bereichsausfüllung und Ausrichtung: passe die vertikale Ausrichtung und Bildschirmabdeckung individuell an.</string>
+    <string name="dual_screen_info_desc">Ermöglicht die Verteilung des oberen und unteren Nintendo 3DS-Bildschirms zwischen deinem Gerät und einem externen Monitor/Fernseher (über USB-C, HDMI oder drahtlose Übertragung).\n\n• 📱 3DS-Seitenverhältnis beibehalten: behält das authentische 4:3-Seitenverhältnis ohne Verzerrung bei.\n• 🔲 Ganzzahlige Skalierung: skaliert Pixel in ganzzahligen Multiplikatoren (1x, 2x, 3x) für gestochen scharfe Grafik ohne Weichzeichner.\n• 📏 Bereichsausfüllung und Ausrichtung: passe die vertikale Ausrichtung und Bildschirmabdeckung individuell an.</string>
     <string name="theme_accent_color_title">Akzentfarbe</string>
     <string name="theme_accent_color_summary">Wähle eine Neon-Akzentfarbe für das Theme STORM NIGHT</string>
     <string name="accent_theme_default">Design-Standard</string>
@@ -1300,7 +1300,7 @@
     <string name="vulkan_debug_dump_report">Vulkan-Debug-Bericht speichern</string>
     <string name="vulkan_debug_dump_report_success">Vulkan-Debug-Bericht gespeichert unter %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Vulkan-Debug-Bericht konnte nicht gespeichert werden</string>
-    <string name="video_vulkan_3d_depth_mode_title">Echter 3D-Tiefeneffekt (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Echter 3D-Tiefeneffekt</string>
     <string name="video_vulkan_3d_depth_mode_off">Aus</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Gyroskopische 3D-Parallaxe (Fenstertiefe)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Stereoskopisches 3D-Anaglyph (Rot / Cyan)</string>

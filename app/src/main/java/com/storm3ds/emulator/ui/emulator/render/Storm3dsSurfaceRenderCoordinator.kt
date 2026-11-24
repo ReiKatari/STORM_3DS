@@ -27,8 +27,22 @@ class Storm3dsSurfaceRenderCoordinator(
             private set
     }
 
+    private data class SentLayoutKey(
+        val isPortrait: Boolean,
+        val topX: Int,
+        val topY: Int,
+        val topW: Int,
+        val topH: Int,
+        val botX: Int,
+        val botY: Int,
+        val botW: Int,
+        val botH: Int,
+    )
+
     private var mainSurfaceView: EmulatorSurfaceView? = null
     private var secondarySurfaceView: EmulatorSurfaceView? = null
+    @Volatile
+    private var lastSentLayout: SentLayoutKey? = null
     @Volatile
     private var stopped = false
 
@@ -53,6 +67,7 @@ class Storm3dsSurfaceRenderCoordinator(
         surface.setSurfaceLifecycleListener(null)
         if (mainSurfaceView === surface) {
             mainSurfaceView = null
+            lastSentLayout = null
             runCatching { NativeLibrary.surfaceDestroyed() }
         } else if (secondarySurfaceView === surface) {
             secondarySurfaceView = null
@@ -77,7 +92,7 @@ class Storm3dsSurfaceRenderCoordinator(
         lastBottomRect = config.bottomScreenRect
         lastHybridBottomRect = config.hybridBottomScreenRect
         val isPortrait = NativeLibrary.isPortraitMode()
-        NativeLibrary.setCustomScreenLayout(
+        val key = SentLayoutKey(
             isPortrait = isPortrait,
             topX = top?.x ?: 0,
             topY = top?.y ?: 0,
@@ -87,6 +102,19 @@ class Storm3dsSurfaceRenderCoordinator(
             botY = bot?.y ?: 0,
             botW = (bot?.width ?: 0).coerceAtLeast(0),
             botH = (bot?.height ?: 0).coerceAtLeast(0),
+        )
+        if (lastSentLayout == key) return
+        lastSentLayout = key
+        NativeLibrary.setCustomScreenLayout(
+            isPortrait = key.isPortrait,
+            topX = key.topX,
+            topY = key.topY,
+            topW = key.topW,
+            topH = key.topH,
+            botX = key.botX,
+            botY = key.botY,
+            botW = key.botW,
+            botH = key.botH,
             secondLayerOpacity = 100,
         )
     }
@@ -97,6 +125,7 @@ class Storm3dsSurfaceRenderCoordinator(
 
     override fun stop() {
         stopped = true
+        lastSentLayout = null
         mainSurfaceView?.setSurfaceLifecycleListener(null)
         mainSurfaceView = null
         secondarySurfaceView?.setSurfaceLifecycleListener(null)
@@ -107,6 +136,9 @@ class Storm3dsSurfaceRenderCoordinator(
 
     override fun onSurfaceCreated(surfaceView: EmulatorSurfaceView, surface: Surface) {
         if (stopped || !surface.isValid) return
+        if (surfaceView === mainSurfaceView) {
+            lastSentLayout = null
+        }
         if (surfaceView === secondarySurfaceView) {
             NativeLibrary.secondarySurfaceChanged(surface)
         } else {

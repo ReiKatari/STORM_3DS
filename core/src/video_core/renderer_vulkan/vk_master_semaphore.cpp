@@ -173,7 +173,10 @@ void MasterSemaphoreFence::WaitThread(std::stop_token token) {
             wait_queue.pop();
         }
 
-        const vk::Result result = device.waitForFences(fence, true, WAIT_TIMEOUT);
+        vk::Result result;
+        do {
+            result = device.waitForFences(fence, true, WAIT_TIMEOUT);
+        } while (result == vk::Result::eErrorInitializationFailed);
         if (result != vk::Result::eSuccess) {
             UNREACHABLE_MSG("Fence wait failed with error {}", vk::to_string(result));
         }

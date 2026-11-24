@@ -166,8 +166,6 @@ RasterizerOpenGL::RasterizerOpenGL(Memory::MemorySystem& memory, Pica::PicaCore&
     glEnable(GL_BLEND);
 
     glEnable(GL_MULTISAMPLE);
-    glEnable(GL_SAMPLE_SHADING);
-    glMinSampleShading(1.0f);
 }
 
 RasterizerOpenGL::~RasterizerOpenGL() = default;

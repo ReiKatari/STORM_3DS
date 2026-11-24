@@ -111,7 +111,7 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
         hideDependentsWhenInactive("github_check_for_updates", "github_update_channel")
 
         findPreference<Preference>("manual_check_updates")?.setOnPreferenceClickListener {
-            com.storm3ds.emulator.ui.settings.ManualUpdateChecker.checkNow(requireContext())
+            com.storm3ds.emulator.ui.settings.ManualUpdateChecker.checkNow(activity ?: requireContext())
             true
         }
 

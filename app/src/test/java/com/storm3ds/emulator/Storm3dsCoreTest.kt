@@ -4,11 +4,22 @@ import android.content.SharedPreferences
 import android.view.MotionEvent
 import com.storm3ds.emulator.common.UriFileHandler
 import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
+import com.storm3ds.emulator.common.network.HttpRedirectHelper
 import com.storm3ds.emulator.common.romprocessors.CompressedRomFileProcessor
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.InputConfig
 import com.storm3ds.emulator.domain.model.ThreeDS
+import com.storm3ds.emulator.domain.model.Version
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.github.APK_CONTENT_TYPE
+import com.storm3ds.emulator.github.GitHubReleaseSelector
+import com.storm3ds.emulator.github.GitHubUpdateChannel
+import com.storm3ds.emulator.github.StormUpdateMirrorClient
+import com.storm3ds.emulator.github.services.UpdateApkMetadata
+import com.storm3ds.emulator.github.services.UpdateApkRejectionReason
+import com.storm3ds.emulator.github.services.UpdateApkValidationPolicy
+import com.storm3ds.emulator.github.dtos.AssetDto
+import com.storm3ds.emulator.github.dtos.ReleaseDto
 import com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport
 import com.storm3ds.emulator.impl.emulator.EmulatorMessageQueue
 import com.storm3ds.emulator.impl.input.DefaultControllerConfigurationFactory
@@ -27,6 +38,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -45,12 +58,12 @@ class Storm3dsCoreTest {
     }
 
     @Test
-    fun `all 16 native 3ds extensions and 3 archive formats are supported`() {
+    fun `all 17 native 3ds extensions and 3 archive formats are supported`() {
         val nativeExts = listOf(
             "3ds", "cci", "cxi", "app", "cia", "3dsx", "elf", "axf",
-            "zcci", "zcxi", "zcia", "z3dsx", "bcci", "bcxi", "bcia", "artic"
+            "z3ds", "zcci", "zcxi", "zcia", "z3dsx", "bcci", "bcxi", "bcia", "artic"
         )
-        assertEquals(16, ThreeDS.NATIVE_3DS_EXTENSIONS.size)
+        assertEquals(17, ThreeDS.NATIVE_3DS_EXTENSIONS.size)
         for (ext in nativeExts) {
             assertTrue("Expected native ext $ext", ThreeDS.isNative3dsExtension(ext))
             assertTrue("Expected supported ext $ext", ThreeDS.isSupportedExtension(".$ext"))
@@ -636,5 +649,332 @@ class Storm3dsCoreTest {
 
         val workerTxt = File(srcJava, "com/storm3ds/emulator/nativebridge/utils/CiaInstallWorker.kt").readText()
         assertTrue("CiaInstallWorker must strip leading '!' before checking File", "removePrefix(\"!\")" in workerTxt)
+    }
+
+    @Test
+    fun `storm games world download url normalization handles relative, proxy, and empty urls`() {
+        assertEquals(
+            "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = false,
+            ),
+        )
+        assertEquals(
+            "https://storm-games.world/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = true,
+            ),
+        )
+        assertEquals(
+            "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "https://0.0.0.0:4000/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = false,
+            ),
+        )
+        assertEquals(
+            "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "https://0.0.0.0:4000/api/programs/git?repo=STORM_3DS&action=download_asset",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = false,
+            ),
+        )
+        assertEquals(
+            "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = false,
+            ),
+        )
+        assertEquals(
+            "https://github.com/ReiKatari/STORM_3DS/releases/download/1.4.0/STORM_3DS_1.4.0.apk",
+            StormUpdateMirrorClient.normalizeStormGamesWorldDownloadUrl(
+                rawDownloadUrl = "https://github.com/ReiKatari/STORM_3DS/releases/download/1.4.0/STORM_3DS_1.4.0.apk",
+                fileName = "STORM_3DS_1.4.0.apk",
+                isAltHost = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `release selector accepts 1_4_0 from github and both sgw url casings while rejecting relative urls`() {
+        val currentVersion = Version.fromString("1.3.0")
+
+        fun makeRelease(htmlUrl: String, downloadUrl: String) = ReleaseDto(
+            tagName = "1.4.0",
+            name = "STORM 3DS 1.4.0",
+            body = "Release notes",
+            createdAt = "2026-11-24T00:00:00Z",
+            publishedAt = "2026-11-24T00:00:00Z",
+            htmlUrl = htmlUrl,
+            draft = false,
+            prerelease = false,
+            assets = listOf(
+                AssetDto(
+                    id = 1L,
+                    url = downloadUrl,
+                    name = "STORM_3DS_1.4.0.apk",
+                    size = 82_379_898L,
+                    contentType = APK_CONTENT_TYPE,
+                ),
+            ),
+        )
+
+        val ghCandidate = GitHubReleaseSelector.selectProduction(
+            releases = listOf(
+                makeRelease(
+                    htmlUrl = "https://github.com/ReiKatari/STORM_3DS/releases/tag/1.4.0",
+                    downloadUrl = "https://github.com/ReiKatari/STORM_3DS/releases/download/1.4.0/STORM_3DS_1.4.0.apk",
+                ),
+            ),
+            currentVersion = currentVersion,
+            channel = GitHubUpdateChannel.STABLE,
+            skippedVersion = null,
+            preferLegacyApk = false,
+        )
+        assertNotNull("GitHub 1.4.0 release should be selected", ghCandidate)
+        assertEquals("1.4.0", ghCandidate?.version.toString())
+
+        val sgwLowerCandidate = GitHubReleaseSelector.selectProduction(
+            releases = listOf(
+                makeRelease(
+                    htmlUrl = "https://stormgamesworld.ru/programs?repo=STORM_3DS&tag=1.4.0",
+                    downloadUrl = "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+                ),
+            ),
+            currentVersion = currentVersion,
+            channel = GitHubUpdateChannel.STABLE,
+            skippedVersion = null,
+            preferLegacyApk = false,
+        )
+        assertNotNull("SGW lowercase storm_3ds 1.4.0 release should be selected", sgwLowerCandidate)
+
+        val sgwUpperCandidate = GitHubReleaseSelector.selectProduction(
+            releases = listOf(
+                makeRelease(
+                    htmlUrl = "https://stormgamesworld.ru/programs?repo=STORM_3DS&tag=1.4.0",
+                    downloadUrl = "https://stormgamesworld.ru/uploads/programs/STORM_3DS/STORM_3DS_1.4.0.apk",
+                ),
+            ),
+            currentVersion = currentVersion,
+            channel = GitHubUpdateChannel.STABLE,
+            skippedVersion = null,
+            preferLegacyApk = false,
+        )
+        assertNotNull("SGW uppercase STORM_3DS 1.4.0 release should be selected", sgwUpperCandidate)
+
+        val relativeRejected = GitHubReleaseSelector.selectProduction(
+            releases = listOf(
+                makeRelease(
+                    htmlUrl = "https://stormgamesworld.ru/programs?repo=STORM_3DS&tag=1.4.0",
+                    downloadUrl = "/uploads/programs/storm_3ds/STORM_3DS_1.4.0.apk",
+                ),
+            ),
+            currentVersion = currentVersion,
+            channel = GitHubUpdateChannel.STABLE,
+            skippedVersion = null,
+            preferLegacyApk = false,
+        )
+        assertNull("Unnormalized relative asset url should be rejected", relativeRejected)
+    }
+
+    @Test
+    fun `updater proguard, hilt context unwrap, and mirror guards are configured`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val proguardFile = File("proguard-rules.pro").takeIf { it.exists() } ?: File("app/proguard-rules.pro")
+        val proguardTxt = proguardFile.readText()
+        assertTrue("proguard-rules.pro must keep github DTOs", "com.storm3ds.emulator.github.dtos.**" in proguardTxt)
+        assertTrue("proguard-rules.pro must keep GitHubApi", "com.storm3ds.emulator.github.GitHubApi" in proguardTxt)
+
+        val manualTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/ManualUpdateChecker.kt").readText()
+        assertTrue("ManualUpdateChecker must unwrap Hilt ContextWrapper", "unwrapActivity" in manualTxt)
+        assertTrue("ManualUpdateChecker must use BuildConfig.VERSION_NAME fallback", "BuildConfig.VERSION_NAME" in manualTxt)
+        assertFalse("ManualUpdateChecker must not contain leftover 8.6.0 version string", "8.6.0" in manualTxt)
+
+        val installMgrTxt = File(srcJava, "com/storm3ds/emulator/github/services/GitHubUpdateInstallManager.kt").readText()
+        assertTrue("GitHubUpdateInstallManager must compare origin prefixes case-insensitively", "ignoreCase = true" in installMgrTxt)
+
+        val mirrorTxt = File(srcJava, "com/storm3ds/emulator/github/StormUpdateMirrorClient.kt").readText()
+        assertTrue("StormUpdateMirrorClient must prefer lightweight releases endpoint", "STORM_GAMES_WORLD_RELEASES_API_URL" in mirrorTxt)
+        assertTrue("StormUpdateMirrorClient must check hasAnyValidAsset before skipping redirect fallback", "hasAnyValidAsset" in mirrorTxt)
+    }
+
+    @Test
+    fun `update apk validation policy enforces package, version, size, and signer`() {
+        val installed = UpdateApkMetadata(
+            packageName = "com.storm3ds.emulator",
+            versionCode = 10400L,
+            versionName = "1.4.0",
+            signerDigests = setOf("abc123"),
+        )
+        val valid = UpdateApkMetadata(
+            packageName = "com.storm3ds.emulator",
+            versionCode = 10500L,
+            versionName = "1.5.0",
+            signerDigests = setOf("abc123"),
+        )
+        assertNull(
+            UpdateApkValidationPolicy.validate(
+                candidate = valid,
+                installed = installed,
+                expectedVersion = Version.fromString("1.5.0"),
+                requireSemanticVersionMatch = true,
+                expectedSize = 80_000_000L,
+                actualSize = 80_000_000L,
+            )
+        )
+        assertEquals(
+            UpdateApkRejectionReason.SIGNATURE_MISMATCH,
+            UpdateApkValidationPolicy.validate(
+                candidate = valid.copy(signerDigests = setOf("other")),
+                installed = installed,
+                expectedVersion = Version.fromString("1.5.0"),
+                requireSemanticVersionMatch = true,
+                expectedSize = 80_000_000L,
+                actualSize = 80_000_000L,
+            )
+        )
+        assertEquals(
+            UpdateApkRejectionReason.VERSION_CODE_NOT_NEWER,
+            UpdateApkValidationPolicy.validate(
+                candidate = valid.copy(versionCode = 10400L),
+                installed = installed,
+                expectedVersion = Version.fromString("1.5.0"),
+                requireSemanticVersionMatch = true,
+                expectedSize = 0L,
+                actualSize = 80_000_000L,
+            )
+        )
+        assertEquals(
+            UpdateApkRejectionReason.SIZE_MISMATCH,
+            UpdateApkValidationPolicy.validate(
+                candidate = valid,
+                installed = installed,
+                expectedVersion = Version.fromString("1.5.0"),
+                requireSemanticVersionMatch = true,
+                expectedSize = 100L,
+                actualSize = 200L,
+            )
+        )
+        assertNull(
+            UpdateApkValidationPolicy.validate(
+                candidate = valid.copy(packageName = "com.storm3ds.emulator.nightly"),
+                installed = installed.copy(packageName = "com.storm3ds.emulator.nightly"),
+                expectedVersion = Version.fromString("1.5.0"),
+                requireSemanticVersionMatch = false,
+                expectedSize = 0L,
+                actualSize = 100L,
+            )
+        )
+    }
+
+    @Test
+    fun `http redirect helper permits safe https and relative targets while blocking downgrades`() {
+        assertEquals(
+            "https://objects.githubusercontent.com/file.apk",
+            HttpRedirectHelper.resolveSafeRedirectUrl(
+                "https://github.com/ReiKatari/STORM_3DS/releases/download/1.5.0/STORM_3DS_1.5.0.apk",
+                "https://objects.githubusercontent.com/file.apk",
+            )
+        )
+        assertEquals(
+            "https://stormgamesworld.ru/uploads/programs/storm_3ds/STORM_3DS_1.5.0.apk",
+            HttpRedirectHelper.resolveSafeRedirectUrl(
+                "https://stormgamesworld.ru/api/programs/releases?repo=STORM_3DS",
+                "/uploads/programs/storm_3ds/STORM_3DS_1.5.0.apk",
+            )
+        )
+        var downgradeRejected = false
+        try {
+            HttpRedirectHelper.resolveSafeRedirectUrl(
+                "https://github.com/ReiKatari/STORM_3DS",
+                "http://insecure.example.com/update.apk",
+            )
+        } catch (_: java.io.IOException) {
+            downgradeRejected = true
+        }
+        assertTrue("HTTPS to HTTP downgrade redirect must throw IOException", downgradeRejected)
+
+        var badSchemeRejected = false
+        try {
+            HttpRedirectHelper.resolveSafeRedirectUrl(
+                "https://github.com/ReiKatari/STORM_3DS",
+                "file:///etc/passwd",
+            )
+        } catch (_: java.io.IOException) {
+            badSchemeRejected = true
+        }
+        assertTrue("Non-http(s) redirect scheme must throw IOException", badSchemeRejected)
+    }
+
+    @Test
+    fun `z3ds extension is supported in ThreeDS and CompressedRomFileProcessor`() {
+        assertTrue("z3ds must be in NATIVE_3DS_EXTENSIONS", ThreeDS.isNative3dsExtension("z3ds"))
+        assertTrue("z3ds must be supported", ThreeDS.isSupportedExtension("z3ds"))
+        assertEquals(3, CompressedRomFileProcessor.romEntryPriority("game.z3ds"))
+        assertEquals(400, ThreeDS.TOP_SCREEN_WIDTH)
+        assertEquals(240, ThreeDS.TOP_SCREEN_HEIGHT)
+    }
+
+    @Test
+    fun `single screen 3d depth, updater, performance, and bugfix guards hold`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val srcCpp = File("src/main/cpp/jni").takeIf { it.exists() } ?: File("app/src/main/cpp/jni")
+        val resDir = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val coreDir = File("../core/src").takeIf { it.exists() } ?: File("core/src")
+
+        // Crisp single-image 3D depth shaders (no double-image eye blur)
+        val vkGyro = File(coreDir, "video_core/host_shaders/vulkan_present_gyro.frag").readText()
+        val glGyro = File(coreDir, "video_core/host_shaders/opengl_present_gyro.frag").readText()
+        assertFalse("vulkan_present_gyro.frag must not blend left and right eyes", "mix(left_col, right_col" in vkGyro)
+        assertFalse("opengl_present_gyro.frag must not blend left and right eyes", "mix(left_col, right_col" in glGyro)
+        assertTrue("vulkan_present_gyro.frag must compute EstimateSceneDepth", "EstimateSceneDepth" in vkGyro)
+        assertTrue("opengl_present_gyro.frag must compute EstimateSceneDepth", "EstimateSceneDepth" in glGyro)
+
+        val extCpp = File(srcCpp, "storm3ds_extensions.cpp").readText()
+        assertTrue("setRender3dMode must request live shader update", "shader_update_requested = true" in extCpp)
+
+        val arraysXml = File(resDir, "values/arrays.xml").readText()
+        val offIdx = arraysXml.indexOf("<item>off</item>")
+        val gyroIdx = arraysXml.indexOf("<item>gyro_parallax</item>")
+        val sbsIdx = arraysXml.indexOf("<item>sbs_xr</item>")
+        assertTrue("gyro_parallax must be ordered immediately after off in arrays.xml", offIdx in 0 until gyroIdx && gyroIdx < sbsIdx)
+
+        // End-to-end updater checks
+        val manualTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/ManualUpdateChecker.kt").readText()
+        assertTrue("ManualUpdateChecker must use UpdateEntryPoint", "UpdateEntryPoint" in manualTxt)
+        assertTrue("ManualUpdateChecker must install via UpdateInstallManager", "updateInstallManager" in manualTxt)
+
+        val installMgrTxt = File(srcJava, "com/storm3ds/emulator/github/services/GitHubUpdateInstallManager.kt").readText()
+        assertTrue("GitHubUpdateInstallManager must inspect apkContentsSigners", "apkContentsSigners" in installMgrTxt)
+        assertTrue("GitHubUpdateInstallManager must check canRequestPackageInstalls", "canRequestPackageInstalls" in installMgrTxt)
+
+        // Performance checks
+        val vkPresentTxt = File(coreDir, "video_core/renderer_vulkan/vk_present_window.cpp").readText()
+        assertFalse("vk_present_window.cpp must not stall with eAllCommands barriers", "eAllCommands" in vkPresentTxt)
+
+        val glStreamTxt = File(coreDir, "video_core/renderer_opengl/gl_stream_buffer.cpp").readText()
+        assertTrue("gl_stream_buffer.cpp must support GLAD_GL_EXT_buffer_storage", "GLAD_GL_EXT_buffer_storage" in glStreamTxt)
+
+        val vkFenceTxt = File(coreDir, "video_core/renderer_vulkan/vk_master_semaphore.cpp").readText()
+        assertTrue("vk_master_semaphore.cpp must retry eErrorInitializationFailed", "eErrorInitializationFailed" in vkFenceTxt)
+
+        val melonTxt = File(srcJava, "com/storm3ds/emulator/MelonEmulator.kt").readText()
+        assertTrue("3ds_spirv_opt must default to false", """prefs.getBoolean("3ds_spirv_opt", false)""" in melonTxt)
+        assertTrue("3ds_log_filter must default to *:Warning", """prefs.getString("3ds_log_filter", "*:Warning")""" in melonTxt)
+
+        // Bugfixes
+        val saveStatesTxt = File(srcJava, "com/storm3ds/emulator/impl/FileSystemSaveStatesRepository.kt").readText()
+        assertTrue("FileSystemSaveStatesRepository must copy native .cst on duplicate", "copyNativeCstForSlot" in saveStatesTxt)
+
+        val cheatsLoaderTxt = File(srcJava, "com/storm3ds/emulator/common/cheats/BundledMmjCheatsLoader.kt").readText()
+        assertTrue("BundledMmjCheatsLoader must expose populateAllBundled3dsCheats", "populateAllBundled3dsCheats" in cheatsLoaderTxt)
     }
 }

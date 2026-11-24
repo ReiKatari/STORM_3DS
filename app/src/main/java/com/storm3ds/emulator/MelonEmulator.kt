@@ -83,6 +83,7 @@ object MelonEmulator {
     @Volatile var isLongPreparationInProgress: Boolean = false
     @Volatile var lastLoadFailureWasContainerOrFile: Boolean = false
     private val rewindScreenshots = java.util.ArrayDeque<ByteBuffer>()
+    private val rewindPixelScratch = IntArray(256 * 384)
     private val rewindExecutor = Executors.newSingleThreadScheduledExecutor()
     private var rewindTask: ScheduledFuture<*>? = null
     private val diagnosticBuf = StringBuilder()
@@ -171,8 +172,8 @@ object MelonEmulator {
         val skipSlowDraw = prefs.getBoolean("3ds_skip_slow_draw", false)
         val skipTexCopy = prefs.getBoolean("3ds_skip_tex_copy", false)
         val accurateMul = prefs.getBoolean("3ds_accurate_mul", false)
-        val audioStretch = prefs.getBoolean("3ds_audio_stretch", true)
-        val spirvOpt = prefs.getBoolean("3ds_spirv_opt", true)
+        val audioStretch = prefs.getBoolean("3ds_audio_stretch", false)
+        val spirvOpt = prefs.getBoolean("3ds_spirv_opt", false)
         val disableRightEye = prefs.getBoolean("3ds_disable_right_eye", false)
 
         val videoDepthKey = prefs.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()
@@ -282,7 +283,7 @@ object MelonEmulator {
             NativeLibrary.setRender3dMode(render3dMode)
             NativeLibrary.setFactor3d(factor3d)
             NativeLibrary.setDisableRightEyeRender(disableRightEye)
-            val logFilter = prefs.getString("3ds_log_filter", "*:Info") ?: "*:Info"
+            val logFilter = prefs.getString("3ds_log_filter", "*:Warning") ?: "*:Warning"
             val logRegex = prefs.getString("3ds_log_regex", "") ?: ""
             NativeLibrary.setLogFilterAndRegex(logFilter, logRegex)
         }
@@ -341,9 +342,6 @@ object MelonEmulator {
         if (tid != 0L) {
             runCatching {
                 CheatEngine.loadCheatFile(tid)
-                if (cheats.isEmpty()) {
-                    return@runCatching
-                }
                 val existing = CheatEngine.getCheats()
                 for (i in existing.indices.reversed()) {
                     CheatEngine.removeCheat(i)
@@ -789,14 +787,15 @@ object MelonEmulator {
     private fun bitmapToRewindBuffer(bmp: Bitmap?): ByteBuffer {
         val buf = ByteBuffer.allocateDirect(256 * 384 * 4)
         if (bmp == null) return buf
-        val scaled = Bitmap.createScaledBitmap(bmp, 256, 384, true)
-        val pixels = IntArray(256 * 384)
-        scaled.getPixels(pixels, 0, 256, 0, 0, 256, 384)
-        for (px in pixels) {
-            buf.put(((px ushr 16) and 0xFF).toByte())
-            buf.put(((px ushr 8) and 0xFF).toByte())
-            buf.put((px and 0xFF).toByte())
-            buf.put(0xFF.toByte())
+        val scaled = if (bmp.width == 256 && bmp.height == 384) bmp else Bitmap.createScaledBitmap(bmp, 256, 384, true)
+        synchronized(rewindPixelScratch) {
+            scaled.getPixels(rewindPixelScratch, 0, 256, 0, 0, 256, 384)
+            for (px in rewindPixelScratch) {
+                buf.put(((px ushr 16) and 0xFF).toByte())
+                buf.put(((px ushr 8) and 0xFF).toByte())
+                buf.put((px and 0xFF).toByte())
+                buf.put(0xFF.toByte())
+            }
         }
         buf.rewind()
         if (scaled !== bmp) scaled.recycle()
@@ -850,7 +849,7 @@ object MelonEmulator {
             rawSx = x.coerceIn(0, 319).toFloat()
             sy = y.coerceIn(0, 239).toFloat()
         }
-        val sx = if (!useSecondary && depth3dMode == 1) rawSx * 0.5f else rawSx
+        val sx = if (!useSecondary && (depth3dMode == 1 || depth3dMode == 2 || depth3dMode == 6)) rawSx * 0.5f else rawSx
         touchIsSecondary = useSecondary
         if (!touchDown) {
             touchDown = true

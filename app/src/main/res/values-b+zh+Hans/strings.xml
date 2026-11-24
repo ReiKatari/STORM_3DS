@@ -26,7 +26,7 @@
     <string name="version_nightly">Nightly</string>
     <string name="console_ds">Nintendo 3DS</string>
     <string name="console_dsi">Nintendo 3DS</string>
-    <string name="console_ds_full">任天堂 DS</string>
+    <string name="console_ds_full">任天堂 3DS</string>
     <string name="console_dsi_full">任天堂 DSi</string>
     <string name="size_bytes">B</string>
     <string name="size_kb">KB</string>
@@ -490,7 +490,7 @@
     <string name="keep_ds_ratio">保持 3DS 屏幕比例 (5:3 / 4:3)</string>
     <string name="dual_screen_presets">预设</string>
     <string name="dual_screen_presets_settings_title">双屏预设</string>
-    <string name="dual_screen_presets_summary">预设：%1$s\n保持 DS 比例：%2$s • 整数缩放：%3$s\n内部高：%4$s • 内部宽：%5$s\n外部高：%6$s • 外部宽：%7$s</string>
+    <string name="dual_screen_presets_summary">预设：%1$s\n保持 3DS 比例：%2$s • 整数缩放：%3$s\n内部高：%4$s • 内部宽：%5$s\n外部高：%6$s • 外部宽：%7$s</string>
     <string name="dual_screen_preset_off">已禁用（手动布局）</string>
     <string name="dual_screen_preset_internal_top_external_bottom">内部：上屏，外部：下屏</string>
     <string name="dual_screen_preset_internal_bottom_external_top">内部：下屏，外部：上屏</string>
@@ -501,8 +501,8 @@
     <string name="dual_screen_external_fill_width">填满外部宽度</string>
     <string name="dual_screen_fill_area_button">填充区域选项</string>
     <string name="dual_screen_fill_area_title">填充区域选项</string>
-    <string name="dual_screen_fill_area_description">选择在整数缩放或保持 DS 比例启用时，哪些 DS 屏幕可以纵向或横向拉伸。</string>
-    <string name="dual_screen_fill_area_requires_integer">启用整数缩放或保持 DS 比例后才能调整这些选项。</string>
+    <string name="dual_screen_fill_area_description">选择在整数缩放或保持 3DS 比例启用时，哪些 3DS 屏幕可以纵向或横向拉伸。</string>
+    <string name="dual_screen_fill_area_requires_integer">启用整数缩放或保持 3DS 比例后才能调整这些选项。</string>
     <string name="dual_screen_fill_section_internal">内部屏幕</string>
     <string name="dual_screen_fill_section_external">外部屏幕</string>
     <string name="dual_screen_fill_height_label">高度</string>
@@ -1308,7 +1308,7 @@
     <string name="app_language">应用语言</string>
     <string name="app_language_summary">选择 STORM 3DS 的界面显示语言</string>
     <string name="dual_screen_info_title">双屏预设工作原理</string>
-    <string name="dual_screen_info_desc">Allows distributing the top and bottom Nintendo 3DS screens between your device screen and an external monitor/TV (via USB-C, HDMI, or wireless cast).\n\n• 📱 Keep DS Aspect Ratio: maintains authentic 4:3 aspect ratio without image stretching.\n• 🔲 Integer Scale: scales pixels in exact integer multipliers (1x, 2x, 3x) for crisp pixel-perfect visuals without blur.\n• 📏 填充区域与对齐方式: customize vertical alignment and display coverage.</string>
+    <string name="dual_screen_info_desc">可将 Nintendo 3DS 的上下双屏分别显示在设备屏幕与外接显示器/电视上（支持 USB-C、HDMI 或无线投屏）。\n\n• 📱 保持 3DS 比例：保持原汁原味的 5:3 / 4:3 画面比例，不拉伸变形。\n• 🔲 整数缩放：按整数倍（1x、2x、3x）精准放大像素，画面锐利无模糊。\n• 📏 填充区域与对齐方式：自定义垂直对齐与屏幕填充范围。</string>
     <string name="theme_accent_color_title">主题强调色</string>
     <string name="theme_accent_color_summary">为 STORM NIGHT 主题选择霓虹强调色</string>
     <string name="accent_theme_default">主题默认</string>
@@ -1411,8 +1411,8 @@
     <string name="pref_cat_sd_cards">虚拟 SD 卡</string>
     <string name="pref_cat_network_wfc">Nintendo WFC 网络</string>
     <string name="pref_cat_layout_management">布局与屏幕区域</string>
-    <string name="open_dldi_file_manager">打开任天堂 DS SD卡文件管理器</string>
-    <string name="open_dldi_file_manager_summary">浏览、创建、重命名和删除任天堂 DS SD卡文件</string>
+    <string name="open_dldi_file_manager">打开任天堂 3DS SD卡文件管理器</string>
+    <string name="open_dldi_file_manager_summary">浏览、创建、重命名和删除任天堂 3DS SD卡文件</string>
     <string name="system_dsi_sd_card_enabled">启用任天堂 DSi SD卡</string>
     <string name="system_dsi_sd_card_enabled_summary">模拟任天堂 DSi 主机 SD卡插槽</string>
     <string name="system_dsi_sd_card_dir">任天堂 DSi SD卡文件夹</string>
@@ -1484,7 +1484,7 @@
     <string name="vulkan_debug_dump_report">保存 Vulkan 调试报告</string>
     <string name="vulkan_debug_dump_report_success">Vulkan 调试报告已保存至 %1$s</string>
     <string name="vulkan_debug_dump_report_failed">保存 Vulkan 调试报告失败</string>
-    <string name="video_vulkan_3d_depth_mode_title">真实 3D 景深效果 (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">真实 3D 景深效果</string>
     <string name="video_vulkan_3d_depth_mode_off">关闭</string>
     <string name="video_vulkan_3d_depth_mode_gyro">陀螺仪 3D 视差（窗口景深）</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">立体 3D 红青分色（红 / 青）</string>

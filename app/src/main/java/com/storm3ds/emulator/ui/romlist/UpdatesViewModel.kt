@@ -3,6 +3,7 @@ package com.storm3ds.emulator.ui.romlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -35,12 +36,15 @@ class UpdatesViewModel @Inject constructor(
     private val _updateDownloadProgressEvent = Channel<DownloadProgress>(Channel.CONFLATED)
     val updateDownloadProgressEvent = _updateDownloadProgressEvent.receiveAsFlow()
 
-    private val _manualUpdateResult = MutableSharedFlow<ManualUpdateResult>(extraBufferCapacity = 1)
+    private val _manualUpdateResult = MutableSharedFlow<ManualUpdateResult>(extraBufferCapacity = 4)
     val manualUpdateResult: SharedFlow<ManualUpdateResult> = _manualUpdateResult.asSharedFlow()
 
+    private var checkJob: Job? = null
+    private var downloadJob: Job? = null
+
     init {
-        viewModelScope.launch {
-            updatesRepository.checkNewUpdate().map {
+        checkJob = viewModelScope.launch {
+            updatesRepository.checkNewUpdate().onSuccess {
                 if (it != null) {
                     _appUpdate.send(it)
                 }
@@ -49,9 +53,10 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun checkForUpdatesManually() {
-        viewModelScope.launch {
+        checkJob?.cancel()
+        checkJob = viewModelScope.launch {
             _manualUpdateResult.emit(ManualUpdateResult.Checking)
-            val result = updatesRepository.checkNewUpdate(ignorePreferences = true)
+            val result = updatesRepository.checkNewUpdateManually()
             result.onSuccess { update ->
                 if (update != null) {
                     _manualUpdateResult.emit(ManualUpdateResult.UpdateAvailable(update))
@@ -66,8 +71,9 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun checkForUpdatesSilently() {
-        viewModelScope.launch {
-            val result = updatesRepository.checkNewUpdate(ignorePreferences = true)
+        if (checkJob?.isActive == true) return
+        checkJob = viewModelScope.launch {
+            val result = updatesRepository.checkNewUpdate(ignorePreferences = false)
             result.onSuccess { update ->
                 if (update != null) {
                     _appUpdate.send(update)
@@ -77,12 +83,17 @@ class UpdatesViewModel @Inject constructor(
     }
 
     fun downloadUpdate(update: AppUpdate) {
-        viewModelScope.launch {
-            updateInstallManager.downloadAndInstallUpdate(update).collectLatest {
-                _updateDownloadProgressEvent.send(it)
-                if (it is DownloadProgress.DownloadComplete) {
-                    updatesRepository.notifyUpdateDownloaded(update)
+        if (downloadJob?.isActive == true) return
+        downloadJob = viewModelScope.launch {
+            try {
+                updateInstallManager.downloadAndInstallUpdate(update).collectLatest {
+                    _updateDownloadProgressEvent.send(it)
+                    if (it is DownloadProgress.DownloadComplete) {
+                        updatesRepository.notifyUpdateDownloaded(update)
+                    }
                 }
+            } catch (_: Throwable) {
+                _updateDownloadProgressEvent.trySend(DownloadProgress.DownloadFailed)
             }
         }
     }

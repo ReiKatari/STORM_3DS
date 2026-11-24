@@ -919,7 +919,7 @@
     <string name="keep_ds_ratio">Mantieni proporzioni schermo 3DS (5:3 / 4:3)</string>
     <string name="dual_screen_presets">Preset</string>
     <string name="dual_screen_presets_settings_title">Preset doppio schermo</string>
-    <string name="dual_screen_presets_summary">Preset: %1$s\nProporzioni DS: %2$s • Scala intera: %3$s\nA interna: %4$s • L interna: %5$s\nA esterna: %6$s • L esterna: %7$s</string>
+    <string name="dual_screen_presets_summary">Preset: %1$s\nProporzioni 3DS: %2$s • Scala intera: %3$s\nA interna: %4$s • L interna: %5$s\nA esterna: %6$s • L esterna: %7$s</string>
     <string name="dual_screen_presets_disabled_hint">Preset disattivati. Seleziona un preset per abilitare le opzioni sottostanti.</string>
     <string name="dual_screen_preset_off">Disattivato (layout manuale)</string>
     <string name="dual_screen_preset_internal_top_external_bottom">Interno: superiore, esterno: inferiore</string>
@@ -931,8 +931,8 @@
     <string name="dual_screen_external_fill_width">Riempi larghezza esterna</string>
     <string name="dual_screen_fill_area_button">Opzioni riempimento area</string>
     <string name="dual_screen_fill_area_title">Opzioni riempimento area</string>
-    <string name="dual_screen_fill_area_description">Scegli quali schermi DS estendere verticalmente o orizzontalmente quando la scala intera o le proporzioni DS sono attive.</string>
-    <string name="dual_screen_fill_area_requires_integer">Abilita la scala intera o mantieni proporzioni DS per regolare queste opzioni.</string>
+    <string name="dual_screen_fill_area_description">Scegli quali schermi 3DS estendere verticalmente o orizzontalmente quando la scala intera o le proporzioni 3DS sono attive.</string>
+    <string name="dual_screen_fill_area_requires_integer">Abilita la scala intera o mantieni proporzioni 3DS per regolare queste opzioni.</string>
     <string name="dual_screen_fill_section_internal">Schermo interno</string>
     <string name="dual_screen_fill_section_external">Schermo esterno</string>
     <string name="dual_screen_fill_height_label">Altezza</string>
@@ -1322,7 +1322,7 @@ Importarli in STORM 3DS?</string>
     <string name="dual_screen_info_title">Come funzionano i preset doppio schermo</string>
     <string name="dual_screen_info_desc">Consente di distribuire lo schermo superiore e inferiore del Nintendo 3DS tra il display del dispositivo e un monitor o TV esterno (tramite USB-C, HDMI o trasmissione wireless).
 
-• 📱 Mantieni proporzioni DS: preserva il formato originale 4:3 senza deformare l\'immagine.
+• 📱 Mantieni proporzioni 3DS: preserva il formato originale 4:3 senza deformare l\'immagine.
 • 🔲 Scala intera: ridimensiona i pixel per multipli interi esatti (1x, 2x, 3x) per una resa nitida senza sfocature.
 • 📏 Area di riempimento e allineamento: personalizza l\'allineamento verticale e la copertura dello schermo.</string>
     <string name="theme_accent_color_title">Colore di accento</string>
@@ -1449,7 +1449,7 @@ Importarli in STORM 3DS?</string>
     <string name="vulkan_debug_dump_report">Salva report di debug Vulkan</string>
     <string name="vulkan_debug_dump_report_success">Report di debug Vulkan salvato in %1$s</string>
     <string name="vulkan_debug_dump_report_failed">Impossibile salvare il report di debug Vulkan</string>
-    <string name="video_vulkan_3d_depth_mode_title">Effetto profondità 3D reale (Vulkan)</string>
+    <string name="video_vulkan_3d_depth_mode_title">Effetto profondità 3D reale</string>
     <string name="video_vulkan_3d_depth_mode_off">Disattivato</string>
     <string name="video_vulkan_3d_depth_mode_gyro">Parallasse 3D giroscopica (profondità finestra)</string>
     <string name="video_vulkan_3d_depth_mode_anaglyph">Anaglifo 3D stereoscopico (rosso / ciano)</string>

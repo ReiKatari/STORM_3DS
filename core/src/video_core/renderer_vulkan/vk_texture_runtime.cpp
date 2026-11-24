@@ -163,8 +163,13 @@ vk::ImageSubresourceRange MakeSubresourceRange(vk::ImageAspectFlags aspect, u32 
     };
 }
 
+#ifdef ANDROID
+constexpr u64 UPLOAD_BUFFER_SIZE = 128_MiB;
+constexpr u64 DOWNLOAD_BUFFER_SIZE = 8_MiB;
+#else
 constexpr u64 UPLOAD_BUFFER_SIZE = 512_MiB;
 constexpr u64 DOWNLOAD_BUFFER_SIZE = 16_MiB;
+#endif
 
 } // Anonymous namespace
 

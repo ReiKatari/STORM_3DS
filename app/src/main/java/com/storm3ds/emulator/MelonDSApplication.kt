@@ -283,11 +283,13 @@ class MelonDSApplication : Application(), Configuration.Provider {
         runCatching { System.setProperty("http.agent", "STORM_3DS/${BuildConfig.VERSION_NAME}") }
         installCrashHandler()
         runCatching { giveLibrashaderACacheDirectory() }
-        runCatching { settingsBackupManager.initializeMirror() }
         runCatching { ButtonThemeManager.init(this) }
         runCatching { AppThemeManager.init(this) }
         runCatching { RomDisplayNameManager.init(this) }
-        runCatching { com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.saveUnifiedReport(this) }
+        migrationScope.launch(Dispatchers.IO) {
+            runCatching { settingsBackupManager.initializeMirror() }
+            runCatching { com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.saveUnifiedReport(this@MelonDSApplication) }
+        }
         runCatching { createNotificationChannels() }
         runCatching { applyTheme() }
         runCatching { performMigrations() }

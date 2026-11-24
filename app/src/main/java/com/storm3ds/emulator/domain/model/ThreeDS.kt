@@ -12,7 +12,7 @@ object ThreeDS {
 
     val NATIVE_3DS_EXTENSIONS = setOf(
         "3ds", "cci", "cxi", "app", "cia", "3dsx", "elf", "axf",
-        "zcci", "zcxi", "zcia", "z3dsx", "bcci", "bcxi", "bcia", "artic"
+        "z3ds", "zcci", "zcxi", "zcia", "z3dsx", "bcci", "bcxi", "bcia", "artic"
     )
 
     val ARCHIVE_EXTENSIONS = setOf("zip", "7z", "rar")

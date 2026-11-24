@@ -4,6 +4,9 @@
 
 #include <mutex>
 #include <utility>
+#ifdef ANDROID
+#include <sys/resource.h>
+#endif
 #include "common/microprofile.h"
 #include "common/thread.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
@@ -116,6 +119,9 @@ void Scheduler::DispatchWork() {
 
 void Scheduler::WorkerThread(std::stop_token stop_token) {
     Common::SetCurrentThreadName("VulkanWorker");
+#ifdef ANDROID
+    setpriority(PRIO_PROCESS, 0, -8);
+#endif
 
     const auto TryPopQueue{[this](auto& work) -> bool {
         if (work_queue.empty()) {

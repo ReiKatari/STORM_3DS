@@ -19,7 +19,7 @@ enum class UpdateApkRejectionReason {
 
 object UpdateApkValidationPolicy {
     const val EXPECTED_PACKAGE = "com.storm3ds.emulator"
-    private val ALLOWED_PACKAGES = setOf("com.storm3ds.emulator")
+    private val ALLOWED_PACKAGES = setOf("com.storm3ds.emulator", "com.storm3ds.emulator.nightly", "com.storm3ds.emulator.dev")
 
     fun validate(
         candidate: UpdateApkMetadata,

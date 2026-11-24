@@ -409,6 +409,7 @@ void RendererOpenGL::InitOpenGLObjects() {
 }
 
 void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
+    current_render_3d_mode = render_3d;
     // Link shaders and get variable locations
     std::string shader_data = fragment_shader_precision_OES;
     if (render_3d == Settings::StereoRenderOption::Anaglyph) {
@@ -692,7 +693,8 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout, bool f
                      Settings::values.bg_blue.GetValue(), 1.0f);
     }
 
-    if (settings.shader_update_requested.exchange(false)) {
+    if (settings.shader_update_requested.exchange(false) ||
+        layout.render_3d_mode != current_render_3d_mode) {
         // Update fragment shader before drawing
         shader.Release();
         // Link shaders and get variable locations
@@ -885,8 +887,14 @@ void RendererOpenGL::DrawBottomScreen(const Layout::FramebufferLayout& layout,
     }
     case Settings::StereoRenderOption::Anaglyph:
     case Settings::StereoRenderOption::Interlaced:
-    case Settings::StereoRenderOption::ReverseInterlaced:
+    case Settings::StereoRenderOption::ReverseInterlaced: {
+        DrawSingleScreenStereo(screen_infos[2], screen_infos[2], bottom_screen_left,
+                               bottom_screen_top, bottom_screen_width, bottom_screen_height,
+                               orientation);
+        break;
+    }
     case Settings::StereoRenderOption::GyroParallax: {
+        glUniform4f(uniform_gyro_params, 0.0f, 0.0f, 0.0f, 0.0f);
         DrawSingleScreenStereo(screen_infos[2], screen_infos[2], bottom_screen_left,
                                bottom_screen_top, bottom_screen_width, bottom_screen_height,
                                orientation);

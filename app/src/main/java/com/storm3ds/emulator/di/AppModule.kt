@@ -62,6 +62,7 @@ object AppModule {
         return Json {
             ignoreUnknownKeys = true
             explicitNulls = false
+            coerceInputValues = true
         }
     }
 

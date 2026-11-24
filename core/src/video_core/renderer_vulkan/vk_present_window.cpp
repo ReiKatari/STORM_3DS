@@ -14,6 +14,9 @@
 #include "vk_platform.h"
 
 #include <vk_mem_alloc.h>
+#ifdef ANDROID
+#include <sys/resource.h>
+#endif
 
 MICROPROFILE_DEFINE(Vulkan_WaitPresent, "Vulkan", "Wait For Present", MP_RGB(128, 128, 128));
 
@@ -322,6 +325,9 @@ void PresentWindow::WaitPresent() {
 
 void PresentWindow::PresentThread(std::stop_token token) {
     Common::SetCurrentThreadName("VulkanPresent");
+#ifdef ANDROID
+    setpriority(PRIO_PROCESS, 0, -8);
+#endif
     while (!token.stop_requested()) {
         std::unique_lock lock{queue_mutex};
 
@@ -489,7 +495,7 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
         if (libra_rendered) {
             const vk::ImageMemoryBarrier libra_post_barrier{
                 .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
-                .dstAccessMask = vk::AccessFlagBits::eMemoryRead,
+                .dstAccessMask = vk::AccessFlagBits::eNone,
                 .oldLayout = vk::ImageLayout::eColorAttachmentOptimal,
                 .newLayout = vk::ImageLayout::ePresentSrcKHR,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -503,8 +509,8 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
                     .layerCount = VK_REMAINING_ARRAY_LAYERS,
                 },
             };
-            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
-                                   vk::PipelineStageFlagBits::eAllCommands,
+            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                   vk::PipelineStageFlagBits::eBottomOfPipe,
                                    vk::DependencyFlagBits::eByRegion, {}, {}, libra_post_barrier);
         } else {
             const vk::ImageMemoryBarrier restore_src_barrier{
@@ -566,7 +572,7 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
         };
         const vk::ImageMemoryBarrier post_barrier{
             .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-            .dstAccessMask = vk::AccessFlagBits::eMemoryRead,
+            .dstAccessMask = vk::AccessFlagBits::eNone,
             .oldLayout = vk::ImageLayout::eTransferDstOptimal,
             .newLayout = vk::ImageLayout::ePresentSrcKHR,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -597,8 +603,8 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
                              MakeImageCopy(frame->width, frame->height, extent.width, extent.height));
         }
 
-        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
-                               vk::PipelineStageFlagBits::eAllCommands,
+        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                               vk::PipelineStageFlagBits::eBottomOfPipe,
                                vk::DependencyFlagBits::eByRegion, {}, {}, post_barrier);
     }
 
