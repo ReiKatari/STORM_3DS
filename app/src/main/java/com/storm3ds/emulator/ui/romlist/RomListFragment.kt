@@ -199,9 +199,221 @@ class RomListFragment : Fragment() {
                                     android.widget.Toast.makeText(requireContext(), R.string.custom_cover_removed, android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        }
+                        },
+                        onDeleteShaderCache = { rom -> clearRomShaderCache(rom) },
+                        onCompressOrDecompressZ3ds = { rom -> confirmAndConvertZ3ds(rom) },
+                        onSetInsertedCartridge = { rom -> setInsertedCartridgeForHomeMenu(rom) },
+                        onUninstallInstalledTitle = { rom -> uninstallInstalledTitleForRom(rom) },
                     )
                 }
+            }
+        }
+    }
+
+    private suspend fun resolveRomTitleId(rom: Rom): Long {
+        val hexTid = rom.gameCode.trim().removePrefix("0x").removePrefix("0X")
+        if (hexTid.length == 16) {
+            hexTid.toULongOrNull(16)?.toLong()?.let { if (it != 0L) return it }
+        }
+        return withContext(Dispatchers.IO) {
+            com.storm3ds.emulator.NativeCoreLoader.load()
+            val path = com.storm3ds.emulator.nativebridge.NativeLibrary.resolveNativeOrContentPath(rom.uri)
+            if (path.isBlank()) return@withContext 0L
+            com.storm3ds.emulator.nativebridge.NativeLibrary.getTitleId(path).takeIf { it != 0L }
+                ?: com.storm3ds.emulator.nativebridge.NativeLibrary.getCiaTitleId(path)
+        }
+    }
+
+    private fun clearRomShaderCache(rom: Rom) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val tid = resolveRomTitleId(rom)
+            if (tid == 0L) {
+                Toast.makeText(requireContext(), R.string.rom_shader_cache_tid_missing, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            withContext(Dispatchers.IO) {
+                com.storm3ds.emulator.NativeCoreLoader.load()
+                com.storm3ds.emulator.nativebridge.NativeLibrary.deleteVulkanShaderCache(tid)
+                com.storm3ds.emulator.nativebridge.NativeLibrary.deleteOpenGLShaderCache(tid)
+            }
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.rom_shader_cache_cleared_fmt, String.format(java.util.Locale.ROOT, "%016X", tid)),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    private fun setInsertedCartridgeForHomeMenu(rom: Rom) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                com.storm3ds.emulator.NativeCoreLoader.load()
+                val path = com.storm3ds.emulator.nativebridge.NativeLibrary.resolveNativeOrContentPath(rom.uri)
+                if (path.isNotBlank()) {
+                    com.storm3ds.emulator.nativebridge.NativeLibrary.setInsertedCartridge(path)
+                }
+            }
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.rom_set_inserted_cart_success_fmt, rom.config.customName ?: rom.name),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    private fun uninstallInstalledTitleForRom(rom: Rom) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val tid = resolveRomTitleId(rom)
+            if (tid == 0L) {
+                Toast.makeText(requireContext(), R.string.pref_3ds_uninstall_title_not_installed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val match = withContext(Dispatchers.IO) {
+                com.storm3ds.emulator.NativeCoreLoader.load()
+                com.storm3ds.emulator.nativebridge.NativeLibrary.getInstalledGamePaths().firstOrNull { ig ->
+                    runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.getTitleId(ig.path) == tid }.getOrDefault(false)
+                }
+            }
+            if (match == null) {
+                Toast.makeText(requireContext(), R.string.pref_3ds_uninstall_title_not_installed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val tidHex = String.format(java.util.Locale.ROOT, "%016X", tid)
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.pref_3ds_uninstall_title_confirm_title)
+                .setMessage(getString(R.string.pref_3ds_uninstall_title_confirm_msg, rom.config.customName ?: rom.name, tidHex))
+                .setPositiveButton(R.string.pref_3ds_uninstall_title_action) { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val ok = withContext(Dispatchers.IO) {
+                            com.storm3ds.emulator.nativebridge.NativeLibrary.uninstallTitle(tid, match.mediaType)
+                        }
+                        Toast.makeText(
+                            requireContext(),
+                            if (ok) R.string.pref_3ds_uninstall_title_success else R.string.pref_3ds_uninstall_title_failed,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun confirmAndConvertZ3ds(rom: Rom) {
+        val ctx = context ?: return
+        val extLower = rom.fileName.substringAfterLast('.', "").lowercase()
+        val isCompressed = extLower in setOf("z3ds", "zcci", "zcxi", "z3dsx", "zcia")
+        val shouldCompress = !isCompressed
+        val titleRes = if (shouldCompress) R.string.rom_action_compress_z3ds else R.string.rom_action_decompress_z3ds
+        AlertDialog.Builder(ctx)
+            .setTitle(titleRes)
+            .setMessage(getString(R.string.z3ds_convert_confirm_fmt, rom.fileName))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                runZ3dsConversion(rom, shouldCompress)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun runZ3dsConversion(rom: Rom, shouldCompress: Boolean) {
+        val ctx = context ?: return
+        val progressBar = android.widget.ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            max = 1000
+            setPadding(48, 32, 48, 16)
+        }
+        val statusText = android.widget.TextView(ctx).apply {
+            setPadding(48, 8, 48, 24)
+            text = rom.fileName
+        }
+        val container = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(progressBar)
+            addView(statusText)
+        }
+        val dialog = AlertDialog.Builder(ctx)
+            .setTitle(if (shouldCompress) R.string.rom_action_compress_z3ds else R.string.rom_action_decompress_z3ds)
+            .setView(container)
+            .setCancelable(false)
+            .show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            com.storm3ds.emulator.nativebridge.NativeBridgeHost.compressProgressCallback = { total, current ->
+                view?.post {
+                    if (total > 0L) {
+                        progressBar.isIndeterminate = false
+                        val pct = ((current * 1000L) / total).toInt().coerceIn(0, 1000)
+                        progressBar.progress = pct
+                        statusText.text = "${rom.fileName} (${pct / 10}%)"
+                    }
+                }
+            }
+            val resultMsg = try {
+                withContext(Dispatchers.IO) {
+                    com.storm3ds.emulator.NativeCoreLoader.load()
+                    val inputPath = com.storm3ds.emulator.nativebridge.NativeLibrary.resolveNativeOrContentPath(rom.uri)
+                    val recExt = com.storm3ds.emulator.nativebridge.NativeLibrary.getRecommendedExtension(inputPath, shouldCompress)
+                    if (recExt.isBlank()) {
+                        return@withContext getString(R.string.z3ds_compress_unsupported)
+                    }
+                    val baseName = rom.fileName.substringBeforeLast('.', rom.fileName)
+                    val outFileName = "$baseName.$recExt"
+                    val isDirectNative = inputPath.startsWith("!")
+                    if (isDirectNative) {
+                        val inFile = java.io.File(inputPath.removePrefix("!"))
+                        val outFile = java.io.File(inFile.parentFile, outFileName)
+                        val outPath = "!${outFile.absolutePath}"
+                        val status = if (shouldCompress) {
+                            com.storm3ds.emulator.nativebridge.NativeLibrary.compressFile(inputPath, outPath)
+                        } else {
+                            com.storm3ds.emulator.nativebridge.NativeLibrary.decompressFile(inputPath, outPath)
+                        }
+                        if (status == com.storm3ds.emulator.nativebridge.NativeLibrary.CompressStatus.SUCCESS) {
+                            romListViewModel.refreshRoms()
+                            getString(R.string.z3ds_compress_success_fmt, outFileName)
+                        } else {
+                            getString(R.string.z3ds_compress_failed_fmt, status.name)
+                        }
+                    } else {
+                        val tempOut = java.io.File(ctx.cacheDir, outFileName)
+                        tempOut.delete()
+                        try {
+                            val status = if (shouldCompress) {
+                                com.storm3ds.emulator.nativebridge.NativeLibrary.compressFile(inputPath, "!${tempOut.absolutePath}")
+                            } else {
+                                com.storm3ds.emulator.nativebridge.NativeLibrary.decompressFile(inputPath, "!${tempOut.absolutePath}")
+                            }
+                            if (status != com.storm3ds.emulator.nativebridge.NativeLibrary.CompressStatus.SUCCESS || !tempOut.exists()) {
+                                return@withContext getString(R.string.z3ds_compress_failed_fmt, status.name)
+                            }
+                            val treeUri = rom.parentTreeUri
+                            val copied = if (treeUri != null) {
+                                val dirDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(ctx, treeUri)
+                                val targetDoc = dirDoc?.createFile("application/octet-stream", outFileName)
+                                if (targetDoc != null) {
+                                    ctx.contentResolver.openOutputStream(targetDoc.uri)?.use { os ->
+                                        tempOut.inputStream().use { ins -> ins.copyTo(os) }
+                                    }
+                                    true
+                                } else false
+                            } else false
+                            if (copied) {
+                                romListViewModel.refreshRoms()
+                                getString(R.string.z3ds_compress_success_fmt, outFileName)
+                            } else {
+                                getString(R.string.z3ds_compress_failed_fmt, "SAF_WRITE_FAILED")
+                            }
+                        } finally {
+                            tempOut.delete()
+                        }
+                    }
+                }
+            } finally {
+                com.storm3ds.emulator.nativebridge.NativeBridgeHost.compressProgressCallback = null
+                runCatching { dialog.dismiss() }
+            }
+            if (isAdded) {
+                Toast.makeText(requireContext(), resultMsg, Toast.LENGTH_LONG).show()
             }
         }
     }

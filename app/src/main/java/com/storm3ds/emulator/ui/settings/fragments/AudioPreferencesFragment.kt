@@ -351,6 +351,7 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             "3ds_audio_emulation",
             "3ds_realtime_audio",
             "3ds_audio_stretch",
+            "3ds_simulate_headphones",
             "volume",
             "audio_latency",
         ).forEach { key ->

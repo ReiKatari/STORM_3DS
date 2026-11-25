@@ -309,6 +309,11 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             showThreeDsSystemFilesDialog()
             true
         }
+
+        findPreference<Preference>("3ds_installed_titles_manager")?.setOnPreferenceClickListener {
+            showInstalledTitlesManagerDialog()
+            true
+        }
     }
 
     private fun showThreeDsSystemFilesDialog() {
@@ -328,9 +333,12 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                     com.storm3ds.emulator.nativebridge.NativeLibrary.getHomeMenuPath(-1)
                 }.getOrDefault("")
                 val installed = if (homeMenuPath.isNotBlank()) getString(R.string.setup_3ds_key_ok) else getString(R.string.setup_3ds_key_missing)
+                val sysTitles = runCatching {
+                    com.storm3ds.emulator.nativebridge.NativeLibrary.areSystemTitlesInstalled()
+                }.getOrElse { booleanArrayOf(false, false) }
                 val yes = getString(R.string.setup_3ds_key_ok)
                 val no = getString(R.string.setup_3ds_key_missing)
-                getString(
+                val baseReport = getString(
                     R.string.pref_3ds_system_files_report,
                     userDir,
                     if (boot9Ok) yes else no,
@@ -340,6 +348,12 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                     if (nandDir.exists()) nandDir.absolutePath else "-",
                     if (sdmcDir.exists()) sdmcDir.absolutePath else java.io.File(userDir, "sdmc").absolutePath,
                 )
+                val sysStatus = getString(
+                    R.string.pref_3ds_system_titles_status_fmt,
+                    if (sysTitles.getOrElse(0) { false }) yes else no,
+                    if (sysTitles.getOrElse(1) { false }) yes else no,
+                )
+                "$baseReport\n$sysStatus"
             }.getOrElse { it.localizedMessage ?: "Error" }
 
             withContext(Dispatchers.Main) {
@@ -349,6 +363,74 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
                     .setMessage(report)
                     .setPositiveButton(R.string.home_menu_3ds_open_setup) { _, _ ->
                         com.storm3ds.emulator.ui.settings.showSystem3dsSetupDialog(requireActivity())
+                    }
+                    .setNegativeButton(R.string.ok, null)
+                    .show()
+            }
+        }
+    }
+
+    private data class InstalledTitleEntry(
+        val title: String,
+        val titleId: Long,
+        val titleIdHex: String,
+        val mediaType: com.storm3ds.emulator.nativebridge.model.GameMediaType,
+    )
+
+    private fun showInstalledTitlesManagerDialog() {
+        val ctx = context ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val entries = runCatching {
+                com.storm3ds.emulator.NativeCoreLoader.load()
+                com.storm3ds.emulator.nativebridge.NativeLibrary.getInstalledGamePaths().mapNotNull { ig ->
+                    val tid = runCatching {
+                        com.storm3ds.emulator.nativebridge.NativeLibrary.getTitleId(ig.path)
+                    }.getOrDefault(0L)
+                    if (tid == 0L) return@mapNotNull null
+                    val tidHex = String.format(java.util.Locale.ROOT, "%016X", tid)
+                    val title = runCatching {
+                        com.storm3ds.emulator.nativebridge.model.GameInfo(ig.path).getTitle()
+                    }.getOrNull()?.takeIf { it.isNotBlank() } ?: tidHex
+                    InstalledTitleEntry(title, tid, tidHex, ig.mediaType)
+                }.sortedBy { it.title.lowercase() }
+            }.getOrDefault(emptyList())
+
+            withContext(Dispatchers.Main) {
+                if (!isAdded) return@withContext
+                if (entries.isEmpty()) {
+                    AlertDialog.Builder(ctx)
+                        .setTitle(R.string.pref_3ds_installed_titles_title)
+                        .setMessage(R.string.pref_3ds_installed_titles_empty)
+                        .setPositiveButton(R.string.ok, null)
+                        .show()
+                    return@withContext
+                }
+                val labels = entries.map { "${it.title} (${it.titleIdHex} • ${it.mediaType.name})" }.toTypedArray()
+                AlertDialog.Builder(ctx)
+                    .setTitle(R.string.pref_3ds_installed_titles_title)
+                    .setItems(labels) { _, which ->
+                        val picked = entries.getOrNull(which) ?: return@setItems
+                        AlertDialog.Builder(ctx)
+                            .setTitle(R.string.pref_3ds_uninstall_title_confirm_title)
+                            .setMessage(getString(R.string.pref_3ds_uninstall_title_confirm_msg, picked.title, picked.titleIdHex))
+                            .setPositiveButton(R.string.pref_3ds_uninstall_title_action) { _, _ ->
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    val ok = runCatching {
+                                        com.storm3ds.emulator.nativebridge.NativeLibrary.uninstallTitle(picked.titleId, picked.mediaType)
+                                    }.getOrDefault(false)
+                                    withContext(Dispatchers.Main) {
+                                        if (!isAdded) return@withContext
+                                        Toast.makeText(
+                                            ctx,
+                                            if (ok) R.string.pref_3ds_uninstall_title_success else R.string.pref_3ds_uninstall_title_failed,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        if (ok) showInstalledTitlesManagerDialog()
+                                    }
+                                }
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
                     }
                     .setNegativeButton(R.string.ok, null)
                     .show()

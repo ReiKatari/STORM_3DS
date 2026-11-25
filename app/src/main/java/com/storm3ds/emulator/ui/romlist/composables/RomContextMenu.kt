@@ -24,9 +24,13 @@ import androidx.compose.ui.graphics.FilterQuality
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.DiscFull
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
@@ -66,6 +70,10 @@ fun RomContextMenu(
     onLaunchRom: (Rom) -> Unit = {},
     onPickCustomCover: ((Rom) -> Unit)? = null,
     onClearCustomCover: ((Rom) -> Unit)? = null,
+    onDeleteShaderCache: ((Rom) -> Unit)? = null,
+    onCompressOrDecompressZ3ds: ((Rom) -> Unit)? = null,
+    onSetInsertedCartridge: ((Rom) -> Unit)? = null,
+    onUninstallInstalledTitle: ((Rom) -> Unit)? = null,
 ) {
     if (rom == null) return
     val colors = watermelon
@@ -235,6 +243,67 @@ fun RomContextMenu(
 
                 // Group 3: Technical Specs & Export
                 ContextMenuGroup(title = stringResource(R.string.ui_ctx_group_export)) {
+                    val extLower = remember(rom.fileName) {
+                        rom.fileName.substringAfterLast('.', "").lowercase()
+                    }
+                    val isZ3dsCompressible = !rom.isInstalledDsiWareShortcut &&
+                        extLower in setOf("3ds", "cci", "cxi", "app", "3dsx", "cia")
+                    val isZ3dsCompressed = !rom.isInstalledDsiWareShortcut &&
+                        extLower in setOf("z3ds", "zcci", "zcxi", "z3dsx", "zcia")
+                    val isInsertableCart = !rom.isInstalledDsiWareShortcut &&
+                        extLower in setOf("3ds", "cci", "zcci", "z3ds", "cxi", "zcxi", "bcci", "bcxi")
+
+                    if (onDeleteShaderCache != null && !rom.isInstalledDsiWareShortcut) {
+                        ContextItem(
+                            icon = Icons.Filled.CleaningServices,
+                            iconTint = colors.text2,
+                            label = stringResource(R.string.pref_3ds_delete_shader_cache),
+                            subtitle = stringResource(R.string.ui_ctx_delete_shader_cache_sub),
+                            onClick = {
+                                onDeleteShaderCache(rom)
+                                onDismiss()
+                            },
+                        )
+                    }
+                    if (onCompressOrDecompressZ3ds != null && (isZ3dsCompressible || isZ3dsCompressed)) {
+                        ContextItem(
+                            icon = Icons.Filled.Archive,
+                            iconTint = colors.green,
+                            label = stringResource(
+                                if (isZ3dsCompressed) R.string.rom_action_decompress_z3ds
+                                else R.string.rom_action_compress_z3ds
+                            ),
+                            subtitle = stringResource(R.string.ui_ctx_z3ds_convert_sub),
+                            onClick = {
+                                onCompressOrDecompressZ3ds(rom)
+                                onDismiss()
+                            },
+                        )
+                    }
+                    if (onSetInsertedCartridge != null && isInsertableCart) {
+                        ContextItem(
+                            icon = Icons.Filled.Album,
+                            iconTint = colors.text2,
+                            label = stringResource(R.string.rom_action_set_inserted_cart),
+                            subtitle = stringResource(R.string.ui_ctx_set_cart_sub),
+                            onClick = {
+                                onSetInsertedCartridge(rom)
+                                onDismiss()
+                            },
+                        )
+                    }
+                    if (onUninstallInstalledTitle != null && !rom.isInstalledDsiWareShortcut) {
+                        ContextItem(
+                            icon = Icons.Filled.DiscFull,
+                            iconTint = colors.red,
+                            label = stringResource(R.string.pref_3ds_uninstall_title_action),
+                            subtitle = stringResource(R.string.ui_ctx_uninstall_title_sub),
+                            onClick = {
+                                onUninstallInstalledTitle(rom)
+                                onDismiss()
+                            },
+                        )
+                    }
                     ContextItem(
                         icon = Icons.Filled.Info,
                         iconTint = colors.green,

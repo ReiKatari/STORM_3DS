@@ -521,6 +521,7 @@ dependencies {
     implementation(libs.androidx.room.rxjava)
     implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.startup)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.window)
     implementation(libs.androidx.work)

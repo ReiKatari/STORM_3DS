@@ -155,6 +155,9 @@ bool EmuWindow_Android_OpenGL::CreateWindowSurface() {
         return {};
     }
 
+    window_info.type = Frontend::WindowSystemType::Android;
+    window_info.render_surface = host_window;
+
     return egl_surface;
 }
 

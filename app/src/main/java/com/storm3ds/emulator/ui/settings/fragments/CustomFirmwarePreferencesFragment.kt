@@ -41,9 +41,10 @@ class CustomFirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFr
                         File(sysDir, "keys.txt").let { it.exists() && it.length() > 0 }
                     val seedOk = File(sysDir, "seeddb.bin").let { it.exists() && it.length() > 0 }
                     val homeMenuOk = runCatching { NativeLibrary.getHomeMenuPath(-1).isNotBlank() }.getOrDefault(false)
+                    val sysTitles = runCatching { NativeLibrary.areSystemTitlesInstalled() }.getOrElse { booleanArrayOf(false, false) }
                     val ok = getString(R.string.setup_3ds_key_ok)
                     val miss = getString(R.string.setup_3ds_key_missing)
-                    getString(
+                    val baseReport = getString(
                         R.string.pref_3ds_system_files_report,
                         userDir,
                         if (boot9Ok) ok else miss,
@@ -53,6 +54,12 @@ class CustomFirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFr
                         if (nandDir.exists()) nandDir.absolutePath else "-",
                         if (sdmcDir.exists()) sdmcDir.absolutePath else File(userDir, "sdmc").absolutePath,
                     )
+                    val sysStatus = getString(
+                        R.string.pref_3ds_system_titles_status_fmt,
+                        if (sysTitles.getOrElse(0) { false }) ok else miss,
+                        if (sysTitles.getOrElse(1) { false }) ok else miss,
+                    )
+                    "$baseReport\n$sysStatus"
                 }.getOrElse { it.localizedMessage ?: "Error" }
 
                 withContext(Dispatchers.Main) {

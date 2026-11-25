@@ -32,6 +32,13 @@ data class RomConfig(
     val cpuClockPercentage: Int? = null,
     val render3dMode: Int? = null,
     val render3dFactor: Int? = null,
+    val useLimitFramesAheadOfGpu: Boolean? = null,
+    val skipDuplicateFrames: Boolean? = null,
+    val disableRightEyeRender: Boolean? = null,
+    val textureFilter: Int? = null,
+    val simulate3dsGpuTimings: Boolean? = null,
+    val simulateHeadphonesPlugged: Boolean? = null,
+    val enableRealtimeAudio: Boolean? = null,
 ) {
 
     fun getEffectiveControllerConfiguration(globalConfiguration: ControllerConfiguration): ControllerConfiguration {

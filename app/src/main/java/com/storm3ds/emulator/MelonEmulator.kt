@@ -31,6 +31,15 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import com.storm3ds.emulator.nativebridge.features.cheats.model.Cheat as NativeCheat
 
+data class PerfStatsSnapshot(
+    val systemFps: Double = 0.0,
+    val gameFps: Double = 0.0,
+    val emulationSpeedPercent: Double = 0.0,
+    val frameTimeMs: Double = 0.0,
+    val gpuTimeMs: Double = 0.0,
+    val swapTimeMs: Double = 0.0,
+)
+
 object MelonEmulator {
     enum class LoadResult(val isTerminal: Boolean) {
         SUCCESS(false),
@@ -67,6 +76,7 @@ object MelonEmulator {
     @Volatile private var currentRomPath: String = ""
     @Volatile private var currentTitleId: Long = 0L
     @Volatile private var emulatorThread: Thread? = null
+    @Volatile private var adrenoTurboEnabled: Boolean = false
     @Volatile private var currentConfig: EmulatorConfiguration? = null
     @Volatile private var rewindEnabledFlag: Boolean = true
     @Volatile private var rewindPeriodSec: Int = 5
@@ -151,8 +161,15 @@ object MelonEmulator {
         val useVulkan = cfg.rendererConfiguration.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN
         val resScale = cfg.rendererConfiguration.internalResolutionScaling.coerceIn(1, 10)
         val asyncShaders = prefs.getBoolean("video_async_shader_compilation", true)
-        val skipDupFrames = prefs.getBoolean("3ds_skip_duplicate_frames", false)
-        val texFilter = (prefs.getString("video_texture_filter", "0") ?: "0").toIntOrNull()?.coerceIn(0, 5) ?: 0
+        val skipDupFrames = cfg.skipDuplicateFramesOverride ?: prefs.getBoolean("3ds_skip_duplicate_frames", false)
+        val limitFramesAhead = cfg.useLimitFramesAheadOfGpuOverride ?: prefs.getBoolean("3ds_limit_frames_ahead_of_gpu", false)
+        val rawTexFilter = (cfg.textureFilterOverride ?: (prefs.getString("video_texture_filter", "0") ?: "0").toIntOrNull() ?: 0).coerceIn(0, 5)
+        // Anime4K (1) is restricted to OpenGL; coerce to NoFilter (0) under Vulkan
+        val texFilter = if (useVulkan && rawTexFilter == 1) 0 else rawTexFilter
+        val texSampling = (prefs.getString("3ds_texture_sampling", "0") ?: "0").toIntOrNull()?.coerceIn(0, 2) ?: 0
+        val msaaMode = (prefs.getString("3ds_antialiasing", "0") ?: "0").toIntOrNull()?.coerceIn(0, 4) ?: 0
+        val simulateGpuTimings = cfg.simulate3dsGpuTimingsOverride ?: prefs.getBoolean("3ds_simulate_gpu_timings", false)
+        val delayRenderUs = (prefs.getString("3ds_delay_render_thread_us", "0") ?: "0").toIntOrNull()?.coerceIn(0, 65000) ?: 0
         val hdTex = prefs.getBoolean("video_hd_textures_enabled", false)
         val dumpTex = prefs.getBoolean("video_dump_textures_enabled", false)
         val preloadTex = prefs.getBoolean("video_preload_textures_enabled", false)
@@ -163,10 +180,15 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.use_disk_shader_cache(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.async_presentation(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_skip_duplicate_frames(), if (skipDupFrames) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.use_limit_frames_ahead_of_gpu(), if (limitFramesAhead) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.resolution_factor(), resScale.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.antialiasing(), msaaMode.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.async_shader_compilation(), if (asyncShaders) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.filter_mode(), if (cfg.rendererConfiguration.videoFiltering.ordinal > 0) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.texture_filter(), texFilter.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.texture_sampling(), texSampling.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.simulate_3ds_gpu_timings(), if (simulateGpuTimings) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.delay_game_render_thread_us(), delayRenderUs.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.custom_textures(), if (hdTex) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.async_custom_loading(), if (hdTex) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.dump_textures(), if (dumpTex) "1" else "0")
@@ -178,7 +200,9 @@ object MelonEmulator {
         val accurateMul = prefs.getBoolean("3ds_accurate_mul", false)
         val audioStretch = prefs.getBoolean("3ds_audio_stretch", false)
         val spirvOpt = prefs.getBoolean("3ds_spirv_opt", false)
-        val disableRightEye = prefs.getBoolean("3ds_disable_right_eye", false)
+        val disableRightEye = cfg.disableRightEyeRenderOverride ?: prefs.getBoolean("3ds_disable_right_eye", false)
+        adrenoTurboEnabled = prefs.getBoolean("3ds_adreno_turbo", false)
+        runCatching { NativeLibrary.setAdrenoTurbo(adrenoTurboEnabled) }
 
         val videoDepthKey = prefs.getString("video_vulkan_3d_depth_mode", "off")?.lowercase()
         val modeFromVideo = when (videoDepthKey) {
@@ -229,13 +253,15 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.factor_3d(), factor3d.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.disable_right_eye_render(), if (disableRightEye) "1" else "0")
         val audioEmulation = (prefs.getString("3ds_audio_emulation", "0") ?: "0").toIntOrNull()?.coerceIn(0, 2) ?: 0
-        val realtimeAudio = prefs.getBoolean("3ds_realtime_audio", false)
+        val realtimeAudio = cfg.enableRealtimeAudioOverride ?: prefs.getBoolean("3ds_realtime_audio", false)
+        val simulateHeadphones = cfg.simulateHeadphonesPluggedOverride ?: prefs.getBoolean("3ds_simulate_headphones", false)
         NativeLibrary.addDefaultSetting(
             SettingKeys.volume(),
             if (cfg.soundEnabled) (cfg.volume.coerceIn(0, 512) / 256f).coerceIn(0f, 1f).toString() else "0",
         )
         NativeLibrary.addDefaultSetting(SettingKeys.audio_emulation(), audioEmulation.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.enable_realtime_audio(), if (realtimeAudio) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.simulate_headphones_plugged(), if (simulateHeadphones) "1" else "0")
         runCatching {
             NativeLibrary.setAudioMuted(!cfg.soundEnabled)
             NativeLibrary.setMicrophoneInputType(inputType)
@@ -267,6 +293,17 @@ object MelonEmulator {
         val pretendoEnabled = prefs.getBoolean("3ds_pretendo_enabled", false)
         NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
         NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (pretendoEnabled) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.async_fs_operations(), if (prefs.getBoolean("3ds_async_fs_operations", true)) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.deterministic_async_operations(), if (prefs.getBoolean("3ds_deterministic_async_operations", false)) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.lle_applets(), if (prefs.getBoolean("3ds_lle_applets", true)) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.delay_start_for_lle_modules(), if (prefs.getBoolean("3ds_delay_start_for_lle_modules", true)) "1" else "0")
+        NativeLibrary.addDefaultSetting(SettingKeys.compress_cia_installs(), if (prefs.getBoolean("3ds_compress_cia_installs", false)) "1" else "0")
+        val batterySource = (prefs.getString("3ds_battery_state_source", "0") ?: "0").toIntOrNull()?.coerceIn(0, 1) ?: 0
+        val batteryLevel = (prefs.getString("3ds_battery_level", "4") ?: "4").toIntOrNull()?.coerceIn(0, 4) ?: 4
+        val batteryCharging = prefs.getBoolean("3ds_battery_charging", true)
+        NativeLibrary.addDefaultSetting(SettingKeys.battery_state_source(), batterySource.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.battery_level(), batteryLevel.toString())
+        NativeLibrary.addDefaultSetting(SettingKeys.battery_charging(), if (batteryCharging) "1" else "0")
 
         val articIp = prefs.getString("3ds_artic_ip", "").orEmpty().trim()
         val articController = prefs.getBoolean("3ds_artic_controller", false)
@@ -476,7 +513,10 @@ object MelonEmulator {
         }
 
         var ciaExt = resolveCiaExtension(romUri, nativePath)
-        if (ciaExt.isEmpty() && !nativePath.startsWith("artic", ignoreCase = true)) {
+        val rawPathExt = nativePath.removePrefix("!").substringBefore('?').substringAfterLast('.', "").lowercase()
+        val isNonCiaHomebrew = rawPathExt in setOf("3dsx", "z3dsx", "elf", "axf", "artic") ||
+            nativePath.startsWith("artic", ignoreCase = true)
+        if (ciaExt.isEmpty() && !isNonCiaHomebrew) {
             val directTid = runCatching { NativeLibrary.getTitleId(nativePath) }.getOrDefault(0L)
             if (directTid == 0L && runCatching { NativeLibrary.getCiaTitleId(nativePath) }.getOrDefault(0L) != 0L) {
                 ciaExt = "cia"
@@ -491,8 +531,16 @@ object MelonEmulator {
         if (ciaExt.isNotEmpty()) {
             val tidHigh = (titleId ushr 32) and 0xFFFFFFFFL
             val isUpdateOrDlc = tidHigh == 0x0004000EL || tidHigh == 0x0004008CL
-            var installedPath = if (ciaExt != "bcia" && titleId != 0L && !isUpdateOrDlc) {
-                resolveInstalledBootPath(titleId)
+            var installedPath = if (titleId != 0L && !isUpdateOrDlc) {
+                if (ciaExt == "bcia") {
+                    if (runCatching { NativeLibrary.areAllBciaTitlesInstalled(nativePath) }.getOrDefault(false)) {
+                        resolveInstalledBootPath(titleId)
+                    } else {
+                        null
+                    }
+                } else {
+                    resolveInstalledBootPath(titleId)
+                }
             } else {
                 null
             }
@@ -658,24 +706,35 @@ object MelonEmulator {
     }
     fun presentVulkanFrame(deadlineNs: Long, budgetDeadlineNs: Long) {}
 
-    fun getFPS(): Float {
-        val stats = runCatching { NativeLibrary.getPerfStats() }.getOrNull() ?: return 0f
-        return stats.getOrElse(0) { 0.0 }.toFloat()
+    fun pollPerfStatsSnapshot(): PerfStatsSnapshot {
+        val stats = runCatching { NativeLibrary.getPerfStats() }.getOrNull() ?: return PerfStatsSnapshot()
+        if (stats.size < 8) return PerfStatsSnapshot()
+        return PerfStatsSnapshot(
+            systemFps = stats[0],
+            gameFps = stats[1],
+            emulationSpeedPercent = stats[2] * 100.0,
+            frameTimeMs = stats[3] * 1000.0,
+            gpuTimeMs = stats[6] * 1000.0,
+            swapTimeMs = stats[7] * 1000.0,
+        )
     }
 
-    fun getEmulationSpeedPercent(): Float {
-        val stats = runCatching { NativeLibrary.getPerfStats() }.getOrNull() ?: return 0f
-        return (stats.getOrElse(2) { 0.0 } * 100.0).toFloat()
-    }
+    fun getFPS(): Float = pollPerfStatsSnapshot().systemFps.toFloat()
+
+    fun getEmulationSpeedPercent(): Float = pollPerfStatsSnapshot().emulationSpeedPercent.toFloat()
 
     fun getCurrentRenderer(): Int =
         if (currentConfig?.rendererConfiguration?.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN) 1 else 0
 
     fun pauseEmulation() {
+        runCatching { NativeLibrary.setAdrenoTurbo(false) }
         runCatching { NativeLibrary.pauseEmulation() }
     }
 
     fun resumeEmulation() {
+        if (adrenoTurboEnabled) {
+            runCatching { NativeLibrary.setAdrenoTurbo(true) }
+        }
         runCatching { NativeLibrary.unPauseEmulation() }
     }
 
@@ -690,6 +749,7 @@ object MelonEmulator {
     }
 
     fun stopEmulation() {
+        runCatching { NativeLibrary.setAdrenoTurbo(false) }
         rewindTask?.cancel(false)
         rewindTask = null
         runCatching { NativeLibrary.playTimeManagerStop() }

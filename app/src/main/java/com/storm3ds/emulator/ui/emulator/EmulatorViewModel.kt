@@ -507,6 +507,9 @@ class EmulatorViewModel @Inject constructor(
     private val _currentFps = MutableStateFlow<Int?>(null)
     val currentFps = _currentFps.asStateFlow()
 
+    private val _perfStats = MutableStateFlow<com.storm3ds.emulator.PerfStatsSnapshot?>(null)
+    val perfStats = _perfStats.asStateFlow()
+
     private val _toastEvent = EventSharedFlow<ToastEvent>()
     val toastEvent = _toastEvent.asSharedFlow()
 
@@ -6681,7 +6684,9 @@ class EmulatorViewModel @Inject constructor(
             var markerCleared = false
             while (isActive) {
                 delay(1.seconds)
-                _currentFps.value = emulatorManager.getFps().roundToInt()
+                val snap = emulatorManager.pollPerfStatsSnapshot()
+                _perfStats.value = snap
+                _currentFps.value = snap.systemFps.roundToInt()
                 if (!markerCleared && _emulatorState.value is EmulatorState.RunningRom) {
                     stableSeconds += 1
                     if (stableSeconds >= GameCompatibilityManager.STABLE_EMULATION_SECONDS) {

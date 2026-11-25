@@ -116,6 +116,14 @@ public:
     std::unique_ptr<IOFileBase> OpenCopy() const override;
 
 protected:
+    void CopySubFileTo(SubIOFile& dst) const {
+        dst.Child() = Child()->OpenCopy();
+        dst.m_sub_file_capacity = m_sub_file_capacity;
+        dst.m_sub_file_offset = m_sub_file_offset;
+        dst.m_sub_file_size = m_sub_file_size;
+        dst.Open();
+    }
+
     bool Open() override;
     std::size_t ReadImpl(void* data, std::size_t length, std::size_t elem_size) override;
     std::size_t ReadAtImpl(void* data, std::size_t byte_count, std::size_t offset) override;

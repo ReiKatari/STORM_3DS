@@ -155,6 +155,13 @@ private fun Content(
     val cpuClockDialogState = rememberSingleChoiceDialogState<Int?>()
     val render3dModeDialogState = rememberSingleChoiceDialogState<Int?>()
     val render3dFactorDialogState = rememberSingleChoiceDialogState<Int?>()
+    val limitFramesAheadDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val skipDupFramesDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val disableRightEyeDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val textureFilterDialogState = rememberSingleChoiceDialogState<Int?>()
+    val simulateGpuTimingsDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val simulateHeadphonesDialogState = rememberSingleChoiceDialogState<Boolean?>()
+    val realtimeAudioDialogState = rememberSingleChoiceDialogState<Boolean?>()
     val retroArchPresetPathDialogState = rememberTextInputDialogState()
     val retroArchParametersDialogState = rememberTextInputDialogState()
 
@@ -283,6 +290,13 @@ private fun Content(
         if (romConfig.cpuClockPercentage != null) count++
         if (romConfig.render3dMode != null) count++
         if (romConfig.render3dFactor != null) count++
+        if (romConfig.useLimitFramesAheadOfGpu != null) count++
+        if (romConfig.skipDuplicateFrames != null) count++
+        if (romConfig.disableRightEyeRender != null) count++
+        if (romConfig.textureFilter != null) count++
+        if (romConfig.simulate3dsGpuTimings != null) count++
+        if (romConfig.simulateHeadphonesPlugged != null) count++
+        if (romConfig.enableRealtimeAudio != null) count++
         count
     }
 
@@ -686,6 +700,89 @@ private fun Content(
                     )
                 },
             )
+            val texFilterLabels = stringArrayResource(R.array.texture_filter_options)
+            fun texFilterName(idx: Int): String = texFilterLabels.getOrNull(idx) ?: idx.toString()
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_tex_filter_title),
+                value = romConfig.textureFilter?.let { texFilterName(it) }
+                    ?: useGlobalWithValue(texFilterName(romConfig.globalTextureFilter)),
+                showDivider = true,
+                onClick = {
+                    val items = if (effectiveRenderer == VideoRenderer.VULKAN) {
+                        listOf(null, 0, 2, 3, 4, 5)
+                    } else {
+                        listOf(null, 0, 1, 2, 3, 4, 5)
+                    }
+                    textureFilterDialogState.show(
+                        title = context.getString(R.string.pref_3ds_tex_filter_title),
+                        items = items,
+                        labelOf = { it?.let(::texFilterName) ?: useGlobalWithValue(texFilterName(romConfig.globalTextureFilter)) },
+                        selected = romConfig.textureFilter,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.TextureFilterUpdate(it)) },
+                    )
+                },
+            )
+            fun boolOverrideLabel(value: Boolean?, globalVal: Boolean): String = when (value) {
+                true -> context.getString(R.string.on)
+                false -> context.getString(R.string.off)
+                null -> useGlobalWithValue(context.getString(if (globalVal) R.string.on else R.string.off))
+            }
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_limit_frames_ahead_title),
+                value = boolOverrideLabel(romConfig.useLimitFramesAheadOfGpu, romConfig.globalUseLimitFramesAheadOfGpu),
+                showDivider = true,
+                onClick = {
+                    limitFramesAheadDialogState.show(
+                        title = context.getString(R.string.pref_3ds_limit_frames_ahead_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolOverrideLabel(it, romConfig.globalUseLimitFramesAheadOfGpu) },
+                        selected = romConfig.useLimitFramesAheadOfGpu,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.UseLimitFramesAheadOfGpuUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_skip_dup_title),
+                value = boolOverrideLabel(romConfig.skipDuplicateFrames, romConfig.globalSkipDuplicateFrames),
+                showDivider = true,
+                onClick = {
+                    skipDupFramesDialogState.show(
+                        title = context.getString(R.string.pref_3ds_skip_dup_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolOverrideLabel(it, romConfig.globalSkipDuplicateFrames) },
+                        selected = romConfig.skipDuplicateFrames,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.SkipDuplicateFramesUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_disable_right_eye_title),
+                value = boolOverrideLabel(romConfig.disableRightEyeRender, romConfig.globalDisableRightEyeRender),
+                showDivider = true,
+                onClick = {
+                    disableRightEyeDialogState.show(
+                        title = context.getString(R.string.pref_3ds_disable_right_eye_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolOverrideLabel(it, romConfig.globalDisableRightEyeRender) },
+                        selected = romConfig.disableRightEyeRender,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.DisableRightEyeRenderUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_simulate_gpu_timings_title),
+                value = boolOverrideLabel(romConfig.simulate3dsGpuTimings, romConfig.globalSimulate3dsGpuTimings),
+                showDivider = true,
+                onClick = {
+                    simulateGpuTimingsDialogState.show(
+                        title = context.getString(R.string.pref_3ds_simulate_gpu_timings_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolOverrideLabel(it, romConfig.globalSimulate3dsGpuTimings) },
+                        selected = romConfig.simulate3dsGpuTimings,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.Simulate3dsGpuTimingsUpdate(it)) },
+                    )
+                },
+            )
             AnimatedVisibility(visible = effectiveRenderer != VideoRenderer.SOFTWARE && effectiveFiltering == VideoFiltering.RETROARCH) {
                 Column {
                     ConfigRow(
@@ -724,6 +821,41 @@ private fun Content(
         }
 
         if (showAudioControls) {
+        ConfigSection(title = stringResource(R.string.pref_cat_audio_output)) {
+            fun boolAudioLabel(value: Boolean?, globalVal: Boolean): String = when (value) {
+                true -> context.getString(R.string.on)
+                false -> context.getString(R.string.off)
+                null -> useGlobalWithValue(context.getString(if (globalVal) R.string.on else R.string.off))
+            }
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_realtime_audio_title),
+                value = boolAudioLabel(romConfig.enableRealtimeAudio, romConfig.globalEnableRealtimeAudio),
+                showDivider = false,
+                onClick = {
+                    realtimeAudioDialogState.show(
+                        title = context.getString(R.string.pref_3ds_realtime_audio_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolAudioLabel(it, romConfig.globalEnableRealtimeAudio) },
+                        selected = romConfig.enableRealtimeAudio,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.EnableRealtimeAudioUpdate(it)) },
+                    )
+                },
+            )
+            ConfigRow(
+                title = stringResource(R.string.pref_3ds_simulate_headphones_title),
+                value = boolAudioLabel(romConfig.simulateHeadphonesPlugged, romConfig.globalSimulateHeadphonesPlugged),
+                showDivider = true,
+                onClick = {
+                    simulateHeadphonesDialogState.show(
+                        title = context.getString(R.string.pref_3ds_simulate_headphones_title),
+                        items = listOf(null, true, false),
+                        labelOf = { boolAudioLabel(it, romConfig.globalSimulateHeadphonesPlugged) },
+                        selected = romConfig.simulateHeadphonesPlugged,
+                        onSelect = { onConfigUpdate(RomConfigUpdateEvent.SimulateHeadphonesPluggedUpdate(it)) },
+                    )
+                },
+            )
+        }
         ConfigSection(title = stringResource(R.string.label_rom_config_input_mode)) {
             ConfigRow(
                 title = stringResource(R.string.label_rom_config_input_mode),
@@ -933,6 +1065,13 @@ private fun Content(
     SingleChoiceDialog(cpuClockDialogState)
     SingleChoiceDialog(render3dModeDialogState)
     SingleChoiceDialog(render3dFactorDialogState)
+    SingleChoiceDialog(limitFramesAheadDialogState)
+    SingleChoiceDialog(skipDupFramesDialogState)
+    SingleChoiceDialog(disableRightEyeDialogState)
+    SingleChoiceDialog(textureFilterDialogState)
+    SingleChoiceDialog(simulateGpuTimingsDialogState)
+    SingleChoiceDialog(simulateHeadphonesDialogState)
+    SingleChoiceDialog(realtimeAudioDialogState)
     TextInputDialog(
         title = stringResource(R.string.video_retroarch_shader_preset_title),
         dialogState = retroArchPresetPathDialogState,

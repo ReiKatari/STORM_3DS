@@ -106,6 +106,14 @@ static bool IsLowRefreshRate() {
     // We have no available method of checking refresh rate. Just assume that everything is fine :)
     return false;
 }
+
+bool HasValidSecondarySurface(const Frontend::EmuWindow* secondary_window) {
+    if (!secondary_window) {
+        return false;
+    }
+    const auto& info = secondary_window->GetWindowInfo();
+    return info.type != Frontend::WindowSystemType::Headless && info.render_surface != nullptr;
+}
 } // Anonymous namespace
 
 RendererVulkan::RendererVulkan(Core::System& system, Pica::PicaCore& pica_,
@@ -130,7 +138,7 @@ RendererVulkan::RendererVulkan(Core::System& system, Pica::PicaCore& pica_,
     CompileShaders();
     BuildLayouts();
     BuildPipelines();
-    if (secondary_window) {
+    if (HasValidSecondarySurface(secondary_window)) {
         secondary_present_window_ptr = std::make_unique<PresentWindow>(
             *secondary_window, instance, scheduler, IsLowRefreshRate());
     }
@@ -140,6 +148,9 @@ RendererVulkan::~RendererVulkan() {
     vk::Device device = instance.GetDevice();
     scheduler.Finish();
     main_present_window.WaitPresent();
+    if (secondary_present_window_ptr) {
+        secondary_present_window_ptr->WaitPresent();
+    }
     device.waitIdle();
 
     device.destroyShaderModule(present_vertex_shader);
@@ -1151,11 +1162,8 @@ void RendererVulkan::SwapBuffers() {
 #endif
 
 #ifdef ANDROID
-    if (secondary_window) {
-        secondaryWindowEnabled = true;
-    } else {
-        secondaryWindowEnabled = false;
-    }
+    const bool has_secondary_surface = HasValidSecondarySurface(secondary_window);
+    secondaryWindowEnabled = has_secondary_surface;
 #endif
 
     const Layout::FramebufferLayout& layout = render_window.GetFramebufferLayout();
@@ -1178,7 +1186,7 @@ void RendererVulkan::SwapBuffers() {
 #endif
 
 #ifdef ANDROID
-    if (secondary_window) {
+    if (has_secondary_surface) {
         const auto& secondary_layout = secondary_window->GetFramebufferLayout();
         if (!secondary_present_window_ptr) {
             secondary_present_window_ptr = std::make_unique<PresentWindow>(
@@ -1187,6 +1195,11 @@ void RendererVulkan::SwapBuffers() {
         isSecondaryWindow = true;
         RenderToWindow(*secondary_present_window_ptr, secondary_layout, false);
         secondary_window->PollEvents();
+    } else if (secondary_present_window_ptr) {
+        scheduler.Finish();
+        secondary_present_window_ptr->WaitPresent();
+        instance.GetDevice().waitIdle();
+        secondary_present_window_ptr.reset();
     }
 #endif
     if (!screenRendered) {

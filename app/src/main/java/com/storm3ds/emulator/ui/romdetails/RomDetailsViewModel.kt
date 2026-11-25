@@ -124,6 +124,13 @@ class RomDetailsViewModel @Inject constructor(
                     globalCpuClockPercentage = overrides.cpuClockPercentage,
                     globalRender3dMode = overrides.render3dMode,
                     globalRender3dFactor = overrides.render3dFactor,
+                    globalUseLimitFramesAheadOfGpu = overrides.useLimitFramesAheadOfGpu,
+                    globalSkipDuplicateFrames = overrides.skipDuplicateFrames,
+                    globalDisableRightEyeRender = overrides.disableRightEyeRender,
+                    globalTextureFilter = overrides.textureFilter,
+                    globalSimulate3dsGpuTimings = overrides.simulate3dsGpuTimings,
+                    globalSimulateHeadphonesPlugged = overrides.simulateHeadphonesPlugged,
+                    globalEnableRealtimeAudio = overrides.enableRealtimeAudio,
                 )
             }.collect {
                 uiStateFlow.value = RomConfigUiState.Ready(it)
@@ -194,6 +201,13 @@ class RomDetailsViewModel @Inject constructor(
             is RomConfigUpdateEvent.CpuClockPercentageUpdate -> currentRomConfig.copy(cpuClockPercentage = event.cpuClockPercentage)
             is RomConfigUpdateEvent.Render3dModeUpdate -> currentRomConfig.copy(render3dMode = event.render3dMode)
             is RomConfigUpdateEvent.Render3dFactorUpdate -> currentRomConfig.copy(render3dFactor = event.render3dFactor)
+            is RomConfigUpdateEvent.UseLimitFramesAheadOfGpuUpdate -> currentRomConfig.copy(useLimitFramesAheadOfGpu = event.enabled)
+            is RomConfigUpdateEvent.SkipDuplicateFramesUpdate -> currentRomConfig.copy(skipDuplicateFrames = event.enabled)
+            is RomConfigUpdateEvent.DisableRightEyeRenderUpdate -> currentRomConfig.copy(disableRightEyeRender = event.enabled)
+            is RomConfigUpdateEvent.TextureFilterUpdate -> currentRomConfig.copy(textureFilter = event.filter)
+            is RomConfigUpdateEvent.Simulate3dsGpuTimingsUpdate -> currentRomConfig.copy(simulate3dsGpuTimings = event.enabled)
+            is RomConfigUpdateEvent.SimulateHeadphonesPluggedUpdate -> currentRomConfig.copy(simulateHeadphonesPlugged = event.enabled)
+            is RomConfigUpdateEvent.EnableRealtimeAudioUpdate -> currentRomConfig.copy(enableRealtimeAudio = event.enabled)
             is RomConfigUpdateEvent.ResetToDefaults -> {
                 val base = if (_rom.value.isDsiWareTitle) RomConfig.forDsiWareTitle() else RomConfig.default()
                 if (event.preserveCustomName) {
@@ -249,6 +263,13 @@ class RomDetailsViewModel @Inject constructor(
         val cpuClockPercentage: Int,
         val render3dMode: Int,
         val render3dFactor: Int,
+        val useLimitFramesAheadOfGpu: Boolean,
+        val skipDuplicateFrames: Boolean,
+        val disableRightEyeRender: Boolean,
+        val textureFilter: Int,
+        val simulate3dsGpuTimings: Boolean,
+        val simulateHeadphonesPlugged: Boolean,
+        val enableRealtimeAudio: Boolean,
     )
 
     private fun readGlobalRuntimeOverrides(): GlobalRuntimeOverrides {
@@ -257,6 +278,13 @@ class RomDetailsViewModel @Inject constructor(
         val cpuClockPercentage = (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull()?.coerceIn(25, 200) ?: 100
         val render3dMode = settingsRepository.getVulkan3dDepthMode()
         val render3dFactor = settingsRepository.getVulkan3dDepthStrength()
+        val useLimitFramesAheadOfGpu = prefs.getBoolean("3ds_limit_frames_ahead_of_gpu", false)
+        val skipDuplicateFrames = prefs.getBoolean("3ds_skip_duplicate_frames", false)
+        val disableRightEyeRender = prefs.getBoolean("3ds_disable_right_eye", false)
+        val textureFilter = (prefs.getString("video_texture_filter", "0") ?: "0").toIntOrNull()?.coerceIn(0, 5) ?: 0
+        val simulate3dsGpuTimings = prefs.getBoolean("3ds_simulate_gpu_timings", false)
+        val simulateHeadphonesPlugged = prefs.getBoolean("3ds_simulate_headphones", false)
+        val enableRealtimeAudio = prefs.getBoolean("3ds_realtime_audio", false)
         val customVulkanSupported = com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.isSupported(context)
         val systemLabel = context.getString(com.storm3ds.emulator.R.string.rom_config_vulkan_driver_system)
         val globalLabel = context.getString(com.storm3ds.emulator.R.string.rom_config_vulkan_driver_global)
@@ -283,6 +311,13 @@ class RomDetailsViewModel @Inject constructor(
             cpuClockPercentage = cpuClockPercentage,
             render3dMode = render3dMode,
             render3dFactor = render3dFactor,
+            useLimitFramesAheadOfGpu = useLimitFramesAheadOfGpu,
+            skipDuplicateFrames = skipDuplicateFrames,
+            disableRightEyeRender = disableRightEyeRender,
+            textureFilter = textureFilter,
+            simulate3dsGpuTimings = simulate3dsGpuTimings,
+            simulateHeadphonesPlugged = simulateHeadphonesPlugged,
+            enableRealtimeAudio = enableRealtimeAudio,
         )
     }
 
@@ -301,6 +336,13 @@ class RomDetailsViewModel @Inject constructor(
             "3ds_cpu_clock_percentage",
             "video_vulkan_3d_depth_mode",
             "video_vulkan_3d_depth_strength",
+            "3ds_limit_frames_ahead_of_gpu",
+            "3ds_skip_duplicate_frames",
+            "3ds_disable_right_eye",
+            "video_texture_filter",
+            "3ds_simulate_gpu_timings",
+            "3ds_simulate_headphones",
+            "3ds_realtime_audio",
         )
         trySend(readGlobalRuntimeOverrides())
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->

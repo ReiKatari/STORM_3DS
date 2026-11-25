@@ -47,6 +47,13 @@ class RomConfigParcelable : Parcelable {
             cpuClockPercentage = parcel.readNullableInt(),
             render3dMode = parcel.readNullableInt(),
             render3dFactor = parcel.readNullableInt(),
+            useLimitFramesAheadOfGpu = parcel.readNullableBoolean(),
+            skipDuplicateFrames = parcel.readNullableBoolean(),
+            disableRightEyeRender = parcel.readNullableBoolean(),
+            textureFilter = parcel.readNullableInt(),
+            simulate3dsGpuTimings = parcel.readNullableBoolean(),
+            simulateHeadphonesPlugged = parcel.readNullableBoolean(),
+            enableRealtimeAudio = parcel.readNullableBoolean(),
         )
     }
 
@@ -77,6 +84,13 @@ class RomConfigParcelable : Parcelable {
         dest.writeNullableInt(romConfig.cpuClockPercentage)
         dest.writeNullableInt(romConfig.render3dMode)
         dest.writeNullableInt(romConfig.render3dFactor)
+        dest.writeNullableBoolean(romConfig.useLimitFramesAheadOfGpu)
+        dest.writeNullableBoolean(romConfig.skipDuplicateFrames)
+        dest.writeNullableBoolean(romConfig.disableRightEyeRender)
+        dest.writeNullableInt(romConfig.textureFilter)
+        dest.writeNullableBoolean(romConfig.simulate3dsGpuTimings)
+        dest.writeNullableBoolean(romConfig.simulateHeadphonesPlugged)
+        dest.writeNullableBoolean(romConfig.enableRealtimeAudio)
     }
 
     override fun describeContents(): Int {

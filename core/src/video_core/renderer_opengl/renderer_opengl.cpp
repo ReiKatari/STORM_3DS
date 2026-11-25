@@ -117,9 +117,8 @@ void RendererOpenGL::SwapBuffers() {
     }
 
 #ifdef ANDROID
-    // On Android, if secondary_window is defined at all,
-    // it means we have a second display
-    if (secondary_window) {
+    // On Android, secondary_window only has a drawable surface when an external display is attached
+    if (secondary_window && secondary_window->GetWindowInfo().render_surface != nullptr) {
         if (present_to_screen) {
             const auto& secondary_layout = secondary_window->GetFramebufferLayout();
             RenderToMailbox(secondary_layout, secondary_window->mailbox, false);

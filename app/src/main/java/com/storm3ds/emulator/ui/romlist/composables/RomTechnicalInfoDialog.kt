@@ -139,7 +139,7 @@ fun RomTechnicalInfoDialog(
             "cxi", "app" -> "NCCH Exe (.${extLower.uppercase()})"
             "cia" -> "CTR Archive (.CIA)"
             "3dsx", "elf", "axf" -> "3DS Homebrew (.${extLower.uppercase()})"
-            "zcci", "zcxi", "zcia", "z3dsx" -> "Z3DS Compressed (.${extLower.uppercase()})"
+            "z3ds", "zcci", "zcxi", "zcia", "z3dsx" -> "Z3DS Compressed (.${extLower.uppercase()})"
             "bcci", "bcxi", "bcia" -> "3DS Bundle (.${extLower.uppercase()})"
             "artic" -> "Artic Base Stream (.ARTIC)"
             else -> "CTR (.${extLower.uppercase().ifEmpty { "3DS" }})"

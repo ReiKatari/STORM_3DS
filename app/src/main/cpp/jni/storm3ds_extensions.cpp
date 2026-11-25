@@ -7,6 +7,7 @@
 #include <vector>
 #include <jni.h>
 #include "common/android_utils.h"
+#include "common/arch.h"
 #include "common/common_paths.h"
 #include "common/file_util.h"
 #include "common/logging/backend.h"
@@ -27,6 +28,9 @@
 #include "jni/emu_window/emu_window.h"
 #include "video_core/gpu.h"
 #include "video_core/renderer_base.h"
+#if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
+#include <adrenotools/driver.h>
+#endif
 
 namespace StormBridge {
 EmuWindow_Android* GetPrimaryWindow();
@@ -329,6 +333,69 @@ JNIEXPORT jstring JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_
         }
     }
     return env->NewStringUTF("");
+}
+
+JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setAdrenoTurbo(
+    JNIEnv*, jobject, jboolean enabled) {
+#if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
+    adrenotools_set_turbo(enabled == JNI_TRUE);
+    return JNI_TRUE;
+#else
+    (void)enabled;
+    return JNI_FALSE;
+#endif
+}
+
+JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_areAllBciaTitlesInstalled(
+    JNIEnv* env, jobject, jstring j_path) {
+    const std::string path = GetJString(env, j_path);
+    if (path.empty() || !FileUtil::Exists(path)) {
+        return JNI_FALSE;
+    }
+    auto tar = FileUtil::TarArchive::OpenTarArchive(path);
+    if (!tar) {
+        return JNI_FALSE;
+    }
+    int cia_entries = 0;
+    bool has_base_app = false;
+    for (const auto& f : tar->GetFileList()) {
+        const std::string lower_name = Common::ToLower(f.name);
+        if (!lower_name.ends_with(".cia") && !lower_name.ends_with(".zcia")) {
+            continue;
+        }
+        auto sub = tar->OpenSubFile(f.name);
+        if (!sub || !sub->IsGood()) {
+            return JNI_FALSE;
+        }
+        u64 tid = 0;
+        if (FileUtil::Z3DSReadIOFile::GetUnderlyingFileMagic(sub.get()).has_value()) {
+            auto z3ds = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(sub));
+            if (auto ti = z3ds->Metadata().Get("titleinfo"); ti && ti->size() >= sizeof(u64)) {
+                std::memcpy(&tid, ti->data(), sizeof(u64));
+            }
+            sub = std::move(z3ds);
+        }
+        if (tid == 0) {
+            FileSys::CIAContainer container;
+            if (container.Load(sub.get()) != Loader::ResultStatus::Success) {
+                return JNI_FALSE;
+            }
+            tid = container.GetTitleMetadata().GetTitleID();
+        }
+        if (tid == 0) {
+            return JNI_FALSE;
+        }
+        ++cia_entries;
+        if ((tid >> 32) == 0x00040000ULL) {
+            has_base_app = true;
+        }
+        const auto media = Service::AM::GetTitleMediaType(tid);
+        const std::string content_path = Service::AM::GetTitleContentPath(media, tid, 0, false);
+        if (content_path.empty() || !FileUtil::Exists(content_path)) {
+            return JNI_FALSE;
+        }
+    }
+    return (cia_entries > 0 && has_base_app) ? JNI_TRUE : JNI_FALSE;
 }
 
 } // extern "C"

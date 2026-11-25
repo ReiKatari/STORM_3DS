@@ -150,6 +150,35 @@ std::unique_ptr<FileUtil::IOFileBase> NCCHContainer::AutoOpenNCCHNCSD(
 
     std::unique_ptr<FileUtil::IOFileBase> file = in_file->OpenCopy();
 
+    auto unwrap_special_file = [&](std::unique_ptr<FileUtil::IOFileBase> candidate)
+        -> std::unique_ptr<FileUtil::IOFileBase> {
+        if (!candidate || !candidate->IsGood()) {
+            return nullptr;
+        }
+        if (has_ncch_magic(candidate.get())) {
+            return candidate;
+        }
+        while (true) {
+            if (HW::UniqueData::IsUniqueCryptoFile(candidate.get(),
+                                                   HW::UniqueData::UniqueCryptoFileID::NCCH)) {
+                candidate = HW::UniqueData::OpenUniqueCryptoFile(
+                    std::move(candidate), "rb", HW::UniqueData::UniqueCryptoFileID::NCCH);
+                if (has_ncch_magic(candidate.get())) {
+                    return candidate;
+                }
+                continue;
+            }
+            if (FileUtil::Z3DSReadIOFile::IsZ3DSIOFile(candidate.get())) {
+                candidate = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(candidate));
+                if (has_ncch_magic(candidate.get())) {
+                    return candidate;
+                }
+                continue;
+            }
+            return nullptr;
+        }
+    };
+
     // Check if it is a bundle
     if (auto tar = FileUtil::TarArchive::OpenTarArchive(file->OpenCopy())) {
         auto files = tar->GetFileList();
@@ -159,43 +188,18 @@ std::unique_ptr<FileUtil::IOFileBase> NCCHContainer::AutoOpenNCCHNCSD(
                 lower_name.ends_with(".z3ds") || lower_name.ends_with(".3ds") ||
                 lower_name.ends_with(".cxi") ||
                 lower_name.ends_with(".zcxi") || lower_name.ends_with(".app")) {
-                file = tar->OpenSubFile(f.name);
-                if (has_ncch_magic(file.get())) {
-                    return std::move(file);
+                if (auto opened = unwrap_special_file(tar->OpenSubFile(f.name))) {
+                    return opened;
                 }
-                break;
             }
         }
-        tar.reset();
-    }
-
-    // Check in loop for special files, including nested files.
-    while (true) {
-        // 1st: Crypto file
-        if (HW::UniqueData::IsUniqueCryptoFile(file.get(),
-                                               HW::UniqueData::UniqueCryptoFileID::NCCH)) {
-            file = HW::UniqueData::OpenUniqueCryptoFile(std::move(file), "rb",
-                                                        HW::UniqueData::UniqueCryptoFileID::NCCH);
-            if (has_ncch_magic(file.get())) {
-                return file;
-            } else {
-                continue;
-            }
-        }
-
-        // 2nd: Z3DS file
-        if (FileUtil::Z3DSReadIOFile::IsZ3DSIOFile(file.get())) {
-            file = std::make_unique<FileUtil::Z3DSReadIOFile>(std::move(file));
-            if (has_ncch_magic(file.get())) {
-                return file;
-            } else {
-                continue;
-            }
-        }
-
-        // 3rd: File not recognized
         return std::make_unique<FileUtil::NullIOFile>();
     }
+
+    if (auto opened = unwrap_special_file(std::move(file))) {
+        return opened;
+    }
+    return std::make_unique<FileUtil::NullIOFile>();
 }
 
 NCCHContainer::NCCHContainer(const std::string& filepath, u32 partition)

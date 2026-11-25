@@ -725,4 +725,98 @@
         <item>LLE (Single-core Accurate)</item>
         <item>LLE Multithreaded</item>
     </string-array>
+
+    <string-array name="delay_render_thread_us_values" translatable="false">
+        <item>0</item>
+        <item>250</item>
+        <item>500</item>
+        <item>1000</item>
+        <item>2000</item>
+        <item>4000</item>
+        <item>8000</item>
+        <item>16000</item>
+    </string-array>
+    <string-array name="delay_render_thread_us_options">
+        <item>@string/off</item>
+        <item>250 us</item>
+        <item>500 us</item>
+        <item>1000 us</item>
+        <item>2000 us</item>
+        <item>4000 us</item>
+        <item>8000 us</item>
+        <item>16000 us</item>
+    </string-array>
+
+    <string-array name="texture_sampling_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="texture_sampling_options">
+        <item>@string/pref_3ds_tex_sampling_game</item>
+        <item>@string/pref_3ds_tex_sampling_nearest</item>
+        <item>@string/pref_3ds_tex_sampling_linear</item>
+    </string-array>
+
+    <string-array name="antialiasing_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="antialiasing_3ds_options">
+        <item>@string/off</item>
+        <item>MSAA 2x</item>
+        <item>MSAA 4x</item>
+        <item>MSAA 8x</item>
+        <item>MSAA 16x</item>
+    </string-array>
+
+    <string-array name="battery_state_source_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+    <string-array name="battery_state_source_options">
+        <item>@string/pref_3ds_battery_source_system</item>
+        <item>@string/pref_3ds_battery_source_fixed</item>
+    </string-array>
+
+    <string-array name="battery_level_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+    </string-array>
+    <string-array name="battery_level_3ds_options">
+        <item>@string/pref_3ds_battery_level_critical</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+    </string-array>
+
+    <string-array name="layouts_to_cycle_values" translatable="false">
+        <item>UNEVEN_LANDSCAPE</item>
+        <item>EVEN_LANDSCAPE</item>
+        <item>PROPORTIONAL_LANDSCAPE</item>
+        <item>FULLSCREEN_LANDSCAPE</item>
+        <item>EVEN_PORTRAIT_LOCKED</item>
+        <item>AUTO_ROTATE</item>
+    </string-array>
+    <string-array name="layouts_to_cycle_defaults" translatable="false">
+        <item>UNEVEN_LANDSCAPE</item>
+        <item>EVEN_LANDSCAPE</item>
+        <item>PROPORTIONAL_LANDSCAPE</item>
+        <item>FULLSCREEN_LANDSCAPE</item>
+    </string-array>
+    <string-array name="layouts_to_cycle_options">
+        <item>@string/layout_uneven_landscape</item>
+        <item>@string/layout_even_landscape</item>
+        <item>@string/layout_proportional_landscape</item>
+        <item>@string/layout_fullscreen_landscape</item>
+        <item>@string/layout_even_portrait_locked</item>
+        <item>@string/layout_auto_rotate</item>
+    </string-array>
 </resources>

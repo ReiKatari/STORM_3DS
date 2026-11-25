@@ -1054,4 +1054,40 @@ class Storm3dsCoreTest {
         val dbgUi = File(coreDir, "citra_qt/configuration/configure_debug.ui").readText()
         assertTrue("configure_debug.ui must expose storm_jit_mode_combo", "storm_jit_mode_combo" in dbgUi)
     }
+
+    @Test
+    fun `azahar 2127 p0 p1 ports and bcxi headless secondary surface guards are intact`() {
+        val coreDir = File("../core/src").canonicalFile.let {
+            if (it.exists()) it else File("core/src")
+        }
+        val appMain = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
+
+        val vkRenderer = File(coreDir, "video_core/renderer_vulkan/renderer_vulkan.cpp").readText()
+        assertTrue("renderer_vulkan.cpp must define HasValidSecondarySurface", "HasValidSecondarySurface" in vkRenderer)
+        assertTrue("renderer_vulkan.cpp must guard swapchain creation with HasValidSecondarySurface", "HasValidSecondarySurface(secondary_window)" in vkRenderer)
+
+        val stylesXml = File(appMain, "res/values/styles.xml").readText()
+        assertTrue("EmulatorTheme must define colorSurface for Material dialogs", "colorSurface" in stylesXml)
+
+        val manifestXml = File(appMain, "AndroidManifest.xml").readText()
+        assertTrue("AndroidManifest.xml must declare ACCESS_LOCAL_NETWORK", "android.permission.ACCESS_LOCAL_NETWORK" in manifestXml)
+        listOf(".z3ds", ".Z3DS", ".ZCCI", ".ZCXI", ".ZCIA", ".Z3DSX", ".BCCI", ".BCXI", ".BCIA").forEach { ext ->
+            assertTrue("AndroidManifest.xml must include extension $ext", ext in manifestXml)
+        }
+
+        val extCpp = File(appMain, "cpp/jni/storm3ds_extensions.cpp").readText()
+        assertTrue("storm3ds_extensions.cpp must expose setAdrenoTurbo", "setAdrenoTurbo" in extCpp)
+        assertTrue("storm3ds_extensions.cpp must expose areAllBciaTitlesInstalled", "areAllBciaTitlesInstalled" in extCpp)
+
+        val melonKt = File(appMain, "java/com/storm3ds/emulator/MelonEmulator.kt").readText()
+        assertTrue("MelonEmulator.kt must dispatch use_limit_frames_ahead_of_gpu", "use_limit_frames_ahead_of_gpu" in melonKt)
+
+        val repoKt = File(appMain, "java/com/storm3ds/emulator/impl/FileSystemRomsRepository.kt").readText()
+        assertTrue("FileSystemRomsRepository.kt must filter dotfiles with startsWith(\".\")", """startsWith(".")""" in repoKt)
+
+        val parcelKt = File(appMain, "java/com/storm3ds/emulator/parcelables/RomConfigParcelable.kt").readText()
+        val readMatches = Regex("""(\w+)\s*=\s*parcel\.readNullable""").findAll(parcelKt).map { it.groupValues[1] }.toList()
+        val writeMatches = Regex("""dest\.writeNullable\w+\(romConfig\.(\w+)\)""").findAll(parcelKt).map { it.groupValues[1] }.toList()
+        assertTrue("RomConfigParcelable must read and write symmetric nullable fields", readMatches.isNotEmpty() && readMatches == writeMatches)
+    }
 }

@@ -276,6 +276,16 @@ class EmulatorActivity : AppCompatActivity() {
     @Inject
     lateinit var boxArtRepository: com.storm3ds.emulator.ui.romlist.boxart.BoxArtRepository
 
+    private val cameraImagePickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+        com.storm3ds.emulator.nativebridge.camera.StillImageCameraHelper.onFilePickerResult(uri?.toString())
+        viewModel.resumeEmulator()
+    }
+
     private val amiiboPickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val userRoot = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
@@ -450,6 +460,10 @@ class EmulatorActivity : AppCompatActivity() {
 
         override fun onSwapScreens() {
             swapScreen()
+        }
+
+        override fun onCycleLayout() {
+            cycleNextLayout()
         }
 
         override fun onQuickSave() {
@@ -803,6 +817,9 @@ class EmulatorActivity : AppCompatActivity() {
         handler = Handler(mainLooper)
         externalDisplayMode = settingsRepository.getExternalDisplayMode()
         lifecycleOwnerProvider.setCurrentLifecycleOwner(this)
+        com.storm3ds.emulator.nativebridge.NativeBridgeHost.openImagePickerCallback = {
+            cameraImagePickerLauncher.launch(arrayOf("image/*"))
+        }
         if (isDebuggableBuild()) {
             runCatching {
                 ContextCompat.registerReceiver(
@@ -1637,13 +1654,22 @@ class EmulatorActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.currentFps.collectLatest {
-                    if (it == null) {
+                viewModel.perfStats.collectLatest { snap ->
+                    val sysFps = snap?.systemFps?.roundToInt()
+                    if (sysFps == null) {
                         binding.textFps.text = null
                     } else {
-                        binding.textFps.text = getString(R.string.info_fps, it)
+                        val prefs = PreferenceManager.getDefaultSharedPreferences(this@EmulatorActivity)
+                        val resHidden = cachedResolutionHudPosition == "hidden"
+                        val baseFps = getString(R.string.info_fps, sysFps)
+                        if (resHidden) {
+                            val telemetrySuffix = buildPerfTelemetrySuffix(prefs, snap, sysFps)
+                            binding.textFps.text = if (telemetrySuffix.isNotEmpty()) "$baseFps | $telemetrySuffix" else baseFps
+                        } else {
+                            binding.textFps.text = baseFps
+                        }
                     }
-                    handleDrsAndHudUpdate(it)
+                    handleDrsAndHudUpdate(sysFps, snap)
                 }
             }
         }
@@ -2773,6 +2799,12 @@ class EmulatorActivity : AppCompatActivity() {
                 }
                 FpsCounterPosition.HIDDEN -> { /* Do nothing here */ }
             }
+            val showBg = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("hud_show_background", true)
+            if (showBg) {
+                binding.textFps.setBackgroundResource(R.drawable.bg_resolution_hud)
+            } else {
+                binding.textFps.background = null
+            }
             binding.textFps.layoutParams = newParams
             binding.textFps.elevation = 999f
             binding.textFps.bringToFront()
@@ -2891,13 +2923,19 @@ class EmulatorActivity : AppCompatActivity() {
                 return
             }
         }
+        val showHudBg = prefs.getBoolean("hud_show_background", true)
+        if (showHudBg) {
+            binding.textResolution.setBackgroundResource(R.drawable.bg_resolution_hud)
+        } else {
+            binding.textResolution.background = null
+        }
         binding.textResolution.layoutParams = newParams
         binding.textResolution.isVisible = true
         binding.textResolution.bringToFront()
         binding.textResolution.elevation = 999f
     }
 
-    private fun handleDrsAndHudUpdate(fps: Int?) {
+    private fun handleDrsAndHudUpdate(fps: Int?, snap: com.storm3ds.emulator.PerfStatsSnapshot? = null) {
         if (!bootRomReady.value) return
         val drsEnabled = viewModel.isDrsEnabled()
         val renderer = currentRuntimeRendererConfiguration?.renderer ?: viewModel.getConfiguredVideoRenderer()
@@ -2951,16 +2989,114 @@ class EmulatorActivity : AppCompatActivity() {
             drsStableFpsCounter = 0
         }
 
-        updateResolutionHudText(fps)
+        updateResolutionHudText(fps, snap)
     }
 
-    private fun updateResolutionHudText(fps: Int?) {
+    private fun readBatteryTemperatureC(): Double? {
+        return runCatching {
+            val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
+            val tenths = intent.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+            if (tenths == Int.MIN_VALUE || tenths <= 0) null else tenths / 10.0
+        }.getOrNull()
+    }
+
+    private fun readProcessRssMb(): Long? {
+        return runCatching {
+            val line = java.io.File("/proc/self/statm").readText().trim()
+            val pages = line.split(' ').getOrNull(1)?.toLongOrNull() ?: return@runCatching null
+            val pageSize = android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE)
+            (pages * pageSize) / (1024L * 1024L)
+        }.getOrNull() ?: runCatching {
+            android.os.Debug.getNativeHeapAllocatedSize() / (1024L * 1024L)
+        }.getOrNull()
+    }
+
+    private fun readAvailableRamMb(): Long? {
+        return runCatching {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager ?: return null
+            val info = android.app.ActivityManager.MemoryInfo()
+            am.getMemoryInfo(info)
+            info.availMem / (1024L * 1024L)
+        }.getOrNull()
+    }
+
+    private fun buildPerfTelemetrySuffix(
+        prefs: android.content.SharedPreferences,
+        snap: com.storm3ds.emulator.PerfStatsSnapshot?,
+        fps: Int?,
+    ): String {
+        val parts = mutableListOf<String>()
+        if (prefs.getBoolean("hud_show_frame_time", true)) {
+            val ms = when {
+                snap != null && snap.frameTimeMs > 0.01 -> snap.frameTimeMs
+                fps != null && fps > 0 -> 1000.0 / fps
+                else -> 16.6
+            }
+            parts.add(String.format(java.util.Locale.US, "%.1fms", ms))
+        }
+        if (prefs.getBoolean("hud_show_speed", true) && snap != null && snap.emulationSpeedPercent > 0.5) {
+            parts.add("${snap.emulationSpeedPercent.roundToInt()}%")
+        }
+        if (prefs.getBoolean("hud_show_battery_temp", false)) {
+            readBatteryTemperatureC()?.let { temp ->
+                parts.add(String.format(java.util.Locale.US, "%.1f°C", temp))
+            }
+        }
+        val showAppRam = prefs.getBoolean("hud_show_app_ram", false)
+        val showAvailRam = prefs.getBoolean("hud_show_available_ram", false)
+        if (showAppRam && showAvailRam) {
+            val appMb = readProcessRssMb()
+            val availMb = readAvailableRamMb()
+            if (appMb != null && availMb != null) {
+                parts.add("${appMb}MB/${String.format(java.util.Locale.US, "%.1fGB", availMb / 1024.0)}")
+            }
+        } else if (showAppRam) {
+            readProcessRssMb()?.let { parts.add("RAM ${it}MB") }
+        } else if (showAvailRam) {
+            readAvailableRamMb()?.let { parts.add(String.format(java.util.Locale.US, "Free %.1fGB", it / 1024.0)) }
+        }
+        return parts.joinToString(" • ")
+    }
+
+    private fun cycleNextLayout() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val defaultSet = setOf(
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.UNEVEN_LANDSCAPE.name,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE.name,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.PROPORTIONAL_LANDSCAPE.name,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.FULLSCREEN_LANDSCAPE.name,
+        )
+        val rawSelected = prefs.getStringSet("3ds_layouts_to_cycle", defaultSet) ?: defaultSet
+        val orderedModes = listOf(
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.UNEVEN_LANDSCAPE,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.PROPORTIONAL_LANDSCAPE,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.FULLSCREEN_LANDSCAPE,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_PORTRAIT_LOCKED,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.AUTO_ROTATE,
+        ).filter { it.name in rawSelected }
+        val cycleList = if (orderedModes.isNotEmpty()) {
+            orderedModes
+        } else {
+            listOf(
+                com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.UNEVEN_LANDSCAPE,
+                com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE,
+                com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.FULLSCREEN_LANDSCAPE,
+            )
+        }
+        val currentIdx = cycleList.indexOf(currentScreenLayoutMode)
+        val nextMode = cycleList[(currentIdx + 1) % cycleList.size]
+        applyScreenLayoutMode(nextMode)
+    }
+
+    private fun updateResolutionHudText(fps: Int?, snap: com.storm3ds.emulator.PerfStatsSnapshot? = null) {
         val position = cachedResolutionHudPosition
         if (position == "hidden" || !bootRomReady.value) {
             binding.textResolution.isGone = true
             return
         }
 
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val renderer = currentRuntimeRendererConfiguration?.renderer ?: cachedFallbackVideoRenderer
 
         val scale = if (renderer == VideoRenderer.SOFTWARE) 1 else liveDrsScale
@@ -2973,12 +3109,8 @@ class EmulatorActivity : AppCompatActivity() {
         val width = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_WIDTH * scale
         val height = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_HEIGHT * scale
 
-        val frameTimeStr = if (fps != null && fps > 0) {
-            val ms = 1000.0 / fps
-            String.format(java.util.Locale.US, "%.1fms", ms)
-        } else {
-            "16.6ms"
-        }
+        val telemetrySuffix = buildPerfTelemetrySuffix(prefs, snap, fps)
+        val telemetryPart = if (telemetrySuffix.isNotEmpty()) " • $telemetrySuffix" else ""
 
         val drsPart = if (viewModel.isDrsEnabled() && renderer != VideoRenderer.SOFTWARE) {
             if (liveDrsScale < baseInternalResolutionScale) {
@@ -2990,7 +3122,7 @@ class EmulatorActivity : AppCompatActivity() {
             ""
         }
 
-        binding.textResolution.text = "$rendererName | ${width}x${height} (${scale}x) • $frameTimeStr$drsPart"
+        binding.textResolution.text = "$rendererName | ${width}x${height} (${scale}x)$telemetryPart$drsPart"
         binding.textResolution.isVisible = true
     }
 
@@ -6735,6 +6867,8 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         super.onDestroy()
         if (com.storm3ds.emulator.nativebridge.NativeLibrary.sEmulationActivity.get() === this) {
             MelonEmulator.captureFrameBitmapCallback = null
+            com.storm3ds.emulator.nativebridge.NativeBridgeHost.openImagePickerCallback = null
+            com.storm3ds.emulator.nativebridge.camera.StillImageCameraHelper.onFilePickerResult(null)
         }
         com.storm3ds.emulator.nativebridge.NativeLibrary.clearEmulationActivity(this)
         runCatching { stopService(Intent(this, Storm3dsForegroundService::class.java)) }

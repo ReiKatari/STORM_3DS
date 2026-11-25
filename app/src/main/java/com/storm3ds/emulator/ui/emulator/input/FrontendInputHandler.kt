@@ -13,6 +13,7 @@ abstract class FrontendInputHandler : IInputListener {
             Input.TOGGLE_SOFT_INPUT -> onSoftInputTogglePressed()
             Input.RESET -> onResetPressed()
             Input.SWAP_SCREENS -> onSwapScreens()
+            Input.CYCLE_LAYOUT -> onCycleLayout()
             Input.QUICK_SAVE -> onQuickSave()
             Input.QUICK_LOAD -> onQuickLoad()
             Input.REWIND -> onRewind()
@@ -45,6 +46,7 @@ abstract class FrontendInputHandler : IInputListener {
     abstract fun onSoftInputTogglePressed()
     abstract fun onResetPressed()
     abstract fun onSwapScreens()
+    open fun onCycleLayout() {}
     abstract fun onQuickSave()
     abstract fun onQuickLoad()
     abstract fun onRewind()

@@ -655,10 +655,14 @@ private fun parseRomInfoDeep(context: android.content.Context, rom: Rom): RomInf
     runCatching {
         val path = NativeLibrary.resolveNativeOrContentPath(rom.uri)
         if (path.isNotBlank()) {
-            val tid = if (rom.fileName.endsWith(".cia", ignoreCase = true) || rom.fileName.endsWith(".zcia", ignoreCase = true)) {
+            val tid = if (
+                rom.fileName.endsWith(".cia", ignoreCase = true) ||
+                rom.fileName.endsWith(".zcia", ignoreCase = true) ||
+                rom.fileName.endsWith(".bcia", ignoreCase = true)
+            ) {
                 NativeLibrary.getCiaTitleId(path)
             } else {
-                GameInfo(path).getTitleID()
+                GameInfo(path).getTitleID().takeIf { it != 0L } ?: NativeLibrary.getCiaTitleId(path)
             }
             if (tid != 0L) {
                 val tidHex = String.format(java.util.Locale.US, "%016X", tid)

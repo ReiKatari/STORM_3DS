@@ -57,6 +57,14 @@
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 
+        <SwitchPreference
+                android:key="3ds_simulate_headphones"
+                android:title="@string/pref_3ds_simulate_headphones_title"
+                android:summary="@string/pref_3ds_simulate_headphones_summary"
+                android:dependency="sound_enabled"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
         <ListPreference
                 android:key="audio_latency"
                 android:title="@string/audio_latency"

@@ -31,6 +31,8 @@ interface EmulatorManager {
 
     fun getFps(): Float
 
+    fun pollPerfStatsSnapshot(): com.storm3ds.emulator.PerfStatsSnapshot = com.storm3ds.emulator.PerfStatsSnapshot()
+
     suspend fun pauseEmulator()
 
     suspend fun resumeEmulator()

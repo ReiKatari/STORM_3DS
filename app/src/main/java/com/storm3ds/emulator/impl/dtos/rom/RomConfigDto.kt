@@ -63,6 +63,20 @@ data class RomConfigDto(
     val render3dMode: Int? = null,
     @SerializedName("render3dFactor")
     val render3dFactor: Int? = null,
+    @SerializedName("useLimitFramesAheadOfGpu")
+    val useLimitFramesAheadOfGpu: Boolean? = null,
+    @SerializedName("skipDuplicateFrames")
+    val skipDuplicateFrames: Boolean? = null,
+    @SerializedName("disableRightEyeRender")
+    val disableRightEyeRender: Boolean? = null,
+    @SerializedName("textureFilter")
+    val textureFilter: Int? = null,
+    @SerializedName("simulate3dsGpuTimings")
+    val simulate3dsGpuTimings: Boolean? = null,
+    @SerializedName("simulateHeadphonesPlugged")
+    val simulateHeadphonesPlugged: Boolean? = null,
+    @SerializedName("enableRealtimeAudio")
+    val enableRealtimeAudio: Boolean? = null,
 ) {
 
     companion object {
@@ -94,6 +108,13 @@ data class RomConfigDto(
                 romConfig.cpuClockPercentage,
                 romConfig.render3dMode,
                 romConfig.render3dFactor,
+                romConfig.useLimitFramesAheadOfGpu,
+                romConfig.skipDuplicateFrames,
+                romConfig.disableRightEyeRender,
+                romConfig.textureFilter,
+                romConfig.simulate3dsGpuTimings,
+                romConfig.simulateHeadphonesPlugged,
+                romConfig.enableRealtimeAudio,
             )
         }
     }
@@ -126,6 +147,13 @@ data class RomConfigDto(
             cpuClockPercentage = cpuClockPercentage,
             render3dMode = render3dMode,
             render3dFactor = render3dFactor,
+            useLimitFramesAheadOfGpu = useLimitFramesAheadOfGpu,
+            skipDuplicateFrames = skipDuplicateFrames,
+            disableRightEyeRender = disableRightEyeRender,
+            textureFilter = textureFilter,
+            simulate3dsGpuTimings = simulate3dsGpuTimings,
+            simulateHeadphonesPlugged = simulateHeadphonesPlugged,
+            enableRealtimeAudio = enableRealtimeAudio,
         )
     }
 }

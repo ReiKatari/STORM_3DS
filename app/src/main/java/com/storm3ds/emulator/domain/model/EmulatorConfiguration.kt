@@ -46,4 +46,11 @@ data class EmulatorConfiguration(
         val cpuClockPercentageOverride: Int? = null,
         val render3dModeOverride: Int? = null,
         val render3dFactorOverride: Int? = null,
+        val useLimitFramesAheadOfGpuOverride: Boolean? = null,
+        val skipDuplicateFramesOverride: Boolean? = null,
+        val disableRightEyeRenderOverride: Boolean? = null,
+        val textureFilterOverride: Int? = null,
+        val simulate3dsGpuTimingsOverride: Boolean? = null,
+        val simulateHeadphonesPluggedOverride: Boolean? = null,
+        val enableRealtimeAudioOverride: Boolean? = null,
 )

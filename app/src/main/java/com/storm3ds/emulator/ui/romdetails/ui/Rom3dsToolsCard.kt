@@ -123,6 +123,43 @@ fun Rom3dsToolsCard(
                 Text(stringResource(R.string.rom_tools_3ds_setup_btn), fontSize = 11.sp)
             }
         }
+        val tidLong = titleIdHex.toULongOrNull(16)?.toLong() ?: 0L
+        val extLower = rom.fileName.substringAfterLast('.', "").lowercase()
+        val isCart = extLower in setOf("3ds", "cci", "zcci", "z3ds", "cxi", "zcxi", "bcci", "bcxi")
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (tidLong != 0L) {
+                OutlinedButton(
+                    onClick = {
+                        runCatching {
+                            com.storm3ds.emulator.NativeCoreLoader.load()
+                            NativeLibrary.deleteVulkanShaderCache(tidLong)
+                            NativeLibrary.deleteOpenGLShaderCache(tidLong)
+                        }
+                        Toast.makeText(context, context.getString(R.string.rom_shader_cache_cleared_fmt, titleIdHex), Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.pref_3ds_delete_shader_cache), fontSize = 11.sp)
+                }
+            }
+            if (isCart) {
+                OutlinedButton(
+                    onClick = {
+                        val path = NativeLibrary.resolveNativeOrContentPath(rom.uri)
+                        if (path.isNotBlank()) {
+                            runCatching {
+                                com.storm3ds.emulator.NativeCoreLoader.load()
+                                NativeLibrary.setInsertedCartridge(path)
+                            }
+                            Toast.makeText(context, context.getString(R.string.rom_set_inserted_cart_success_fmt, rom.name), Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.rom_action_set_inserted_cart), fontSize = 11.sp)
+                }
+            }
+        }
         if (mmjCheats.isNotEmpty()) {
             Button(
                 onClick = {

@@ -103,6 +103,9 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     val colors = LocalWatermelonColors.current
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     var keyMask by remember { mutableIntStateOf(runCatching { NativeLibrary.getAesKeyStatusMask() }.getOrDefault(0)) }
+    val sysTitlesStatus = remember(keyMask) {
+        runCatching { NativeLibrary.areSystemTitlesInstalled() }.getOrElse { booleanArrayOf(false, false) }
+    }
 
     var fmvHack by remember { mutableStateOf(prefs.getBoolean("3ds_fmv_hack", true)) }
     var skipSlowDraw by remember { mutableStateOf(prefs.getBoolean("3ds_skip_slow_draw", false)) }
@@ -200,6 +203,13 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                         KeyBadge("boot9.bin", (keyMask and 1) != 0, Modifier.weight(1f))
                         KeyBadge("aes_keys", (keyMask and 4) != 0 || (keyMask and 2) != 0, Modifier.weight(1f))
                         KeyBadge("seeddb", (keyMask and 8) != 0, Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        KeyBadge("Old 3DS NAND", sysTitlesStatus.getOrElse(0) { false }, Modifier.weight(1f))
+                        KeyBadge("New 3DS NAND", sysTitlesStatus.getOrElse(1) { false }, Modifier.weight(1f))
                     }
                     SetupActionButton(
                         text = stringResource(R.string.setup_3ds_import_key_btn),

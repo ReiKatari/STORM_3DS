@@ -34,5 +34,12 @@ sealed class RomConfigUpdateEvent {
     data class CpuClockPercentageUpdate(val cpuClockPercentage: Int?) : RomConfigUpdateEvent()
     data class Render3dModeUpdate(val render3dMode: Int?) : RomConfigUpdateEvent()
     data class Render3dFactorUpdate(val render3dFactor: Int?) : RomConfigUpdateEvent()
+    data class UseLimitFramesAheadOfGpuUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
+    data class SkipDuplicateFramesUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
+    data class DisableRightEyeRenderUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
+    data class TextureFilterUpdate(val filter: Int?) : RomConfigUpdateEvent()
+    data class Simulate3dsGpuTimingsUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
+    data class SimulateHeadphonesPluggedUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
+    data class EnableRealtimeAudioUpdate(val enabled: Boolean?) : RomConfigUpdateEvent()
     data class ResetToDefaults(val preserveCustomName: Boolean = true) : RomConfigUpdateEvent()
 }

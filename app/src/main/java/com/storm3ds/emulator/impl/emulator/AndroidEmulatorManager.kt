@@ -1403,6 +1403,10 @@ class AndroidEmulatorManager(
         return MelonEmulator.getFPS()
     }
 
+    override fun pollPerfStatsSnapshot(): com.storm3ds.emulator.PerfStatsSnapshot {
+        return MelonEmulator.pollPerfStatsSnapshot()
+    }
+
     override suspend fun pauseEmulator() {
         isEmulationPaused = true
         MelonEmulator.pauseEmulation()

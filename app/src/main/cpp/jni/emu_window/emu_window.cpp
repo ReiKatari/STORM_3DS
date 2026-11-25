@@ -29,7 +29,8 @@ bool EmuWindow_Android::OnSurfaceChanged(ANativeWindow* surface) {
     window_width = temp_width;
     window_height = temp_height;
     render_window = surface;
-    window_info.type = Frontend::WindowSystemType::Android;
+    window_info.type = (surface != nullptr) ? Frontend::WindowSystemType::Android
+                                            : Frontend::WindowSystemType::Headless;
     window_info.render_surface = surface;
     OnFramebufferSizeChanged();
     return true;
@@ -86,7 +87,11 @@ EmuWindow_Android::EmuWindow_Android(ANativeWindow* surface, bool is_secondary)
     : EmuWindow{is_secondary}, host_window(surface) {
     LOG_DEBUG(Frontend, "Initializing EmuWindow_Android");
     if (!surface) {
-        LOG_CRITICAL(Frontend, "surface is nullptr");
+        if (is_secondary) {
+            LOG_DEBUG(Frontend, "secondary surface is nullptr");
+        } else {
+            LOG_CRITICAL(Frontend, "surface is nullptr");
+        }
         return;
     }
 

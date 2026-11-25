@@ -40,6 +40,13 @@ class RomDetailsUiMapper(
         globalCpuClockPercentage: Int = 100,
         globalRender3dMode: Int = 0,
         globalRender3dFactor: Int = 50,
+        globalUseLimitFramesAheadOfGpu: Boolean = false,
+        globalSkipDuplicateFrames: Boolean = false,
+        globalDisableRightEyeRender: Boolean = false,
+        globalTextureFilter: Int = 0,
+        globalSimulate3dsGpuTimings: Boolean = false,
+        globalSimulateHeadphonesPlugged: Boolean = false,
+        globalEnableRealtimeAudio: Boolean = false,
     ): RomConfigUiModel {
         return RomConfigUiModel(
             runtimeConsoleType = romConfig.runtimeConsoleType,
@@ -88,6 +95,20 @@ class RomDetailsUiMapper(
             globalRender3dMode = globalRender3dMode,
             render3dFactor = romConfig.render3dFactor,
             globalRender3dFactor = globalRender3dFactor,
+            useLimitFramesAheadOfGpu = romConfig.useLimitFramesAheadOfGpu,
+            globalUseLimitFramesAheadOfGpu = globalUseLimitFramesAheadOfGpu,
+            skipDuplicateFrames = romConfig.skipDuplicateFrames,
+            globalSkipDuplicateFrames = globalSkipDuplicateFrames,
+            disableRightEyeRender = romConfig.disableRightEyeRender,
+            globalDisableRightEyeRender = globalDisableRightEyeRender,
+            textureFilter = romConfig.textureFilter,
+            globalTextureFilter = globalTextureFilter,
+            simulate3dsGpuTimings = romConfig.simulate3dsGpuTimings,
+            globalSimulate3dsGpuTimings = globalSimulate3dsGpuTimings,
+            simulateHeadphonesPlugged = romConfig.simulateHeadphonesPlugged,
+            globalSimulateHeadphonesPlugged = globalSimulateHeadphonesPlugged,
+            enableRealtimeAudio = romConfig.enableRealtimeAudio,
+            globalEnableRealtimeAudio = globalEnableRealtimeAudio,
         )
     }
 

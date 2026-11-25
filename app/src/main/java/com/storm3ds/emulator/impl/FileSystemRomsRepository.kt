@@ -1092,6 +1092,9 @@ class FileSystemRomsRepository(
             DocumentsContract.buildDocumentUriUsingTree(directoryUri, parentDocId)
         }
         for (file in children) {
+            if (file.name.startsWith(".")) {
+                continue
+            }
             if (file.isDirectory) {
                 val childDocId = if (isFileScheme) {
                     file.absolutePath
@@ -1166,6 +1169,9 @@ class FileSystemRomsRepository(
                 val effectiveFileName = displayName.ifBlank {
                     docId.substringAfterLast('/').substringAfterLast(':')
                 }
+                if (effectiveFileName.startsWith(".")) {
+                    continue
+                }
                 val mimeType = if (mimeIndex >= 0) cursor.getString(mimeIndex) else null
                 val lastModified = if (modIndex >= 0) cursor.getLong(modIndex).coerceAtLeast(0) else 0L
                 val size = if (sizeIndex >= 0) cursor.getLong(sizeIndex).coerceAtLeast(0) else 0L
@@ -1213,14 +1219,16 @@ class FileSystemRomsRepository(
             return false
         }
         for (file in files) {
+            val docName = file.name
+            if (docName?.startsWith(".") == true) {
+                continue
+            }
             if (file.isDirectory) {
                 if (!collectDirectoryFileStatesRecursive(file, accumulator)) {
                     return false
                 }
                 continue
             }
-
-            val docName = file.name
             val fileProcessor = romFileProcessorFactory.getFileRomProcessorForDocument(file)
                 ?: docName?.let { romFileProcessorFactory.getFileRomProcessorForFileName(it) }
             if (fileProcessor != null) {

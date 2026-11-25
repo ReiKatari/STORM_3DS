@@ -12,6 +12,7 @@ import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.storm3ds.emulator.BuildConfig
@@ -206,6 +207,8 @@ object NativeLibrary {
     external fun setAudioMuted(muted: Boolean)
     external fun installCiaSimple(path: String): Int
     external fun getCiaTitleId(path: String): Long
+    external fun areAllBciaTitlesInstalled(path: String): Boolean
+    external fun setAdrenoTurbo(enabled: Boolean): Boolean
     external fun findInstalledTitlePath(titleId: Long): String
 
     data class InstalledGame(val path: String, val mediaType: GameMediaType)
@@ -286,7 +289,8 @@ object NativeLibrary {
     fun onCoreError(error: CoreError?, details: String): Boolean {
         val activity = sEmulationActivity.get() ?: return false
         activity.runOnUiThread {
-            MaterialAlertDialogBuilder(activity)
+            val themedContext = ContextThemeWrapper(activity, R.style.AppTheme)
+            val builder = MaterialAlertDialogBuilder(themedContext)
                 .setTitle(activity.getString(error?.stringRes ?: R.string.fatal_error))
                 .setMessage(details.ifBlank { activity.getString(R.string.fatal_error_message) })
                 .setPositiveButton(R.string.continue_button) { _, _ ->
@@ -298,7 +302,20 @@ object NativeLibrary {
                     synchronized(coreErrorAlertLock) { coreErrorAlertLock.notifyAll() }
                 }
                 .setCancelable(false)
-                .show()
+            if (error == CoreError.ErrorShaderCacheCrash) {
+                builder.setNeutralButton(R.string.pref_3ds_delete_shader_cache) { _, _ ->
+                    runCatching {
+                        val tid = getRunningTitleId()
+                        if (tid != 0L) {
+                            deleteVulkanShaderCache(tid)
+                            deleteOpenGLShaderCache(tid)
+                        }
+                    }
+                    coreErrorAlertResult = false
+                    synchronized(coreErrorAlertLock) { coreErrorAlertLock.notifyAll() }
+                }
+            }
+            builder.show()
         }
         synchronized(coreErrorAlertLock) {
             runCatching { coreErrorAlertLock.wait() }
@@ -319,7 +336,7 @@ object NativeLibrary {
         val activity = sEmulationActivity.get() ?: return false
         var result = false
         activity.runOnUiThread {
-            val builder = MaterialAlertDialogBuilder(activity)
+            val builder = MaterialAlertDialogBuilder(ContextThemeWrapper(activity, R.style.AppTheme))
                 .setTitle(title)
                 .setMessage(message)
                 .setCancelable(false)
@@ -357,7 +374,7 @@ object NativeLibrary {
         }
         onCoreExitRequested?.invoke(err)
         activity?.runOnUiThread {
-            MaterialAlertDialogBuilder(activity)
+            MaterialAlertDialogBuilder(ContextThemeWrapper(activity, R.style.AppTheme))
                 .setTitle(R.string.loader_error_generic_title)
                 .setMessage(activity.getString(err.stringRes))
                 .setPositiveButton(android.R.string.ok) { _, _ -> activity.finish() }

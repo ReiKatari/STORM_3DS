@@ -17,10 +17,16 @@ namespace FileUtil {
 struct TarArchiveImpl;
 
 // Derived from SubIOFile so that callers can detect if a file comes
-// from a TarArchive. Should not override anything other than MyType().
+// from a TarArchive. Preserves TarIOFile type across OpenCopy().
 class TarIOFile : public SubIOFile {
 public:
     using SubIOFile::SubIOFile;
+
+    std::unique_ptr<IOFileBase> OpenCopy() const override {
+        auto ret = std::make_unique<TarIOFile>();
+        CopySubFileTo(*ret);
+        return ret;
+    }
 
 protected:
     IOType::Type MyType() const override {

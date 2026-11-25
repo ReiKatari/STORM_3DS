@@ -607,6 +607,13 @@ class SharedPreferencesSettingsRepository(
             cpuClockPercentageOverride = romConfig.cpuClockPercentage,
             render3dModeOverride = romConfig.render3dMode,
             render3dFactorOverride = romConfig.render3dFactor,
+            useLimitFramesAheadOfGpuOverride = romConfig.useLimitFramesAheadOfGpu,
+            skipDuplicateFramesOverride = romConfig.skipDuplicateFrames,
+            disableRightEyeRenderOverride = romConfig.disableRightEyeRender,
+            textureFilterOverride = romConfig.textureFilter,
+            simulate3dsGpuTimingsOverride = romConfig.simulate3dsGpuTimings,
+            simulateHeadphonesPluggedOverride = romConfig.simulateHeadphonesPlugged,
+            enableRealtimeAudioOverride = romConfig.enableRealtimeAudio,
             rendererConfiguration = buildRomRendererConfiguration(
                 baseConfiguration = globalConfiguration.rendererConfiguration,
                 romConfig = romConfig,

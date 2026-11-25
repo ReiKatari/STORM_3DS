@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -123,13 +124,22 @@
                 <data android:pathPattern=".*\.ELF" />
                 <data android:pathPattern=".*\.axf" />
                 <data android:pathPattern=".*\.AXF" />
+                <data android:pathPattern=".*\.z3ds" />
+                <data android:pathPattern=".*\.Z3DS" />
                 <data android:pathPattern=".*\.zcci" />
+                <data android:pathPattern=".*\.ZCCI" />
                 <data android:pathPattern=".*\.zcxi" />
+                <data android:pathPattern=".*\.ZCXI" />
                 <data android:pathPattern=".*\.zcia" />
+                <data android:pathPattern=".*\.ZCIA" />
                 <data android:pathPattern=".*\.z3dsx" />
+                <data android:pathPattern=".*\.Z3DSX" />
                 <data android:pathPattern=".*\.bcci" />
+                <data android:pathPattern=".*\.BCCI" />
                 <data android:pathPattern=".*\.bcxi" />
+                <data android:pathPattern=".*\.BCXI" />
                 <data android:pathPattern=".*\.bcia" />
+                <data android:pathPattern=".*\.BCIA" />
                 <data android:pathPattern=".*\.artic" />
                 <data android:pathPattern=".*\.ARTIC" />
                 <data android:pathPattern=".*\.zip" />

@@ -340,8 +340,52 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         val activityManager = requireContext().getSystemService<ActivityManager>()
         val deviceGlesVersion = activityManager?.deviceConfigurationInfo?.reqGlEsVersion ?: 0
-        val supportsOpenGlRenderer = deviceGlesVersion >= GLES_3_2
+        val isAngleForOpenGl = runCatching {
+            com.storm3ds.emulator.NativeCoreLoader.load()
+            com.storm3ds.emulator.nativebridge.NativeLibrary.isUsingAngleForOpenGL()
+        }.getOrDefault(false)
+        val supportsOpenGlRenderer = (deviceGlesVersion >= GLES_3_2) && !isAngleForOpenGl
         val supportsComputeRenderer = supportsOpenGlRenderer && Build.HARDWARE.equals("qcom", ignoreCase = true)
+
+        val texFilterPref = findPreference<ListPreference>("video_texture_filter")
+        fun enforceAnime4kOpenGlOnly(activeRenderer: VideoRenderer) {
+            if (activeRenderer == VideoRenderer.VULKAN && texFilterPref?.value == "1") {
+                texFilterPref.value = "0"
+                preferenceManager.sharedPreferences?.edit()?.putString("video_texture_filter", "0")?.apply()
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.pref_3ds_anime4k_vulkan_title)
+                    .setMessage(R.string.pref_3ds_anime4k_vulkan_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
+
+        texFilterPref?.setOnPreferenceChangeListener { pref, newValue ->
+            val selected = newValue as? String ?: "0"
+            val currentRenderer = runCatching {
+                enumValueOfIgnoreCase<VideoRenderer>(rendererPreference.value)
+            }.getOrDefault(VideoRenderer.VULKAN)
+            if (currentRenderer == VideoRenderer.VULKAN && selected == "1") {
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.pref_3ds_anime4k_vulkan_title)
+                    .setMessage(R.string.pref_3ds_anime4k_vulkan_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                false
+            } else {
+                true
+            }
+        }
+
+        val gpuDesc = runCatching { com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport.getDeviceGpuDescription() }.getOrDefault("")
+        val isAdrenoDevice = gpuDesc.contains("Adreno", ignoreCase = true) || Build.HARDWARE.equals("qcom", ignoreCase = true)
+        findPreference<SwitchPreference>("3ds_adreno_turbo")?.let { turboPref ->
+            if (!isAdrenoDevice) {
+                turboPref.isEnabled = false
+                turboPref.isChecked = false
+                turboPref.summary = getString(R.string.pref_3ds_adreno_turbo_unavailable)
+            }
+        }
 
         rendererPreference.apply {
             val values = context.resources.getStringArray(R.array.video_renderer_values)
@@ -352,9 +396,20 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             entryValues = filteredPairs.map { it.first }.toTypedArray()
             this.entries = filteredPairs.map { it.second }.toTypedArray()
 
-            if (value != "vulkan" && value != "opengl") {
+            if (isAngleForOpenGl) {
+                if (value != "vulkan") {
+                    value = "vulkan"
+                    preferenceManager.sharedPreferences?.edit()?.putString("video_renderer", "vulkan")?.apply()
+                }
+                isEnabled = false
+                summary = getString(R.string.pref_3ds_angle_opengl_disabled_summary)
+            } else if (value != "vulkan" && value != "opengl") {
                 value = "vulkan"
             }
+
+            enforceAnime4kOpenGlOnly(
+                runCatching { enumValueOfIgnoreCase<VideoRenderer>(value) }.getOrDefault(VideoRenderer.VULKAN)
+            )
 
             setOnPreferenceChangeListener { _, newValue ->
                 val rendererValue = newValue as String
@@ -393,6 +448,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 if (newRenderer != VideoRenderer.VULKAN && vulkanFastPathPreference?.isChecked == true) {
                     applyVulkanFastPathSelection(vulkanFastPathPreference, enabled = false)
                 }
+                enforceAnime4kOpenGlOnly(newRenderer)
                 true
             }
         }
@@ -2445,6 +2501,12 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             putBoolean("3ds_accurate_mul", false)
             putBoolean("3ds_skip_duplicate_frames", false)
             putBoolean("3ds_disable_right_eye", false)
+            putBoolean("3ds_limit_frames_ahead_of_gpu", false)
+            putBoolean("3ds_simulate_gpu_timings", false)
+            putString("3ds_delay_render_thread_us", "0")
+            putString("3ds_texture_sampling", "0")
+            putString("3ds_antialiasing", "0")
+            putString("video_texture_filter", "0")
             putBoolean("video_async_shader_compilation", true)
             putBoolean("video_vulkan_ssao", false)
             putBoolean("video_vulkan_thick_edges", false)
@@ -2505,6 +2567,12 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         findPreference<androidx.preference.TwoStatePreference>("3ds_accurate_mul")?.isChecked = false
         findPreference<androidx.preference.TwoStatePreference>("3ds_skip_duplicate_frames")?.isChecked = false
         findPreference<androidx.preference.TwoStatePreference>("3ds_disable_right_eye")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("3ds_limit_frames_ahead_of_gpu")?.isChecked = false
+        findPreference<androidx.preference.TwoStatePreference>("3ds_simulate_gpu_timings")?.isChecked = false
+        findPreference<ListPreference>("3ds_delay_render_thread_us")?.value = "0"
+        findPreference<ListPreference>("3ds_texture_sampling")?.value = "0"
+        findPreference<ListPreference>("3ds_antialiasing")?.value = "0"
+        findPreference<ListPreference>("video_texture_filter")?.value = "0" 
         findPreference<androidx.preference.TwoStatePreference>("video_async_shader_compilation")?.isChecked = true
 
         val rendererPref = findPreference<ListPreference>("video_renderer")

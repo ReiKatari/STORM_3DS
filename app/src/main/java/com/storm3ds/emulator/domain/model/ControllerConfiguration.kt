@@ -28,6 +28,7 @@ class ControllerConfiguration(
             Input.MICROPHONE,
             Input.RESET,
             Input.SWAP_SCREENS,
+            Input.CYCLE_LAYOUT,
             Input.QUICK_SAVE,
             Input.QUICK_LOAD,
             Input.REWIND,

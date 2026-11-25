@@ -85,6 +85,54 @@
                 android:summary="@string/setup_3ds_disable_right_eye_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_limit_frames_ahead_of_gpu"
+                android:title="@string/pref_3ds_limit_frames_ahead_title"
+                android:summary="@string/pref_3ds_limit_frames_ahead_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_adreno_turbo"
+                android:title="@string/pref_3ds_adreno_turbo_title"
+                android:summary="@string/pref_3ds_adreno_turbo_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_simulate_gpu_timings"
+                android:title="@string/pref_3ds_simulate_gpu_timings_title"
+                android:summary="@string/pref_3ds_simulate_gpu_timings_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <ListPreference
+                android:key="3ds_delay_render_thread_us"
+                android:title="@string/pref_3ds_delay_render_thread_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/delay_render_thread_us_options"
+                android:entryValues="@array/delay_render_thread_us_values"
+                android:defaultValue="0" />
+
+        <ListPreference
+                android:key="3ds_texture_sampling"
+                android:title="@string/pref_3ds_texture_sampling_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/texture_sampling_options"
+                android:entryValues="@array/texture_sampling_values"
+                android:defaultValue="0" />
+
+        <ListPreference
+                android:key="3ds_antialiasing"
+                android:title="@string/pref_3ds_antialiasing_title"
+                android:summary="%s"
+                app:iconSpaceReserved="false"
+                android:entries="@array/antialiasing_3ds_options"
+                android:entryValues="@array/antialiasing_3ds_values"
+                android:defaultValue="0" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -263,6 +311,51 @@
                 android:entries="@array/fps_counter_position_options"
                 android:entryValues="@array/fps_counter_position_values"
                 android:defaultValue="hidden" />
+
+        <SwitchPreference
+                android:key="hud_show_frame_time"
+                android:title="@string/pref_hud_show_frame_time_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="hud_show_speed"
+                android:title="@string/pref_hud_show_speed_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="hud_show_battery_temp"
+                android:title="@string/pref_hud_show_battery_temp_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="hud_show_app_ram"
+                android:title="@string/pref_hud_show_app_ram_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="hud_show_available_ram"
+                android:title="@string/pref_hud_show_available_ram_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="hud_show_background"
+                android:title="@string/pref_hud_show_background_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <MultiSelectListPreference
+                android:key="3ds_layouts_to_cycle"
+                android:title="@string/pref_3ds_layouts_to_cycle_title"
+                android:summary="@string/pref_3ds_layouts_to_cycle_summary"
+                app:iconSpaceReserved="false"
+                android:entries="@array/layouts_to_cycle_options"
+                android:entryValues="@array/layouts_to_cycle_values"
+                android:defaultValue="@array/layouts_to_cycle_defaults" />
 
         <SwitchPreference
                 android:key="video_dual_screen_cast_enabled"

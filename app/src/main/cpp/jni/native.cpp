@@ -1063,6 +1063,16 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_secondarySurfaceDestr
         s_secondary_surface = nullptr;
     }
 
+    bool notify = false;
+    if (secondary_window) {
+        notify = secondary_window->OnSurfaceChanged(nullptr);
+    }
+
+    auto& system = Core::System::GetInstance();
+    if (notify && system.IsPoweredOn()) {
+        system.GPU().Renderer().NotifySurfaceChanged(true);
+    }
+
     LOG_INFO(Frontend, "Secondary Surface Destroyed");
 }
 

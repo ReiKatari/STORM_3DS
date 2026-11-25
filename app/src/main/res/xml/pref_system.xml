@@ -53,6 +53,65 @@
                 android:summary="@string/pref_3ds_region_free_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="3ds_async_fs_operations"
+                android:title="@string/pref_3ds_async_fs_title"
+                android:summary="@string/pref_3ds_async_fs_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="3ds_deterministic_async_operations"
+                android:title="@string/pref_3ds_deterministic_async_title"
+                android:summary="@string/pref_3ds_deterministic_async_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_lle_applets"
+                android:title="@string/pref_3ds_lle_applets_title"
+                android:summary="@string/pref_3ds_lle_applets_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="3ds_delay_start_for_lle_modules"
+                android:title="@string/pref_3ds_delay_lle_start_title"
+                android:summary="@string/pref_3ds_delay_lle_start_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
+
+        <SwitchPreference
+                android:key="3ds_compress_cia_installs"
+                android:title="@string/pref_3ds_compress_cia_installs_title"
+                android:summary="@string/pref_3ds_compress_cia_installs_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <ListPreference
+                android:key="3ds_battery_state_source"
+                android:title="@string/pref_3ds_battery_source_title"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false"
+                android:entries="@array/battery_state_source_options"
+                android:entryValues="@array/battery_state_source_values"
+                android:defaultValue="0" />
+
+        <ListPreference
+                android:key="3ds_battery_level"
+                android:title="@string/pref_3ds_battery_level_title"
+                app:useSimpleSummaryProvider="true"
+                app:iconSpaceReserved="false"
+                android:entries="@array/battery_level_3ds_options"
+                android:entryValues="@array/battery_level_3ds_values"
+                android:defaultValue="4" />
+
+        <SwitchPreference
+                android:key="3ds_battery_charging"
+                android:title="@string/pref_3ds_battery_charging_title"
+                app:iconSpaceReserved="false"
+                android:defaultValue="true" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -141,6 +200,12 @@
                 android:summary="@string/setup_3ds_pretendo_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="false" />
+
+        <Preference
+                android:key="3ds_installed_titles_manager"
+                android:title="@string/pref_3ds_installed_titles_title"
+                android:summary="@string/pref_3ds_installed_titles_summary"
+                app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
