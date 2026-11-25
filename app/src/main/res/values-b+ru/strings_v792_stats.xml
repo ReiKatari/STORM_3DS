@@ -36,9 +36,9 @@
     <string name="v792_stats_sort_time">По времени</string>
     <string name="v792_stats_sort_launches">По запускам</string>
     <string name="v792_stats_sort_recent">Недавние</string>
-    <string name="v792_stats_sort_avg_session">Ср. сессия</string>
+    <string name="v792_stats_sort_avg_session">Средняя сессия</string>
     <string name="v792_stats_share_pct">Доля: %1$.1f%%</string>
-    <string name="v792_stats_avg_time_val">Ср. время: %1$s</string>
+    <string name="v792_stats_avg_time_val">Среднее время: %1$s</string>
     <string name="v792_stats_no_games_match">Игры не найдены</string>
     <string name="v792_stats_biorhythm_title">Биоритм игры</string>
     <string name="v792_stats_biorhythm_morning">Утро (06:00-12:00)</string>

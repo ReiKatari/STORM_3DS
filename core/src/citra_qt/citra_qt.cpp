@@ -86,6 +86,7 @@
 #include "common/play_time_manager.h"
 #ifdef ENABLE_QT_UPDATE_CHECKER
 #include "citra_qt/update_checker.h"
+#include "citra_qt/update_dialog.h"
 #endif
 #include "citra_qt/util/clickable_label.h"
 #include "citra_qt/util/graphics_device_info.h"
@@ -536,21 +537,14 @@ GMainWindow::GMainWindow(Core::System& system_)
 #endif
 
 #ifdef ENABLE_QT_UPDATE_CHECKER
+    QObject::connect(&update_watcher,
+                     &QFutureWatcher<std::optional<UpdateChecker::ReleaseInfo>>::finished, this,
+                     &GMainWindow::OnEmulatorUpdateAvailable);
     if (UISettings::values.check_for_update_on_start) {
-        update_future = QtConcurrent::run([]() -> QString {
-            const std::optional<std::string> latest_release_tag =
-                UpdateChecker::GetLatestRelease(ShouldCheckForPrereleaseUpdates());
-
-            if (latest_release_tag &&
-                IsRemoteVersionNewer(latest_release_tag.value(), Common::g_build_fullname)) {
-                return QString::fromStdString(latest_release_tag.value());
-            }
-            return QString{};
-        });
-        QObject::connect(&update_watcher, &QFutureWatcher<QString>::finished, this,
-                         &GMainWindow::OnEmulatorUpdateAvailable);
-        update_watcher.setFuture(update_future);
+        TriggerUpdateCheck(false);
     }
+#else
+    ui->action_Check_For_Updates->setVisible(false);
 #endif
 
     mouse_hide_timer.setInterval(default_mouse_timeout);
@@ -915,7 +909,7 @@ void GMainWindow::InitializeHotkeys() {
     link_action_shortcut(ui->action_Load_File, QStringLiteral("Load File"));
     link_action_shortcut(ui->action_Load_Amiibo, QStringLiteral("Load Amiibo"));
     link_action_shortcut(ui->action_Remove_Amiibo, QStringLiteral("Remove Amiibo"));
-    link_action_shortcut(ui->action_Exit, QStringLiteral("Exit Azahar"));
+    link_action_shortcut(ui->action_Exit, QStringLiteral("Exit STORM 3DS"));
     link_action_shortcut(ui->action_Restart, QStringLiteral("Restart Emulation"));
     link_action_shortcut(ui->action_Pause, QStringLiteral("Continue/Pause Emulation"));
     link_action_shortcut(ui->action_Stop, QStringLiteral("Stop Emulation"));
@@ -1255,6 +1249,9 @@ void GMainWindow::ConnectMenuEvents() {
     connect_menu(ui->action_Open_Citra_Folder, &GMainWindow::OnOpenCitraFolder);
     connect_menu(ui->action_Open_NAND_Folder, &GMainWindow::OnOpenNANDFolder);
     connect_menu(ui->action_Open_SDMC_Folder, &GMainWindow::OnOpenSDMCFolder);
+    connect_menu(ui->action_Open_Shaders_Folder, &GMainWindow::OnOpenShadersFolder);
+    connect_menu(ui->action_Open_Load_Folder, &GMainWindow::OnOpenLoadFolder);
+    connect_menu(ui->action_Open_Screenshots_Folder, &GMainWindow::OnOpenScreenshotsFolder);
 
     // Emulation
     connect_menu(ui->action_Pause, &GMainWindow::OnPauseContinueGame);
@@ -1347,8 +1344,12 @@ void GMainWindow::ConnectMenuEvents() {
     connect_menu(ui->action_Decompress_ROM_File, &GMainWindow::OnDecompressFile);
     connect_menu(ui->action_Create_ROM_Bundle, &GMainWindow::OnCreateBundle);
     connect_menu(ui->action_Extract_ROM_Bundle, &GMainWindow::OnExtractBundle);
+    connect_menu(ui->action_Clear_Shader_Cache, &GMainWindow::OnClearShaderCache);
 
     // Help
+#ifdef ENABLE_QT_UPDATE_CHECKER
+    connect_menu(ui->action_Check_For_Updates, &GMainWindow::OnCheckForUpdates);
+#endif
     connect_menu(ui->action_Open_Log_Folder, []() {
         QString path = QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::LogDir));
         QDesktopServices::openUrl(QUrl::fromLocalFile(path));
@@ -3282,6 +3283,48 @@ void GMainWindow::OnOpenSDMCFolder() {
         QString::fromStdString(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir))));
 }
 
+void GMainWindow::OnOpenShadersFolder() {
+    const std::string shader_dir = FileUtil::GetUserPath(FileUtil::UserPath::ShaderDir);
+    FileUtil::CreateFullPath(shader_dir);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(shader_dir)));
+}
+
+void GMainWindow::OnOpenLoadFolder() {
+    const std::string load_dir = FileUtil::GetUserPath(FileUtil::UserPath::LoadDir);
+    FileUtil::CreateFullPath(load_dir);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(load_dir)));
+}
+
+void GMainWindow::OnOpenScreenshotsFolder() {
+    std::string path = UISettings::values.screenshot_path.GetValue();
+    if (path.empty()) {
+        path = FileUtil::GetUserPath(FileUtil::UserPath::UserDir) + "screenshots/";
+    }
+    FileUtil::CreateFullPath(path);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)));
+}
+
+void GMainWindow::OnClearShaderCache() {
+    if (emu_thread) {
+        QMessageBox::warning(this, tr("Clear Shader Cache"),
+                             tr("Please stop the running game before clearing the shader cache."));
+        return;
+    }
+    const auto answer = QMessageBox::question(
+        this, tr("Clear Shader Cache"),
+        tr("Delete all cached Vulkan and OpenGL shaders? Shaders will recompile automatically "
+           "on the next launch."),
+        QMessageBox::Yes | QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
+        return;
+    }
+    const std::string shader_dir = FileUtil::GetUserPath(FileUtil::UserPath::ShaderDir);
+    FileUtil::DeleteDirRecursively(shader_dir);
+    FileUtil::CreateFullPath(shader_dir);
+    QMessageBox::information(this, tr("Clear Shader Cache"),
+                             tr("Shader cache cleared successfully."));
+}
+
 void GMainWindow::OnToggleFilterBar() {
     game_list->SetFilterVisible(ui->action_Show_Filter_Bar->isChecked());
     if (ui->action_Show_Filter_Bar->isChecked()) {
@@ -4308,6 +4351,9 @@ void GMainWindow::OnCoreError(Core::System::ResultStatus result, std::string det
 
 void GMainWindow::OnMenuAboutCitra() {
     AboutDialog about{this};
+#ifdef ENABLE_QT_UPDATE_CHECKER
+    connect(&about, &AboutDialog::CheckUpdatesRequested, this, &GMainWindow::OnCheckForUpdates);
+#endif
     about.exec();
 }
 
@@ -4647,28 +4693,43 @@ void GMainWindow::OnMoviePlaybackCompleted() {
 }
 
 #ifdef ENABLE_QT_UPDATE_CHECKER
-void GMainWindow::OnEmulatorUpdateAvailable() {
-    QString version_string = update_future.result();
-    if (version_string.isEmpty())
+void GMainWindow::TriggerUpdateCheck(bool manual) {
+    if (update_watcher.isRunning()) {
         return;
+    }
+    manual_update_check = manual;
+    const bool include_prereleases = ShouldCheckForPrereleaseUpdates();
+    update_future = QtConcurrent::run([include_prereleases]() -> std::optional<UpdateChecker::ReleaseInfo> {
+        return UpdateChecker::GetLatestRelease(include_prereleases);
+    });
+    update_watcher.setFuture(update_future);
+}
 
-    QMessageBox update_prompt(this);
-    update_prompt.setWindowTitle(tr("Update Available"));
-    update_prompt.setIcon(QMessageBox::Information);
-    update_prompt.addButton(QMessageBox::Yes);
-    update_prompt.addButton(QMessageBox::Ignore);
-    update_prompt.setText(
-        tr("Update %1 for STORM 3DS is available.\nWould you like to download it?")
-            .arg(version_string));
-    update_prompt.exec();
-    if (update_prompt.button(QMessageBox::Yes) == update_prompt.clickedButton()) {
-        std::string update_page_url;
-        if (ShouldCheckForPrereleaseUpdates()) {
-            update_page_url = "https://github.com/ReiKatari/STORM_3DS/releases";
-        } else {
-            update_page_url = "https://stormgamesworld.ru/programs?repo=STORM_3DS";
+void GMainWindow::OnCheckForUpdates() {
+    TriggerUpdateCheck(true);
+}
+
+void GMainWindow::OnEmulatorUpdateAvailable() {
+    const std::optional<UpdateChecker::ReleaseInfo> release = update_future.result();
+    const bool was_manual = manual_update_check;
+    manual_update_check = false;
+
+    if (!release.has_value()) {
+        if (was_manual) {
+            QMessageBox::warning(this, tr("Update Check Failed"),
+                                 tr("Could not connect to update servers. Please try again later."));
         }
-        QDesktopServices::openUrl(QUrl(QString::fromStdString(update_page_url)));
+        return;
+    }
+
+    if (IsRemoteVersionNewer(release->version, Common::g_build_fullname)) {
+        UpdateDialog dialog(QString::fromUtf8(Common::g_build_fullname), *release, this);
+        dialog.exec();
+    } else if (was_manual) {
+        QMessageBox::information(
+            this, tr("No Updates Available"),
+            tr("You are running the latest version of STORM 3DS (%1).")
+                .arg(QString::fromUtf8(Common::g_build_fullname)));
     }
 }
 #endif

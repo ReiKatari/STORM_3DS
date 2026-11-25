@@ -1090,4 +1090,40 @@ class Storm3dsCoreTest {
         val writeMatches = Regex("""dest\.writeNullable\w+\(romConfig\.(\w+)\)""").findAll(parcelKt).map { it.groupValues[1] }.toList()
         assertTrue("RomConfigParcelable must read and write symmetric nullable fields", readMatches.isNotEmpty() && readMatches == writeMatches)
     }
+
+    @Test
+    fun `ergonomic layouts, redesigned updater dialogs, pause quick controls, and qt qss are wired for 1_9_0`() {
+        val coreRoot = File("../core").canonicalFile.let { if (it.exists()) it else File("core") }
+        val appMain = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
+
+        val layoutProvider = File(appMain, "java/com/storm3ds/emulator/impl/layout/DefaultLayoutProvider.kt").readText()
+        listOf("C_STICK", "BUTTON_ZL", "BUTTON_ZR", "BUTTON_HOME", "BUTTON_PAUSE", "BUTTON_TOGGLE_EXTRA_BUTTONS").forEach { comp ->
+            assertTrue("DefaultLayoutProvider must include $comp", comp in layoutProvider)
+        }
+
+        val updateDialogs = File(appMain, "java/com/storm3ds/emulator/ui/updates/StormUpdateDialogs.kt").readText()
+        assertTrue("StormUpdateDialogs must expose showStormUpdateAvailableDialog", "fun showStormUpdateAvailableDialog(" in updateDialogs)
+        val romListAct = File(appMain, "java/com/storm3ds/emulator/ui/romlist/RomListActivity.kt").readText()
+        assertTrue("RomListActivity must use showStormUpdateAvailableDialog", "showStormUpdateAvailableDialog(" in romListAct)
+        val manualChecker = File(appMain, "java/com/storm3ds/emulator/ui/settings/ManualUpdateChecker.kt").readText()
+        assertTrue("ManualUpdateChecker must use showStormUpdateAvailableDialog", "showStormUpdateAvailableDialog(" in manualChecker)
+
+        val pauseOpt = File(appMain, "java/com/storm3ds/emulator/ui/emulator/rom/RomPauseMenuOption.kt").readText()
+        assertTrue("RomPauseMenuOption must define CYCLE_LAYOUT", "CYCLE_LAYOUT(" in pauseOpt)
+        assertTrue("RomPauseMenuOption must define TOGGLE_MUTE", "TOGGLE_MUTE(" in pauseOpt)
+        val pauseOverlay = File(appMain, "java/com/storm3ds/emulator/ui/emulator/ui/PauseMenuOverlay.kt").readText()
+        assertTrue("PauseMenuOverlay must expose onQuick3dChanged", "onQuick3dChanged" in pauseOverlay)
+
+        val coreCmake = File(coreRoot, "CMakeLists.txt").readText()
+        assertTrue(
+            "core/CMakeLists.txt must enable Qt update checker by default",
+            Regex("""option\(ENABLE_QT_UPDATE_CHECKER\b[^\n]*\bON\)""").containsMatchIn(coreCmake),
+        )
+        val qtUpdateDialog = File(coreRoot, "src/citra_qt/update_dialog.cpp").readText()
+        assertTrue("Qt UpdateDialog must render markdown release notes", "setMarkdown(" in qtUpdateDialog)
+        val lightQss = File(coreRoot, "dist/qt_themes/storm_light/style.qss").readText()
+        listOf("QSlider", "QTextBrowser", "QMessageBox").forEach { sel ->
+            assertTrue("storm_light/style.qss must style $sel", sel in lightQss)
+        }
+    }
 }

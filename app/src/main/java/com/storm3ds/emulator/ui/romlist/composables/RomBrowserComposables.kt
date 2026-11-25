@@ -354,10 +354,8 @@ fun FilterChipsRow(
                 RomFilter.RECENTLY_PLAYED -> "🕒 $titleText"
                 RomFilter.UNPLAYED -> "✨ $titleText"
                 RomFilter.HAS_SAVES -> "💾 $titleText"
-                RomFilter.DS_ONLY -> "🎮 Nintendo 3DS"
-                RomFilter.DSI_ENHANCED_ONLY -> "⚡ Nintendo 3DS"
-                RomFilter.DSIWARE_ONLY -> "🕹️ Nintendo 3DS (Digital)"
                 RomFilter.WITH_RETRO_ACHIEVEMENTS -> "🏆 RA"
+                else -> "🎮 Nintendo 3DS"
             }
             WatermelonChip(
                 label = displayText,

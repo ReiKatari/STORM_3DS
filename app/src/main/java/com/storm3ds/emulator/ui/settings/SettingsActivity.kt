@@ -27,7 +27,6 @@ import androidx.preference.PreferenceScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.databinding.ActivitySettingsBinding
-import com.storm3ds.emulator.ui.settings.fragments.CustomFirmwarePreferencesFragment
 import com.storm3ds.emulator.ui.settings.fragments.MainPreferencesFragment
 
 @AndroidEntryPoint

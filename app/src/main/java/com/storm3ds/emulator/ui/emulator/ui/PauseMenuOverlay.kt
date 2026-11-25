@@ -29,6 +29,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
+import androidx.compose.material.Slider
+import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Switch
 import androidx.compose.material.SwitchDefaults
 import androidx.compose.material.Text
@@ -127,7 +129,7 @@ import com.storm3ds.emulator.ui.theme.WatermelonMono
 import com.storm3ds.emulator.ui.theme.watermelon
 import kotlin.time.Duration
 
-internal fun pauseOptionIcon(option: PauseMenuOption): ImageVector {
+internal fun pauseOptionIcon(option: PauseMenuOption, isAudioMuted: Boolean = false): ImageVector {
     return when (option) {
         RomPauseMenuOption.SAVE_STATE -> Icons.Filled.Download
         RomPauseMenuOption.LOAD_STATE -> Icons.Filled.Upload
@@ -146,6 +148,8 @@ internal fun pauseOptionIcon(option: PauseMenuOption): ImageVector {
         RomPauseMenuOption.NETPLAY -> Icons.Filled.Wifi
         RomPauseMenuOption.PRESETS -> Icons.Filled.Gamepad
         RomPauseMenuOption.SCREEN_LAYOUT, FirmwarePauseMenuOption.SCREEN_LAYOUT -> Icons.Filled.ScreenRotation
+        RomPauseMenuOption.CYCLE_LAYOUT -> Icons.Filled.Layers
+        RomPauseMenuOption.TOGGLE_MUTE -> if (isAudioMuted) Icons.Filled.VolumeMute else Icons.Filled.VolumeUp
         RomPauseMenuOption.ROM_SETTINGS -> Icons.Filled.Tune
         RomPauseMenuOption.SETTINGS, FirmwarePauseMenuOption.SETTINGS -> Icons.Filled.Settings
         RomPauseMenuOption.RENDERER_DEBUG -> Icons.Filled.DashboardCustomize
@@ -189,6 +193,7 @@ private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
 
         RomPauseMenuOption.PRESETS,
         RomPauseMenuOption.SCREEN_LAYOUT,
+        RomPauseMenuOption.CYCLE_LAYOUT,
         RomPauseMenuOption.CALIBRATE_GYRO,
         RomPauseMenuOption.TAKE_SCREENSHOT,
         RomPauseMenuOption.RENDERER_DEBUG,
@@ -197,6 +202,7 @@ private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
         RomPauseMenuOption.ROM_SETTINGS,
         RomPauseMenuOption.NETPLAY,
         RomPauseMenuOption.CHEATS,
+        RomPauseMenuOption.TOGGLE_MUTE,
         RomPauseMenuOption.LOAD_AMIIBO,
         RomPauseMenuOption.REMOVE_AMIIBO,
         RomPauseMenuOption.VIEW_ACHIEVEMENTS,
@@ -259,6 +265,10 @@ fun PauseMenuOverlay(
     isExtendedPauseMenuEnabled: Boolean = false,
     onToggleExtendedPauseMenu: ((Boolean) -> Unit)? = null,
     slowMotionSpeed: Float = 0.5f,
+    isAudioMuted: Boolean = false,
+    quick3dMode: Int = 0,
+    quick3dStrength: Int = 50,
+    onQuick3dChanged: ((Int, Int) -> Unit)? = null,
     onQuickSlotCarouselClick: (() -> Unit)? = null,
     onOptionSelected: (PauseMenuOption) -> Unit,
     onResume: () -> Unit,
@@ -653,6 +663,83 @@ fun PauseMenuOverlay(
                 }
             }
 
+            if (rom != null && onQuick3dChanged != null) {
+                var sliderStrength by remember(quick3dStrength) { mutableIntStateOf(quick3dStrength.coerceIn(0, 100)) }
+                var active3dMode by remember(quick3dMode) { mutableIntStateOf(quick3dMode) }
+                val quickModes = listOf(0, 7, 1, 3)
+                val nextMode = quickModes[(quickModes.indexOf(active3dMode) + 1) % quickModes.size]
+                val modeText = when (active3dMode) {
+                    7 -> stringResource(R.string.pause_3d_mode_depth)
+                    1 -> stringResource(R.string.pause_3d_mode_sbs)
+                    3 -> stringResource(R.string.pause_3d_mode_anaglyph)
+                    else -> stringResource(R.string.off)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalEdge, vertical = 2.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(colors.surface2)
+                        .border(1.dp, colors.line, RoundedCornerShape(11.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(if (active3dMode != 0) colors.green.copy(alpha = 0.16f) else colors.bg)
+                            .border(
+                                1.dp,
+                                if (active3dMode != 0) colors.green.copy(alpha = 0.5f) else colors.line,
+                                RoundedCornerShape(7.dp),
+                            )
+                            .clickable {
+                                active3dMode = nextMode
+                                if (nextMode != 0 && sliderStrength == 0) {
+                                    sliderStrength = 50
+                                }
+                                onQuick3dChanged(active3dMode, sliderStrength)
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = "3D: $modeText",
+                            color = if (active3dMode != 0) colors.green else colors.text2,
+                            fontFamily = WatermelonMono,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
+                    Slider(
+                        value = sliderStrength.toFloat(),
+                        onValueChange = { raw ->
+                            val v = raw.toInt().coerceIn(0, 100)
+                            sliderStrength = v
+                            if (v > 0 && active3dMode == 0) {
+                                active3dMode = 7
+                            }
+                            onQuick3dChanged(active3dMode, v)
+                        },
+                        valueRange = 0f..100f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = colors.green,
+                            activeTrackColor = colors.green,
+                            inactiveTrackColor = colors.line,
+                        ),
+                        modifier = Modifier.weight(1f).height(26.dp),
+                    )
+                    Text(
+                        text = "$sliderStrength%",
+                        color = colors.text,
+                        fontFamily = WatermelonMono,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
             val compactHeight = displayedOptions.size > 12
 
             // DuckStation-Style Compact Customizable Tile Grid (Zero Section Headers, Zero Scroll)
@@ -666,15 +753,21 @@ fun PauseMenuOverlay(
                     .padding(horizontal = horizontalEdge, vertical = 4.dp),
             ) {
                 items(displayedOptions, key = { it.toString() }) { option ->
-                    val slowMoBadge = if (option == RomPauseMenuOption.SLOW_MOTION) {
-                        val formatted = String.format(java.util.Locale.US, "%.2f", slowMotionSpeed).trimEnd('0').trimEnd('.')
-                        "${formatted}×"
-                    } else null
+                    val optionBadge = when {
+                        option == RomPauseMenuOption.SLOW_MOTION -> {
+                            val formatted = String.format(java.util.Locale.US, "%.2f", slowMotionSpeed).trimEnd('0').trimEnd('.')
+                            "${formatted}×"
+                        }
+                        option == RomPauseMenuOption.TOGGLE_MUTE -> {
+                            if (isAudioMuted) stringResource(R.string.pause_audio_off) else stringResource(R.string.pause_audio_on)
+                        }
+                        else -> null
+                    }
 
                     PauseOptionTile(
                         label = pauseMenu.labelOverride(option) ?: stringResource(option.textResource),
-                        icon = pauseOptionIcon(option),
-                        badge = slowMoBadge,
+                        icon = pauseOptionIcon(option, isAudioMuted),
+                        badge = optionBadge,
                         isLandscape = isLandscape,
                         compactHeight = compactHeight,
                         destructive = isDestructive(option),

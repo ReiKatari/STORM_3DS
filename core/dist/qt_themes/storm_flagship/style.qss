@@ -369,3 +369,27 @@ QScrollBar::add-line, QScrollBar::sub-line {
 QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
+
+QTextBrowser, QPlainTextEdit {
+    background-color: #0b101d;
+    border: 1px solid #283659;
+    border-radius: 6px;
+    padding: 8px;
+    color: #eef4ff;
+    selection-background-color: #2f6aa3;
+}
+
+QMessageBox, QDialogButtonBox {
+    background-color: #0f1526;
+    color: #eef4ff;
+}
+
+QSplitter::handle {
+    background-color: #263455;
+    width: 2px;
+    height: 2px;
+}
+
+QSplitter::handle:hover {
+    background-color: #00c8ff;
+}

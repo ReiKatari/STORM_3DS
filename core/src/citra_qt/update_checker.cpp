@@ -2,6 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
+#include <cctype>
 #include <optional>
 #include <string>
 #include <vector>
@@ -19,7 +21,7 @@ namespace {
 
 #ifdef _WIN32
 std::optional<std::string> WinHttpGet(const std::wstring& host, const std::wstring& path) {
-    HINTERNET hSession = WinHttpOpen(L"STORM-3DS-Updater/1.6", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+    HINTERNET hSession = WinHttpOpen(L"STORM-3DS-Updater/1.9", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                      WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession) {
         return {};
@@ -113,15 +115,149 @@ std::optional<std::string> GetResponse(const std::string& host, const std::strin
 }
 
 std::string CleanVersionTag(std::string tag) {
+    while (!tag.empty() && std::isspace(static_cast<unsigned char>(tag.front()))) {
+        tag.erase(tag.begin());
+    }
+    while (!tag.empty() && std::isspace(static_cast<unsigned char>(tag.back()))) {
+        tag.pop_back();
+    }
     if (!tag.empty() && (tag[0] == 'v' || tag[0] == 'V')) {
         tag.erase(tag.begin());
     }
     return tag;
 }
 
+std::string JsonString(const nlohmann::json& obj, const char* key) {
+    if (obj.is_object() && obj.contains(key) && obj[key].is_string()) {
+        return obj[key].get<std::string>();
+    }
+    return {};
+}
+
+std::uint64_t JsonUInt64(const nlohmann::json& obj, const char* key) {
+    if (!obj.is_object() || !obj.contains(key)) {
+        return 0;
+    }
+    const auto& v = obj[key];
+    if (v.is_number_unsigned()) {
+        return v.get<std::uint64_t>();
+    }
+    if (v.is_number_integer()) {
+        const auto signed_val = v.get<std::int64_t>();
+        return signed_val > 0 ? static_cast<std::uint64_t>(signed_val) : 0;
+    }
+    return 0;
+}
+
+std::string ToLowerAscii(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+bool IsWindowsDesktopAsset(const std::string& name) {
+    const std::string low = ToLowerAscii(name);
+    if (low.ends_with(".zip") && low.find("windows") != std::string::npos) {
+        return true;
+    }
+    return low.ends_with(".zip") && low.find("win64") != std::string::npos;
+}
+
+std::optional<UpdateChecker::ReleaseInfo> ParseGitHubRelease(const nlohmann::json& item) {
+    if (!item.is_object() || item.value("draft", false)) {
+        return {};
+    }
+    std::string ver = CleanVersionTag(JsonString(item, "tag_name"));
+    if (ver.empty()) {
+        return {};
+    }
+
+    UpdateChecker::ReleaseInfo info;
+    info.version = ver;
+    info.title = JsonString(item, "name");
+    if (info.title.empty()) {
+        info.title = "STORM 3DS " + ver;
+    }
+    info.changelog_md = JsonString(item, "body");
+    info.published_at = JsonString(item, "published_at");
+    if (info.published_at.empty()) {
+        info.published_at = JsonString(item, "created_at");
+    }
+    info.release_url = JsonString(item, "html_url");
+    if (info.release_url.empty()) {
+        info.release_url = "https://github.com/ReiKatari/STORM_3DS/releases/tag/" + ver;
+    }
+    info.source_name = "GitHub";
+
+    if (item.contains("assets") && item["assets"].is_array()) {
+        for (const auto& asset : item["assets"]) {
+            const std::string aname = JsonString(asset, "name");
+            if (IsWindowsDesktopAsset(aname)) {
+                info.asset_name = aname;
+                info.asset_size = JsonUInt64(asset, "size");
+                info.download_url = JsonString(asset, "browser_download_url");
+                break;
+            }
+        }
+    }
+    return info;
+}
+
+std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& rel) {
+    if (!rel.is_object()) {
+        return {};
+    }
+    std::string ver = CleanVersionTag(JsonString(rel, "version"));
+    if (ver.empty()) {
+        ver = CleanVersionTag(JsonString(rel, "tag_name"));
+    }
+    if (ver.empty()) {
+        return {};
+    }
+
+    UpdateChecker::ReleaseInfo info;
+    info.version = ver;
+    info.title = JsonString(rel, "title");
+    if (info.title.empty()) {
+        info.title = JsonString(rel, "name");
+    }
+    if (info.title.empty()) {
+        info.title = "STORM 3DS " + ver;
+    }
+    info.changelog_md = JsonString(rel, "body");
+    if (info.changelog_md.empty()) {
+        info.changelog_md = JsonString(rel, "changelog");
+    }
+    info.published_at = JsonString(rel, "createdAt");
+    if (info.published_at.empty()) {
+        info.published_at = JsonString(rel, "publishedAt");
+    }
+    info.release_url = "https://stormgamesworld.ru/programs?repo=STORM_3DS";
+    info.source_name = "STORM GAMES WORLD";
+
+    if (rel.contains("assets") && rel["assets"].is_array()) {
+        for (const auto& asset : rel["assets"]) {
+            const std::string aname = JsonString(asset, "name");
+            if (IsWindowsDesktopAsset(aname)) {
+                info.asset_name = aname;
+                info.asset_size = JsonUInt64(asset, "size");
+                std::string dl = JsonString(asset, "downloadUrl");
+                if (!dl.empty()) {
+                    if (dl.rfind("http", 0) != 0) {
+                        dl = "https://stormgamesworld.ru" + dl;
+                    }
+                    info.download_url = dl;
+                }
+                break;
+            }
+        }
+    }
+    return info;
+}
+
 } // namespace
 
-std::optional<std::string> UpdateChecker::GetLatestRelease(bool include_prereleases) {
+std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::GetLatestRelease(bool include_prereleases) {
     try {
         const std::string gh_path = include_prereleases
                                         ? "/repos/ReiKatari/STORM_3DS/releases?per_page=10"
@@ -130,14 +266,14 @@ std::optional<std::string> UpdateChecker::GetLatestRelease(bool include_prerelea
             const auto parsed = nlohmann::json::parse(*response);
             if (include_prereleases && parsed.is_array()) {
                 for (const auto& item : parsed) {
-                    if (!item.value("draft", false) && item.contains("tag_name") &&
-                        item["tag_name"].is_string()) {
-                        return CleanVersionTag(item["tag_name"].get<std::string>());
+                    if (auto info = ParseGitHubRelease(item)) {
+                        return info;
                     }
                 }
-            } else if (parsed.is_object() && parsed.contains("tag_name") &&
-                       parsed["tag_name"].is_string()) {
-                return CleanVersionTag(parsed["tag_name"].get<std::string>());
+            } else if (parsed.is_object()) {
+                if (auto info = ParseGitHubRelease(parsed)) {
+                    return info;
+                }
             }
         }
 
@@ -150,13 +286,8 @@ std::optional<std::string> UpdateChecker::GetLatestRelease(bool include_prerelea
                     if (!include_prereleases && is_pre) {
                         continue;
                     }
-                    std::string ver = rel.value("version", "");
-                    if (ver.empty()) {
-                        ver = rel.value("tag_name", "");
-                    }
-                    ver = CleanVersionTag(ver);
-                    if (!ver.empty()) {
-                        return ver;
+                    if (auto info = ParseSgwRelease(rel)) {
+                        return info;
                     }
                 }
             }

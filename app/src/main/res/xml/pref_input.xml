@@ -61,6 +61,7 @@
         <SwitchPreference
                 android:key="input_touch_haptic_feedback_enabled"
                 android:title="@string/vibrate_on_touch"
+                android:summary="@string/pref_vibrate_on_touch_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 

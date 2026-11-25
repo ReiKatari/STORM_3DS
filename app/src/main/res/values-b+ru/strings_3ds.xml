@@ -390,5 +390,35 @@ SDMC: %7$s</string>
     <string name="z3ds_compress_unsupported">Этот формат файла не поддерживает сжатие Z3DS</string>
     <string name="z3ds_compress_success_fmt">Конвертация завершена: %s</string>
     <string name="z3ds_compress_failed_fmt">Ошибка конвертации (%s)</string>
+    <string name="update_dialog_title">Доступно обновление</string>
+    <string name="update_dialog_current_label">Текущая</string>
+    <string name="update_dialog_new_label">Новая</string>
+    <string name="update_dialog_update_now">Обновить сейчас</string>
+    <string name="update_dialog_remind_later">Напомнить позже</string>
+    <string name="update_dialog_skip_version">Пропустить версию</string>
+    <string name="update_dialog_open_page">Открыть страницу релиза</string>
+    <string name="update_dialog_preparing">Подготовка загрузки...</string>
+    <string name="update_dialog_speed_fmt">%1$.1f МБ/с</string>
+    <string name="update_dialog_size_mb_fmt">%1$.1f МБ</string>
+    <string name="update_dialog_retry">Повторить</string>
+    <string name="pause_toggle_mute">Звук игры</string>
+    <string name="pause_audio_on">ВКЛ</string>
+    <string name="pause_audio_off">ТИХО</string>
+    <string name="pause_3d_mode_depth">3D-глубина</string>
+    <string name="pause_3d_mode_sbs">2 экрана</string>
+    <string name="pause_3d_mode_anaglyph">Анаглиф</string>
+    <string name="pause_audio_muted_toast">Звук выключен</string>
+    <string name="pause_audio_unmuted_toast">Звук включен</string>
+    <string name="rom_info_internal_name_label">Внутреннее имя</string>
+    <string name="pref_hud_show_frame_time_summary">Отображает время отрисовки кадра в миллисекундах</string>
+    <string name="pref_hud_show_speed_summary">Показывает текущую скорость эмуляции в процентах</string>
+    <string name="pref_hud_show_battery_temp_summary">Показывает температуру аккумулятора во время игры</string>
+    <string name="pref_hud_show_app_ram_summary">Показывает объем ОЗУ, занятой процессом STORM 3DS</string>
+    <string name="pref_hud_show_available_ram_summary">Показывает оставшийся объем свободной ОЗУ устройства</string>
+    <string name="pref_hud_show_background_summary">Добавляет полупрозрачную темную подложку для читаемости</string>
+    <string name="pref_sound_enabled_summary">Включает или полностью отключает вывод звука эмулятора</string>
+    <string name="pref_mic_vu_meter_summary">Индикатор громкости микрофона для проверки порога шума</string>
+    <string name="pref_vibrate_on_touch_summary">Тактильный виброотклик при нажатии наэкранных кнопок</string>
+    <string name="pref_enable_cheats_summary">Разрешает применение чит-кодов Gateway в запущенных играх</string>
 </resources>
 

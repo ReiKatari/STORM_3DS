@@ -390,5 +390,35 @@ SDMC: %7$s</string>
     <string name="z3ds_compress_unsupported">This file format does not support Z3DS compression</string>
     <string name="z3ds_compress_success_fmt">Conversion complete: %s</string>
     <string name="z3ds_compress_failed_fmt">Conversion failed (%s)</string>
+    <string name="update_dialog_title">Update Available</string>
+    <string name="update_dialog_current_label">Installed</string>
+    <string name="update_dialog_new_label">New Version</string>
+    <string name="update_dialog_update_now">Update Now</string>
+    <string name="update_dialog_remind_later">Remind Later</string>
+    <string name="update_dialog_skip_version">Skip Version</string>
+    <string name="update_dialog_open_page">Open Release Page</string>
+    <string name="update_dialog_preparing">Preparing download...</string>
+    <string name="update_dialog_speed_fmt">%1$.1f MB/s</string>
+    <string name="update_dialog_size_mb_fmt">%1$.1f MB</string>
+    <string name="update_dialog_retry">Retry</string>
+    <string name="pause_toggle_mute">Sound Toggle</string>
+    <string name="pause_audio_on">ON</string>
+    <string name="pause_audio_off">MUTED</string>
+    <string name="pause_3d_mode_depth">3D Depth</string>
+    <string name="pause_3d_mode_sbs">SBS</string>
+    <string name="pause_3d_mode_anaglyph">Anaglyph</string>
+    <string name="pause_audio_muted_toast">Audio muted</string>
+    <string name="pause_audio_unmuted_toast">Audio restored</string>
+    <string name="rom_info_internal_name_label">Internal Name</string>
+    <string name="pref_hud_show_frame_time_summary">Display average frame render time in milliseconds</string>
+    <string name="pref_hud_show_speed_summary">Display real-time emulation speed percentage</string>
+    <string name="pref_hud_show_battery_temp_summary">Monitor device battery temperature during gameplay</string>
+    <string name="pref_hud_show_app_ram_summary">Show current resident memory consumed by STORM 3DS</string>
+    <string name="pref_hud_show_available_ram_summary">Show remaining free system memory on the device</string>
+    <string name="pref_hud_show_background_summary">Draw a dark translucent backdrop behind HUD counters</string>
+    <string name="pref_sound_enabled_summary">Enable or mute emulated 3DS audio synthesis output</string>
+    <string name="pref_mic_vu_meter_summary">Live microphone input level calibration and preview</string>
+    <string name="pref_vibrate_on_touch_summary">Trigger tactile haptic pulses when pressing on-screen buttons</string>
+    <string name="pref_enable_cheats_summary">Allow Gateway / Action Replay cheat codes during gameplay</string>
 </resources>
 

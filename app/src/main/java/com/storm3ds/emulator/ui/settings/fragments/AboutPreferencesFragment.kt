@@ -121,24 +121,25 @@ class AboutPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
 
         findPreference<Preference>("credits_libraries")?.setOnPreferenceClickListener {
-            AlertDialog.Builder(requireContext())
-                .setTitle(R.string.about_credits_libraries_title)
-                .setMessage(
-                    "• Azahar & Citra Core (C++20 Nintendo 3DS Engine)\n" +
-                    "• Citra MMJ (weihuoya - Speedhacks, Cheat DB & Memory Tools)\n" +
-                    "• Borked3DS (SPIRV-Tools-opt Shader Optimization)\n" +
-                    "• AzaharPlus, Lime3DS & Mandarine (Decryption & Formats)\n" +
-                    "• WatermelonDS (SapphireRhodonite - Android UI Interface)\n" +
-                    "• Librashader (SnowflakePowered - RetroArch .slangp Shaders)\n" +
-                    "• libadrenotools (Bylaws - Custom Turnip Vulkan Drivers)\n" +
-                    "• Dynarmic, Teakra, SoundTouch, Cubeb, Zstandard, Crypto++\n" +
-                    "• SPIRV-Tools, Glslang & Vulkan Memory Allocator (VMA)\n" +
-                    "• Google ML Kit Text Recognition & Translation\n" +
-                    "• Jetpack Compose, Material, AndroidX, Hilt, Room & Coil\n" +
-                    "• Apache Commons Compress, junrar, XZ, OkHttp & Retrofit"
-                )
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            val ctx = activity ?: requireContext()
+            val libsText =
+                "- Azahar & Citra Core (C++20 Nintendo 3DS Engine)\n" +
+                "- Citra MMJ (weihuoya - Speedhacks, Cheat DB & Memory Tools)\n" +
+                "- Borked3DS (SPIRV-Tools-opt Shader Optimization)\n" +
+                "- AzaharPlus, Lime3DS & Mandarine (Decryption & Formats)\n" +
+                "- WatermelonDS (SapphireRhodonite - Android UI Interface)\n" +
+                "- Librashader (SnowflakePowered - RetroArch .slangp Shaders)\n" +
+                "- libadrenotools (Bylaws - Custom Turnip Vulkan Drivers)\n" +
+                "- Dynarmic, Teakra, SoundTouch, Cubeb, Zstandard, Crypto++\n" +
+                "- SPIRV-Tools, Glslang & Vulkan Memory Allocator (VMA)\n" +
+                "- Google ML Kit Text Recognition & Translation\n" +
+                "- Jetpack Compose, Material, AndroidX, Hilt, Room & Coil\n" +
+                "- Apache Commons Compress, junrar, XZ, OkHttp & Retrofit"
+            com.storm3ds.emulator.ui.updates.showStormUpdateInfoDialog(
+                context = ctx,
+                title = getString(R.string.about_credits_libraries_title),
+                message = libsText,
+            )
             true
         }
     }

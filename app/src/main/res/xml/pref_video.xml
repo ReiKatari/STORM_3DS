@@ -133,6 +133,34 @@
                 android:entries="@array/antialiasing_3ds_options"
                 android:entryValues="@array/antialiasing_3ds_values"
                 android:defaultValue="0" />
+
+        <SwitchPreference
+                android:key="3ds_fmv_hack"
+                android:title="@string/setup_3ds_fmv_hack"
+                android:summary="@string/setup_3ds_fmv_hack_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_skip_slow_draw"
+                android:title="@string/setup_3ds_skip_slow_draw"
+                android:summary="@string/setup_3ds_skip_slow_draw_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_skip_tex_copy"
+                android:title="@string/setup_3ds_skip_tex_copy"
+                android:summary="@string/setup_3ds_skip_tex_copy_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
+
+        <SwitchPreference
+                android:key="3ds_spirv_opt"
+                android:title="@string/setup_3ds_spirv_opt"
+                android:summary="@string/setup_3ds_spirv_opt_summary"
+                app:iconSpaceReserved="false"
+                android:defaultValue="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -315,36 +343,42 @@
         <SwitchPreference
                 android:key="hud_show_frame_time"
                 android:title="@string/pref_hud_show_frame_time_title"
+                android:summary="@string/pref_hud_show_frame_time_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 
         <SwitchPreference
                 android:key="hud_show_speed"
                 android:title="@string/pref_hud_show_speed_title"
+                android:summary="@string/pref_hud_show_speed_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 
         <SwitchPreference
                 android:key="hud_show_battery_temp"
                 android:title="@string/pref_hud_show_battery_temp_title"
+                android:summary="@string/pref_hud_show_battery_temp_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="false" />
 
         <SwitchPreference
                 android:key="hud_show_app_ram"
                 android:title="@string/pref_hud_show_app_ram_title"
+                android:summary="@string/pref_hud_show_app_ram_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="false" />
 
         <SwitchPreference
                 android:key="hud_show_available_ram"
                 android:title="@string/pref_hud_show_available_ram_title"
+                android:summary="@string/pref_hud_show_available_ram_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="false" />
 
         <SwitchPreference
                 android:key="hud_show_background"
                 android:title="@string/pref_hud_show_background_title"
+                android:summary="@string/pref_hud_show_background_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 

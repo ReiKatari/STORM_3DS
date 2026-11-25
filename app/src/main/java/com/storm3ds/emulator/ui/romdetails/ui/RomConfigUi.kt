@@ -314,6 +314,12 @@ private fun Content(
                 end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
             ),
     ) {
+        // 3DS Tools Card inside scrollable layout so ROM config stays uncluttered on compact phones
+        Rom3dsToolsCard(
+            rom = rom,
+            context = androidx.compose.ui.platform.LocalContext.current,
+        )
+
         // Summary Banner Card
         Box(
             modifier = Modifier

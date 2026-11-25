@@ -266,7 +266,7 @@ fun RomTechnicalInfoDialog(
 
                     TechInfoRow(stringResource(R.string.rom_info_title_label), romDisplayName(rom))
                     if (rom.name != romDisplayName(rom)) {
-                        TechInfoRow("Internal Name", rom.name)
+                        TechInfoRow(stringResource(R.string.rom_info_internal_name_label), rom.name)
                     }
                     TechInfoRow(stringResource(R.string.rom_info_file_name_label), rom.fileName)
                     TechInfoRow(stringResource(R.string.rom_info_platform_label), platformStr)

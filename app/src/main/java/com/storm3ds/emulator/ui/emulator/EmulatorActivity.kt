@@ -836,13 +836,21 @@ class EmulatorActivity : AppCompatActivity() {
         setContentView(binding.root)
         setupFullscreen()
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            binding.listRewind.setPadding(insets.left, 0, insets.right, insets.bottom)
+            val safeInsets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.navigationBars() or
+                    WindowInsetsCompat.Type.mandatorySystemGestures()
+            )
+            val navOnlyInsets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.navigationBars() or
+                    WindowInsetsCompat.Type.mandatorySystemGestures()
+            )
+            binding.listRewind.setPadding(safeInsets.left, 0, safeInsets.right, safeInsets.bottom)
 
             val uiInsets = if (viewModel.shouldIgnoreDisplayCutoutInLayouts()) {
-                Insets.Zero
+                Insets(navOnlyInsets.left, navOnlyInsets.top, navOnlyInsets.right, navOnlyInsets.bottom)
             } else {
-                Insets(insets.left, insets.top, insets.right, insets.bottom)
+                Insets(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
             }
             viewModel.setUiInsets(uiInsets)
 
@@ -1346,6 +1354,10 @@ class EmulatorActivity : AppCompatActivity() {
                     pauseMenu != null -> {
                         val emulatorState by viewModel.emulatorState.collectAsState()
                         val currentRom = (emulatorState as? EmulatorState.RunningRom)?.rom
+                        val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@EmulatorActivity)
+                        var isMutedState by remember { mutableStateOf(!sp.getBoolean("sound_enabled", true)) }
+                        val current3dMode = remember(pauseMenu) { settingsRepository.getVulkan3dDepthMode() }
+                        val current3dStrength = remember(pauseMenu) { settingsRepository.getVulkan3dDepthStrength() }
                         com.storm3ds.emulator.ui.emulator.ui.PauseMenuOverlay(
                             pauseMenu = pauseMenu,
                             rom = currentRom,
@@ -1358,11 +1370,41 @@ class EmulatorActivity : AppCompatActivity() {
                                 settingsRepository.setExtendedPauseMenuEnabled(enabled)
                             },
                             slowMotionSpeed = if (isSlowMotionActive) slowMotionMultiplier else 1.0f,
+                            isAudioMuted = isMutedState,
+                            quick3dMode = current3dMode,
+                            quick3dStrength = current3dStrength,
+                            onQuick3dChanged = { modeInt, strengthInt ->
+                                settingsRepository.setVulkan3dDepthMode(modeInt)
+                                settingsRepository.setVulkan3dDepthStrength(strengthInt)
+                                com.storm3ds.emulator.MelonEmulator.setVulkanDepth3DMode(modeInt)
+                                com.storm3ds.emulator.MelonEmulator.setVulkanDepth3DStrength(strengthInt)
+                                val parallax = (modeInt == com.storm3ds.emulator.nativebridge.NativeLibrary.StereoMode.GYRO_PARALLAX.nativeValue)
+                                motionSensorManager.threeDParallaxEnabled = parallax
+                                if (parallax) {
+                                    motionSensorManager.calibrateCenter()
+                                    motionSensorManager.startListening()
+                                }
+                            },
                             onQuickSlotCarouselClick = {
                                 dismissPauseMenu()
                                 openQuickSlotCarousel()
                             },
                             onOptionSelected = { option ->
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.CYCLE_LAYOUT) {
+                                    dismissPauseMenu()
+                                    cycleNextLayout()
+                                    viewModel.resumeEmulator()
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.TOGGLE_MUTE) {
+                                    val newMuted = !isMutedState
+                                    isMutedState = newMuted
+                                    sp.edit().putBoolean("sound_enabled", !newMuted).apply()
+                                    runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.setAudioMuted(newMuted) }
+                                    val msgRes = if (newMuted) R.string.pause_audio_muted_toast else R.string.pause_audio_unmuted_toast
+                                    android.widget.Toast.makeText(this@EmulatorActivity, msgRes, android.widget.Toast.LENGTH_SHORT).show()
+                                    return@PauseMenuOverlay
+                                }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.CALIBRATE_GYRO) {
                                     motionSensorManager.calibrateCenter()
                                     android.widget.Toast.makeText(this@EmulatorActivity, R.string.input_gyro_recenter_quick_action, android.widget.Toast.LENGTH_SHORT).show()
@@ -1396,15 +1438,7 @@ class EmulatorActivity : AppCompatActivity() {
                                 }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.LOAD_AMIIBO) {
                                     dismissPauseMenu()
-                                    val tidHex = String.format("%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
-                                    val staged = File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "amiibo/${tidHex}_amiibo.bin")
-                                    if (staged.isFile) {
-                                        val ok = runCatching { com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(staged.absolutePath) }.getOrDefault(false)
-                                        android.widget.Toast.makeText(this@EmulatorActivity, getString(if (ok) R.string.amiibo_staged_loaded_toast else R.string.amiibo_load_failed_toast), android.widget.Toast.LENGTH_SHORT).show()
-                                        viewModel.resumeEmulator()
-                                    } else {
-                                        amiiboPickerLauncher.launch(arrayOf("*/*"))
-                                    }
+                                    amiiboPickerLauncher.launch(arrayOf("*/*"))
                                     return@PauseMenuOverlay
                                 }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.REMOVE_AMIIBO) {

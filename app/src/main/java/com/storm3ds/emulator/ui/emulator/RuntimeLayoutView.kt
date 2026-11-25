@@ -165,10 +165,21 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         areExtraButtonsVisible = !areExtraButtonsVisible
         getLayoutComponentViews().forEach { compView ->
             val c = compView.component
-            // Treat BUTTON_TRANSLATE uniformly as an optional extra utility button
-            val isCore = c == LayoutComponent.DPAD || c == LayoutComponent.BUTTONS ||
-                    c == LayoutComponent.BUTTON_L || c == LayoutComponent.BUTTON_R ||
-                    c == LayoutComponent.BUTTON_START || c == LayoutComponent.BUTTON_SELECT ||
+            // Core New 3DS controls and primary quick toggles stay visible; secondary shortcuts toggle cleanly
+            val isCore = c == LayoutComponent.DPAD ||
+                    c == LayoutComponent.CIRCLE_PAD ||
+                    c == LayoutComponent.BUTTONS ||
+                    c == LayoutComponent.C_STICK ||
+                    c == LayoutComponent.BUTTON_L ||
+                    c == LayoutComponent.BUTTON_R ||
+                    c == LayoutComponent.BUTTON_ZL ||
+                    c == LayoutComponent.BUTTON_ZR ||
+                    c == LayoutComponent.BUTTON_START ||
+                    c == LayoutComponent.BUTTON_SELECT ||
+                    c == LayoutComponent.BUTTON_HOME ||
+                    c == LayoutComponent.BUTTON_PAUSE ||
+                    c == LayoutComponent.BUTTON_SWAP_SCREENS ||
+                    c == LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE ||
                     c == LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS ||
                     c.isScreen()
             if (!isCore) {

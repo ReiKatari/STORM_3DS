@@ -783,7 +783,7 @@
   <string name="category_save_files">Сохранения</string>
   <string name="category_save_files_summary">Пути файлов сохранений, автосохранение и слоты</string>
   <string name="theme">Тема оформления</string>
-  <string name="fast_forward_max_speed">Макс. скорость быстрой перемотки</string>
+  <string name="fast_forward_max_speed">Максимальная скорость быстрой перемотки</string>
   <string name="frame_limit_speed_disabled_hardcore">Отключено в хардкорном режиме RetroAchievements</string>
   <string name="rewind_description">Позволяет отматывать игровой процесс назад в реальном времени</string>
   <string name="rewind_save_period">Интервал сохранения снимков</string>
@@ -1374,7 +1374,7 @@
     <string name="lang_uk">Украинский (Українська)</string>
     <string name="lang_pt">Португальский (Português)</string>
     <string name="label_button_spread">Разнос кнопок</string>
-    <string name="input_toggle_extra_buttons">Скрыть/показать доп. кнопки</string>
+    <string name="input_toggle_extra_buttons">Скрыть или показать дополнительные кнопки</string>
     <string name="toggle_visibility">Скрыть / показать</string>
     <string name="components_visibility_title">Управление элементами</string>
     <string name="back">Назад</string>
@@ -1587,10 +1587,10 @@
     <string name="video_ds_color_profile_ds_lite">Nintendo 3DS Lite (USG-001)</string>
     <string name="video_ds_color_profile_dsi_xl">Nintendo 3DS XL IPS (UTL-001)</string>
     <string name="video_ds_hinge_gap_title">Физический зазор петли между экранами</string>
-    <string name="video_ds_hinge_gap_0">Без зазора (0 пикс.)</string>
-    <string name="video_ds_hinge_gap_32">Малый зазор (32 пикс.)</string>
-    <string name="video_ds_hinge_gap_64">Nintendo 3DS Lite (64 пикс.)</string>
-    <string name="video_ds_hinge_gap_90">Широкий зазор DSi XL (90 пикс.)</string>
+    <string name="video_ds_hinge_gap_0">Без зазора (0 пикселей)</string>
+    <string name="video_ds_hinge_gap_32">Малый зазор (32 пикселя)</string>
+    <string name="video_ds_hinge_gap_64">Nintendo 3DS Lite (64 пикселя)</string>
+    <string name="video_ds_hinge_gap_90">Широкий зазор (90 пикселей)</string>
     <string name="enhancement_active_notification">Активно: %1$s</string>
     <string name="rom_settings_slot2_addon_title">Аксессуар Slot-2 (GBA)</string>
     <string name="rom_settings_solar_sensor_title">Датчик солнца (Boktai)</string>

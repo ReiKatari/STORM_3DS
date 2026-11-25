@@ -69,13 +69,13 @@ ConfigureLayout::ConfigureLayout(QWidget* parent)
             this,
             [this](bool checkState) { ui->screen_top_topbottom_padding->setEnabled(checkState); });
     ui->screen_bottom_leftright_padding->setEnabled(
-        Settings::values.screen_bottom_topbottom_padding.GetValue());
+        Settings::values.screen_bottom_stretch.GetValue());
     connect(
         ui->screen_bottom_stretch, static_cast<void (QCheckBox::*)(int)>(&QCheckBox::stateChanged),
         this,
         [this](bool checkState) { ui->screen_bottom_leftright_padding->setEnabled(checkState); });
     ui->screen_bottom_topbottom_padding->setEnabled(
-        Settings::values.screen_bottom_topbottom_padding.GetValue());
+        Settings::values.screen_bottom_stretch.GetValue());
     connect(
         ui->screen_bottom_stretch, static_cast<void (QCheckBox::*)(int)>(&QCheckBox::stateChanged),
         this,
@@ -87,12 +87,12 @@ ConfigureLayout::ConfigureLayout(QWidget* parent)
     connect(ui->screen_top_stretch, &QCheckBox::checkStateChanged, this,
             [this](bool checkState) { ui->screen_top_topbottom_padding->setEnabled(checkState); });
     ui->screen_bottom_leftright_padding->setEnabled(
-        Settings::values.screen_bottom_topbottom_padding.GetValue());
+        Settings::values.screen_bottom_stretch.GetValue());
     connect(
         ui->screen_bottom_stretch, &QCheckBox::checkStateChanged, this,
         [this](bool checkState) { ui->screen_bottom_leftright_padding->setEnabled(checkState); });
     ui->screen_bottom_topbottom_padding->setEnabled(
-        Settings::values.screen_bottom_topbottom_padding.GetValue());
+        Settings::values.screen_bottom_stretch.GetValue());
     connect(
         ui->screen_bottom_stretch, &QCheckBox::checkStateChanged, this,
         [this](bool checkState) { ui->screen_bottom_topbottom_padding->setEnabled(checkState); });

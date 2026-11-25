@@ -618,15 +618,11 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
         val preservePrefixes = listOf(
             "ra_",
             "rom_search_dirs",
-            "sram_dir",
             "save_state_location",
             "save_state_custom_dir",
-            "bios_dir",
-            "dsi_bios_dir",
-            "dsi_sd_card_dir",
-            "dsi_nand_dir",
-            "system_dsi_sd_card_dir",
-            "system_dldi_sd_card_dir",
+            "3ds_",
+            "pause_menu_",
+            "firmware_pause_menu_",
         )
 
         for ((key, value) in all) {

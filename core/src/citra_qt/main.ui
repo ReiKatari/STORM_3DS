@@ -83,6 +83,9 @@
      <addaction name="action_Open_Citra_Folder"/>
      <addaction name="action_Open_NAND_Folder"/>
      <addaction name="action_Open_SDMC_Folder"/>
+     <addaction name="action_Open_Shaders_Folder"/>
+     <addaction name="action_Open_Load_Folder"/>
+     <addaction name="action_Open_Screenshots_Folder"/>
     </widget>
     <addaction name="action_Load_File"/>
     <addaction name="action_Install_CIA"/>
@@ -235,11 +238,14 @@
     <addaction name="separator"/>
     <addaction name="action_Create_ROM_Bundle"/>
     <addaction name="action_Extract_ROM_Bundle"/>
+    <addaction name="separator"/>
+    <addaction name="action_Clear_Shader_Cache"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="action_Check_For_Updates"/>
     <addaction name="separator"/>
     <addaction name="action_Report_Compatibility"/>
     <addaction name="separator"/>
@@ -776,6 +782,31 @@
   <action name="action_Open_SDMC_Folder">
    <property name="text">
     <string>SDMC Folder</string>
+   </property>
+  </action>
+  <action name="action_Open_Shaders_Folder">
+   <property name="text">
+    <string>Shaders Folder</string>
+   </property>
+  </action>
+  <action name="action_Open_Load_Folder">
+   <property name="text">
+    <string>Mods &amp;&amp; Custom Textures Folder</string>
+   </property>
+  </action>
+  <action name="action_Open_Screenshots_Folder">
+   <property name="text">
+    <string>Screenshots Folder</string>
+   </property>
+  </action>
+  <action name="action_Clear_Shader_Cache">
+   <property name="text">
+    <string>Clear Shader Cache...</string>
+   </property>
+  </action>
+  <action name="action_Check_For_Updates">
+   <property name="text">
+    <string>Check for Updates...</string>
    </property>
   </action>
   <action name="action_Configure_Current_Game">

@@ -2342,7 +2342,9 @@ class EmulatorViewModel @Inject constructor(
                     RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE,
                     RomPauseMenuOption.TAKE_SCREENSHOT,
                     RomPauseMenuOption.SLOW_MOTION,
-                    RomPauseMenuOption.FRAME_ADVANCE -> Unit
+                    RomPauseMenuOption.FRAME_ADVANCE,
+                    RomPauseMenuOption.CYCLE_LAYOUT,
+                    RomPauseMenuOption.TOGGLE_MUTE -> Unit
                     RomPauseMenuOption.RESET -> resetEmulator()
                     RomPauseMenuOption.EXIT -> exitEmulator()
                 }

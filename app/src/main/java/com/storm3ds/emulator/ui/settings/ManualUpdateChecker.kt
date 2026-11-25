@@ -1,24 +1,19 @@
 package com.storm3ds.emulator.ui.settings
 
 import android.app.Activity
+import android.app.Dialog
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.view.LayoutInflater
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.storm3ds.emulator.BuildConfig
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.domain.model.DownloadProgress
@@ -31,6 +26,9 @@ import com.storm3ds.emulator.github.GitHubUpdateChannel
 import com.storm3ds.emulator.github.PREF_KEY_GITHUB_UPDATE_CHANNEL
 import com.storm3ds.emulator.github.StormUpdateMirrorClient
 import com.storm3ds.emulator.github.services.GitHubUpdateInstallManager
+import com.storm3ds.emulator.ui.updates.showStormUpdateAvailableDialog
+import com.storm3ds.emulator.ui.updates.showStormUpdateInfoDialog
+import com.storm3ds.emulator.ui.updates.showStormUpdateProgressDialog
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -40,6 +38,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.io.File
@@ -56,6 +55,10 @@ object ManualUpdateChecker {
     private val fallbackScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var activeCheckJob: Job? = null
     private var activeDownloadJob: Job? = null
+    private var activeUpdateDialog: Dialog? = null
+    private var activeProgressDialog: Dialog? = null
+    private var sessionSkippedVersion: Version? = null
+    private val progressFlow = MutableStateFlow<DownloadProgress?>(null)
 
     internal fun unwrapActivity(context: Context?): Activity? {
         var current: Context? = context
@@ -134,14 +137,28 @@ object ManualUpdateChecker {
                 if (candidate != null) {
                     showStyledUpdateDialog(activity, owner, candidate, currentVersionStr)
                 } else {
-                    MaterialAlertDialogBuilder(activity)
-                        .setTitle(R.string.v800_update_up_to_date_title)
-                        .setMessage(appContext.getString(R.string.v800_update_up_to_date_msg, currentVersionStr))
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show()
+                    activeUpdateDialog?.dismiss()
+                    activeUpdateDialog = showStormUpdateInfoDialog(
+                        context = activity,
+                        title = appContext.getString(R.string.v800_update_up_to_date_title),
+                        message = appContext.getString(R.string.v800_update_up_to_date_msg, currentVersionStr),
+                        versionBadge = currentVersionStr,
+                    )
                 }
             } catch (_: Throwable) {
-                Toast.makeText(appContext, R.string.v800_update_error, Toast.LENGTH_SHORT).show()
+                val activity = unwrapActivity(context)
+                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                    activeUpdateDialog?.dismiss()
+                    activeUpdateDialog = showStormUpdateInfoDialog(
+                        context = activity,
+                        title = appContext.getString(R.string.v800_update_error),
+                        message = appContext.getString(R.string.v800_update_error),
+                        isError = true,
+                        onRetry = { checkNow(activity) },
+                    )
+                } else {
+                    Toast.makeText(appContext, R.string.v800_update_error, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -152,39 +169,23 @@ object ManualUpdateChecker {
         candidate: GitHubReleaseCandidate,
         currentVersionStr: String,
     ) {
-        val appContext = activity.applicationContext
         val remoteVersion = candidate.release.tagName.removePrefix("v").removePrefix("V")
         val rawBody = candidate.release.body.ifBlank { candidate.release.name }
-        val markwon = runCatching {
-            EntryPointAccessors.fromApplication(appContext, UpdateEntryPoint::class.java).markwon()
-        }.getOrNull()
-        val renderedBody = markwon?.toMarkdown(rawBody) ?: rawBody
 
-        val dialogView = LayoutInflater.from(activity).inflate(R.layout.dialog_styled_update, null, false)
-        val tvCurrent = dialogView.findViewById<TextView>(R.id.tv_current_version)
-        val tvNew = dialogView.findViewById<TextView>(R.id.tv_new_version)
-        val tvChangelog = dialogView.findViewById<TextView>(R.id.tv_changelog)
-        val btnUpdate = dialogView.findViewById<Button>(R.id.btn_update_now)
-        val btnLater = dialogView.findViewById<Button>(R.id.btn_update_later)
-        val btnSkip = dialogView.findViewById<Button>(R.id.btn_skip_version)
-
-        tvCurrent?.text = currentVersionStr
-        tvNew?.text = remoteVersion
-        tvChangelog?.text = renderedBody
-
-        val dialog = AlertDialog.Builder(activity)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        btnUpdate?.setOnClickListener {
-            dialog.dismiss()
-            startVerifiedUpdateDownload(activity, owner, candidate)
-        }
-        btnLater?.setOnClickListener { dialog.dismiss() }
-        btnSkip?.setOnClickListener { dialog.dismiss() }
-        dialog.show()
+        activeUpdateDialog?.dismiss()
+        activeUpdateDialog = showStormUpdateAvailableDialog(
+            context = activity,
+            currentVersion = currentVersionStr,
+            newVersion = remoteVersion,
+            changelogMd = rawBody,
+            binarySizeBytes = candidate.asset.size,
+            publishedEpochMillis = candidate.publishedAt.toEpochMilliseconds(),
+            sourceReleaseUrl = candidate.release.htmlUrl,
+            downloadUrl = candidate.asset.url,
+            onUpdateNow = { startVerifiedUpdateDownload(activity, owner, candidate) },
+            onRemindLater = {},
+            onSkipVersion = { sessionSkippedVersion = candidate.version },
+        )
     }
 
     private fun startVerifiedUpdateDownload(
@@ -214,19 +215,14 @@ object ManualUpdateChecker {
             GitHubUpdateInstallManager(appContext)
         }
 
-        val progressView = LayoutInflater.from(activity).inflate(R.layout.dialog_layout_update_download_progress, null, false)
-        val progressBar = progressView.findViewById<ProgressBar>(R.id.progress_bar_download_progress)
-        val progressText = progressView.findViewById<TextView>(R.id.text_download_progress)
-
-        var progressDialog: AlertDialog? = null
-        progressDialog = MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.downloading_update)
-            .setView(progressView)
-            .setPositiveButton(R.string.move_to_background) { _, _ ->
-                progressDialog = null
-            }
-            .setCancelable(false)
-            .show()
+        progressFlow.value = DownloadProgress.DownloadUpdate(candidate.asset.size.coerceAtLeast(0L), 0L)
+        activeProgressDialog?.dismiss()
+        activeProgressDialog = showStormUpdateProgressDialog(
+            context = activity,
+            versionLabel = candidate.release.tagName,
+            progressFlow = progressFlow,
+            onMoveToBackground = { activeProgressDialog = null },
+        )
 
         val scope = owner?.lifecycleScope ?: fallbackScope
         activeDownloadJob = scope.launch {
@@ -234,36 +230,23 @@ object ManualUpdateChecker {
                 installManager.downloadAndInstallUpdate(appUpdate).collectLatest { progress ->
                     when (progress) {
                         is DownloadProgress.DownloadUpdate -> {
-                            val totalSize = progress.totalSize
-                            if (totalSize > 0L) {
-                                val pct = ((progress.downloadedBytes.toDouble() / totalSize) * 100.0).toInt().coerceIn(0, 100)
-                                val downloadedMb = progress.downloadedBytes.toDouble() / (1024.0 * 1024.0)
-                                val totalMb = totalSize.toDouble() / (1024.0 * 1024.0)
-                                progressBar?.isIndeterminate = false
-                                progressBar?.progress = pct
-                                progressText?.text = appContext.getString(R.string.download_progress_sizes, downloadedMb, totalMb)
-                            } else {
-                                val downloadedMb = progress.downloadedBytes.toDouble() / (1024.0 * 1024.0)
-                                progressBar?.isIndeterminate = true
-                                progressText?.text = if (downloadedMb > 0.01) {
-                                    String.format(java.util.Locale.US, "%.1f MB", downloadedMb)
-                                } else {
-                                    ""
-                                }
-                            }
+                            progressFlow.value = progress
                         }
                         is DownloadProgress.DownloadComplete -> {
-                            runCatching { progressDialog?.dismiss() }
-                            progressDialog = null
+                            progressFlow.value = progress
+                            runCatching { activeProgressDialog?.dismiss() }
+                            activeProgressDialog = null
                         }
                         is DownloadProgress.DownloadFailed -> {
-                            runCatching { progressDialog?.dismiss() }
-                            progressDialog = null
+                            progressFlow.value = progress
+                            runCatching { activeProgressDialog?.dismiss() }
+                            activeProgressDialog = null
                             Toast.makeText(appContext, R.string.update_download_failed, Toast.LENGTH_LONG).show()
                         }
                         is DownloadProgress.InstallPermissionRequired -> {
-                            runCatching { progressDialog?.dismiss() }
-                            progressDialog = null
+                            progressFlow.value = progress
+                            runCatching { activeProgressDialog?.dismiss() }
+                            activeProgressDialog = null
                             Toast.makeText(appContext, R.string.update_install_permission_required, Toast.LENGTH_LONG).show()
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.isFinishing && !activity.isDestroyed) {
                                 if (owner != null) {
@@ -299,8 +282,8 @@ object ManualUpdateChecker {
                     }
                 }
             } catch (_: Throwable) {
-                runCatching { progressDialog?.dismiss() }
-                progressDialog = null
+                runCatching { activeProgressDialog?.dismiss() }
+                activeProgressDialog = null
                 Toast.makeText(appContext, R.string.update_download_failed, Toast.LENGTH_LONG).show()
             }
         }

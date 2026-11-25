@@ -18,6 +18,9 @@ public:
     explicit AboutDialog(QWidget* parent = 0);
     ~AboutDialog() override;
 
+signals:
+    void CheckUpdatesRequested();
+
 private:
     std::unique_ptr<Ui::AboutDialog> ui;
 };

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 #ifdef __unix__
@@ -14,6 +15,7 @@
 #ifdef ENABLE_QT_UPDATE_CHECKER
 #include <QFuture>
 #include <QFutureWatcher>
+#include "citra_qt/update_checker.h"
 #endif
 #include <QMainWindow>
 #include <QPushButton>
@@ -292,6 +294,10 @@ private slots:
     void OnOpenCitraFolder();
     void OnOpenNANDFolder();
     void OnOpenSDMCFolder();
+    void OnOpenShadersFolder();
+    void OnOpenLoadFolder();
+    void OnOpenScreenshotsFolder();
+    void OnClearShaderCache();
     void OnToggleFilterBar();
     void OnDisplayTitleBars(bool);
     void InitializeHotkeys();
@@ -340,6 +346,8 @@ private slots:
     void OnIncreaseVolume();
     void OnMute();
 #ifdef ENABLE_QT_UPDATE_CHECKER
+    void TriggerUpdateCheck(bool manual);
+    void OnCheckForUpdates();
     void OnEmulatorUpdateAvailable();
 #endif
     void OnSwitchDiskResources(VideoCore::LoadCallbackStage stage, std::size_t value,
@@ -483,8 +491,9 @@ private:
 
 #ifdef ENABLE_QT_UPDATE_CHECKER
     // Prompt shown when update check succeeds
-    QFuture<QString> update_future;
-    QFutureWatcher<QString> update_watcher;
+    QFuture<std::optional<UpdateChecker::ReleaseInfo>> update_future;
+    QFutureWatcher<std::optional<UpdateChecker::ReleaseInfo>> update_watcher;
+    bool manual_update_check = false;
 #endif
 
 #ifdef __unix__

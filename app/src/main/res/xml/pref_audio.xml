@@ -10,6 +10,7 @@
         <SwitchPreference
                 android:key="sound_enabled"
                 android:title="@string/enable_sound"
+                android:summary="@string/pref_sound_enabled_summary"
                 app:iconSpaceReserved="false"
                 android:defaultValue="true" />
 
@@ -173,6 +174,7 @@
         <com.storm3ds.emulator.ui.settings.preferences.MicLevelMeterPreference
                 android:key="mic_vu_meter"
                 android:title="@string/mic_vu_meter_title"
+                android:summary="@string/pref_mic_vu_meter_summary"
                 app:iconSpaceReserved="false" />
     </PreferenceCategory>
 </PreferenceScreen>

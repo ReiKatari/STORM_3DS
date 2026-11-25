@@ -23,6 +23,8 @@ enum class RomPauseMenuOption(override val textResource: Int) : PauseMenuOption 
     NETPLAY(R.string.netplay_lobby_title),
     PRESETS(R.string.presets),
     SCREEN_LAYOUT(R.string.screen_layout),
+    CYCLE_LAYOUT(R.string.input_cycle_layout),
+    TOGGLE_MUTE(R.string.pause_toggle_mute),
     RENDERER_DEBUG(R.string.renderer_debug_menu),
     RESET_COMPATIBILITY(R.string.compat_reset_safe_mode),
     RESET(R.string.reset),

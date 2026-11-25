@@ -288,3 +288,73 @@ QScrollBar::add-line, QScrollBar::sub-line {
 QScrollBar::add-page, QScrollBar::sub-page {
     background: none;
 }
+
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #d7e2f3;
+    border-radius: 3px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #0077cc;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #ffffff;
+    border: 2px solid #0077cc;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 8px;
+}
+
+QProgressBar {
+    background-color: #edf2fb;
+    border: 1px solid #bccce6;
+    border-radius: 6px;
+    text-align: center;
+    color: #141b2d;
+}
+
+QProgressBar::chunk {
+    background-color: #0077cc;
+    border-radius: 5px;
+}
+
+QToolTip {
+    background-color: #ffffff;
+    color: #141b2d;
+    border: 1px solid #0077cc;
+    border-radius: 4px;
+    padding: 5px 8px;
+}
+
+QScrollArea, QScrollArea > QWidget > QWidget {
+    background: transparent;
+    border: none;
+}
+
+QTextBrowser, QPlainTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #bccce6;
+    border-radius: 6px;
+    padding: 8px;
+    color: #141b2d;
+    selection-background-color: #c2dffb;
+}
+
+QMessageBox, QDialogButtonBox {
+    background-color: #f4f7fc;
+    color: #141b2d;
+}
+
+QSplitter::handle {
+    background-color: #c5d4ec;
+    width: 2px;
+    height: 2px;
+}
+
+QSplitter::handle:hover {
+    background-color: #0077cc;
+}

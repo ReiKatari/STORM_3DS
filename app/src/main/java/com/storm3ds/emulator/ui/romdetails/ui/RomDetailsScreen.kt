@@ -117,7 +117,7 @@ fun RomDetailsScreen(
             val pageFocusRequester = pageFocusRequesters[it]
             when (it) {
                 RomDetailsTab.CONFIG.tabIndex -> {
-                    Column(modifier = Modifier.fillMaxSize()) { Rom3dsToolsCard(rom = rom, context = androidx.compose.ui.platform.LocalContext.current); Box(modifier = Modifier.weight(1f)) { RomConfigUi(
+                    RomConfigUi(
                         modifier = Modifier.fillMaxSize().focusRequester(pageFocusRequester),
                         contentPadding = contentPadding,
                         rom = rom,
@@ -125,7 +125,7 @@ fun RomDetailsScreen(
                         onConfigUpdate = onRomConfigUpdate,
                         onCustomInputConfigEdited = onCustomInputConfigEdited,
                         onSettingFocused = { title, value -> onSettingFocused(title, value) },
-                    ) } }
+                    )
                 }
                 RomDetailsTab.CHEATS.tabIndex -> {
                     RomCheatsUi(
