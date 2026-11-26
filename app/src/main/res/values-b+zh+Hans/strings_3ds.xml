@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="abort_button">中止</string>
     <string name="about_diagnostics_title">STORM 3DS 诊断</string>
@@ -419,4 +419,64 @@ SDMC: %7$s</string>
     <string name="pref_mic_vu_meter_summary">实时显示麦克风输入音量以便校准降噪阈值</string>
     <string name="pref_vibrate_on_touch_summary">按下屏幕虚拟按键时提供触觉震动反馈</string>
     <string name="pref_enable_cheats_summary">允许在游戏运行期间启用 Gateway / Action Replay 金手指</string>
-</resources>
+    <string name="retroarch_shader_manual_path">手动输入预设路径...</string>
+    <string name="retroarch_shader_edit_text">以文本编辑</string>
+    <string name="retroarch_shader_no_params">未找到此预设的可调着色器参数。您仍可手动输入 键=值 对：</string>
+    <string name="retroarch_shader_reset_params">重置所有参数</string>
+    <string name="freedreno_name_fd_dev_features">FD_DEV_FEATURES</string>
+    <string name="freedreno_name_tu_debug">TU_DEBUG</string>
+    <string name="freedreno_name_fd_mesa_debug">FD_MESA_DEBUG</string>
+    <string name="pref_3ds_quicksaves_title">即时存档</string>
+    <string name="pref_3ds_quicksaves_summary">即时存档槽位与缩略图存储在 /STORM 3DS/quicksaves 目录中</string>
+    <string name="pref_3ds_quicksaves_summary_path">即时存档目录: %1$s</string>
+    <string name="quick_save">即时存档</string>
+    <string name="quick_load">即时读档</string>
+    <string name="rom_libretro_covers_enabled_title">下载 3DS 封面图 (Libretro)</string>
+    <string name="rom_libretro_covers_enabled_summary">通过网络从 Libretro 图库获取 Nintendo 3DS 盒装封面</string>
+    <string name="rom_ra_badges_enabled_title">下载成就徽章图标 (RetroAchievements)</string>
+    <string name="rom_ra_badges_enabled_summary">联网下载 RetroAchievements 徽章图标; 关闭时显示本地奖杯图标</string>
+    <string name="v794_video_preset_auto_device">针对此设备自动优化</string>
+    <string name="ra_spectator_mode_title">观战模式</string>
+    <string name="ra_spectator_mode_summary">仅在本地追踪成就进度, 不向服务器提交解锁或排行榜成绩</string>
+    <string name="ra_filter_progression">主线进度</string>
+    <string name="ra_filter_win">通关条件</string>
+    <string name="ra_sort_title">排序</string>
+    <string name="ra_sort_default">默认</string>
+    <string name="ra_sort_points">按点数</string>
+    <string name="ra_sort_unlocked">已解锁优先</string>
+    <string name="ra_sort_locked">未解锁优先</string>
+    <string name="ra_game_hash_info_fmt">ID: %1$s | 哈希: %2$s</string>
+    <string name="ra_status_mastered">已精通</string>
+    <string name="ra_status_completed">已完成</string>
+    <string name="ra_points_gain_fmt">+%1$d 点</string>
+    <string name="ra_points_dot_fmt">- %1$d</string>
+    <string name="ra_completion_pct_fmt">(%1$d%%)</string>
+    <string name="leaderboard_rank_fmt">#%1$d</string>
+    <string name="refresh">刷新</string>
+    <string name="netplay_3ds_tab_host">创建房间</string>
+    <string name="netplay_3ds_tab_room">房间与聊天</string>
+    <string name="netplay_3ds_connected_badge">已连接</string>
+    <string name="netplay_3ds_password_hint">密码</string>
+    <string name="netplay_3ds_optional_hint">可选</string>
+    <string name="netplay_3ds_host_form_title">创建联机房间</string>
+    <string name="netplay_3ds_room_name_label">房间名称 (3-20 字符)</string>
+    <string name="netplay_3ds_nickname_label">玩家昵称</string>
+    <string name="netplay_3ds_port_label">端口</string>
+    <string name="netplay_3ds_max_players_label">最大人数</string>
+    <string name="netplay_3ds_not_in_room">尚未加入任何房间. 请先加入局域网/大厅房间或创建一个房间.</string>
+    <string name="netplay_3ds_mod_role">房主 - %1$d 位玩家</string>
+    <string name="netplay_3ds_member_role">成员 - %1$d 位玩家</string>
+    <string name="netplay_3ds_leave_room_btn">离开</string>
+    <string name="netplay_3ds_members_title">房间成员</string>
+    <string name="netplay_3ds_kick_btn">踢出</string>
+    <string name="netplay_3ds_ban_btn">封禁</string>
+    <string name="netplay_3ds_ban_list_title">已封禁用户</string>
+    <string name="netplay_3ds_unban_btn">解封</string>
+    <string name="netplay_3ds_chat_hint">输入聊天消息...</string>
+    <string name="netplay_3ds_send_btn">发送</string>
+    <string name="netplay_3ds_custom_lobby_label">自定义大厅服务器地址</string>
+    <string name="netplay_3ds_custom_lobby_saved">大厅服务器地址已保存</string>
+    <string name="netplay_3ds_streetpass_title">本地无线与擦肩通信 (StreetPass CECD)</string>
+    <string name="netplay_3ds_streetpass_stats_fmt">活动 CECD 邮箱数量: %1$d</string>
+    <string name="setup_3ds_artic_saved_fmt">已保存 %1$s 至用户目录</string>
+    </resources>

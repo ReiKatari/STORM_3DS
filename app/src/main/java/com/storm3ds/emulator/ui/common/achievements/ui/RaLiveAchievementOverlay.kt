@@ -123,7 +123,7 @@ fun RaLiveAchievementOverlay(
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
-                                text = "+${event.points} PTS",
+                                text = stringResource(R.string.ra_points_gain_fmt, event.points),
                                 color = Color.White,
                                 fontFamily = WatermelonMono,
                                 fontSize = 9.sp,

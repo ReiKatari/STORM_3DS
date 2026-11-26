@@ -30,8 +30,8 @@ void OGLTextureMailbox::ReloadPresentFrame(Frontend::Frame* frame, u32 height, u
     GLint previous_draw_fbo{};
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_draw_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, frame->present.handle);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                              frame->color.handle);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame->color.handle,
+                           0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         LOG_CRITICAL(Render_OpenGL, "Failed to recreate present FBO!");
     }
@@ -43,12 +43,18 @@ void OGLTextureMailbox::ReloadRenderFrame(Frontend::Frame* frame, u32 width, u32
     OpenGLState prev_state = OpenGLState::GetCurState();
     OpenGLState state = OpenGLState::GetCurState();
 
-    // Recreate the color texture attachment
+    // Recreate the color texture attachment as GL_TEXTURE_2D so Librashader and blits can sample it
     frame->color.Release();
     frame->color.Create();
-    state.renderbuffer = frame->color.handle;
+    state.texture_units[0].texture_2d = frame->color.handle;
     state.Apply();
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
     // Recreate the FBO for the render target
     frame->render.Release();
@@ -56,8 +62,8 @@ void OGLTextureMailbox::ReloadRenderFrame(Frontend::Frame* frame, u32 width, u32
     state.draw.read_framebuffer = frame->render.handle;
     state.draw.draw_framebuffer = frame->render.handle;
     state.Apply();
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                              frame->color.handle);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame->color.handle,
+                           0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         LOG_CRITICAL(Render_OpenGL, "Failed to recreate render FBO!");
     }

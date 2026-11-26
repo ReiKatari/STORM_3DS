@@ -257,9 +257,12 @@ private fun QuickSlotCard(
             contentAlignment = Alignment.Center,
         ) {
             if (slot.screenshot != null) {
+                val previewKey = "${slot.screenshot}_${slot.lastUsedDate?.time ?: 0L}"
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(slot.screenshot)
+                        .memoryCacheKey(previewKey)
+                        .diskCacheKey(previewKey)
                         .crossfade(true)
                         .build(),
                     contentDescription = null,

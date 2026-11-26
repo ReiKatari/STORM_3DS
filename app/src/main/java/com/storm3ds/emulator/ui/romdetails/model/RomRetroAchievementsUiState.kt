@@ -6,6 +6,10 @@ sealed class RomRetroAchievementsUiState {
     data class Ready(
         val sets: List<AchievementSetUiModel>,
         val pendingLedgerAchievementIds: Set<Long> = emptySet(),
+        val gameTitle: String = "",
+        val gameCode: String = "",
+        val romHash: String = "",
+        val raGameId: Long? = null,
     ) : RomRetroAchievementsUiState() {
 
         fun hasAchievements(): Boolean {

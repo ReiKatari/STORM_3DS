@@ -6,20 +6,33 @@ import com.storm3ds.emulator.common.UriFileHandler
 import com.storm3ds.emulator.common.cheats.BundledMmjCheatsLoader
 import com.storm3ds.emulator.common.network.HttpRedirectHelper
 import com.storm3ds.emulator.common.romprocessors.CompressedRomFileProcessor
+import com.storm3ds.emulator.common.romprocessors.ThreeDsRomFileProcessor
 import com.storm3ds.emulator.domain.model.Input
 import com.storm3ds.emulator.domain.model.InputConfig
 import com.storm3ds.emulator.domain.model.ThreeDS
 import com.storm3ds.emulator.domain.model.Version
 import com.storm3ds.emulator.domain.model.layout.LayoutComponent
+import com.storm3ds.emulator.domain.model.rom.Rom
+import com.storm3ds.emulator.domain.model.rom.config.RomConfig
 import com.storm3ds.emulator.github.APK_CONTENT_TYPE
 import com.storm3ds.emulator.github.GitHubReleaseSelector
 import com.storm3ds.emulator.github.GitHubUpdateChannel
+import com.storm3ds.emulator.github.STORM_GAMES_WORLD_HOST
+import com.storm3ds.emulator.github.STORM_GAMES_WORLD_RELEASE_URL_PREFIX
 import com.storm3ds.emulator.github.StormUpdateMirrorClient
 import com.storm3ds.emulator.github.services.UpdateApkMetadata
 import com.storm3ds.emulator.github.services.UpdateApkRejectionReason
 import com.storm3ds.emulator.github.services.UpdateApkValidationPolicy
 import com.storm3ds.emulator.github.dtos.AssetDto
 import com.storm3ds.emulator.github.dtos.ReleaseDto
+import com.storm3ds.emulator.ui.common.achievements.ui.AchievementSortOrder
+import com.storm3ds.emulator.ui.common.achievements.ui.AchievementTypeFilter
+import com.storm3ds.emulator.ui.romlist.composables.getGameTdbCover2dUrl
+import com.storm3ds.emulator.ui.romlist.composables.getGameTdbCover3dUrl
+import me.magnum.rcheevosapi.model.RAAchievement
+import me.magnum.rcheevosapi.model.RAGameId
+import me.magnum.rcheevosapi.model.RASetId
+import java.net.URL
 import com.storm3ds.emulator.impl.AdrenoVulkanDriverSupport
 import com.storm3ds.emulator.impl.emulator.EmulatorMessageQueue
 import com.storm3ds.emulator.impl.input.DefaultControllerConfigurationFactory
@@ -1125,5 +1138,187 @@ class Storm3dsCoreTest {
         listOf("QSlider", "QTextBrowser", "QMessageBox").forEach { sel ->
             assertTrue("storm_light/style.qss must style $sel", sel in lightQss)
         }
+    }
+
+    @Test
+    fun `retroarch librashader pipeline spans opengl texture mailbox, vulkan, jni, saf, and qt desktop`() {
+        val coreDir = File("../core/src").canonicalFile.let { if (it.exists()) it else File("core/src") }
+        val appMain = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
+
+        val glMailboxH = File(coreDir, "video_core/renderer_opengl/gl_texture_mailbox.h").readText()
+        assertTrue("gl_texture_mailbox.h must store OpenGL::OGLTexture color", "OpenGL::OGLTexture color" in glMailboxH)
+        val glMailboxCpp = File(coreDir, "video_core/renderer_opengl/gl_texture_mailbox.cpp").readText()
+        assertTrue("gl_texture_mailbox.cpp must attach GL_TEXTURE_2D", "glFramebufferTexture2D" in glMailboxCpp)
+
+        val libraCpp = File(coreDir, "video_core/storm_librashader.cpp").readText()
+        listOf(
+            "AndroidGlProcLoader",
+            "GlStateGuard",
+            "libra_gl_filter_chain_set_param",
+            "libra_vk_filter_chain_set_param",
+            "libra_preset_get_runtime_params",
+            "PresetCleanupGuard",
+        ).forEach { sym ->
+            assertTrue("storm_librashader.cpp must implement $sym", sym in libraCpp)
+        }
+
+        val extCpp = File(appMain, "cpp/jni/storm3ds_extensions.cpp").readText()
+        listOf("configureLibrashader", "queryLibrashaderParams", "consumeLibrashaderDiagnostics").forEach { sym ->
+            assertTrue("storm3ds_extensions.cpp must export $sym", sym in extCpp)
+        }
+
+        val melonKt = File(appMain, "java/com/storm3ds/emulator/MelonEmulator.kt").readText()
+        assertTrue("MelonEmulator must delegate diagnostics to NativeLibrary", "NativeLibrary.consumeLibrashaderDiagnostics()" in melonKt)
+        assertTrue("MelonEmulator must expose queryRetroArchShaderParameters", "fun queryRetroArchShaderParameters(" in melonKt)
+
+        val repoKt = File(appMain, "java/com/storm3ds/emulator/impl/SharedPreferencesSettingsRepository.kt").readText()
+        assertTrue("SAF staging must check directory writability", "isDirectoryWritable(" in repoKt)
+        assertTrue("SAF staging must copy #reference chains", "RetroArchShaderPreset.referencePaths(" in repoKt)
+
+        val qtEnhancements = File(coreDir, "citra_qt/configuration/configure_enhancements.cpp").readText()
+        assertTrue("Qt ConfigureEnhancements must expose OpenRetroArchParametersDialog", "OpenRetroArchParametersDialog" in qtEnhancements)
+        val qtConfig = File(coreDir, "citra_qt/configuration/config.cpp").readText()
+        assertTrue("QtConfig must persist librashader_preset_path", "Settings::values.librashader_preset_path" in qtConfig)
+    }
+
+    @Test
+    fun `saves use saves dir without Nintendo 3DS and quicksaves use quicksaves dir`() {
+        val coreRoot = File("../core").canonicalFile.let { if (it.exists()) it else File("core") }
+        val appMain = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
+
+        val nativeCpp = File(appMain, "cpp/jni/native.cpp").readText()
+        assertTrue("SDMCDir must map to saves/", "user_dir + \"saves/\"" in nativeCpp)
+        assertTrue("StatesDir must map to quicksaves/", "user_dir + \"quicksaves/\"" in nativeCpp)
+        assertFalse("SDMCDir must not use sdmc/", "user_dir + \"sdmc/\"" in nativeCpp)
+
+        val sdSaveCpp = File(coreRoot, "src/core/file_sys/archive_source_sd_savedata.cpp").readText()
+        assertTrue("archive_source_sd_savedata.cpp must guard Nintendo 3DS on Android", "#ifdef ANDROID" in sdSaveCpp)
+
+        val melonKt = File(appMain, "java/com/storm3ds/emulator/MelonEmulator.kt").readText()
+        assertTrue("resolveCstFileForSlot must use quicksaves", "\"quicksaves\"" in melonKt)
+        val ssRepoKt = File(appMain, "java/com/storm3ds/emulator/impl/FileSystemSaveStatesRepository.kt").readText()
+        assertTrue("FileSystemSaveStatesRepository must resolve quicksaves", "quicksaves" in ssRepoKt)
+        val ssOverlay = File(appMain, "java/com/storm3ds/emulator/ui/emulator/ui/SaveStatesOverlay.kt").readText()
+        assertTrue("SaveStatesOverlay must cache-bust slot thumbnails", "memoryCacheKey" in ssOverlay)
+    }
+
+    @Test
+    fun `covers and badges default to off and 3ds gametdb urls resolve cleanly`() {
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val prefRoms = File(resRoot, "xml/pref_roms.xml").readText()
+        for (key in listOf(
+            "rom_ra_covers_enabled",
+            "rom_libretro_covers_enabled",
+            "rom_ra_badges_enabled",
+            "rom_gametdb_3d_covers_enabled",
+            "rom_gametdb_2d_covers_enabled",
+        )) {
+            assertTrue(
+                "$key must default to false",
+                Regex("""android:key="$key"[\s\S]*?android:defaultValue="false"""").containsMatchIn(prefRoms),
+            )
+        }
+
+        assertEquals("https://art.gametdb.com/3ds/cover3D/US/AMKE.png", getGameTdbCover3dUrl("AMKE", "Mario Kart 7 (USA).3ds"))
+        assertEquals("https://art.gametdb.com/3ds/cover/US/AMKE.png", getGameTdbCover2dUrl("AMKE", "Mario Kart 7 (USA).3ds"))
+
+        val appMain = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val detailsUi = File(appMain, "com/storm3ds/emulator/ui/romdetails/ui/RomDetailsScreen.kt").readText()
+        assertTrue("RomDetailsScreen must render UnifiedBackButton", "UnifiedBackButton" in detailsUi)
+        val statsAct = File(appMain, "com/storm3ds/emulator/ui/stats/PlayerStatsActivity.kt").readText()
+        assertTrue("PlayerStatsActivity must render UnifiedBackButton", "UnifiedBackButton" in statsAct)
+    }
+
+    @Test
+    fun `device optimization thermal throttling and 3ds vulkan compat profiles are wired`() {
+        val appMain = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
+        val vulkanJson = File(appMain, "assets/vulkan_compat.json").readText()
+        assertTrue("vulkan_compat.json must include 3DS profiles", "Mario Kart 7" in vulkanJson || "Luigi" in vulkanJson)
+        val emuAct = File(appMain, "java/com/storm3ds/emulator/ui/emulator/EmulatorActivity.kt").readText()
+        assertTrue("EmulatorActivity must register OnThermalStatusChangedListener", "OnThermalStatusChangedListener" in emuAct)
+        val appClass = File(appMain, "java/com/storm3ds/emulator/MelonDSApplication.kt").readText()
+        assertTrue("MelonDSApplication must implement onTrimMemory", "override fun onTrimMemory" in appClass)
+    }
+
+    @Test
+    fun `retroachievements hashing progression win filters sort orders and spectator mode work`() {
+        val bytes = "NCCH_3DS_TEST_HEADER".toByteArray(Charsets.UTF_8)
+        val h1 = ThreeDsRomFileProcessor.compute3dsHashFromBytes(bytes, 0x0004000000030800L, 1024L, "mk7.3ds")
+        val h2 = ThreeDsRomFileProcessor.compute3dsHashFromBytes(bytes, 0x0004000000030800L, 1024L, "mk7.3ds")
+        assertEquals(32, h1.length)
+        assertEquals(h1, h2)
+        assertTrue(h1.all { it in '0'..'9' || it in 'a'..'f' })
+
+        val progAch = RAAchievement(
+            id = 1L, gameId = RAGameId(10L), setId = RASetId(1L),
+            totalAwardsCasual = 10, totalAwardsHardcore = 5,
+            title = "Beat World 1 [p]", description = "Clear stage",
+            points = 10, displayOrder = 1,
+            badgeUrlUnlocked = URL("https://example.com/u.png"),
+            badgeUrlLocked = URL("https://example.com/l.png"),
+            memoryAddress = "0x01", type = RAAchievement.Type.CORE,
+            categoryTag = "progression",
+        )
+        val winAch = progAch.copy(id = 2L, title = "Credits [w]", categoryTag = "win_condition")
+        assertTrue(progAch.isProgression())
+        assertTrue(AchievementTypeFilter.Progression.matchesAchievement(progAch))
+        assertTrue(winAch.isWinCondition())
+        assertTrue(AchievementTypeFilter.WinCondition.matchesAchievement(winAch))
+        assertEquals(listOf(0, 1, 2, 3), AchievementSortOrder.entries.map { it.displayOrder })
+
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val prefMain = File(resRoot, "xml/pref_main.xml").readText()
+        assertFalse("settings_home_retroachievements must be visible", "settings_home_retroachievements\"\n                app:isPreferenceVisible=\"false\"" in prefMain)
+        val prefRa = File(resRoot, "xml/pref_retroachievements.xml").readText()
+        assertTrue("pref_retroachievements must include ra_spectator_mode", "ra_spectator_mode" in prefRa)
+    }
+
+    @Test
+    fun `multiplayer lan udp beacon normalization and endpoint parsing work cleanly`() {
+        assertTrue(MelonEmulator.normalizeLanRoomName("A", "P").length in 3..20)
+        assertTrue(MelonEmulator.normalizeLanRoomName("X", "Player").length in 3..20)
+        assertEquals(20, MelonEmulator.normalizeLanRoomName("VeryLongRoomNameExceedingLimit", "Player").length)
+
+        val payload = MelonEmulator.buildLanBeaconPayload("Race Room", "192.168.1.10", 24872, 2, 6, "Mario Kart 7")
+        val parsed = MelonEmulator.parseLanBeaconPayload(payload, "192.168.1.44")
+        assertEquals("Race Room|192.168.1.44:24872|2/6|Mario Kart 7", parsed)
+        assertEquals("10.0.0.5" to 25000, MelonEmulator.parseHostAndPort("10.0.0.5:25000"))
+        assertEquals("10.0.0.5" to 24872, MelonEmulator.parseHostAndPort("10.0.0.5"))
+    }
+
+    @Test
+    fun `android sgw upload prefix and qt update checker support new releases`() {
+        val rel = ReleaseDto(
+            tagName = "1.10.0",
+            name = "STORM 3DS 1.10.0",
+            body = "Release notes",
+            createdAt = "2026-11-26T00:00:00Z",
+            publishedAt = "2026-11-26T00:00:00Z",
+            htmlUrl = "$STORM_GAMES_WORLD_RELEASE_URL_PREFIX&tag=1.10.0",
+            draft = false,
+            prerelease = false,
+            assets = listOf(
+                AssetDto(
+                    id = 10L,
+                    url = "$STORM_GAMES_WORLD_HOST/uploads/programs/STORM_3DS_1.10.0.apk",
+                    name = "STORM_3DS_1.10.0.apk",
+                    size = 123456L,
+                    contentType = APK_CONTENT_TYPE,
+                ),
+            ),
+        )
+        val selected = GitHubReleaseSelector.selectProduction(
+            releases = listOf(rel),
+            currentVersion = Version.fromString("1.9.0"),
+            channel = GitHubUpdateChannel.STABLE,
+            skippedVersion = null,
+        )
+        assertNotNull("SGW direct /uploads/programs/ URL must be accepted", selected)
+        assertEquals("1.10.0", selected!!.release.tagName)
+
+        val coreRoot = File("../core").canonicalFile.let { if (it.exists()) it else File("core") }
+        val checkerCpp = File(coreRoot, "src/citra_qt/update_checker.cpp").readText()
+        assertTrue("update_checker.cpp must read SGW notes field", "JsonString(rel, \"notes\")" in checkerCpp)
+        assertTrue("update_checker.cpp must unwrap repository.releases", "parsed[\"repository\"][\"releases\"]" in checkerCpp)
     }
 }

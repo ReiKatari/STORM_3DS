@@ -1901,9 +1901,15 @@ std::string GetMediaTitlePath(Service::FS::MediaType media_type) {
                            SYSTEM_ID);
 
     if (media_type == Service::FS::MediaType::SDMC)
+#ifdef ANDROID
+        return fmt::format("{}{}/{}/title/",
+                           FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir), SYSTEM_ID,
+                           SDCARD_ID);
+#else
         return fmt::format("{}Nintendo 3DS/{}/{}/title/",
                            FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir), SYSTEM_ID,
                            SDCARD_ID);
+#endif
 
     if (media_type == Service::FS::MediaType::GameCard) {
         // TODO(B3N30): check if TID matchess

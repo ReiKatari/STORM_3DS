@@ -78,23 +78,37 @@ fun AchievementPopupUi(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val context = LocalContext.current
+                val showBadges = remember(context) {
+                    androidx.preference.PreferenceManager.getDefaultSharedPreferences(context).getBoolean("rom_ra_badges_enabled", false)
+                }
                 Box(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(RoundedCornerShape(7.dp))
                         .background(colors.greenDim)
                         .border(1.dp, colors.green, RoundedCornerShape(7.dp)),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    AsyncImage(
-                        modifier = Modifier.size(28.dp),
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(achievement.badgeUrlUnlocked.toString())
-                            .crossfade(false)
-                            .build(),
-                        placeholder = painterResource(id = R.drawable.ic_trophy),
-                        error = painterResource(id = R.drawable.ic_trophy),
-                        contentDescription = null,
-                    )
+                    if (showBadges) {
+                        AsyncImage(
+                            modifier = Modifier.size(28.dp),
+                            model = ImageRequest.Builder(context)
+                                .data(achievement.badgeUrlUnlocked.toString())
+                                .crossfade(false)
+                                .build(),
+                            placeholder = painterResource(id = R.drawable.ic_trophy),
+                            error = painterResource(id = R.drawable.ic_trophy),
+                            contentDescription = null,
+                        )
+                    } else {
+                        androidx.compose.material.Icon(
+                            painter = painterResource(id = R.drawable.ic_trophy),
+                            contentDescription = null,
+                            tint = colors.green,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
 
                 Text(
@@ -110,7 +124,7 @@ fun AchievementPopupUi(
                         .weight(1f, fill = false),
                 )
                 Text(
-                    text = "+${achievement.points}",
+                    text = stringResource(R.string.ra_points_gain_fmt, achievement.points),
                     color = com.storm3ds.emulator.ui.theme.WatermelonColors.gold,
                     fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
                     fontSize = 10.5.sp,
@@ -146,23 +160,37 @@ fun AchievementPopupUi(
             modifier = Modifier.padding(8.dp).height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val context = LocalContext.current
+            val showBadges = remember(context) {
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(context).getBoolean("rom_ra_badges_enabled", false)
+            }
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(colors.greenDim)
                     .border(1.dp, colors.green, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
             ) {
-                AsyncImage(
-                    modifier = Modifier.size(42.dp),
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(achievement.badgeUrlUnlocked.toString())
-                        .crossfade(false)
-                        .build(),
-                    placeholder = painterResource(id = R.drawable.ic_trophy),
-                    error = painterResource(id = R.drawable.ic_trophy),
-                    contentDescription = null,
-                )
+                if (showBadges) {
+                    AsyncImage(
+                        modifier = Modifier.size(42.dp),
+                        model = ImageRequest.Builder(context)
+                            .data(achievement.badgeUrlUnlocked.toString())
+                            .crossfade(false)
+                            .build(),
+                        placeholder = painterResource(id = R.drawable.ic_trophy),
+                        error = painterResource(id = R.drawable.ic_trophy),
+                        contentDescription = null,
+                    )
+                } else {
+                    androidx.compose.material.Icon(
+                        painter = painterResource(id = R.drawable.ic_trophy),
+                        contentDescription = null,
+                        tint = colors.green,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
 
             AnimatedContent(
@@ -203,7 +231,7 @@ fun AchievementPopupUi(
                                     modifier = Modifier.weight(1f, fill = false),
                                 )
                                 Text(
-                                    text = "+${achievement.points}",
+                                    text = stringResource(R.string.ra_points_gain_fmt, achievement.points),
                                     color = com.storm3ds.emulator.ui.theme.WatermelonColors.gold,
                                     fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
                                     fontSize = 11.sp,

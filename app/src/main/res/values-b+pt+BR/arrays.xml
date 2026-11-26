@@ -1,0 +1,837 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string-array name="ra_offline_backend_options">
+        <item>@string/ra_offline_backend_built_in</item>
+        <item>@string/ra_offline_backend_proxy</item>
+        </string-array>
+    <string-array name="ra_offline_backend_values">
+        <item>built_in</item>
+        <item>ra_offline_proxy</item>
+        </string-array>
+    <string-array name="update_channel_options">
+        <item>@string/update_channel_stable</item>
+        <item>@string/update_channel_prerelease</item>
+        </string-array>
+    <string-array name="update_channel_values">
+        <item>stable</item>
+        <item>stable_and_prerelease</item>
+        </string-array>
+    <string-array name="translator_engine_options">
+        <item>@string/translator_engine_google</item>
+        <item>@string/translator_engine_offline</item>
+        <item>@string/translator_engine_deepl</item>
+        <item>@string/translator_engine_custom_ai</item>
+        </string-array>
+    <string-array name="translator_engine_values">
+        <item>google</item>
+        <item>mlkit_offline</item>
+        <item>deepl</item>
+        <item>custom_ai</item>
+        </string-array>
+    <string-array name="translator_source_lang_options">
+        <item>@string/lang_auto</item>
+        <item>@string/lang_ja</item>
+        <item>@string/lang_en</item>
+        <item>@string/lang_zh</item>
+        <item>@string/lang_ko</item>
+        <item>@string/lang_de</item>
+        <item>@string/lang_fr</item>
+        <item>@string/lang_es</item>
+        <item>@string/lang_it</item>
+        </string-array>
+    <string-array name="translator_source_lang_values">
+        <item>auto</item>
+        <item>ja</item>
+        <item>en</item>
+        <item>zh</item>
+        <item>ko</item>
+        <item>de</item>
+        <item>fr</item>
+        <item>es</item>
+        <item>it</item>
+        </string-array>
+    <string-array name="translator_target_lang_options">
+        <item>@string/lang_ru</item>
+        <item>@string/lang_en</item>
+        <item>@string/lang_uk</item>
+        <item>@string/lang_es</item>
+        <item>@string/lang_de</item>
+        <item>@string/lang_fr</item>
+        <item>@string/lang_ja</item>
+        <item>@string/lang_zh</item>
+        <item>@string/lang_it</item>
+        <item>@string/lang_pt</item>
+        </string-array>
+    <string-array name="translator_target_lang_values">
+        <item>ru</item>
+        <item>en</item>
+        <item>uk</item>
+        <item>es</item>
+        <item>de</item>
+        <item>fr</item>
+        <item>ja</item>
+        <item>zh</item>
+        <item>it</item>
+        <item>pt</item>
+        </string-array>
+    <string-array name="translator_trigger_mode_options">
+        <item>@string/translator_trigger_mode_on_demand</item>
+        <item>@string/translator_trigger_mode_auto</item>
+        </string-array>
+    <string-array name="translator_trigger_mode_values">
+        <item>on_demand</item>
+        <item>auto_screen_change</item>
+        </string-array>
+    <string-array name="translator_overlay_style_options">
+        <item>@string/translator_style_smart_match</item>
+        <item>@string/translator_style_semi_transparent</item>
+        <item>@string/translator_style_neon_bubble</item>
+        <item>@string/translator_style_outline_only</item>
+        </string-array>
+    <string-array name="translator_overlay_style_values">
+        <item>smart_background_match</item>
+        <item>semi_transparent</item>
+        <item>translucent_bubble</item>
+        <item>outline_only</item>
+        </string-array>
+    <string-array name="rom_display_name_mode_options">
+        <item>@string/rom_display_name_mode_file_name</item>
+        <item>@string/rom_display_name_mode_internal</item>
+        </string-array>
+    <string-array name="rom_display_name_mode_values">
+        <item>file_name</item>
+        <item>internal_name</item>
+        </string-array>
+    <string-array name="rom_icon_filtering_values">
+        <item>none</item>
+        <item>linear</item>
+        </string-array>
+    <string-array name="console_type_values">
+        <item>ds</item>
+        <item>dsi</item>
+        </string-array>
+    <string-array name="firmware_settings_language_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>0</item>
+        </string-array>
+    <string-array name="fps_counter_position_values">
+        <item>hidden</item>
+        <item>top_left</item>
+        <item>top_center</item>
+        <item>top_right</item>
+        <item>bottom_left</item>
+        <item>bottom_center</item>
+        <item>bottom_right</item>
+        </string-array>
+    <string-array name="video_renderer_values">
+        <item>software</item>
+        <item>opengl</item>
+        <item>vulkan</item>
+        <item>compute</item>
+        </string-array>
+    <string-array name="video_internal_resolution_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        </string-array>
+    <string-array name="video_filtering_values">
+        <item>none</item>
+        <item>linear</item>
+        <item>xbr2</item>
+        <item>hq2x</item>
+        <item>hq4x</item>
+        <item>quilez</item>
+        <item>lcd</item>
+        <item>scanlines</item>
+        <item>scale2x</item>
+        <item>ai_upscale</item>
+        <item>retroarch</item>
+        </string-array>
+    <string-array name="video_vulkan_driver_mode_values">
+        <item>system</item>
+        <item>custom</item>
+        </string-array>
+    <string-array name="dsi_camera_source_values">
+        <item>black_screen</item>
+        <item>physical_cameras</item>
+        <item>static_image</item>
+        </string-array>
+    <string-array name="external_display_screen_values">
+        <item>top</item>
+        <item>bottom</item>
+        </string-array>
+    <string-array name="external_display_mode_values">
+        <item>mirror</item>
+        <item>melon_dual_ds</item>
+        </string-array>
+    <string-array name="audio_interpolation_values">
+        <item>none</item>
+        <item>linear</item>
+        <item>cosine</item>
+        <item>cubic</item>
+        </string-array>
+    <string-array name="audio_bitrate_values">
+        <item>auto</item>
+        <item>bit10</item>
+        <item>bit16</item>
+        </string-array>
+    <string-array name="audio_latency_values">
+        <item>low</item>
+        <item>medium</item>
+        <item>high</item>
+        </string-array>
+    <string-array name="mic_source_values">
+        <item>none</item>
+        <item>blow</item>
+        <item>device</item>
+        </string-array>
+    <string-array name="soft_input_behaviour">
+        <item>always_visible</item>
+        <item>hide_system_buttons_when_controller_connected</item>
+        <item>hide_mapped_buttons_when_controller_connected</item>
+        <item>always_invisible</item>
+        </string-array>
+    <string-array name="theme_values">
+        <item>dark</item>
+        <item>light</item>
+        <item>midnight</item>
+        <item>cyberpunk</item>
+        <item>gothic</item>
+        <item>matrix</item>
+        <item>solar</item>
+        <item>sakura</item>
+        </string-array>
+    <string-array name="fast_forward_speed_multiplier_values">
+        <item>-1</item>
+        <item>1.5</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>8</item>
+        </string-array>
+    <string-array name="frame_limit_speed_multiplier_values">
+        <item>1</item>
+        <item>0.75</item>
+        <item>0.5</item>
+        <item>0.25</item>
+        </string-array>
+    <string-array name="dldi_sd_card_image_size_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        </string-array>
+    <string-array name="save_state_location_values">
+        <item>save_dir</item>
+        <item>rom_dir</item>
+        <item>internal_dir</item>
+        <item>custom_dir</item>
+        </string-array>
+    <string-array name="wfc_server_options">
+        <item>@string/wfc_server_disabled</item>
+        <item>Wiimmfi.de (167.235.229.36)</item>
+        <item>AltWFC (172.104.88.237)</item>
+        <item>Kaeru WFC (178.62.43.212)</item>
+        <item>@string/wfc_server_custom</item>
+        </string-array>
+    <string-array name="wfc_server_values">
+        <item>none</item>
+        <item>wiimmfi</item>
+        <item>altwfc</item>
+        <item>kaeru</item>
+        <item>custom</item>
+        </string-array>
+    <string-array name="translator_tts_lang_options">
+        <item>@string/lang_auto</item>
+        <item>@string/lang_ru</item>
+        <item>@string/lang_en</item>
+        <item>@string/lang_ja</item>
+        <item>@string/lang_zh</item>
+        <item>@string/lang_de</item>
+        <item>@string/lang_fr</item>
+        <item>@string/lang_es</item>
+        </string-array>
+    <string-array name="translator_tts_lang_values">
+        <item>auto</item>
+        <item>ru</item>
+        <item>en</item>
+        <item>ja</item>
+        <item>zh</item>
+        <item>de</item>
+        <item>fr</item>
+        <item>es</item>
+        </string-array>
+    <string-array name="video_ai_upscale_scale_options">
+        <item>@string/video_ai_scale_2x</item>
+        <item>@string/video_ai_scale_4x</item>
+        <item>@string/video_ai_scale_8x</item>
+        </string-array>
+    <string-array name="video_ai_upscale_scale_values">
+        <item>2x</item>
+        <item>4x</item>
+        <item>8x</item>
+        </string-array>
+    <string-array name="video_console_skin_type_options">
+        <item>@string/video_skin_type_aurora</item>
+        <item>@string/video_skin_type_cosmo_black</item>
+        <item>@string/video_skin_type_aqua_blue</item>
+        <item>@string/video_skin_type_flare_red</item>
+        <item>@string/video_skin_type_galaxy</item>
+        <item>@string/video_skin_type_hyrule_gold</item>
+        <item>@string/video_skin_type_snes</item>
+        <item>@string/video_skin_type_obsidian_pro</item>
+        </string-array>
+    <string-array name="video_console_skin_type_values">
+        <item>aurora_auto_theme</item>
+        <item>classic_3ds_cosmo_black</item>
+        <item>classic_3ds_aqua_blue</item>
+        <item>classic_3ds_flare_red</item>
+        <item>new_3ds_xl_galaxy</item>
+        <item>new_3ds_xl_hyrule_gold</item>
+        <item>new_3ds_xl_snes</item>
+        <item>storm_3ds_obsidian_pro</item>
+        </string-array>
+    <string-array name="translator_tts_voice_engine_options">
+        <item>@string/translator_voice_engine_neural</item>
+        <item>@string/translator_voice_engine_local_multi</item>
+        <item>@string/translator_voice_engine_system</item>
+        </string-array>
+    <string-array name="translator_tts_voice_engine_values">
+        <item>neural_edge</item>
+        <item>local_multi</item>
+        <item>single</item>
+        </string-array>
+    <string-array name="resolution_hud_position_options">
+        <item>@string/res_hud_pos_hidden</item>
+        <item>@string/res_hud_pos_top_left</item>
+        <item>@string/res_hud_pos_top_right</item>
+        <item>@string/res_hud_pos_bottom_left</item>
+        <item>@string/res_hud_pos_bottom_right</item>
+        </string-array>
+    <string-array name="resolution_hud_position_values">
+        <item>hidden</item>
+        <item>top_left</item>
+        <item>top_right</item>
+        <item>bottom_left</item>
+        <item>bottom_right</item>
+        </string-array>
+    <string-array name="translator_local_voice_model_values">
+        <item>auto_multi</item>
+        <item>piper_ru_dmitri_medium</item>
+        <item>piper_ru_elena_medium</item>
+        <item>piper_ru_hero</item>
+        <item>piper_ru_dark_knight</item>
+        <item>piper_ru_boss_grunt</item>
+        <item>piper_ru_joker_manic</item>
+        <item>piper_ru_deep_demon</item>
+        <item>piper_ru_elder</item>
+        <item>piper_ru_young_boy</item>
+        <item>piper_ru_young_girl</item>
+        <item>piper_ru_royal_queen</item>
+        <item>piper_ru_merchant</item>
+        <item>piper_ru_soldier</item>
+        <item>piper_ru_robot</item>
+        <item>piper_ru_narrator</item>
+        <item>piper_ru_tsundere</item>
+        <item>piper_ru_whisper</item>
+        <item>piper_ru_fairy</item>
+        <item>piper_ru_pirate</item>
+        <item>piper_ru_mad_scientist</item>
+        <item>piper_ru_gentleman</item>
+        <item>piper_ru_ghost</item>
+        <item>piper_ru_knight</item>
+        <item>piper_ru_angelic</item>
+        </string-array>
+    <string-array name="app_language_options">
+        <item>@string/app_language_system_default</item>
+        <item>🇷🇺 Русский</item>
+        <item>🇬🇧 English</item>
+        <item>🇩🇪 Deutsch</item>
+        <item>🇫🇷 Français</item>
+        <item>🇨🇳 简体中文</item>
+        <item>🇯🇵 日本語</item>
+        <item>🇪🇸 Español</item>
+        <item>🇮🇹 Italiano</item>
+        <item>🇵🇹 Português (Brasil)</item>
+        <item>🇮🇩 Bahasa Indonesia</item>
+        </string-array>
+    <string-array name="app_language_values">
+        <item>default</item>
+        <item>ru</item>
+        <item>en</item>
+        <item>de</item>
+        <item>fr</item>
+        <item>zh-Hans</item>
+        <item>ja</item>
+        <item>es</item>
+        <item>it</item>
+        <item>pt-BR</item>
+        <item>id</item>
+        </string-array>
+    <string-array name="dsiware_boot_mode_entries">
+        <item>@string/dsiware_boot_mode_autoload</item>
+        <item>@string/dsiware_boot_mode_direct</item>
+        <item>@string/dsiware_boot_mode_system_menu</item>
+        </string-array>
+    <string-array name="dsiware_boot_mode_values">
+        <item>autoload</item>
+        <item>direct</item>
+        <item>system_menu</item>
+        </string-array>
+    <string-array name="theme_accent_color_options">
+        <item>@string/accent_theme_default</item>
+        <item>@string/accent_electric_cyan</item>
+        <item>@string/accent_matrix_emerald</item>
+        <item>@string/accent_amber_gold</item>
+        <item>@string/accent_cyber_red</item>
+        <item>@string/accent_neon_magenta</item>
+        <item>@string/accent_royal_violet</item>
+        <item>@string/accent_deep_sapphire</item>
+        <item>@string/accent_solar_orange</item>
+        <item>@string/accent_mint_frost</item>
+        <item>@string/accent_toxic_lime</item>
+        <item>@string/accent_hot_pink</item>
+        <item>@string/accent_oled_white</item>
+        </string-array>
+    <string-array name="theme_accent_color_values">
+        <item>theme_default</item>
+        <item>electric_cyan</item>
+        <item>matrix_emerald</item>
+        <item>amber_gold</item>
+        <item>cyber_red</item>
+        <item>neon_magenta</item>
+        <item>royal_violet</item>
+        <item>deep_sapphire</item>
+        <item>solar_orange</item>
+        <item>mint_frost</item>
+        <item>toxic_lime</item>
+        <item>hot_pink</item>
+        <item>oled_white</item>
+        </string-array>
+    <string-array name="rom_card_style_options">
+        <item>@string/card_style_glassmorphism</item>
+        <item>@string/card_style_flat_minimal</item>
+        <item>@string/card_style_3d_boxart</item>
+        </string-array>
+    <string-array name="rom_card_style_values">
+        <item>glassmorphism</item>
+        <item>flat_minimal</item>
+        <item>3d_boxart</item>
+        </string-array>
+    <string-array name="arm9_overclock_options">
+        <item>@string/arm9_overclock_1x</item>
+        <item>@string/arm9_overclock_2x</item>
+        <item>@string/arm9_overclock_4x</item>
+        </string-array>
+    <string-array name="arm9_overclock_values">
+        <item>1</item>
+        <item>2</item>
+        <item>4</item>
+        </string-array>
+    <string-array name="video_vulkan_compositor_mode_options">
+        <item>@string/video_vulkan_compositor_mode_precise</item>
+        <item>@string/video_vulkan_compositor_mode_legacy</item>
+        </string-array>
+    <string-array name="video_vulkan_compositor_mode_values">
+        <item>precise</item>
+        <item>legacy</item>
+        </string-array>
+    <string-array name="video_vulkan_3d_depth_mode_options">
+        <item>@string/video_vulkan_3d_depth_mode_off</item>
+        <item>@string/video_vulkan_3d_depth_mode_gyro</item>
+        <item>@string/video_vulkan_3d_depth_mode_anaglyph</item>
+        <item>@string/video_vulkan_3d_depth_mode_sbs</item>
+        <item>@string/video_vulkan_3d_depth_mode_sbs_full</item>
+        <item>@string/video_vulkan_3d_depth_mode_interlaced</item>
+        <item>@string/video_vulkan_3d_depth_mode_reverse_interlaced</item>
+        <item>@string/video_vulkan_3d_depth_mode_cardboard_vr</item>
+        </string-array>
+    <string-array name="video_vulkan_3d_depth_mode_values">
+        <item>off</item>
+        <item>gyro_parallax</item>
+        <item>anaglyph</item>
+        <item>sbs_xr</item>
+        <item>sbs_full</item>
+        <item>interlaced</item>
+        <item>reverse_interlaced</item>
+        <item>cardboard_vr</item>
+        </string-array>
+    <string-array name="video_vulkan_3d_depth_strength_options">
+        <item>0%</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+        </string-array>
+    <string-array name="video_vulkan_3d_depth_strength_values">
+        <item>0</item>
+        <item>25</item>
+        <item>50</item>
+        <item>75</item>
+        <item>100</item>
+        </string-array>
+    <string-array name="cpu_clock_percentage_options">
+        <item>@string/cpu_clock_25</item>
+        <item>@string/cpu_clock_50</item>
+        <item>@string/cpu_clock_75</item>
+        <item>@string/cpu_clock_100</item>
+        <item>@string/cpu_clock_125</item>
+        <item>@string/cpu_clock_150</item>
+        <item>@string/cpu_clock_200</item>
+        </string-array>
+    <string-array name="cpu_clock_percentage_values">
+        <item>25</item>
+        <item>50</item>
+        <item>75</item>
+        <item>100</item>
+        <item>125</item>
+        <item>150</item>
+        <item>200</item>
+        </string-array>
+    <string-array name="region_value_options">
+        <item>@string/pref_3ds_region_auto</item>
+        <item>@string/pref_3ds_region_jpn</item>
+        <item>@string/pref_3ds_region_usa</item>
+        <item>@string/pref_3ds_region_eur</item>
+        <item>@string/pref_3ds_region_aus</item>
+        <item>@string/pref_3ds_region_chn</item>
+        <item>@string/pref_3ds_region_kor</item>
+        <item>@string/pref_3ds_region_twn</item>
+        </string-array>
+    <string-array name="region_value_values">
+        <item>-1</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        </string-array>
+    <string-array name="system_language_options">
+        <item>@string/pref_3ds_lang_system_default</item>
+        <item>@string/pref_3ds_lang_jp</item>
+        <item>@string/pref_3ds_lang_en</item>
+        <item>@string/pref_3ds_lang_fr</item>
+        <item>@string/pref_3ds_lang_de</item>
+        <item>@string/pref_3ds_lang_it</item>
+        <item>@string/pref_3ds_lang_es</item>
+        <item>@string/pref_3ds_lang_zh_cn</item>
+        <item>@string/pref_3ds_lang_ko</item>
+        <item>@string/pref_3ds_lang_nl</item>
+        <item>@string/pref_3ds_lang_pt</item>
+        <item>@string/pref_3ds_lang_ru</item>
+        <item>@string/pref_3ds_lang_zh_tw</item>
+        </string-array>
+    <string-array name="system_language_values">
+        <item>-1</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+        </string-array>
+    <string-array name="texture_filter_options">
+        <item>@string/pref_3ds_tex_filter_none</item>
+        <item>@string/pref_3ds_tex_filter_anime4k</item>
+        <item>@string/pref_3ds_tex_filter_bicubic</item>
+        <item>@string/pref_3ds_tex_filter_scaleforce</item>
+        <item>@string/pref_3ds_tex_filter_xbrz</item>
+        <item>@string/pref_3ds_tex_filter_mmpx</item>
+        </string-array>
+    <string-array name="texture_filter_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        </string-array>
+    <string-array name="video_ds_color_profile_options">
+        <item>@string/video_ds_color_profile_standard</item>
+        <item>@string/video_ds_color_profile_ds_phat</item>
+        <item>@string/video_ds_color_profile_ds_lite</item>
+        <item>@string/video_ds_color_profile_dsi_xl</item>
+        </string-array>
+    <string-array name="video_ds_color_profile_values">
+        <item>standard</item>
+        <item>ds_phat</item>
+        <item>ds_lite</item>
+        <item>dsi_xl</item>
+        </string-array>
+    <string-array name="video_ds_hinge_gap_options">
+        <item>@string/video_ds_hinge_gap_0</item>
+        <item>@string/video_ds_hinge_gap_32</item>
+        <item>@string/video_ds_hinge_gap_64</item>
+        <item>@string/video_ds_hinge_gap_90</item>
+        </string-array>
+    <string-array name="video_ds_hinge_gap_values">
+        <item>0</item>
+        <item>32</item>
+        <item>64</item>
+        <item>90</item>
+        </string-array>
+    <string-array name="periodic_auto_save_interval_values">
+        <item>0</item>
+        <item>5</item>
+        <item>10</item>
+        <item>15</item>
+        </string-array>
+    <string-array name="video_ds_lcd_grid_options">
+        <item>@string/video_ds_lcd_grid_off</item>
+        <item>@string/video_ds_lcd_grid_ds_lite</item>
+        <item>@string/video_ds_lcd_grid_dsi_xl</item>
+        </string-array>
+    <string-array name="video_ds_lcd_grid_values">
+        <item>off</item>
+        <item>ds_lite_grid</item>
+        <item>dsi_xl_subpixel</item>
+        </string-array>
+    <string-array name="input_gyro_activation_mode_options">
+        <item>@string/input_gyro_activation_always</item>
+        <item>@string/input_gyro_activation_hold_l</item>
+        <item>@string/input_gyro_activation_hold_r</item>
+        </string-array>
+    <string-array name="input_gyro_activation_mode_values">
+        <item>always</item>
+        <item>hold_l</item>
+        <item>hold_r</item>
+        </string-array>
+    <string-array name="jit_perf_mode_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        </string-array>
+    <string-array name="audio_emulation_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        </string-array>
+    <string-array name="delay_render_thread_us_values" translatable="false">
+        <item>0</item>
+        <item>250</item>
+        <item>500</item>
+        <item>1000</item>
+        <item>2000</item>
+        <item>4000</item>
+        <item>8000</item>
+        <item>16000</item>
+        </string-array>
+    <string-array name="delay_render_thread_us_options">
+        <item>@string/off</item>
+        <item>250 us</item>
+        <item>500 us</item>
+        <item>1000 us</item>
+        <item>2000 us</item>
+        <item>4000 us</item>
+        <item>8000 us</item>
+        <item>16000 us</item>
+        </string-array>
+    <string-array name="texture_sampling_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        </string-array>
+    <string-array name="texture_sampling_options">
+        <item>@string/pref_3ds_tex_sampling_game</item>
+        <item>@string/pref_3ds_tex_sampling_nearest</item>
+        <item>@string/pref_3ds_tex_sampling_linear</item>
+        </string-array>
+    <string-array name="antialiasing_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        </string-array>
+    <string-array name="antialiasing_3ds_options">
+        <item>@string/off</item>
+        <item>MSAA 2x</item>
+        <item>MSAA 4x</item>
+        <item>MSAA 8x</item>
+        <item>MSAA 16x</item>
+        </string-array>
+    <string-array name="battery_state_source_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        </string-array>
+    <string-array name="battery_state_source_options">
+        <item>@string/pref_3ds_battery_source_system</item>
+        <item>@string/pref_3ds_battery_source_fixed</item>
+        </string-array>
+    <string-array name="battery_level_3ds_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        </string-array>
+    <string-array name="battery_level_3ds_options">
+        <item>@string/pref_3ds_battery_level_critical</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>100%</item>
+        </string-array>
+    <string-array name="layouts_to_cycle_values" translatable="false">
+        <item>UNEVEN_LANDSCAPE</item>
+        <item>EVEN_LANDSCAPE</item>
+        <item>PROPORTIONAL_LANDSCAPE</item>
+        <item>FULLSCREEN_LANDSCAPE</item>
+        <item>EVEN_PORTRAIT_LOCKED</item>
+        <item>AUTO_ROTATE</item>
+        </string-array>
+    <string-array name="layouts_to_cycle_defaults" translatable="false">
+        <item>UNEVEN_LANDSCAPE</item>
+        <item>EVEN_LANDSCAPE</item>
+        <item>PROPORTIONAL_LANDSCAPE</item>
+        <item>FULLSCREEN_LANDSCAPE</item>
+        </string-array>
+    <string-array name="layouts_to_cycle_options">
+        <item>@string/layout_uneven_landscape</item>
+        <item>@string/layout_even_landscape</item>
+        <item>@string/layout_proportional_landscape</item>
+        <item>@string/layout_fullscreen_landscape</item>
+        <item>@string/layout_even_portrait_locked</item>
+        <item>@string/layout_auto_rotate</item>
+        </string-array>
+    <string-array name="dldi_sd_card_image_size_options">
+        <item>Auto</item>
+        <item>256 MB</item>
+        <item>512 MB</item>
+        <item>1 GB</item>
+        <item>2 GB</item>
+        <item>4 GB</item>
+        </string-array>
+    <string-array name="rom_view_mode_options">
+        <item>@string/rom_view_mode_grid</item>
+        <item>@string/rom_view_mode_list</item>
+        </string-array>
+    <string-array name="rom_view_mode_values">
+        <item>grid</item>
+        <item>list</item>
+        </string-array>
+    <string-array name="external_display_screen_options">
+        <item>@string/top_screen</item>
+        <item>@string/bottom_screen</item>
+        </string-array>
+    <string-array name="button_color_theme_values">
+        <item>3ds_aqua</item>
+        <item>classic_grey</item>
+        <item>classic_white</item>
+        <item>famicom_retro</item>
+        <item>gameboy_dmg</item>
+        <item>gba_glacier</item>
+        <item>gamecube_indigo</item>
+        <item>snes_super</item>
+        <item>switch_neon</item>
+        <item>switch_oled</item>
+        <item>virtual_boy</item>
+        <item>wii_crystal</item>
+        <item>wii_u_dark</item>
+        <item>arcade_retro</item>
+        <item>aurora_spectrum</item>
+        <item>cyber_cyan</item>
+        <item>cyberpunk_neon</item>
+        <item>frost_glacier</item>
+        <item>crimson_ruby</item>
+        <item>emerald_matrix</item>
+        <item>midnight_purple</item>
+        <item>gold_luxury</item>
+        <item>sakura_blossom</item>
+        <item>solar_fusion</item>
+        <item>n3ds_sfc_colored</item>
+        <item>storm_cyber_3d</item>
+        <item>hyrule_gold_3d</item>
+        <item>metroid_visor</item>
+        <item>galaxy_nebula</item>
+        <item>animal_leaf</item>
+        <item>mh_forge</item>
+        <item>pokemon_pokeball</item>
+        <item>persona_velvet</item>
+        <item>crystal_prism_3d</item>
+        </string-array>
+    <string-array name="pref_input_turbo_frequency_entries">
+        <item>@string/pref_input_turbo_10hz</item>
+        <item>@string/pref_input_turbo_15hz</item>
+        <item>@string/pref_input_turbo_20hz</item>
+        <item>@string/pref_input_turbo_30hz</item>
+        </string-array>
+    <string-array name="pref_input_turbo_frequency_values" translatable="false">
+        <item>10</item>
+        <item>15</item>
+        <item>20</item>
+        <item>30</item>
+        </string-array>
+    <string-array name="cheats_download_mirror_options">
+        <item>@string/cheats_mirror_auto</item>
+        <item>@string/cheats_mirror_github_raw</item>
+        <item>@string/cheats_mirror_jsdelivr</item>
+        <item>@string/cheats_mirror_ghproxy</item>
+        </string-array>
+    <string-array name="cheats_download_mirror_values" translatable="false">
+        <item>auto</item>
+        <item>github_raw</item>
+        <item>jsdelivr</item>
+        <item>ghproxy</item>
+        </string-array>
+    <string-array name="ra_notification_position_options">
+        <item>@string/ra_notification_position_top</item>
+        <item>@string/ra_notification_position_bottom</item>
+        </string-array>
+    <string-array name="ra_notification_position_values" translatable="false">
+        <item>top</item>
+        <item>bottom</item>
+        </string-array>
+    <string-array name="ra_notification_style_options">
+        <item>@string/ra_notification_style_detailed</item>
+        <item>@string/ra_notification_style_compact</item>
+        </string-array>
+    <string-array name="ra_notification_style_values" translatable="false">
+        <item>detailed</item>
+        <item>compact</item>
+        </string-array>
+    <string-array name="ra_notification_sound_options">
+        <item>@string/ra_notification_sound_chime</item>
+        <item>@string/ra_notification_sound_fanfare</item>
+        <item>@string/ra_notification_sound_classic</item>
+        <item>@string/ra_notification_sound_none</item>
+        </string-array>
+    <string-array name="ra_notification_sound_values" translatable="false">
+        <item>chime</item>
+        <item>fanfare</item>
+        <item>classic</item>
+        <item>none</item>
+        </string-array>
+    <string-array name="translator_default_zone_options">
+        <item>@string/translator_default_zone_both</item>
+        <item>@string/translator_default_zone_top</item>
+        <item>@string/translator_default_zone_bottom</item>
+        </string-array>
+    <string-array name="translator_default_zone_values">
+        <item>both</item>
+        <item>top</item>
+        <item>bottom</item>
+        </string-array>
+    </resources>

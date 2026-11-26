@@ -1301,7 +1301,13 @@ jstring Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getRecommendedExte
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setUserDirectory(JNIEnv* env,
                                                               [[maybe_unused]] jobject obj,
                                                               jstring j_directory) {
-    FileUtil::SetCurrentDir(GetJString(env, j_directory));
+    std::string user_dir = GetJString(env, j_directory);
+    FileUtil::SetCurrentDir(user_dir);
+    if (!user_dir.empty() && user_dir.back() != '/') {
+        user_dir += '/';
+    }
+    FileUtil::UpdateUserPath(FileUtil::UserPath::SDMCDir, user_dir + "saves/");
+    FileUtil::UpdateUserPath(FileUtil::UserPath::StatesDir, user_dir + "quicksaves/");
 }
 
 jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getInstalledGamePathsImpl(
@@ -1332,13 +1338,11 @@ jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getInstalledG
     media_type = Service::FS::MediaType::SDMC;
     ScanDir(nullptr, "",
             FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir) +
-                "Nintendo "
-                "3DS/00000000000000000000000000000000/"
+                "00000000000000000000000000000000/"
                 "00000000000000000000000000000000/title/00040000");
     ScanDir(nullptr, "",
             FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir) +
-                "Nintendo "
-                "3DS/00000000000000000000000000000000/"
+                "00000000000000000000000000000000/"
                 "00000000000000000000000000000000/title/00040002");
     media_type = Service::FS::MediaType::NAND;
     ScanDir(nullptr, "",

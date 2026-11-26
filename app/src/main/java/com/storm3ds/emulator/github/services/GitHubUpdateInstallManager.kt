@@ -20,8 +20,10 @@ import com.storm3ds.emulator.domain.services.UpdateInstallManager
 import com.storm3ds.emulator.github.GITHUB_RELEASE_URL_PREFIX
 import com.storm3ds.emulator.github.STORM_GAMES_WORLD_ALT_DOWNLOAD_URL_PREFIX
 import com.storm3ds.emulator.github.STORM_GAMES_WORLD_ALT_RELEASE_URL_PREFIX
+import com.storm3ds.emulator.github.STORM_GAMES_WORLD_ALT_UPLOADS_PREFIX
 import com.storm3ds.emulator.github.STORM_GAMES_WORLD_DOWNLOAD_URL_PREFIX
 import com.storm3ds.emulator.github.STORM_GAMES_WORLD_RELEASE_URL_PREFIX
+import com.storm3ds.emulator.github.STORM_GAMES_WORLD_UPLOADS_PREFIX
 import com.storm3ds.emulator.utils.PackageManagerCompat
 import java.io.File
 import java.security.MessageDigest
@@ -193,8 +195,8 @@ class GitHubUpdateInstallManager(private val context: Context) : UpdateInstallMa
             update.sourceReleaseUrl.startsWith(STORM_GAMES_WORLD_ALT_RELEASE_URL_PREFIX, ignoreCase = true)
         val downloadUrl = update.downloadUri.toString()
         val validDownloadOrigin = downloadUrl.startsWith("${GITHUB_RELEASE_URL_PREFIX}download/", ignoreCase = true) ||
-            downloadUrl.startsWith(STORM_GAMES_WORLD_DOWNLOAD_URL_PREFIX, ignoreCase = true) ||
-            downloadUrl.startsWith(STORM_GAMES_WORLD_ALT_DOWNLOAD_URL_PREFIX, ignoreCase = true)
+            downloadUrl.startsWith(STORM_GAMES_WORLD_UPLOADS_PREFIX, ignoreCase = true) ||
+            downloadUrl.startsWith(STORM_GAMES_WORLD_ALT_UPLOADS_PREFIX, ignoreCase = true)
         return validReleaseOrigin && validDownloadOrigin
     }
 

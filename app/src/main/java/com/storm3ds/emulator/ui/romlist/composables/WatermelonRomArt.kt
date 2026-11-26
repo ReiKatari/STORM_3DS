@@ -248,7 +248,7 @@ private fun markFailedCoverUrl(url: String) {
 }
 
 internal data class CoverPrefsSnapshot(
-    val isScraperEnabled: Boolean = false,
+    val isLibretroEnabled: Boolean = false,
     val isGameTdb2dEnabled: Boolean = false,
     val isGameTdb3dEnabled: Boolean = false,
     val isRaCoversEnabled: Boolean = false,
@@ -263,14 +263,15 @@ internal object CoverPrefsObserver {
         if (initialized.compareAndSet(false, true)) {
             val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
             fun readSnapshot(sp: android.content.SharedPreferences) = CoverPrefsSnapshot(
-                isScraperEnabled = sp.getBoolean("rom_gametdb_covers_enabled", false),
+                isLibretroEnabled = sp.getBoolean("rom_libretro_covers_enabled", false),
                 isGameTdb2dEnabled = sp.getBoolean("rom_gametdb_2d_covers_enabled", false),
                 isGameTdb3dEnabled = sp.getBoolean("rom_gametdb_3d_covers_enabled", false),
                 isRaCoversEnabled = sp.getBoolean("rom_ra_covers_enabled", false),
             )
             state.value = readSnapshot(prefs)
             val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
-                if (key == "rom_gametdb_covers_enabled" ||
+                if (key == "rom_libretro_covers_enabled" ||
+                    key == "rom_gametdb_covers_enabled" ||
                     key == "rom_gametdb_2d_covers_enabled" ||
                     key == "rom_gametdb_3d_covers_enabled" ||
                     key == "rom_ra_covers_enabled"
@@ -285,33 +286,51 @@ internal object CoverPrefsObserver {
     }
 }
 
-fun getGameTdbCover3dUrl(rom: Rom): String? {
+private fun resolve3dsGameTdbSerialAndRegion(rawGameCode: String, fileName: String): Pair<String, String>? {
+    val rawCode = rawGameCode.trim().uppercase()
     val code = when {
-        rom.gameCode.isNotBlank() && rom.gameCode.length == 4 && rom.gameCode.all { it.isLetterOrDigit() } -> rom.gameCode.uppercase()
-        rom.name.length == 4 && rom.name.all { it.isLetterOrDigit() } -> rom.name.uppercase()
-        else -> null
-    } ?: return null
+        rawCode.matches(Regex("""(?:CTR|KTR)-[A-Z0-9]-([A-Z0-9]{4})""")) -> rawCode.substringAfterLast('-')
+        rawCode.length == 4 && rawCode.all { it.isLetterOrDigit() } -> rawCode
+        else -> {
+            val parenSerial = Regex("""\[([A-Z0-9]{4})\]""").find(fileName.uppercase())?.groupValues?.getOrNull(1)
+            parenSerial ?: return null
+        }
+    }
+    if (code.length != 4 || code.startsWith("0004") || code.startsWith("NDS")) return null
 
-    val clean = rom.fileName.uppercase()
+    val clean = fileName.uppercase()
     val fourthChar = code.getOrNull(3)?.uppercaseChar()
     val region = when {
         fourthChar == 'E' -> "US"
         fourthChar == 'J' -> "JA"
         fourthChar == 'K' -> "KO"
+        fourthChar == 'R' -> "RU"
+        fourthChar == 'D' -> "DE"
+        fourthChar == 'F' -> "FR"
+        fourthChar == 'S' -> "ES"
+        fourthChar == 'I' -> "IT"
         clean.contains("JAP") || clean.contains("JPN") || clean.contains("(J)") -> "JA"
         clean.contains("EUR") || clean.contains("(E)") -> "EN"
         clean.contains("USA") || clean.contains("(U)") -> "US"
-        fourthChar == 'P' || fourthChar == 'X' || fourthChar == 'Y' || fourthChar == 'Z' || fourthChar == 'D' || fourthChar == 'F' || fourthChar == 'I' || fourthChar == 'S' || fourthChar == 'U' -> "EN"
+        fourthChar == 'P' || fourthChar == 'X' || fourthChar == 'Y' || fourthChar == 'Z' || fourthChar == 'U' -> "EN"
         else -> "US"
     }
-    // Skip DS GameTDB endpoints on 3DS titles (Title IDs are 16-hex, not 4-char DS serials)
-    if (code.length != 4 || code.startsWith("0004") || code.startsWith("NDS", true)) return null
-    return null
+    return code to region
 }
 
-fun getGameTdbCover2dUrl(rom: Rom): String? {
-    return null
+fun getGameTdbCover3dUrl(gameCode: String, fileName: String): String? {
+    val (code, region) = resolve3dsGameTdbSerialAndRegion(gameCode, fileName) ?: return null
+    return "https://art.gametdb.com/3ds/cover3D/$region/$code.png"
 }
+
+fun getGameTdbCover2dUrl(gameCode: String, fileName: String): String? {
+    val (code, region) = resolve3dsGameTdbSerialAndRegion(gameCode, fileName) ?: return null
+    return "https://art.gametdb.com/3ds/cover/$region/$code.png"
+}
+
+fun getGameTdbCover3dUrl(rom: Rom): String? = getGameTdbCover3dUrl(rom.gameCode, rom.fileName)
+
+fun getGameTdbCover2dUrl(rom: Rom): String? = getGameTdbCover2dUrl(rom.gameCode, rom.fileName)
 
 @Composable
 fun WatermelonRomArt(
@@ -352,7 +371,7 @@ fun WatermelonRomArt(
     }
 
     val coverPrefs by CoverPrefsObserver.flow(context).collectAsState()
-    val isScraperEnabled = coverPrefs.isScraperEnabled
+    val isLibretroEnabled = coverPrefs.isLibretroEnabled
     val isGameTdb2dEnabled = coverPrefs.isGameTdb2dEnabled
     val isGameTdb3dEnabled = coverPrefs.isGameTdb3dEnabled
     val isRaCoversEnabled = coverPrefs.isRaCoversEnabled
@@ -370,7 +389,7 @@ fun WatermelonRomArt(
         isRaCoversEnabled && raCoverUrl != null && !isRaPlaceholder && !raFailed && !isFailedCoverUrl(raCoverUrl) -> raCoverUrl
         isGameTdb3dEnabled && gameTdbUrl != null && !gameTdbFailed && !isFailedCoverUrl(gameTdbUrl) -> gameTdbUrl
         isGameTdb2dEnabled && gameTdb2dUrl != null && !gameTdb2dFailed && !isFailedCoverUrl(gameTdb2dUrl) -> gameTdb2dUrl
-        isScraperEnabled && boxArtUrl != null && !boxArtFailed && !isFailedCoverUrl(boxArtUrl) -> boxArtUrl
+        isLibretroEnabled && boxArtUrl != null && !boxArtFailed && !isFailedCoverUrl(boxArtUrl) -> boxArtUrl
         else -> null
     }
 

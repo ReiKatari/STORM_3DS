@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Leaderboard
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +87,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.launch
 import com.storm3ds.emulator.R
+import com.storm3ds.emulator.ui.common.achievements.ui.AchievementSortOrder
+import com.storm3ds.emulator.ui.common.achievements.ui.AchievementSortRow
 import com.storm3ds.emulator.ui.common.achievements.ui.AchievementStateFilter
 import com.storm3ds.emulator.ui.common.achievements.ui.AchievementTypeFilter
 import com.storm3ds.emulator.ui.common.achievements.ui.model.AchievementUiModel
@@ -148,6 +151,11 @@ fun AchievementList(
                     modifier = Modifier.widthIn(max = 760.dp).weight(1f),
                     sets = state.sets,
                     pendingLedgerAchievementIds = state.pendingLedgerAchievementIds,
+                    gameTitle = state.gameTitle,
+                    gameCode = state.gameCode,
+                    romHash = state.romHash,
+                    raGameId = state.raGameId,
+                    onRefresh = onRetry,
                     onAchievementSelected = onAchievementSelected,
                     onViewLeaderboard = onViewLeaderboard,
                     onLoadLeaderboardRanking = onLoadLeaderboardRanking,
@@ -173,6 +181,11 @@ private fun Content(
     modifier: Modifier,
     sets: List<AchievementSetUiModel>,
     pendingLedgerAchievementIds: Set<Long>,
+    gameTitle: String,
+    gameCode: String,
+    romHash: String,
+    raGameId: Long?,
+    onRefresh: () -> Unit,
     onAchievementSelected: (AchievementUiModel, Boolean) -> Unit,
     onViewLeaderboard: (RALeaderboard) -> Unit,
     onLoadLeaderboardRanking: suspend (RALeaderboard) -> Result<RALeaderboardRanking>,
@@ -226,6 +239,9 @@ private fun Content(
     var missableOnly by rememberSaveable {
         mutableStateOf(false)
     }
+    var selectedSortOrder by rememberSaveable {
+        mutableStateOf(AchievementSortOrder.Default)
+    }
     LaunchedEffect(sets) {
         if (sets.none { it.setId == selectedSetId }) {
             selectedSetId = sets.first().setId
@@ -252,6 +268,9 @@ private fun Content(
         buildList {
             add(AchievementTypeFilter.All)
             add(AchievementTypeFilter.Core)
+            add(AchievementTypeFilter.Progression)
+            add(AchievementTypeFilter.WinCondition)
+            add(AchievementTypeFilter.Missable)
             if (selectedSet.leaderboards.isNotEmpty()) {
                 add(AchievementTypeFilter.Leaderboards)
             }
@@ -268,7 +287,7 @@ private fun Content(
             selectedStateFilter = AchievementStateFilter.All
         }
     }
-    val filteredBuckets = remember(selectedSet, selectedTypeFilter, selectedStateFilter, missableOnly) {
+    val filteredBuckets = remember(selectedSet, selectedTypeFilter, selectedStateFilter, missableOnly, selectedSortOrder) {
         if (selectedTypeFilter == AchievementTypeFilter.Leaderboards) {
             emptyList()
         } else {
@@ -276,12 +295,17 @@ private fun Content(
                 .asSequence()
                 .filter { selectedStateFilter.matches(it.bucket) }
                 .map { bucket ->
-                    bucket.copy(
-                        achievements = bucket.achievements.filter {
-                            selectedTypeFilter.matches(it.actualAchievement().type) &&
-                                (!missableOnly || it.actualAchievement().isMissable())
-                        },
-                    )
+                    val filtered = bucket.achievements.filter {
+                        selectedTypeFilter.matchesAchievement(it.actualAchievement()) &&
+                            (!missableOnly || it.actualAchievement().isMissable())
+                    }
+                    val sorted = when (selectedSortOrder) {
+                        AchievementSortOrder.Default -> filtered
+                        AchievementSortOrder.PointsDescending -> filtered.sortedByDescending { it.actualAchievement().points }
+                        AchievementSortOrder.UnlockedFirst -> filtered.sortedByDescending { it.isUnlocked() }
+                        AchievementSortOrder.LockedFirst -> filtered.sortedBy { it.isUnlocked() }
+                    }
+                    bucket.copy(achievements = sorted)
                 }
                 .filter { it.achievements.isNotEmpty() }
                 .toList()
@@ -306,6 +330,11 @@ private fun Content(
         Column(modifier = modifier.fillMaxSize()) {
             AchievementsHeader(
                 summary = summary,
+                gameTitle = gameTitle,
+                gameCode = gameCode,
+                romHash = romHash,
+                raGameId = raGameId,
+                onRefresh = onRefresh,
                 typeFilter = selectedTypeFilter,
                 availableTypeFilters = availableTypeFilters,
                 onTypeFilterChanged = { selectedTypeFilter = it },
@@ -394,19 +423,29 @@ private fun Content(
 
                 if (selectedTypeFilter != AchievementTypeFilter.Leaderboards) {
                     item(contentType = CONTENT_TYPE_FILTERS) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        Column(
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            ConsoleChipRow(
-                                options = availableStateFilters,
-                                selected = selectedStateFilter,
-                                onSelected = { selectedStateFilter = it },
-                                label = { getStateFilterLabelText(it) },
-                                modifier = Modifier.weight(1f, fill = false),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                ConsoleChipRow(
+                                    options = availableStateFilters,
+                                    selected = selectedStateFilter,
+                                    onSelected = { selectedStateFilter = it },
+                                    label = { getStateFilterLabelText(it) },
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                MissableToggleChip(active = missableOnly, onToggle = { missableOnly = !missableOnly })
+                            }
+                            AchievementSortRow(
+                                sortOrder = selectedSortOrder,
+                                onSortOrderChanged = { selectedSortOrder = it },
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(Modifier.width(5.dp))
-                            MissableToggleChip(active = missableOnly, onToggle = { missableOnly = !missableOnly })
                         }
                     }
                 }
@@ -467,17 +506,83 @@ private fun Content(
 @Composable
 private fun AchievementsHeader(
     summary: com.storm3ds.emulator.ui.romdetails.model.RomAchievementsSummary,
+    gameTitle: String,
+    gameCode: String,
+    romHash: String,
+    raGameId: Long?,
+    onRefresh: () -> Unit,
     typeFilter: AchievementTypeFilter,
     availableTypeFilters: List<AchievementTypeFilter>,
     onTypeFilterChanged: (AchievementTypeFilter) -> Unit,
 ) {
     val colors = watermelon
+    val isMastered = summary.totalAchievements > 0 && summary.completedAchievements >= summary.totalAchievements
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 6.dp),
+            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(colors.surface)
+                .border(1.dp, if (isMastered) androidx.compose.ui.graphics.Color(0xFFFBBF24).copy(alpha = 0.65f) else colors.line, RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                if (gameTitle.isNotBlank()) {
+                    Text(
+                        text = gameTitle,
+                        fontFamily = com.storm3ds.emulator.ui.theme.SpaceGrotesk,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                val hashDisplay = if (romHash.isNotBlank()) romHash.take(12) else "--"
+                val codeDisplay = if (gameCode.isNotBlank()) gameCode else "--"
+                val idPart = if (raGameId != null) " | ID:$raGameId" else ""
+                Text(
+                    text = stringResource(R.string.ra_game_hash_info_fmt, codeDisplay, hashDisplay) + idPart,
+                    fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
+                    fontSize = 9.sp,
+                    color = colors.text3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (isMastered) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(if (summary.forHardcoreMode) R.string.ra_status_mastered else R.string.ra_status_completed).uppercase(),
+                    fontFamily = com.storm3ds.emulator.ui.theme.WatermelonMono,
+                    fontSize = 8.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = androidx.compose.ui.graphics.Color(0xFFFBBF24),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(androidx.compose.ui.graphics.Color(0xFFFBBF24).copy(alpha = 0.16f))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = stringResource(R.string.refresh),
+                    tint = colors.text2,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
@@ -684,6 +789,9 @@ private fun MissableToggleChip(active: Boolean, onToggle: () -> Unit) {
 private fun getTypeFilterLabelText(filter: AchievementTypeFilter): String = when (filter) {
     AchievementTypeFilter.All -> stringResource(id = R.string.retro_achievements_filter_all)
     AchievementTypeFilter.Core -> stringResource(id = R.string.retro_achievements_filter_core)
+    AchievementTypeFilter.Progression -> stringResource(id = R.string.ra_filter_progression)
+    AchievementTypeFilter.WinCondition -> stringResource(id = R.string.ra_filter_win)
+    AchievementTypeFilter.Missable -> stringResource(id = R.string.retro_achievements_filter_missable)
     AchievementTypeFilter.Leaderboards -> stringResource(id = R.string.retro_achievements_leaderboards)
     AchievementTypeFilter.Unofficial -> stringResource(id = R.string.retro_achievements_filter_unofficial)
 }
@@ -923,7 +1031,7 @@ private fun LeaderboardRankingEntryUi(
     ) {
         Text(
             modifier = Modifier.width(56.dp),
-            text = "#${entry.rank}",
+            text = stringResource(R.string.leaderboard_rank_fmt, entry.rank),
             style = MaterialTheme.typography.body2,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colors.secondary,

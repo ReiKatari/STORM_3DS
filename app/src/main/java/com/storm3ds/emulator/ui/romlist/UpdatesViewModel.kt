@@ -41,14 +41,22 @@ class UpdatesViewModel @Inject constructor(
 
     private var checkJob: Job? = null
     private var downloadJob: Job? = null
+    private var startupCheckCompleted = false
 
     init {
         checkJob = viewModelScope.launch {
             updatesRepository.checkNewUpdate().onSuccess {
+                startupCheckCompleted = true
                 if (it != null) {
                     _appUpdate.send(it)
                 }
             }
+        }
+    }
+
+    fun ensureStartupCheck() {
+        if (!startupCheckCompleted) {
+            checkForUpdatesSilently()
         }
     }
 
@@ -58,6 +66,7 @@ class UpdatesViewModel @Inject constructor(
             _manualUpdateResult.emit(ManualUpdateResult.Checking)
             val result = updatesRepository.checkNewUpdateManually()
             result.onSuccess { update ->
+                startupCheckCompleted = true
                 if (update != null) {
                     _manualUpdateResult.emit(ManualUpdateResult.UpdateAvailable(update))
                     _appUpdate.send(update)
@@ -75,6 +84,7 @@ class UpdatesViewModel @Inject constructor(
         checkJob = viewModelScope.launch {
             val result = updatesRepository.checkNewUpdate(ignorePreferences = false)
             result.onSuccess { update ->
+                startupCheckCompleted = true
                 if (update != null) {
                     _appUpdate.send(update)
                 }

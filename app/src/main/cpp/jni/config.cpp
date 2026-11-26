@@ -221,6 +221,7 @@ void Config::ReadValues() {
     ReadSetting("Renderer", Settings::values.gyro_3d_strength);
     ReadSetting("Renderer", Settings::values.librashader_enabled);
     ReadSetting("Renderer", Settings::values.librashader_preset_path);
+    ReadSetting("Renderer", Settings::values.librashader_parameters);
     ReadSetting("Renderer", Settings::values.use_hw_shader);
     ReadSetting("Renderer", Settings::values.use_shader_jit);
     ReadSetting("Renderer", Settings::values.resolution_factor);

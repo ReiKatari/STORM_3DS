@@ -22,18 +22,41 @@ import me.magnum.rcheevosapi.model.RAAchievement
 enum class AchievementTypeFilter(val displayOrder: Int) {
     All(0),
     Core(1),
-    Leaderboards(2),
-    Unofficial(3),
+    Progression(2),
+    WinCondition(3),
+    Missable(4),
+    Leaderboards(5),
+    Unofficial(6),
     ;
 
     fun matches(type: RAAchievement.Type): Boolean {
         return when (this) {
             All -> true
             Core -> type == RAAchievement.Type.CORE
+            Progression, WinCondition, Missable -> type == RAAchievement.Type.CORE
             Leaderboards -> false
             Unofficial -> type == RAAchievement.Type.UNOFFICIAL
         }
     }
+
+    fun matchesAchievement(achievement: RAAchievement): Boolean {
+        return when (this) {
+            All -> true
+            Core -> achievement.type == RAAchievement.Type.CORE
+            Progression -> achievement.isProgression()
+            WinCondition -> achievement.isWinCondition()
+            Missable -> achievement.isMissable()
+            Leaderboards -> false
+            Unofficial -> achievement.type == RAAchievement.Type.UNOFFICIAL
+        }
+    }
+}
+
+enum class AchievementSortOrder(val displayOrder: Int) {
+    Default(0),
+    PointsDescending(1),
+    UnlockedFirst(2),
+    LockedFirst(3),
 }
 
 enum class AchievementStateFilter(
@@ -159,9 +182,38 @@ private fun getTypeFilterLabel(filter: AchievementTypeFilter): String {
     return when (filter) {
         AchievementTypeFilter.All -> stringResource(id = R.string.retro_achievements_filter_all)
         AchievementTypeFilter.Core -> stringResource(id = R.string.retro_achievements_filter_core)
+        AchievementTypeFilter.Progression -> stringResource(id = R.string.ra_filter_progression)
+        AchievementTypeFilter.WinCondition -> stringResource(id = R.string.ra_filter_win)
+        AchievementTypeFilter.Missable -> stringResource(id = R.string.retro_achievements_filter_missable)
         AchievementTypeFilter.Leaderboards -> stringResource(id = R.string.retro_achievements_leaderboards)
         AchievementTypeFilter.Unofficial -> stringResource(id = R.string.retro_achievements_filter_unofficial)
     }
+}
+
+@Composable
+fun getSortOrderLabel(order: AchievementSortOrder): String {
+    return when (order) {
+        AchievementSortOrder.Default -> stringResource(id = R.string.ra_sort_default)
+        AchievementSortOrder.PointsDescending -> stringResource(id = R.string.ra_sort_points)
+        AchievementSortOrder.UnlockedFirst -> stringResource(id = R.string.ra_sort_unlocked)
+        AchievementSortOrder.LockedFirst -> stringResource(id = R.string.ra_sort_locked)
+    }
+}
+
+@Composable
+fun AchievementSortRow(
+    sortOrder: AchievementSortOrder,
+    onSortOrderChanged: (AchievementSortOrder) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterGroup(
+        title = stringResource(id = R.string.ra_sort_title),
+        options = AchievementSortOrder.entries.sortedBy { it.displayOrder },
+        selected = sortOrder,
+        onSelected = onSortOrderChanged,
+        optionLabel = { getSortOrderLabel(it) },
+        modifier = modifier,
+    )
 }
 
 @Composable

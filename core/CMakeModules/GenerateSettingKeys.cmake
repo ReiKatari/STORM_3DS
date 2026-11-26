@@ -50,6 +50,7 @@ foreach(KEY IN ITEMS
     "gyro_3d_strength"
     "librashader_enabled"
     "librashader_preset_path"
+    "librashader_parameters"
     "storm_custom_layout_enabled"
     "async_shader_compilation"
     "async_presentation"

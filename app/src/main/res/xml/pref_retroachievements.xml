@@ -52,6 +52,14 @@
         app:dependency="ra_login"
         android:defaultValue="false" />
 
+    <SwitchPreference
+        android:key="ra_spectator_mode"
+        android:title="@string/ra_spectator_mode_title"
+        android:summary="@string/ra_spectator_mode_summary"
+        app:iconSpaceReserved="false"
+        app:dependency="ra_login"
+        android:defaultValue="false" />
+
     <ListPreference
         android:key="ra_offline_backend"
         android:title="@string/ra_offline_backend_title"

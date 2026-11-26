@@ -10,6 +10,13 @@
             app:iconSpaceReserved="false"
             android:persistent="false" />
 
+    <Preference
+            android:key="3ds_quicksaves_info"
+            android:title="@string/pref_3ds_quicksaves_title"
+            android:summary="@string/pref_3ds_quicksaves_summary"
+            app:iconSpaceReserved="false"
+            android:persistent="false" />
+
     <ListPreference
             android:key="save_state_location"
             android:title="@string/save_state_location"

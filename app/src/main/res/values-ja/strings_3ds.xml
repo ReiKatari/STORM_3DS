@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="abort_button">中止</string>
     <string name="about_diagnostics_title">STORM 3DS 診断</string>
@@ -419,4 +419,64 @@ SDMC: %7$s</string>
     <string name="pref_mic_vu_meter_summary">マイク入力レベルのリアルタイム表示と確認</string>
     <string name="pref_vibrate_on_touch_summary">画面ボタン押下時に触覚フィードバックを発生させます</string>
     <string name="pref_enable_cheats_summary">ゲームプレイ中のGatewayチートコード使用を許可します</string>
-</resources>
+    <string name="retroarch_shader_manual_path">プリセットのパスを手動で入力...</string>
+    <string name="retroarch_shader_edit_text">テキストとして編集</string>
+    <string name="retroarch_shader_no_params">調整可能なシェーダーパラメータが見つかりません。key=value形式で手動入力できます:</string>
+    <string name="retroarch_shader_reset_params">すべてのパラメータをリセット</string>
+    <string name="freedreno_name_fd_dev_features">FD_DEV_FEATURES</string>
+    <string name="freedreno_name_tu_debug">TU_DEBUG</string>
+    <string name="freedreno_name_fd_mesa_debug">FD_MESA_DEBUG</string>
+    <string name="pref_3ds_quicksaves_title">クイックセーブ</string>
+    <string name="pref_3ds_quicksaves_summary">クイックセーブスロットとサムネイルは /STORM 3DS/quicksaves に保存されます</string>
+    <string name="pref_3ds_quicksaves_summary_path">クイックセーブフォルダ: %1$s</string>
+    <string name="quick_save">クイックセーブ</string>
+    <string name="quick_load">クイックロード</string>
+    <string name="rom_libretro_covers_enabled_title">3DSボックスアートをダウンロード (Libretro)</string>
+    <string name="rom_libretro_covers_enabled_summary">ネットワーク経由でLibretroからNintendo 3DSパッケージを取得します</string>
+    <string name="rom_ra_badges_enabled_title">実績バッジ画像をダウンロード (RetroAchievements)</string>
+    <string name="rom_ra_badges_enabled_summary">ネットワーク経由で実績バッジを取得; オフ時は標準トロフィーアイコンを表示</string>
+    <string name="v794_video_preset_auto_device">この端末に合わせて自動最適化</string>
+    <string name="ra_spectator_mode_title">スペクテイターモード</string>
+    <string name="ra_spectator_mode_summary">サーバーに解除やスコアを送信せずローカルでのみ実績を追跡します</string>
+    <string name="ra_filter_progression">進行必須</string>
+    <string name="ra_filter_win">クリア条件</string>
+    <string name="ra_sort_title">並び替え</string>
+    <string name="ra_sort_default">標準</string>
+    <string name="ra_sort_points">ポイント順</string>
+    <string name="ra_sort_unlocked">獲得済み優先</string>
+    <string name="ra_sort_locked">未獲得優先</string>
+    <string name="ra_game_hash_info_fmt">ID: %1$s | ハッシュ: %2$s</string>
+    <string name="ra_status_mastered">マスター済み</string>
+    <string name="ra_status_completed">コンプリート</string>
+    <string name="ra_points_gain_fmt">+%1$d PTS</string>
+    <string name="ra_points_dot_fmt">- %1$d</string>
+    <string name="ra_completion_pct_fmt">(%1$d%%)</string>
+    <string name="leaderboard_rank_fmt">#%1$d</string>
+    <string name="refresh">更新</string>
+    <string name="netplay_3ds_tab_host">作成</string>
+    <string name="netplay_3ds_tab_room">ルーム</string>
+    <string name="netplay_3ds_connected_badge">接続中</string>
+    <string name="netplay_3ds_password_hint">パスワード</string>
+    <string name="netplay_3ds_optional_hint">任意</string>
+    <string name="netplay_3ds_host_form_title">マルチプレイルーム作成</string>
+    <string name="netplay_3ds_room_name_label">ルーム名 (3-20文字)</string>
+    <string name="netplay_3ds_nickname_label">プレイヤー名</string>
+    <string name="netplay_3ds_port_label">ポート</string>
+    <string name="netplay_3ds_max_players_label">最大プレイヤー数</string>
+    <string name="netplay_3ds_not_in_room">まだルームに接続していません。LAN/ロビーから参加するか作成してください。</string>
+    <string name="netplay_3ds_mod_role">モデレーター - %1$d 人</string>
+    <string name="netplay_3ds_member_role">メンバー - %1$d 人</string>
+    <string name="netplay_3ds_leave_room_btn">退出</string>
+    <string name="netplay_3ds_members_title">ルームメンバー</string>
+    <string name="netplay_3ds_kick_btn">キック</string>
+    <string name="netplay_3ds_ban_btn">BAN</string>
+    <string name="netplay_3ds_ban_list_title">BANリスト</string>
+    <string name="netplay_3ds_unban_btn">解除</string>
+    <string name="netplay_3ds_chat_hint">チャットメッセージを入力...</string>
+    <string name="netplay_3ds_send_btn">送信</string>
+    <string name="netplay_3ds_custom_lobby_label">カスタムロビーAPI URL</string>
+    <string name="netplay_3ds_custom_lobby_saved">ロビーURLを保存しました</string>
+    <string name="netplay_3ds_streetpass_title">ローカル通信 &amp; すれちがい通信 (CECD)</string>
+    <string name="netplay_3ds_streetpass_stats_fmt">有効なCECDメールボックス数: %1$d</string>
+    <string name="setup_3ds_artic_saved_fmt">ユーザーディレクトリに %1$s を保存しました</string>
+    </resources>

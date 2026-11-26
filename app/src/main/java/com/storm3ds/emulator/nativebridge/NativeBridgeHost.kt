@@ -44,21 +44,50 @@ object NativeBridgeHost {
             }.getOrDefault(false)
             if (ok) {
                 ensureSubdirs(candidate)
+                migrateLegacyDirs(candidate)
                 return candidate.absolutePath
             }
         }
         val appDir = File(appContext.getExternalFilesDir(null) ?: appContext.filesDir, "STORM 3DS")
         appDir.mkdirs()
         ensureSubdirs(appDir)
+        migrateLegacyDirs(appDir)
         return appDir.absolutePath
     }
 
     private fun ensureSubdirs(root: File) {
         for (sub in listOf(
-            "config", "sysdata", "sdmc", "nand", "states", "cheats",
+            "config", "sysdata", "nand", "quicksaves", "cheats",
             "load/mods", "load/textures", "shaders", "log", "amiibo", "screenshots", "saves"
         )) {
             File(root, sub).mkdirs()
+        }
+    }
+
+    private fun migrateLegacyDirs(root: File) {
+        runCatching {
+            val oldSdmcSaves = File(root, "sdmc/Nintendo 3DS")
+            val newSaves = File(root, "saves")
+            if (oldSdmcSaves.isDirectory) {
+                oldSdmcSaves.listFiles()?.forEach { child ->
+                    val target = File(newSaves, child.name)
+                    if (!target.exists()) {
+                        child.copyRecursively(target, overwrite = false)
+                    }
+                }
+            }
+            val oldStates = File(root, "states")
+            val newQuicksaves = File(root, "quicksaves")
+            if (oldStates.isDirectory) {
+                oldStates.listFiles()?.forEach { child ->
+                    if (child.isFile) {
+                        val target = File(newQuicksaves, child.name)
+                        if (!target.exists()) {
+                            child.copyTo(target, overwrite = false)
+                        }
+                    }
+                }
+            }
         }
     }
 

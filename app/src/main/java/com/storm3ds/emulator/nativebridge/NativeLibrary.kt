@@ -177,6 +177,15 @@ object NativeLibrary {
     external fun setRender3dMode(mode: Int)
     external fun setDisableRightEyeRender(enabled: Boolean)
     external fun setLibrashaderPreset(enabled: Boolean, presetPath: String)
+    external fun configureLibrashader(
+        enabled: Boolean,
+        presetPath: String,
+        parameters: String,
+        clearHistory: Boolean,
+    )
+    external fun queryLibrashaderParams(presetPath: String): Array<String>?
+    external fun consumeLibrashaderDiagnostics(): Array<String>?
+    external fun isLibrashaderAvailable(): Boolean
     external fun setSpeedhacks(
         fmvHack: Boolean,
         skipSlowDraw: Boolean,

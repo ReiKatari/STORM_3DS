@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="preparing_shaders">Подготовка шейдеров...</string>
     <string name="building_shaders">Компиляция шейдеров (%1$s)...</string>
@@ -69,8 +69,8 @@
     <string name="storm3ds_pause">Пауза</string>
     <string name="storm3ds_resume">Продолжить</string>
     <string name="storm3ds_stop">Стоп</string>
-    <string name="input_circle_pad">Circle Pad</string>
-    <string name="input_c_stick">C-Stick</string>
+    <string name="input_circle_pad">Аналоговый стик</string>
+    <string name="input_c_stick">Правый стик (C-Stick)</string>
     <string name="input_slider_3d_depth">Слайдер 3D глубины</string>
     <string name="input_zl">ZL</string>
     <string name="input_zr">ZR</string>
@@ -156,7 +156,7 @@
     <string name="video_skin_type_obsidian_pro">STORM 3DS Обсидиан Про</string>
     <string name="video_ai_scale_2x">2x (512x384)</string>
     <string name="video_ai_scale_4x">4x (1024x768 - HD)</string>
-    <string name="video_ai_scale_8x">8x (2048x1536 - Ultra HD)</string>
+    <string name="video_ai_scale_8x">8x (2048x1536 - Ультра HD)</string>
     <string name="video_res_1x_native">1x оригинал (400x240)</string>
     <string name="setup_3ds_place_keys_toast">Поместите boot9.bin / aes_keys.txt / seeddb.bin в STORM 3DS/sysdata/</string>
     <string name="setup_3ds_imported_toast">Файл %1$s импортирован в STORM 3DS/sysdata/</string>
@@ -238,8 +238,8 @@
     <string name="netplay_3ds_launch_online_btn">Запустить игру с выбранным профилем 3DS</string>
     <string name="netplay_3ds_room_players_fmt">Игроки: %1$d/%2$d</string>
     <string name="netplay_3ds_join_btn">Войти</string>
-    <string name="pref_model_new_3ds">New 3DS</string>
-    <string name="pref_model_old_3ds">Old 3DS</string>
+    <string name="pref_model_new_3ds">Новая 3DS (New 3DS)</string>
+    <string name="pref_model_old_3ds">Обычная 3DS (Old 3DS)</string>
     <string name="pref_summary_cpu_clock">ЦП %1$s%%</string>
     <string name="pref_summary_jit">JIT: %1$s</string>
     <string name="pref_ram_gb_format">%.1f ГБ</string>
@@ -420,5 +420,64 @@ SDMC: %7$s</string>
     <string name="pref_mic_vu_meter_summary">Индикатор громкости микрофона для проверки порога шума</string>
     <string name="pref_vibrate_on_touch_summary">Тактильный виброотклик при нажатии наэкранных кнопок</string>
     <string name="pref_enable_cheats_summary">Разрешает применение чит-кодов Gateway в запущенных играх</string>
-</resources>
-
+    <string name="retroarch_shader_manual_path">Указать путь к пресету вручную...</string>
+    <string name="retroarch_shader_edit_text">Редактировать текстом</string>
+    <string name="retroarch_shader_no_params">Настраиваемые параметры для этого пресета не найдены. Вы можете задать пары ключ=значение вручную:</string>
+    <string name="retroarch_shader_reset_params">Сбросить все параметры</string>
+    <string name="freedreno_name_fd_dev_features">FD_DEV_FEATURES</string>
+    <string name="freedreno_name_tu_debug">TU_DEBUG</string>
+    <string name="freedreno_name_fd_mesa_debug">FD_MESA_DEBUG</string>
+    <string name="pref_3ds_quicksaves_title">Быстрые сохранения</string>
+    <string name="pref_3ds_quicksaves_summary">Слоты быстрых сохранений и превью хранятся в /STORM 3DS/quicksaves</string>
+    <string name="pref_3ds_quicksaves_summary_path">Папка быстрых сохранений: %1$s</string>
+    <string name="quick_save">Быстрое сохранение</string>
+    <string name="quick_load">Быстрая загрузка</string>
+    <string name="rom_libretro_covers_enabled_title">Загружать обложки 3DS (Libretro)</string>
+    <string name="rom_libretro_covers_enabled_summary">Загружать обложки коробок Nintendo 3DS из базы Libretro по сети</string>
+    <string name="rom_ra_badges_enabled_title">Загружать бейджи достижений (RetroAchievements)</string>
+    <string name="rom_ra_badges_enabled_summary">Загружать значки достижений по сети; если выключено, используются встроенные иконки кубков</string>
+    <string name="v794_video_preset_auto_device">Авто-оптимизация под это устройство</string>
+    <string name="ra_spectator_mode_title">Режим наблюдателя</string>
+    <string name="ra_spectator_mode_summary">Отслеживать достижения локально без отправки разблокировок и рекордов на сервер</string>
+    <string name="ra_filter_progression">Прогресс</string>
+    <string name="ra_filter_win">Победа</string>
+    <string name="ra_sort_title">Сортировка</string>
+    <string name="ra_sort_default">По умолчанию</string>
+    <string name="ra_sort_points">По очкам</string>
+    <string name="ra_sort_unlocked">Сначала открытые</string>
+    <string name="ra_sort_locked">Сначала закрытые</string>
+    <string name="ra_game_hash_info_fmt">Код: %1$s | Хеш: %2$s</string>
+    <string name="ra_status_mastered">Мастер</string>
+    <string name="ra_status_completed">Завершено</string>
+    <string name="ra_points_gain_fmt">+%1$d ОЧК</string>
+    <string name="ra_points_dot_fmt">- %1$d</string>
+    <string name="ra_completion_pct_fmt">(%1$d%%)</string>
+    <string name="leaderboard_rank_fmt">#%1$d</string>
+    <string name="refresh">Обновить</string>
+    <string name="netplay_3ds_tab_host">Хост</string>
+    <string name="netplay_3ds_tab_room">Комната</string>
+    <string name="netplay_3ds_connected_badge">В СЕТИ</string>
+    <string name="netplay_3ds_password_hint">Пароль</string>
+    <string name="netplay_3ds_optional_hint">Необязательно</string>
+    <string name="netplay_3ds_host_form_title">Создать сетевую комнату</string>
+    <string name="netplay_3ds_room_name_label">Название комнаты (3-20 символов)</string>
+    <string name="netplay_3ds_nickname_label">Имя игрока</string>
+    <string name="netplay_3ds_port_label">Порт</string>
+    <string name="netplay_3ds_max_players_label">Максимум игроков</string>
+    <string name="netplay_3ds_not_in_room">Вы ещё не подключены к комнате. Присоединитесь к игре по локальной сети или создайте комнату.</string>
+    <string name="netplay_3ds_mod_role">Модератор - %1$d игроков</string>
+    <string name="netplay_3ds_member_role">Участник - %1$d игроков</string>
+    <string name="netplay_3ds_leave_room_btn">Выйти</string>
+    <string name="netplay_3ds_members_title">Участники комнаты</string>
+    <string name="netplay_3ds_kick_btn">Исключить</string>
+    <string name="netplay_3ds_ban_btn">Заблокировать</string>
+    <string name="netplay_3ds_ban_list_title">Заблокированные пользователи</string>
+    <string name="netplay_3ds_unban_btn">Разблокировать</string>
+    <string name="netplay_3ds_chat_hint">Введите сообщение в чат...</string>
+    <string name="netplay_3ds_send_btn">Отправить</string>
+    <string name="netplay_3ds_custom_lobby_label">Пользовательский сервер лобби (API URL)</string>
+    <string name="netplay_3ds_custom_lobby_saved">Адрес сервера лобби сохранён</string>
+    <string name="netplay_3ds_streetpass_title">Локальная связь и StreetPass (CECD)</string>
+    <string name="netplay_3ds_streetpass_stats_fmt">Активных почтовых ящиков CECD: %1$d</string>
+    <string name="setup_3ds_artic_saved_fmt">Файл %1$s сохранён в папке данных</string>
+    </resources>

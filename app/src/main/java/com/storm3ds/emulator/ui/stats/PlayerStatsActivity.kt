@@ -458,26 +458,36 @@ private fun PlayerStatsScreen(
 
             Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
 
-            when (currentTab) {
-                StatsTab.OVERVIEW -> {
-                    OverviewTabContent(
-                        summary = summary,
-                        boxArtByUri = boxArtByUri,
-                        accentColor = accentColor,
-                    )
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when (currentTab) {
+                    StatsTab.OVERVIEW -> {
+                        OverviewTabContent(
+                            summary = summary,
+                            boxArtByUri = boxArtByUri,
+                            accentColor = accentColor,
+                        )
+                    }
+                    StatsTab.ANALYTICS -> {
+                        AnalyticsTabContent(
+                            summary = summary,
+                            accentColor = accentColor,
+                        )
+                    }
+                    StatsTab.DAILY_LOG -> {
+                        DailySessionsView(
+                            dailySessions = dailySessions,
+                            accentColor = accentColor,
+                        )
+                    }
                 }
-                StatsTab.ANALYTICS -> {
-                    AnalyticsTabContent(
-                        summary = summary,
-                        accentColor = accentColor,
-                    )
-                }
-                StatsTab.DAILY_LOG -> {
-                    DailySessionsView(
-                        dailySessions = dailySessions,
-                        accentColor = accentColor,
-                    )
-                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                com.storm3ds.emulator.ui.common.UnifiedBackButton(onClick = onBackClick)
             }
         }
     }

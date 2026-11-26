@@ -193,7 +193,11 @@ std::string GetExtDataContainerPath(std::string_view mount_point, bool shared) {
     if (shared) {
         return fmt::format("{}data/{}/extdata/", mount_point, SYSTEM_ID);
     }
+#ifdef ANDROID
+    return fmt::format("{}{}/{}/extdata/", mount_point, SYSTEM_ID, SDCARD_ID);
+#else
     return fmt::format("{}Nintendo 3DS/{}/{}/extdata/", mount_point, SYSTEM_ID, SDCARD_ID);
+#endif
 }
 
 std::string GetExtDataPathFromId(std::string_view mount_point, u64 extdata_id) {

@@ -50,6 +50,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.preference.PreferenceManager
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.storm3ds.emulator.R
@@ -97,16 +102,30 @@ fun RomAchievementUi(
                 achievement.badgeUrlLocked
             }
 
-            if (LocalInspectionMode.current) {
+            val context = LocalContext.current
+            val showBadges = remember(context) {
+                PreferenceManager.getDefaultSharedPreferences(context).getBoolean("rom_ra_badges_enabled", false)
+            }
+            if (LocalInspectionMode.current || !showBadges) {
                 Box(
-                    Modifier
+                    modifier = Modifier
                         .size(badgeSize)
-                        .background(Color.Gray)
-                )
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colors.onSurface.copy(alpha = 0.08f))
+                        .border(1.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.EmojiEvents,
+                        contentDescription = null,
+                        tint = if (isUnlocked) MaterialTheme.colors.secondary else MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
+                        modifier = Modifier.size(badgeSize * 0.52f),
+                    )
+                }
             } else {
                 AsyncImage(
                     modifier = Modifier.size(badgeSize),
-                    model = ImageRequest.Builder(LocalContext.current)
+                    model = ImageRequest.Builder(context)
                         .data(image.toString())
                         .crossfade(true)
                         .build(),
@@ -151,13 +170,48 @@ fun RomAchievementUi(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (isInOfflineLedger) {
-                    Text(
-                        text = stringResource(id = R.string.offline_ra_in_ledger_badge),
-                        style = MaterialTheme.typography.caption,
-                        color = MaterialTheme.colors.secondary,
-                        fontWeight = FontWeight.Bold,
-                    )
+                if (isInOfflineLedger || achievement.isProgression() || achievement.isWinCondition() || achievement.isMissable()) {
+                    Spacer(Modifier.height(3.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (achievement.isProgression()) {
+                            Text(
+                                text = stringResource(id = R.string.ra_filter_progression).uppercase(),
+                                style = MaterialTheme.typography.overline,
+                                color = Color(0xFF38BDF8),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                            )
+                        }
+                        if (achievement.isWinCondition()) {
+                            Text(
+                                text = stringResource(id = R.string.ra_filter_win).uppercase(),
+                                style = MaterialTheme.typography.overline,
+                                color = Color(0xFF10B981),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                            )
+                        }
+                        if (achievement.isMissable()) {
+                            Text(
+                                text = stringResource(id = R.string.retro_achievements_filter_missable).uppercase(),
+                                style = MaterialTheme.typography.overline,
+                                color = Color(0xFFFBBF24),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                            )
+                        }
+                        if (isInOfflineLedger) {
+                            Text(
+                                text = stringResource(id = R.string.offline_ra_in_ledger_badge),
+                                style = MaterialTheme.typography.caption,
+                                color = MaterialTheme.colors.secondary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
                 if (achievementModel is AchievementUiModel.RuntimeAchievementUiModel && achievementModel.hasProgress()) {
                     Spacer(Modifier.height(4.dp))

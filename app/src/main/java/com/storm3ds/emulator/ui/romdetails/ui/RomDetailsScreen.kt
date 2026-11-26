@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -20,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -179,6 +183,14 @@ fun RomDetailsScreen(
                     androidx.compose.foundation.layout.Box(Modifier.weight(1f).fillMaxWidth()) {
                         pagerContent(PaddingValues())
                     }
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        com.storm3ds.emulator.ui.common.UnifiedBackButton(onClick = onNavigateBack)
+                    }
                 }
             }
         } else {
@@ -200,6 +212,15 @@ fun RomDetailsScreen(
                 )
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f).fillMaxWidth()) {
                     pagerContent(PaddingValues())
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 16.dp)
+                        .navigationBarsPadding(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.storm3ds.emulator.ui.common.UnifiedBackButton(onClick = onNavigateBack)
                 }
             }
         }

@@ -37,8 +37,11 @@ private:
     void PopulateRender3dComboBox();
     void updateShaders(Settings::StereoRenderOption stereo_option);
     void updateTextureFilter(int index);
+    void UpdateRetroArchStatusLabel();
+    void OpenRetroArchParametersDialog();
 
     std::unique_ptr<Ui::ConfigureEnhancements> ui;
+    std::string pending_librashader_parameters;
     ConfigurationShared::CheckState linear_filter;
     ConfigurationShared::CheckState use_integer_scaling;
     ConfigurationShared::CheckState dump_textures;

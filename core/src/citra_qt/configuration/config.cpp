@@ -754,6 +754,9 @@ void QtConfig::ReadRendererValues() {
 
     if (global) {
         ReadBasicSetting(Settings::values.use_shader_jit);
+        ReadBasicSetting(Settings::values.librashader_enabled);
+        ReadBasicSetting(Settings::values.librashader_preset_path);
+        ReadBasicSetting(Settings::values.librashader_parameters);
     }
 
     qt_config->endGroup();
@@ -1318,6 +1321,9 @@ void QtConfig::SaveRendererValues() {
     if (global) {
         WriteSetting(Settings::QKeys::use_shader_jit, Settings::values.use_shader_jit.GetValue(),
                      true);
+        WriteBasicSetting(Settings::values.librashader_enabled);
+        WriteBasicSetting(Settings::values.librashader_preset_path);
+        WriteBasicSetting(Settings::values.librashader_parameters);
     }
 
     qt_config->endGroup();

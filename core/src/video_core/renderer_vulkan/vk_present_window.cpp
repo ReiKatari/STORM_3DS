@@ -490,7 +490,7 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
             instance.GetInstance(), instance.GetPhysicalDevice(), instance.GetDevice(),
             graphics_queue, VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr, cmdbuf,
             frame->image, fmt, frame->width, frame->height, swapchain_image, fmt, extent.width,
-            extent.height);
+            extent.height, std::max<u32>(3u, swapchain.GetImageCount()));
 
         if (libra_rendered) {
             const vk::ImageMemoryBarrier libra_post_barrier{
@@ -533,6 +533,8 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
                                    vk::PipelineStageFlagBits::eTransfer,
                                    vk::DependencyFlagBits::eByRegion, {}, {}, restore_src_barrier);
         }
+    } else {
+        librashader.ResetVulkan();
     }
 
     if (!libra_rendered) {

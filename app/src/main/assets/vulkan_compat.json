@@ -1,299 +1,68 @@
 {
-  "version": 1,
+  "version": 2,
   "profiles": [
     {
-      "id": "yugioh_wc_5ds",
-      "title": "Yu-Gi-Oh! World Championship 2007 / 2008 / 5D's",
-      "gameCodes": [
-        "AY7",
-        "YG8",
-        "Y5D",
-        "BYX",
-        "BYG",
-        "AY9",
-        "YF4",
-        "BYY"
-      ],
-      "titleKeywords": [
-        "yu-gi-oh! world championship",
-        "yu-gi-oh! 5d's",
-        "yugioh world championship",
-        "yugioh 5d"
-      ],
+      "id": "luigi_mansion_dark_moon",
+      "title": "Luigi's Mansion: Dark Moon / Luigi's Mansion 2",
+      "gameCodes": ["AGGE", "AGGP", "AGGJ", "B4ME", "B4MP", "B4MJ"],
+      "titleKeywords": ["luigi's mansion", "luigis mansion"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Fixes dual-screen 3D card field, monster hologram alpha blending, and 2D/3D priority ordering"
+      "notes": "Preserves strobe flash, poltergust alpha beams, and accurate shader multiply lighting"
     },
     {
-      "id": "golden_sun_dark_dawn",
-      "title": "Golden Sun: Dark Dawn",
-      "gameCodes": [
-        "B6Z",
-        "B6ZE",
-        "B6ZP",
-        "B6ZJ"
-      ],
-      "titleKeywords": [
-        "golden sun: dark dawn",
-        "golden sun dark dawn"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": false,
-      "notes": "Fixes Djinn summon 2D/3D layer blending, shadow overlays, and psynergy effects"
-    },
-    {
-      "id": "okamiden",
-      "title": "Okamiden",
-      "gameCodes": [
-        "B3T",
-        "B3TE",
-        "B3TP",
-        "B3TJ"
-      ],
-      "titleKeywords": [
-        "okamiden"
-      ],
+      "id": "pokemon_gen6_gen7",
+      "title": "Pokemon X, Y, Omega Ruby, Alpha Sapphire, Sun, Moon, Ultra Sun, Ultra Moon",
+      "gameCodes": ["EKJA", "EK2A", "ECLA", "EC2A", "BNDA", "BNEA", "A2AA", "A2BA"],
+      "titleKeywords": ["pokemon x", "pokemon y", "omega ruby", "alpha sapphire", "pokemon sun", "pokemon moon", "ultra sun", "ultra moon"],
       "compositorMode": "precise",
       "thickEdges": true,
-      "notes": "Preserves celestial brush 2D/3D composition and scales cel-shaded ink outlines at high internal resolutions"
+      "notes": "Preserves cel-shaded battle outlines and shadow/water framebuffer copies"
     },
     {
-      "id": "zelda_ds",
-      "title": "The Legend of Zelda: Phantom Hourglass and Spirit Tracks",
-      "gameCodes": [
-        "AZE",
-        "AZEE",
-        "AZEP",
-        "AZEJ",
-        "BKI",
-        "BKIE",
-        "BKIP",
-        "BKIJ"
-      ],
-      "titleKeywords": [
-        "phantom hourglass",
-        "spirit tracks"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": true,
-      "notes": "Scales toon-shaded edge outlines at high internal resolutions and preserves dual-screen boss composition"
-    },
-    {
-      "id": "pokemon_gen4_gen5",
-      "title": "Pokemon Diamond, Pearl, Platinum, HeartGold, SoulSilver, Black and White",
-      "gameCodes": [
-        "ADA",
-        "APA",
-        "CPU",
-        "IPK",
-        "IPG",
-        "IRB",
-        "IRA",
-        "IRE",
-        "IRD"
-      ],
-      "titleKeywords": [
-        "pokemon diamond",
-        "pokemon pearl",
-        "pokemon platinum",
-        "pokemon heartgold",
-        "pokemon soulsilver",
-        "pokemon black",
-        "pokemon white"
-      ],
+      "id": "zelda_oot_mm_3d",
+      "title": "The Legend of Zelda: Ocarina of Time 3D & Majora's Mask 3D",
+      "gameCodes": ["AQEE", "AQEP", "AQEJ", "AJRE", "AJRP", "AJRJ"],
+      "titleKeywords": ["ocarina of time 3d", "majora's mask 3d", "a link between worlds"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Ensures accurate battle textbox, weather particle, and distortion world 2D/3D layer priorities"
+      "notes": "Preserves depth-of-field, lens flare, and stereoscopic 3D alignment"
     },
     {
-      "id": "dragon_quest_ix",
-      "title": "Dragon Quest IX: Sentinels of the Starry Skies",
-      "gameCodes": [
-        "YQU",
-        "YQUE",
-        "YQUP",
-        "YQUJ",
-        "A4V",
-        "YIV",
-        "YDQ"
-      ],
-      "titleKeywords": [
-        "dragon quest ix",
-        "sentinels of the starry skies"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": true,
-      "notes": "Scales cel-shaded character outlines at high internal resolutions and preserves UI/menu 3D priority"
-    },
-    {
-      "id": "chrono_trigger",
-      "title": "Chrono Trigger",
-      "gameCodes": [
-        "YCT",
-        "YCTE",
-        "YCTP",
-        "YCTJ"
-      ],
-      "titleKeywords": [
-        "chrono trigger"
-      ],
+      "id": "monster_hunter_3ds",
+      "title": "Monster Hunter 4 Ultimate / Generations / XX",
+      "gameCodes": ["BFGE", "BFGP", "BFGJ", "AHXE", "AHXP", "AHXJ"],
+      "titleKeywords": ["monster hunter 4", "monster hunter generations", "monster hunter xx"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Fixes time portal and tech effect 2D/3D alpha blending"
+      "notes": "Stabilizes depth buffer resolve and prevents particle trails under Vulkan"
     },
     {
-      "id": "mario_and_luigi",
-      "title": "Mario and Luigi: Partners in Time and Bowser's Inside Story",
-      "gameCodes": [
-        "ARM",
-        "CLJ"
-      ],
-      "titleKeywords": [
-        "partners in time",
-        "bowser's inside story",
-        "bowsers inside story"
-      ],
+      "id": "fire_emblem_3ds",
+      "title": "Fire Emblem Awakening / Fates / Echoes",
+      "gameCodes": ["AFEE", "AFEP", "AFEJ", "BFXE", "BFXP", "AJJE", "AJJP"],
+      "titleKeywords": ["fire emblem awakening", "fire emblem fates", "fire emblem echoes"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Fixes giant battle and dual-screen 3D attack priority transitions"
+      "notes": "Protects tile-map transition effects and battle cutscene transitions"
     },
     {
-      "id": "solatorobo",
-      "title": "Solatorobo: Red the Hunter",
-      "gameCodes": [
-        "B2S",
-        "B2SE",
-        "B2SP",
-        "B2SJ"
-      ],
-      "titleKeywords": [
-        "solatorobo"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": true,
-      "notes": "Scales anime cel-shaded mecha outlines and preserves 2D/3D sky island atmospheric blending"
-    },
-    {
-      "id": "jet_impulse_nanostray",
-      "title": "Jet Impulse and Nanostray 2",
-      "gameCodes": [
-        "AJI",
-        "AN2",
-        "YN2"
-      ],
-      "titleKeywords": [
-        "jet impulse",
-        "nanostray"
-      ],
+      "id": "kid_icarus_uprising",
+      "title": "Kid Icarus: Uprising",
+      "gameCodes": ["AKDE", "AKDP", "AKDJ"],
+      "titleKeywords": ["kid icarus"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Preserves 3D cockpit HUD and cloud layer alpha blending"
+      "notes": "Maintains aerial HUD overlays and volumetric skyboxes"
     },
     {
-      "id": "alphabounce_kale",
-      "title": "AlphaBounce",
-      "gameCodes": [
-        "KAL",
-        "KALE",
-        "KALP",
-        "KALJ",
-        "KBO",
-        "KBOE",
-        "KBOP",
-        "KBOJ"
-      ],
-      "titleKeywords": [
-        "alphabounce"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": true,
-      "notes": "Preserves clean direct boot DSiWare UI geometry and eliminates bottom screen startup flicker"
-    },
-    {
-      "id": "mario_vs_dk_minis",
-      "title": "Mario vs. Donkey Kong: Minis March Again!",
-      "gameCodes": [
-        "KDM",
-        "KDME",
-        "KDMP",
-        "KDMJ",
-        "AMQ",
-        "AMQE",
-        "AMQP",
-        "AMQJ",
-        "V2G",
-        "V2GE",
-        "V2GP",
-        "V2GJ"
-      ],
-      "titleKeywords": [
-        "minis march again",
-        "mario vs donkey kong",
-        "mario vs. donkey kong"
-      ],
+      "id": "xenoblade_chronicles_3d",
+      "title": "Xenoblade Chronicles 3D (New 3DS)",
+      "gameCodes": ["CAFJ", "CAFE", "CAFP"],
+      "titleKeywords": ["xenoblade chronicles"],
       "compositorMode": "precise",
       "thickEdges": false,
-      "notes": "Eliminates 30 Hz bottom screen swap flicker and preserves dual-screen capture synchronization"
-    },
-    {
-      "id": "anonymous_notes_abyss",
-      "title": "Anonymous Notes 1-4: From the Abyss",
-      "gameCodes": [
-        "KVI",
-        "KVIE",
-        "KVIP",
-        "KVIJ",
-        "KV2",
-        "KV2E",
-        "KV2P",
-        "KV2J",
-        "KV3",
-        "KV3E",
-        "KV3P",
-        "KV3J",
-        "KV4",
-        "KV4E",
-        "KV4P",
-        "KV4J",
-        "KAN",
-        "K2N",
-        "K3N",
-        "K4N",
-        "KJY"
-      ],
-      "titleKeywords": [
-        "anonymous notes",
-        "from the abyss"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": false,
-      "notes": "Preserves protected black 2D dungeon backdrops and structured 2D sprite overlays"
-    },
-    {
-      "id": "gameloft_dsiware_exidia_sod",
-      "title": "Legends of Exidia and Soul of Darkness",
-      "gameCodes": [
-        "KLE",
-        "KLEE",
-        "KLEP",
-        "KLEJ",
-        "KSD",
-        "KSDE",
-        "KSDP",
-        "KSDJ",
-        "KSK",
-        "KSKE",
-        "KSKP",
-        "KSKJ"
-      ],
-      "titleKeywords": [
-        "legends of exidia",
-        "legend of exidia",
-        "soul of darkness"
-      ],
-      "compositorMode": "precise",
-      "thickEdges": false,
-      "notes": "Prevents dark HUD and dialogue box false-positive frame cache replacement flicker"
+      "notes": "Ensures New 3DS clock stability and clean foliage alpha testing"
     }
   ]
 }

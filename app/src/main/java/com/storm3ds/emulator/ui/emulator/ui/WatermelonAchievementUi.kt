@@ -119,6 +119,26 @@ fun WatermelonAchievementCard(
                     Spacer(Modifier.width(8.dp))
                     UnofficialBadge()
                 }
+                if (achievement.isProgression()) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(id = R.string.ra_filter_progression).uppercase(),
+                        color = Color(0xFF38BDF8),
+                        fontFamily = WatermelonMono,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                if (achievement.isWinCondition()) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(id = R.string.ra_filter_win).uppercase(),
+                        color = Color(0xFF10B981),
+                        fontFamily = WatermelonMono,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
                 if (achievement.isMissable()) {
                     Spacer(Modifier.width(6.dp))
                     Icon(
@@ -210,6 +230,10 @@ private fun AchievementBadge(
     size: androidx.compose.ui.unit.Dp,
 ) {
     val colors = watermelon
+    val context = LocalContext.current
+    val showBadges = remember(context) {
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(context).getBoolean("rom_ra_badges_enabled", false)
+    }
     val shape = RoundedCornerShape((size.value * 0.24f).dp)
     Box(
         modifier = Modifier
@@ -219,11 +243,11 @@ private fun AchievementBadge(
             .border(1.dp, colors.line, shape),
         contentAlignment = Alignment.Center,
     ) {
-        if (LocalInspectionMode.current) {
+        if (LocalInspectionMode.current || !showBadges) {
             Icon(Icons.Filled.EmojiEvents, null, tint = colors.text3, modifier = Modifier.size(size * 0.5f))
         } else {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(badgeUrl).crossfade(true).build(),
+                model = ImageRequest.Builder(context).data(badgeUrl).crossfade(true).build(),
                 contentDescription = null,
                 placeholder = painterResource(id = R.drawable.ic_trophy),
                 error = painterResource(id = R.drawable.ic_trophy),
@@ -311,7 +335,7 @@ fun AchievementDetailOverlay(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "· ${achievement.points}",
+                    text = stringResource(R.string.ra_points_dot_fmt, achievement.points),
                     color = WatermelonColors.gold,
                     fontFamily = WatermelonMono,
                     fontSize = 9.5.sp,

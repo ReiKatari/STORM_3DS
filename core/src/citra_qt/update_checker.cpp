@@ -4,8 +4,11 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <optional>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 #ifdef _WIN32
 #include <windows.h>
@@ -203,7 +206,8 @@ std::optional<UpdateChecker::ReleaseInfo> ParseGitHubRelease(const nlohmann::jso
     return info;
 }
 
-std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& rel) {
+std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& rel,
+                                                          const std::string& base_host) {
     if (!rel.is_object()) {
         return {};
     }
@@ -224,7 +228,10 @@ std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& 
     if (info.title.empty()) {
         info.title = "STORM 3DS " + ver;
     }
-    info.changelog_md = JsonString(rel, "body");
+    info.changelog_md = JsonString(rel, "notes");
+    if (info.changelog_md.empty()) {
+        info.changelog_md = JsonString(rel, "body");
+    }
     if (info.changelog_md.empty()) {
         info.changelog_md = JsonString(rel, "changelog");
     }
@@ -232,7 +239,7 @@ std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& 
     if (info.published_at.empty()) {
         info.published_at = JsonString(rel, "publishedAt");
     }
-    info.release_url = "https://stormgamesworld.ru/programs?repo=STORM_3DS";
+    info.release_url = base_host + "/programs?repo=STORM_3DS&tag=" + ver;
     info.source_name = "STORM GAMES WORLD";
 
     if (rel.contains("assets") && rel["assets"].is_array()) {
@@ -244,7 +251,10 @@ std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& 
                 std::string dl = JsonString(asset, "downloadUrl");
                 if (!dl.empty()) {
                     if (dl.rfind("http", 0) != 0) {
-                        dl = "https://stormgamesworld.ru" + dl;
+                        if (dl[0] != '/') {
+                            dl = "/" + dl;
+                        }
+                        dl = base_host + dl;
                     }
                     info.download_url = dl;
                 }
@@ -255,9 +265,38 @@ std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& 
     return info;
 }
 
+std::tuple<int, int, int> ParseReleaseSemVer(const std::string& ver) {
+    int major = 0;
+    int minor = 0;
+    int patch = 0;
+    const std::string clean = CleanVersionTag(ver);
+    for (std::size_t i = 0; i < clean.size(); ++i) {
+        if (std::isdigit(static_cast<unsigned char>(clean[i]))) {
+            if (std::sscanf(clean.c_str() + i, "%d.%d.%d", &major, &minor, &patch) >= 2) {
+                return {major, minor, patch};
+            }
+        }
+    }
+    return {0, 0, 0};
+}
+
+bool IsBetterCandidate(const UpdateChecker::ReleaseInfo& candidate,
+                       const std::optional<UpdateChecker::ReleaseInfo>& current_best) {
+    if (!current_best.has_value()) {
+        return true;
+    }
+    const auto cand_ver = ParseReleaseSemVer(candidate.version);
+    const auto best_ver = ParseReleaseSemVer(current_best->version);
+    if (cand_ver != best_ver) {
+        return cand_ver > best_ver;
+    }
+    return current_best->download_url.empty() && !candidate.download_url.empty();
+}
+
 } // namespace
 
 std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::GetLatestRelease(bool include_prereleases) {
+    std::optional<UpdateChecker::ReleaseInfo> best;
     try {
         const std::string gh_path = include_prereleases
                                         ? "/repos/ReiKatari/STORM_3DS/releases?per_page=10"
@@ -266,30 +305,53 @@ std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::GetLatestRelease(bool i
             const auto parsed = nlohmann::json::parse(*response);
             if (include_prereleases && parsed.is_array()) {
                 for (const auto& item : parsed) {
-                    if (auto info = ParseGitHubRelease(item)) {
-                        return info;
+                    if (auto info = ParseGitHubRelease(item); info && IsBetterCandidate(*info, best)) {
+                        best = *info;
                     }
                 }
             } else if (parsed.is_object()) {
-                if (auto info = ParseGitHubRelease(parsed)) {
-                    return info;
+                if (auto info = ParseGitHubRelease(parsed); info && IsBetterCandidate(*info, best)) {
+                    best = *info;
                 }
             }
         }
 
-        if (const auto sgw_resp =
-                GetResponse("stormgamesworld.ru", "/api/programs/releases?repo=STORM_3DS")) {
+        const std::pair<std::string, std::string> sgw_endpoints[] = {
+            {"stormgamesworld.ru", "/api/programs/releases?repo=STORM_3DS"},
+            {"stormgamesworld.ru", "/api/programs?repo=STORM_3DS"},
+            {"storm-games.world", "/api/programs/releases?repo=STORM_3DS"},
+            {"storm-games.world", "/api/programs?repo=STORM_3DS"},
+        };
+        for (const auto& [host, path] : sgw_endpoints) {
+            const auto sgw_resp = GetResponse(host, path);
+            if (!sgw_resp) {
+                continue;
+            }
             const auto parsed = nlohmann::json::parse(*sgw_resp);
-            if (parsed.contains("releases") && parsed["releases"].is_array()) {
-                for (const auto& rel : parsed["releases"]) {
-                    const bool is_pre = rel.value("isPrerelease", false);
-                    if (!include_prereleases && is_pre) {
-                        continue;
-                    }
-                    if (auto info = ParseSgwRelease(rel)) {
-                        return info;
-                    }
+            const nlohmann::json* releases_arr = nullptr;
+            if (parsed.contains("repository") && parsed["repository"].is_object() &&
+                parsed["repository"].contains("releases") &&
+                parsed["repository"]["releases"].is_array()) {
+                releases_arr = &parsed["repository"]["releases"];
+            } else if (parsed.contains("releases") && parsed["releases"].is_array()) {
+                releases_arr = &parsed["releases"];
+            }
+            if (!releases_arr) {
+                continue;
+            }
+            const std::string base_host = "https://" + host;
+            for (const auto& rel : *releases_arr) {
+                const bool is_pre = rel.value("isPrerelease", false);
+                if (!include_prereleases && is_pre) {
+                    continue;
                 }
+                if (auto info = ParseSgwRelease(rel, base_host);
+                    info && IsBetterCandidate(*info, best)) {
+                    best = *info;
+                }
+            }
+            if (best.has_value()) {
+                break;
             }
         }
     } catch (const nlohmann::json::exception& ex) {
@@ -297,5 +359,5 @@ std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::GetLatestRelease(bool i
     } catch (const std::exception& ex) {
         LOG_ERROR(Frontend, "Update check error: {}", ex.what());
     }
-    return {};
+    return best;
 }

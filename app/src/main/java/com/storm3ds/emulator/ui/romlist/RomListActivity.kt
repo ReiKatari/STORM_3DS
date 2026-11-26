@@ -369,6 +369,7 @@ class RomListActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        updatesViewModel.ensureStartupCheck()
         externalInfoController.attach()
         externalInfoController.setContent {
             val rom = highlightedRom.collectAsState().value

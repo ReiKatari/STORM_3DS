@@ -78,7 +78,12 @@ class SaveFilesPreferencesFragment : BasePreferenceFragment(), PreferenceFragmen
         findPreference<androidx.preference.Preference>("3ds_sdmc_saves_info")?.summary =
             getString(
                 R.string.pref_3ds_sdmc_saves_summary_path,
-                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/sdmc/Nintendo 3DS",
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/saves",
+            )
+        findPreference<androidx.preference.Preference>("3ds_quicksaves_info")?.summary =
+            getString(
+                R.string.pref_3ds_quicksaves_summary_path,
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/quicksaves",
             )
 
         updateAutoLoadStateSummary()
@@ -90,7 +95,12 @@ class SaveFilesPreferencesFragment : BasePreferenceFragment(), PreferenceFragmen
         findPreference<androidx.preference.Preference>("3ds_sdmc_saves_info")?.summary =
             getString(
                 R.string.pref_3ds_sdmc_saves_summary_path,
-                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/sdmc/Nintendo 3DS",
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/saves",
+            )
+        findPreference<androidx.preference.Preference>("3ds_quicksaves_info")?.summary =
+            getString(
+                R.string.pref_3ds_quicksaves_summary_path,
+                "${com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()}/quicksaves",
             )
 
         updateAutoLoadStateSummary()

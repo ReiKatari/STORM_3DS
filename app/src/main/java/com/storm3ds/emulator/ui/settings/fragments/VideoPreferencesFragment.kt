@@ -1199,7 +1199,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 }
 
                 buildList {
-                    if (relativePath.isNotBlank()) {
+                    if (relativePath.isBlank()) {
+                        add(ShaderBrowserItem(getString(R.string.off), "", isDirectory = false))
+                    } else {
                         add(
                             ShaderBrowserItem(
                                 label = "..",
@@ -1226,19 +1228,43 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun weighPresetAsync(relativePath: String, onResult: (RetroArchShaderPreset.Weight) -> Unit) {
-        val root = shaderLibraryManager.libraryRoot?.takeIf { resolveShaderSource() == RetroArchShaderSource.INTERNAL }
-            ?: return
+        if (relativePath.isBlank()) return
         shaderWeightCache[relativePath]?.let {
             onResult(it)
             return
         }
 
+        val source = resolveShaderSource()
+        val internalRoot = shaderLibraryManager.libraryRoot?.takeIf { source == RetroArchShaderSource.INTERNAL }
+        val safRootUri = if (source == RetroArchShaderSource.FOLDER) {
+            preferenceManager.sharedPreferences
+                ?.getStringSet("video_retroarch_shader_root", null)
+                ?.firstOrNull()
+                ?.toUri()
+        } else {
+            null
+        }
+        if (internalRoot == null && safRootUri == null) return
+
+        val appCtx = requireContext().applicationContext
         lifecycleScope.launch {
             val weight = withContext(Dispatchers.IO) {
                 runCatching {
-                    RetroArchShaderPreset.weigh(relativePath) { shaderPath ->
-                        File(root, shaderPath).takeIf { it.isFile }?.readText()
+                    val reader: (String) -> String? = if (internalRoot != null) {
+                        { shaderPath -> File(internalRoot, shaderPath).takeIf { it.isFile }?.readText() }
+                    } else {
+                        val rootDoc = DocumentFile.fromTreeUri(appCtx, safRootUri!!)
+                        fun(shaderPath: String): String? {
+                            var doc = rootDoc
+                            shaderPath.split('/').filter { it.isNotBlank() }.forEach { seg ->
+                                doc = doc?.findFile(seg)
+                            }
+                            return doc?.takeIf { it.isFile }?.uri?.let { uri ->
+                                appCtx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                            }
+                        }
                     }
+                    RetroArchShaderPreset.weigh(relativePath, reader)
                 }.getOrNull()
             } ?: return@launch
             shaderWeightCache[relativePath] = weight
@@ -1293,12 +1319,13 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                     },
                 )
                 chevron.isVisible = item.isDirectory && !item.isParent
-                itemView.isSelected = !item.isDirectory && item.path == selectedPath()
+                itemView.isSelected = !item.isDirectory &&
+                    (item.path == selectedPath() || (item.path.isBlank() && selectedPath().isNullOrBlank()))
                 itemView.setOnClickListener { onClick(item) }
 
                 detail.isVisible = false
                 badge.isVisible = false
-                if (item.isDirectory) {
+                if (item.isDirectory || item.path.isBlank()) {
                     return
                 }
 
@@ -1535,8 +1562,25 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 true
             }
         }
-        findPreference<EditTextPreference>("video_retroarch_shader_parameters")?.let {
-            helper.bindPreferenceSummaryToValue(it)
+        findPreference<EditTextPreference>("video_retroarch_shader_parameters")?.let { paramPref ->
+            helper.bindPreferenceSummaryToValue(paramPref)
+            paramPref.setOnPreferenceClickListener {
+                val activePreset = preferenceManager.sharedPreferences?.getString("video_retroarch_shader_preset", null)
+                com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.showShaderParametersDialog(
+                    context = requireContext(),
+                    rawPresetPath = activePreset,
+                    currentParamsText = paramPref.text,
+                    onSaved = { saved ->
+                        val cleaned = saved.trim()
+                        paramPref.text = cleaned
+                        preferenceManager.sharedPreferences?.edit()
+                            ?.putString("video_retroarch_shader_parameters", cleaned)
+                            ?.apply()
+                        paramPref.summary = cleaned.ifBlank { getString(R.string.video_retroarch_shader_parameters_summary) }
+                    },
+                )
+                true
+            }
         }
         val rootPreference = findPreference<StoragePickerPreference>("video_retroarch_shader_root")
         if (rootPreference != null) {
@@ -1733,7 +1777,11 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         customView.findViewById<View>(R.id.btn_source_internal)?.setOnClickListener {
             dialog.dismiss()
+            val prevSource = resolveShaderSource()
             persistShaderSource(RetroArchShaderSource.INTERNAL)
+            if (prevSource != RetroArchShaderSource.INTERNAL && ::shaderPresetPreference.isInitialized) {
+                updateRetroArchPresetEntries(shaderPresetPreference, resetSelection = true)
+            }
             refreshShaderPreferenceVisibility()
             if (!shaderLibraryManager.isInstalled()) {
                 startShaderInstall()
@@ -1742,7 +1790,11 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         customView.findViewById<View>(R.id.btn_source_folder)?.setOnClickListener {
             dialog.dismiss()
+            val prevSource = resolveShaderSource()
             persistShaderSource(RetroArchShaderSource.FOLDER)
+            if (prevSource != RetroArchShaderSource.FOLDER && ::shaderPresetPreference.isInitialized) {
+                updateRetroArchPresetEntries(shaderPresetPreference, resetSelection = true)
+            }
             refreshShaderPreferenceVisibility()
             if (::shaderRootPreference.isInitialized) {
                 shaderRootPreference.performClick()
@@ -2055,6 +2107,13 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun applyRetroArchPresetSelection(preference: ListPreference, selectedPreset: String) {
+        if (selectedPreset.isBlank()) {
+            preference.value = null
+            preference.entries = emptyArray()
+            preference.entryValues = emptyArray()
+            preference.summary = getString(R.string.video_retroarch_shader_preset_summary)
+            return
+        }
         preference.value = selectedPreset
         preference.entries = arrayOf(selectedPreset)
         preference.entryValues = arrayOf(selectedPreset)
@@ -2597,19 +2656,29 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val curRes = prefs?.getString("video_internal_resolution", "2") ?: "2"
         val curSkipDup = prefs?.getBoolean("3ds_skip_duplicate_frames", false) ?: false
         val curAccMul = prefs?.getBoolean("3ds_accurate_mul", false) ?: false
+        val profile = com.storm3ds.emulator.common.device.DevicePerformanceProfiler.profile(
+            ctx,
+            com.storm3ds.emulator.MelonDSAndroidInterface.isVulkanRendererSupported(),
+        )
+        val autoLabel = getString(
+            R.string.v794_video_preset_auto_device,
+            profile.gpuVendorHint,
+            profile.totalRamMb,
+        )
         val options = listOf<CharSequence>(
+            autoLabel,
             getString(R.string.v794_video_preset_weak_devices),
             getString(R.string.v794_video_preset_performance),
             getString(R.string.v794_video_preset_balanced),
             getString(R.string.v794_video_preset_ultra),
         )
-        val values = listOf<CharSequence>("0", "1", "2", "3")
+        val values = listOf<CharSequence>("-1", "0", "1", "2", "3")
         val selectedValue = when {
             curRes == "1" && curSkipDup -> "0"
             curRes == "1" && !curSkipDup -> "1"
             curRes == "4" && curAccMul -> "3"
             curRes == "2" && !curAccMul -> "2"
-            else -> null
+            else -> "-1"
         }
         com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog(ctx) { dismiss ->
             com.storm3ds.emulator.ui.settings.dialogs.SettingsChoiceDialogContent(
@@ -2620,8 +2689,9 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 selectedValue = selectedValue,
                 onSelect = { chosen ->
                     val idx = chosen.toIntOrNull() ?: return@SettingsChoiceDialogContent
-                    if (idx in options.indices) {
-                        applyVideoQuickProfile(idx, options[idx].toString())
+                    val optIdx = values.indexOfFirst { it.toString() == chosen }
+                    if (optIdx >= 0) {
+                        applyVideoQuickProfile(idx, options[optIdx].toString())
                     }
                 },
                 onDismiss = dismiss,
@@ -2630,22 +2700,34 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun applyVideoQuickProfile(presetIndex: Int, presetTitle: String) {
-        val isWeak = presetIndex == 0
-        val resValue = when (presetIndex) {
-            0, 1 -> "1"
-            2 -> "2"
-            3 -> "4"
+        val ctx = context ?: return
+        val profile = com.storm3ds.emulator.common.device.DevicePerformanceProfiler.profile(
+            ctx,
+            com.storm3ds.emulator.MelonDSAndroidInterface.isVulkanRendererSupported(),
+        )
+        val isAuto = presetIndex == -1
+        val isWeak = if (isAuto) profile.isLegacyOrLowEnd else (presetIndex == 0)
+        val resValue = when {
+            isAuto -> profile.recommendedResolutionScale.toString()
+            presetIndex == 0 || presetIndex == 1 -> "1"
+            presetIndex == 2 -> "2"
+            presetIndex == 3 -> "4"
             else -> "2"
         }
-        val filteringValue = when (presetIndex) {
-            0, 1 -> VideoFiltering.NONE.name.lowercase()
+        val filteringValue = when {
+            isAuto -> if (profile.isLegacyOrLowEnd) VideoFiltering.NONE.name.lowercase() else VideoFiltering.QUILEZ.name.lowercase()
+            presetIndex == 0 || presetIndex == 1 -> VideoFiltering.NONE.name.lowercase()
             else -> VideoFiltering.QUILEZ.name.lowercase()
         }
-        val accurateMul = presetIndex == 3
-        val jitMode = if (isWeak) "2" else "1"
+        val accurateMul = if (isAuto) (profile.tier == com.storm3ds.emulator.common.device.DevicePerformanceProfiler.DeviceTier.FLAGSHIP) else (presetIndex == 3)
+        val jitMode = if (isAuto) "3" else if (isWeak) "2" else "1"
         val cpuClock = if (isWeak) "75" else "100"
+        val autoRenderer = if (profile.recommendedRenderer == VideoRenderer.VULKAN) "vulkan" else "opengl"
 
         preferenceManager.sharedPreferences?.edit()?.apply {
+            if (isAuto) {
+                putString("video_renderer", autoRenderer)
+            }
             putString("video_internal_resolution", resValue)
             putBoolean("enable_threaded_rendering", true)
             putBoolean("video_async_shader_compilation", true)

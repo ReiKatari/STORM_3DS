@@ -19,6 +19,8 @@ internal data class AchievementDto(
     val points: Int,
     @SerialName("Flags")
     val flags: Int,
+    @SerialName("Type")
+    val categoryType: String? = null,
     @SerialName("BadgeURL")
     val badgeUrl: String,
     @SerialName("BadgeLockedURL")

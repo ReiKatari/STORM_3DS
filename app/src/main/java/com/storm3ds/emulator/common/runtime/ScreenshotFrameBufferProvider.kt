@@ -7,8 +7,8 @@ import java.nio.ByteOrder
 class ScreenshotFrameBufferProvider {
 
     companion object {
-        private const val SCREEN_WIDTH = 256
-        private const val SCREEN_HEIGHT = 384
+        private const val SCREEN_WIDTH = 400
+        private const val SCREEN_HEIGHT = 480
     }
 
     private var screenshotBuffer: ByteBuffer? = null

@@ -91,8 +91,13 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
         val hardcoreModePreference = findPreference<SwitchPreference>("ra_hardcore_enabled")!!
         hardcoreModePreference.summary = getString(R.string.v780_ra_hardcore_mode_detailed_summary)
         val richPresencePreference = findPreference<SwitchPreference>("ra_rich_presence")!!
-        retroAchievementsEnabledPreference.isVisible = false
-        richPresencePreference.isVisible = false
+        val spectatorModePreference = findPreference<SwitchPreference>("ra_spectator_mode")!!
+        retroAchievementsEnabledPreference.isVisible = true
+        richPresencePreference.isVisible = true
+        richPresencePreference.isEnabled = !hardcoreModePreference.isChecked
+        if (hardcoreModePreference.isChecked) {
+            richPresencePreference.isChecked = true
+        }
         val offlineBackendPreference = findPreference<ListPreference>("ra_offline_backend")!!
         val builtInOfflinePreference = findPreference<SwitchPreference>("ra_offline_softcore_enabled")!!
         val notificationSoundPreference = findPreference<ListPreference>("ra_notification_sound")!!
@@ -100,8 +105,10 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
         val testConnectionPreference = findPreference<Preference>("ra_test_connection")!!
         val integrationPreferences = listOf(
             hardcoreModePreference,
+            richPresencePreference,
             findPreference<SwitchPreference>("ra_unofficial_enabled")!!,
             findPreference<SwitchPreference>("ra_encore_enabled")!!,
+            spectatorModePreference,
             offlineBackendPreference,
             builtInOfflinePreference,
             findPreference<SwitchPreference>("ra_active_challenge_indicators")!!,
@@ -120,7 +127,8 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
                 return@addOnPreferenceChangeListener false
             }
 
-            richPresencePreference.isVisible = !isEnabled
+            richPresencePreference.isVisible = true
+            richPresencePreference.isEnabled = !isEnabled
             if (isEnabled) {
                 richPresencePreference.isChecked = true
             }

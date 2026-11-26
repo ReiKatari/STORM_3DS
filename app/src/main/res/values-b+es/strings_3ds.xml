@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="abort_button">Abortar</string>
     <string name="about_diagnostics_title">Diagnóstico de STORM 3DS</string>
@@ -419,4 +419,64 @@ SDMC: %7$s</string>
     <string name="pref_mic_vu_meter_summary">Vista previa del nivel de entrada del micrófono</string>
     <string name="pref_vibrate_on_touch_summary">Vibración háptica al pulsar botones en pantalla</string>
     <string name="pref_enable_cheats_summary">Permite códigos Gateway y Action Replay en las partidas</string>
-</resources>
+    <string name="retroarch_shader_manual_path">Introducir ruta del preajuste manualmente...</string>
+    <string name="retroarch_shader_edit_text">Editar como texto</string>
+    <string name="retroarch_shader_no_params">No se encontraron parametros ajustables para este preajuste. Puede escribir clave=valor manualmente:</string>
+    <string name="retroarch_shader_reset_params">Restablecer todos los parametros</string>
+    <string name="freedreno_name_fd_dev_features">FD_DEV_FEATURES</string>
+    <string name="freedreno_name_tu_debug">TU_DEBUG</string>
+    <string name="freedreno_name_fd_mesa_debug">FD_MESA_DEBUG</string>
+    <string name="pref_3ds_quicksaves_title">Guardados rápidos</string>
+    <string name="pref_3ds_quicksaves_summary">Las ranuras y miniaturas de guardado rápido se guardan en /STORM 3DS/quicksaves</string>
+    <string name="pref_3ds_quicksaves_summary_path">Carpeta de guardados rápidos: %1$s</string>
+    <string name="quick_save">Guardado rápido</string>
+    <string name="quick_load">Carga rápida</string>
+    <string name="rom_libretro_covers_enabled_title">Descargar carátulas 3DS (Libretro)</string>
+    <string name="rom_libretro_covers_enabled_summary">Descargar carátulas de cajas Nintendo 3DS desde Libretro por internet</string>
+    <string name="rom_ra_badges_enabled_title">Descargar insignias de logros (RetroAchievements)</string>
+    <string name="rom_ra_badges_enabled_summary">Descargar iconos de insignias por red; desactivado muestra trofeos integrados</string>
+    <string name="v794_video_preset_auto_device">Auto-optimizar para este dispositivo</string>
+    <string name="ra_spectator_mode_title">Modo espectador</string>
+    <string name="ra_spectator_mode_summary">Seguir logros localmente sin enviar desbloqueos ni puntuaciones al servidor</string>
+    <string name="ra_filter_progression">Progreso</string>
+    <string name="ra_filter_win">Victoria</string>
+    <string name="ra_sort_title">Ordenar</string>
+    <string name="ra_sort_default">Predeterminado</string>
+    <string name="ra_sort_points">Puntos</string>
+    <string name="ra_sort_unlocked">Desbloqueados primero</string>
+    <string name="ra_sort_locked">Bloqueados primero</string>
+    <string name="ra_game_hash_info_fmt">ID: %1$s | Hash: %2$s</string>
+    <string name="ra_status_mastered">Dominado</string>
+    <string name="ra_status_completed">Completado</string>
+    <string name="ra_points_gain_fmt">+%1$d PTS</string>
+    <string name="ra_points_dot_fmt">- %1$d</string>
+    <string name="ra_completion_pct_fmt">(%1$d%%)</string>
+    <string name="leaderboard_rank_fmt">#%1$d</string>
+    <string name="refresh">Actualizar</string>
+    <string name="netplay_3ds_tab_host">Crear</string>
+    <string name="netplay_3ds_tab_room">Sala</string>
+    <string name="netplay_3ds_connected_badge">EN LÍNEA</string>
+    <string name="netplay_3ds_password_hint">Contraseña</string>
+    <string name="netplay_3ds_optional_hint">Opcional</string>
+    <string name="netplay_3ds_host_form_title">Crear sala multijugador</string>
+    <string name="netplay_3ds_room_name_label">Nombre de sala (3-20 caracteres)</string>
+    <string name="netplay_3ds_nickname_label">Apodo del jugador</string>
+    <string name="netplay_3ds_port_label">Puerto</string>
+    <string name="netplay_3ds_max_players_label">Máximo de jugadores</string>
+    <string name="netplay_3ds_not_in_room">Aún no estás en ninguna sala. Únete o crea una primero.</string>
+    <string name="netplay_3ds_mod_role">Moderador - %1$d jugadores</string>
+    <string name="netplay_3ds_member_role">Miembro - %1$d jugadores</string>
+    <string name="netplay_3ds_leave_room_btn">Salir</string>
+    <string name="netplay_3ds_members_title">Miembros de la sala</string>
+    <string name="netplay_3ds_kick_btn">Expulsar</string>
+    <string name="netplay_3ds_ban_btn">Bloquear</string>
+    <string name="netplay_3ds_ban_list_title">Usuarios bloqueados</string>
+    <string name="netplay_3ds_unban_btn">Desbloquear</string>
+    <string name="netplay_3ds_chat_hint">Escribe un mensaje...</string>
+    <string name="netplay_3ds_send_btn">Enviar</string>
+    <string name="netplay_3ds_custom_lobby_label">URL personalizada del servidor de sala</string>
+    <string name="netplay_3ds_custom_lobby_saved">URL del servidor guardada</string>
+    <string name="netplay_3ds_streetpass_title">Conexión local y StreetPass (CECD)</string>
+    <string name="netplay_3ds_streetpass_stats_fmt">Buzones CECD activos: %1$d</string>
+    <string name="setup_3ds_artic_saved_fmt">Guardado %1$s en la carpeta de usuario</string>
+    </resources>

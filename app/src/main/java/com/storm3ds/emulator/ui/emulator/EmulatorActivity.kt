@@ -206,8 +206,8 @@ class EmulatorActivity : AppCompatActivity() {
         private const val OVERLAY_FOCUS_ATTEMPTS = 12
         private const val OVERLAY_FOCUS_RETRY_MS = 32L
         private const val SHADER_DIAGNOSTICS_POLL_MS = 1500L
-        private const val DS_SCREEN_WIDTH = 256
-        private const val DS_FRAME_ATLAS_HEIGHT = 386
+        private const val DS_SCREEN_WIDTH = 400
+        private const val DS_FRAME_ATLAS_HEIGHT = 480
         private const val SHADER_PREWARM_LAYOUT_TIMEOUT_MS = 2000L
         private const val SHADER_PREWARM_LAYOUT_POLL_MS = 50L
         private const val SHADER_PREWARM_MESSAGE_SETTLE_MS = 150L
@@ -402,6 +402,8 @@ class EmulatorActivity : AppCompatActivity() {
     private val sessionStartElapsedRealtime = android.os.SystemClock.elapsedRealtime()
     private var baseInternalResolutionScale = 1
     private var liveDrsScale = 1
+    private var thermalScaleCap: Int? = null
+    private var thermalStatusListener: Any? = null
     private var drsLowFpsCounter = 0
     private var drsStableFpsCounter = 0
     private val drsScaleSteps = intArrayOf(16, 12, 8, 7, 6, 5, 4, 3, 2, 1)
@@ -1390,6 +1392,22 @@ class EmulatorActivity : AppCompatActivity() {
                                 openQuickSlotCarousel()
                             },
                             onOptionSelected = { option ->
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.QUICK_SAVE) {
+                                    dismissPauseMenu()
+                                    viewModel.doQuickSave(viewModel.getActiveQuickSlot())
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.QUICK_LOAD) {
+                                    dismissPauseMenu()
+                                    raHardcoreConfirmOpenedFromPauseMenu = true
+                                    requestLoadStateWithHardcoreCheck(targetSlotNumber = viewModel.getActiveQuickSlot())
+                                    return@PauseMenuOverlay
+                                }
+                                if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.QUICK_SLOT_CAROUSEL) {
+                                    dismissPauseMenu()
+                                    openQuickSlotCarousel()
+                                    return@PauseMenuOverlay
+                                }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.CYCLE_LAYOUT) {
                                     dismissPauseMenu()
                                     cycleNextLayout()
@@ -2503,6 +2521,44 @@ class EmulatorActivity : AppCompatActivity() {
         getSystemService<DisplayManager>()?.registerDisplayListener(displayListener, null)
         getSystemService<InputManager>()?.registerInputDeviceListener(connectedControllerManager, null)
         connectedControllerManager.startTrackingControllers()
+        registerThermalStatusListener()
+    }
+
+    private fun updateThermalScaleCap(status: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            thermalScaleCap = null
+            return
+        }
+        thermalScaleCap = when {
+            status >= android.os.PowerManager.THERMAL_STATUS_CRITICAL -> 1
+            status >= android.os.PowerManager.THERMAL_STATUS_SEVERE -> 2
+            else -> null
+        }
+    }
+
+    private fun registerThermalStatusListener() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val powerManager = getSystemService<android.os.PowerManager>() ?: return
+        runCatching {
+            updateThermalScaleCap(powerManager.currentThermalStatus)
+            if (thermalStatusListener == null) {
+                thermalStatusListener = android.os.PowerManager.OnThermalStatusChangedListener { status ->
+                    runOnUiThread {
+                        updateThermalScaleCap(status)
+                    }
+                }
+            }
+            val listener = thermalStatusListener as? android.os.PowerManager.OnThermalStatusChangedListener ?: return
+            powerManager.addThermalStatusListener(ContextCompat.getMainExecutor(this), listener)
+        }
+    }
+
+    private fun unregisterThermalStatusListener() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val listener = thermalStatusListener as? android.os.PowerManager.OnThermalStatusChangedListener ?: return
+        runCatching {
+            getSystemService<android.os.PowerManager>()?.removeThermalStatusListener(listener)
+        }
     }
 
     private fun updateDisplays() {
@@ -2974,11 +3030,9 @@ class EmulatorActivity : AppCompatActivity() {
         val drsEnabled = viewModel.isDrsEnabled()
         val renderer = currentRuntimeRendererConfiguration?.renderer ?: viewModel.getConfiguredVideoRenderer()
         val supportsScaling = renderer != VideoRenderer.SOFTWARE
-        val effectiveMaxScale = if (isLowBatteryPowerSaverActive) {
-            minOf(baseInternalResolutionScale, 2).coerceAtLeast(1)
-        } else {
-            baseInternalResolutionScale
-        }
+        val batteryCap = if (isLowBatteryPowerSaverActive) 2 else baseInternalResolutionScale
+        val thermalCap = thermalScaleCap ?: baseInternalResolutionScale
+        val effectiveMaxScale = minOf(baseInternalResolutionScale, batteryCap, thermalCap).coerceAtLeast(1)
 
         if (drsEnabled && supportsScaling && fps != null && fps > 0) {
             if (liveDrsScale > effectiveMaxScale) {
@@ -4174,6 +4228,20 @@ class EmulatorActivity : AppCompatActivity() {
     }
 
     private fun showPauseMenu(pauseMenu: PauseMenu) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            binding.surfaceMain.holder.surface.isValid &&
+            binding.surfaceMain.width > 0 &&
+            binding.surfaceMain.height > 0
+        ) {
+            val bmp = Bitmap.createBitmap(400, 240, Bitmap.Config.ARGB_8888)
+            runCatching {
+                android.view.PixelCopy.request(binding.surfaceMain, bmp, { res ->
+                    if (res == android.view.PixelCopy.SUCCESS) {
+                        lastPausedSurfaceBitmap = bmp
+                    }
+                }, pixelCopyHandler)
+            }
+        }
         showNetplayDialog.value = false
         lastPauseMenu = pauseMenu
         requestOverlayHostFocus()
@@ -4493,11 +4561,18 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         hasValidRetroArchShaderRoot: Boolean,
         selectedPresetPath: String?,
     ) {
-        showRomRetroArchTextDialog(
-            titleRes = R.string.video_retroarch_shader_preset_title,
-            hasValidRetroArchShaderRoot = hasValidRetroArchShaderRoot,
-            initialText = selectedPresetPath,
-            onConfirm = viewModel::onRunningRomRetroArchPresetPathSelected,
+        if (!hasValidRetroArchShaderRoot) {
+            Toast.makeText(this, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
+            return
+        }
+        com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.showPresetPickerDialog(
+            context = this,
+            currentSelection = selectedPresetPath,
+            allowUseGlobal = true,
+            onSelected = { selected ->
+                viewModel.onRunningRomRetroArchPresetPathSelected(selected?.ifBlank { null })
+                handler.post { refreshRomSettingsMenuIfOpen() }
+            },
         )
     }
 
@@ -4505,40 +4580,36 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         hasValidRetroArchShaderRoot: Boolean,
         selectedParameters: String?,
     ) {
-        showRomRetroArchTextDialog(
-            titleRes = R.string.video_retroarch_shader_parameters_title,
-            hasValidRetroArchShaderRoot = hasValidRetroArchShaderRoot,
-            initialText = selectedParameters,
-            onConfirm = viewModel::onRunningRomRetroArchParametersSelected,
-        )
-    }
-
-    private fun showRomRetroArchTextDialog(
-        titleRes: Int,
-        hasValidRetroArchShaderRoot: Boolean,
-        initialText: String?,
-        onConfirm: (String?) -> Unit,
-    ) {
         if (!hasValidRetroArchShaderRoot) {
             Toast.makeText(this, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
             return
         }
-
-        val input = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-            setSingleLine(false)
-            setText(initialText.orEmpty())
-            setSelection(text.length)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(titleRes)
-            .setView(input)
-            .setPositiveButton(R.string.ok) { _, _ ->
-                onConfirm(input.text.toString().ifBlank { null })
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        val activePresetPath = currentRuntimeRendererConfiguration?.retroArchShader?.presetPath
+            ?: androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                .getString("video_retroarch_shader_preset", null)
+        com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.showShaderParametersDialog(
+            context = this,
+            rawPresetPath = activePresetPath,
+            currentParamsText = selectedParameters,
+            onLiveChanged = { liveParams ->
+                if (!activePresetPath.isNullOrBlank()) {
+                    val resolved = com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.resolvePresetFilePath(this, activePresetPath)
+                        ?: activePresetPath
+                    runCatching {
+                        com.storm3ds.emulator.nativebridge.NativeLibrary.configureLibrashader(
+                            true,
+                            resolved,
+                            liveParams,
+                            false,
+                        )
+                    }
+                }
+            },
+            onSaved = { savedParams ->
+                viewModel.onRunningRomRetroArchParametersSelected(savedParams.ifBlank { null })
+                handler.post { refreshRomSettingsMenuIfOpen() }
+            },
+        )
     }
 
     private fun showRomMicSourceDialog(selectedMicSource: RuntimeMicSource) {
@@ -6469,29 +6540,40 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         }
     }
 
+    @Volatile
+    private var lastPausedSurfaceBitmap: Bitmap? = null
+    private val pixelCopyThread by lazy {
+        android.os.HandlerThread("Storm3dsPixelCopy").apply { start() }
+    }
+    private val pixelCopyHandler by lazy {
+        android.os.Handler(pixelCopyThread.looper)
+    }
+
     private fun captureCurrentSurfaceBitmapSync(maxW: Int? = null, maxH: Int? = null): Bitmap? {
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            return null
+            return lastPausedSurfaceBitmap
         }
         val surfaceView = binding.surfaceMain
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !surfaceView.holder.surface.isValid || surfaceView.width <= 0 || surfaceView.height <= 0) {
-            return null
+            return lastPausedSurfaceBitmap
         }
         val targetW = if (maxW != null && surfaceView.width > maxW) maxW else surfaceView.width
         val targetH = if (maxH != null && surfaceView.height > maxH) maxH else surfaceView.height
         val bmp = Bitmap.createBitmap(targetW.coerceAtLeast(1), targetH.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val latch = java.util.concurrent.CountDownLatch(1)
         var ok = false
-        runOnUiThread {
-            runCatching {
-                android.view.PixelCopy.request(surfaceView, bmp, { result ->
-                    ok = (result == android.view.PixelCopy.SUCCESS)
-                    latch.countDown()
-                }, handler)
-            }.onFailure { latch.countDown() }
-        }
+        runCatching {
+            android.view.PixelCopy.request(surfaceView, bmp, { result ->
+                ok = (result == android.view.PixelCopy.SUCCESS)
+                latch.countDown()
+            }, pixelCopyHandler)
+        }.onFailure { latch.countDown() }
         runCatching { latch.await(450L, java.util.concurrent.TimeUnit.MILLISECONDS) }
-        return if (ok) bmp else null
+        if (ok) {
+            lastPausedSurfaceBitmap = bmp
+            return bmp
+        }
+        return lastPausedSurfaceBitmap
     }
 
     private fun takeCleanScreenshot(resumeAfterCapture: Boolean = false) {
@@ -6871,6 +6953,7 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
         getSystemService<DisplayManager>()?.unregisterDisplayListener(displayListener)
         getSystemService<InputManager>()?.unregisterInputDeviceListener(connectedControllerManager)
         connectedControllerManager.stopTrackingControllers()
+        unregisterThermalStatusListener()
         if (!isFrameRenderCoordinatorStopped) {
             frameRenderCoordinator.removeSurface(binding.surfaceMain)
         }

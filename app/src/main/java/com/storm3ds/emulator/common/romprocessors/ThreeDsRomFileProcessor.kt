@@ -11,14 +11,66 @@ import com.storm3ds.emulator.domain.model.rom.Rom
 import com.storm3ds.emulator.domain.model.rom.config.RomConfig
 import com.storm3ds.emulator.nativebridge.NativeLibrary
 import com.storm3ds.emulator.nativebridge.model.GameInfo
+import java.io.File
+import java.security.MessageDigest
 
 class ThreeDsRomFileProcessor(
     private val context: Context,
     private val uriHandler: UriHandler,
 ) : RomFileProcessor {
 
+    companion object {
+        private const val HASH_SAMPLE_BYTES = 16 * 1024
+
+        fun compute3dsHashFromBytes(
+            headerBytes: ByteArray?,
+            titleId: Long,
+            fileSize: Long,
+            fileName: String,
+        ): String {
+            val digest = MessageDigest.getInstance("MD5")
+            if (headerBytes != null && headerBytes.isNotEmpty()) {
+                digest.update(headerBytes, 0, minOf(headerBytes.size, HASH_SAMPLE_BYTES))
+                if (titleId != 0L) {
+                    digest.update(String.format(":%016X", titleId).toByteArray(Charsets.UTF_8))
+                }
+            } else {
+                val canonical = String.format("3DS:%016X:%d:%s", titleId, fileSize, fileName.lowercase())
+                digest.update(canonical.toByteArray(Charsets.UTF_8))
+            }
+            return digest.digest().joinToString("") { "%02x".format(it) }
+        }
+    }
+
     private fun resolvePath(uri: Uri): String {
         return NativeLibrary.resolveNativeOrContentPath(uri)
+    }
+
+    private fun compute3dsRetroAchievementsHash(
+        romUri: Uri,
+        resolvedPath: String,
+        titleId: Long,
+        fileName: String,
+    ): String {
+        var fileSize = 0L
+        val sampleBytes = runCatching {
+            val f = if (resolvedPath.isNotBlank() && !resolvedPath.startsWith("content://")) File(resolvedPath) else null
+            if (f != null && f.isFile) {
+                fileSize = f.length()
+                f.inputStream().use { input ->
+                    val buf = ByteArray(HASH_SAMPLE_BYTES)
+                    val read = input.read(buf)
+                    if (read > 0) buf.copyOf(read) else null
+                }
+            } else {
+                context.contentResolver.openInputStream(romUri)?.use { input ->
+                    val buf = ByteArray(HASH_SAMPLE_BYTES)
+                    val read = input.read(buf)
+                    if (read > 0) buf.copyOf(read) else null
+                }
+            }
+        }.getOrNull()
+        return compute3dsHashFromBytes(sampleBytes, titleId, fileSize, fileName)
     }
 
     override fun getRomFromUri(romUri: Uri, parentUri: Uri?): Rom? {
@@ -36,6 +88,7 @@ class ThreeDsRomFileProcessor(
             val company = if (valid) runCatching { info!!.getCompany() }.getOrDefault("") else ""
             val titleId = if (valid) runCatching { info!!.getTitleID() }.getOrDefault(0L) else 0L
             val gameCode = if (titleId != 0L) String.format("%016X", titleId) else ""
+            val raHash = if (isArtic) "" else compute3dsRetroAchievementsHash(romUri, path, titleId, fallbackFileName)
             Rom(
                 name = title,
                 developerName = company,
@@ -46,7 +99,7 @@ class ThreeDsRomFileProcessor(
                 lastPlayed = null,
                 isDsiWareTitle = false,
                 isDsiEnhanced = false,
-                retroAchievementsHash = "",
+                retroAchievementsHash = raHash,
                 gameCode = gameCode,
                 installedDsiWareTitleId = null,
             )
@@ -90,15 +143,24 @@ class ThreeDsRomFileProcessor(
     fun getRomMetadata(romUri: Uri): RomMetadata? {
         return runCatching {
             NativeCoreLoader.load()
-            val info = GameInfo(resolvePath(romUri))
+            val resolvedPath = resolvePath(romUri)
+            val info = GameInfo(resolvedPath)
             if (!info.isValid()) return@runCatching null
             val tid = info.getTitleID()
+            val fallbackName = uriHandler.getUriDocument(romUri)?.name
+                ?: romUri.lastPathSegment?.substringAfterLast('/')
+                ?: "game.3ds"
+            val raHash = if (fallbackName.endsWith(".artic", ignoreCase = true)) {
+                ""
+            } else {
+                compute3dsRetroAchievementsHash(romUri, resolvedPath, tid, fallbackName)
+            }
             RomMetadata(
                 romTitle = info.getTitle(),
                 developerName = info.getCompany(),
                 isDSiWareTitle = false,
                 isDSiEnhanced = false,
-                retroAchievementsHash = "",
+                retroAchievementsHash = raHash,
                 gameCode = String.format("%016X", tid),
                 titleId = tid,
             )

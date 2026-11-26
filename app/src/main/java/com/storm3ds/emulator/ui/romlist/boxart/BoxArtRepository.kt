@@ -38,8 +38,8 @@ class BoxArtRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "BoxArtRepository"
-        private const val BASE_URL_DS = "https://thumbnails.libretro.com/Nintendo%20-%20Nintendo%203DS/Named_Boxarts/"
-        private const val BASE_URL_DSI = "https://thumbnails.libretro.com/Nintendo%20-%20New%20Nintendo%203DS/Named_Boxarts/"
+        private const val BASE_URL_3DS = "https://thumbnails.libretro.com/Nintendo%20-%20Nintendo%203DS/Named_Boxarts/"
+        private const val BASE_URL_NEW_3DS = "https://thumbnails.libretro.com/Nintendo%20-%20New%20Nintendo%203DS/Named_Boxarts/"
         private const val INDEX_MAX_AGE_MS = 30L * 24 * 60 * 60 * 1000
         private const val NO_MATCH = "-"
         private const val INDEX_RETRY_BACKOFF_MS = 10L * 60 * 1000
@@ -395,9 +395,9 @@ class BoxArtRepository @Inject constructor(
                 val (prefix, encoded) = if (separatorIndex != -1) {
                     line.substring(0, separatorIndex) to line.substring(separatorIndex + 1)
                 } else {
-                    "DS" to line
+                    "3DS" to line
                 }
-                val baseUrl = if (prefix == "DSI") BASE_URL_DSI else BASE_URL_DS
+                val baseUrl = if (prefix == "NEW_3DS" || prefix == "DSI") BASE_URL_NEW_3DS else BASE_URL_3DS
                 val decoded = runCatching { URLDecoder.decode(encoded, "UTF-8") }.getOrDefault(encoded)
                 val cleanName = decoded.removeSuffix(".png").substringBefore(" (")
                 val normalized = normalize(cleanName)
@@ -418,10 +418,10 @@ class BoxArtRepository @Inject constructor(
 
     private fun downloadIndex(): String? {
         return runCatching {
-            val dsLines = downloadRepoIndex(BASE_URL_DS, "DS")
-            val dsiLines = downloadRepoIndex(BASE_URL_DSI, "DSI")
-            if (dsLines.size < 500 && dsiLines.size < 5) return null
-            (dsLines + dsiLines).joinToString("\n").takeIf { it.isNotBlank() }
+            val ctrLines = downloadRepoIndex(BASE_URL_3DS, "3DS")
+            val ktrLines = downloadRepoIndex(BASE_URL_NEW_3DS, "NEW_3DS")
+            if (ctrLines.size < 500 && ktrLines.size < 5) return null
+            (ctrLines + ktrLines).joinToString("\n").takeIf { it.isNotBlank() }
         }.getOrNull()
     }
 

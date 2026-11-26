@@ -208,8 +208,8 @@ class FileSystemSaveStatesRepository(
         val tidHex = rom.gameCode.trim().uppercase().takeIf { it.length == 16 && it.all { ch -> ch in '0'..'9' || ch in 'A'..'F' } }
             ?: String.format(java.util.Locale.US, "%016X", com.storm3ds.emulator.MelonEmulator.getCurrentTitleId())
         if (tidHex == "0000000000000000") return null
-        val statesDir = java.io.File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "states")
-        return java.io.File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, nativeSlot))
+        val quicksavesDir = java.io.File(com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(), "quicksaves")
+        return java.io.File(quicksavesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, nativeSlot))
     }
 
     private fun deleteNativeCstForSlot(rom: Rom, slotNumber: Int) {

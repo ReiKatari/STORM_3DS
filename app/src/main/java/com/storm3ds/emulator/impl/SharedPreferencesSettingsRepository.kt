@@ -730,6 +730,26 @@ class SharedPreferencesSettingsRepository(
         }
     }
 
+    override fun isLibretroCoversEnabled(): Boolean {
+        return preferences.getBoolean("rom_libretro_covers_enabled", false)
+    }
+
+    override fun observeLibretroCoversEnabled(): Flow<Boolean> {
+        return getOrCreatePreferenceSharedFlow("rom_libretro_covers_enabled") {
+            isLibretroCoversEnabled()
+        }
+    }
+
+    override fun isRaBadgesEnabled(): Boolean {
+        return preferences.getBoolean("rom_ra_badges_enabled", false)
+    }
+
+    override fun observeRaBadgesEnabled(): Flow<Boolean> {
+        return getOrCreatePreferenceSharedFlow("rom_ra_badges_enabled") {
+            isRaBadgesEnabled()
+        }
+    }
+
 
     override fun getDefaultConsoleType(): ConsoleType {
         return getEnumPreference("console_type", ConsoleType.DS)
@@ -944,10 +964,14 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getCurrentVideoRenderer(): VideoRenderer {
-        val defaultRen = if (isVulkanRendererSupported()) "vulkan" else "opengl"
+        val profile = com.storm3ds.emulator.common.device.DevicePerformanceProfiler.profile(
+            context,
+            isVulkanRendererSupported(),
+        )
+        val defaultRen = if (profile.recommendedRenderer == VideoRenderer.VULKAN) "vulkan" else "opengl"
         val videoRendererPreference = preferences.getString("video_renderer", defaultRen)!!
         val requested = runCatching { VideoRenderer.valueOf(videoRendererPreference.uppercase()) }
-            .getOrDefault(VideoRenderer.VULKAN)
+            .getOrDefault(profile.recommendedRenderer)
         return sanitizeVideoRenderer(
             renderer = requested,
             fallback = resolveSupportedFallbackVideoRenderer(),
@@ -1409,10 +1433,22 @@ class SharedPreferencesSettingsRepository(
         }
     }
 
+    private fun isDirectoryWritable(dir: File): Boolean {
+        return runCatching {
+            if (!dir.exists() && !dir.mkdirs()) return@runCatching false
+            if (!dir.isDirectory) return@runCatching false
+            val probe = File(dir, ".write_probe_${java.util.UUID.randomUUID()}")
+            val created = probe.createNewFile()
+            if (created) probe.delete()
+            created
+        }.getOrDefault(false)
+    }
+
     private fun getRetroArchShaderCurrentDir(): File {
         val extRoot = runCatching { android.os.Environment.getExternalStorageDirectory() }.getOrNull()
-        return if (extRoot != null) {
-            File(extRoot, "STORM 3DS/shaders/retroarch-shaders/current")
+        val extDir = extRoot?.let { File(it, "STORM 3DS/shaders/retroarch-shaders/current") }
+        return if (extDir != null && isDirectoryWritable(extDir)) {
+            extDir
         } else {
             File(context.filesDir, "retroarch-shaders/current")
         }
@@ -1475,7 +1511,8 @@ class SharedPreferencesSettingsRepository(
         }
 
         val rootCacheKey = rootUri.toString()
-        val importCacheKey = "$rootCacheKey\n$relativePath"
+        val presetDoc = findDocumentFile(rootDocument, relativePath)
+        val importCacheKey = "$rootCacheKey\n$relativePath\n${presetDoc?.lastModified() ?: 0L}\n${presetDoc?.length() ?: 0L}"
         if (cachedRetroArchShaderRoot != rootCacheKey ||
             cachedRetroArchShaderImportKey != importCacheKey ||
             !importRoot.isDirectory
@@ -1676,8 +1713,12 @@ class SharedPreferencesSettingsRepository(
 
             when (target.extension.lowercase()) {
                 "slangp" -> {
+                    val presetText = target.readText()
                     val presetReferences = parseRetroArchPresetReferences(target)
                     (presetReferences.shaders + presetReferences.textures).forEach { reference ->
+                        pending.add(resolveRetroArchRelativePath(relativePath, reference))
+                    }
+                    RetroArchShaderPreset.referencePaths(presetText).forEach { reference ->
                         pending.add(resolveRetroArchRelativePath(relativePath, reference))
                     }
                 }
@@ -2138,6 +2179,16 @@ class SharedPreferencesSettingsRepository(
 
     override fun isRetroAchievementsEncoreModeEnabled(): Boolean {
         return preferences.getBoolean("ra_encore_enabled", false)
+    }
+
+    override fun isRaSpectatorModeEnabled(): Boolean {
+        return preferences.getBoolean("ra_spectator_mode", false)
+    }
+
+    override fun observeRaSpectatorModeEnabled(): Flow<Boolean> {
+        return getOrCreatePreferenceSharedFlow("ra_spectator_mode") {
+            isRaSpectatorModeEnabled()
+        }
     }
 
     override fun areRetroAchievementsActiveChallengeIndicatorsEnabled(): Boolean {

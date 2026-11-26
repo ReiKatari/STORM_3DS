@@ -8,6 +8,8 @@ enum class RomPauseMenuOption(override val textResource: Int) : PauseMenuOption 
     ROM_SETTINGS(R.string.rom_settings),
     SAVE_STATE(R.string.save_state),
     LOAD_STATE(R.string.load_state),
+    QUICK_SAVE(R.string.quick_save),
+    QUICK_LOAD(R.string.quick_load),
     QUICK_SLOT_CAROUSEL(R.string.quick_slot_carousel_title),
     LOAD_PERIODIC_AUTOSAVE(R.string.load_periodic_auto_save),
     TAKE_SCREENSHOT(R.string.take_clean_screenshot),

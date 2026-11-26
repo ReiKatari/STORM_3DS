@@ -2,7 +2,9 @@
 // Licensed under GPLv3 or any later version
 #include <algorithm>
 #include <cstring>
+#include <locale>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <jni.h>
@@ -28,6 +30,7 @@
 #include "jni/emu_window/emu_window.h"
 #include "video_core/gpu.h"
 #include "video_core/renderer_base.h"
+#include "video_core/storm_librashader.h"
 #if defined(STORM_ENABLE_ADRENOTOOLS) && CITRA_ARCH(arm64)
 #include <adrenotools/driver.h>
 #endif
@@ -79,8 +82,87 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_set
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setLibrashaderPreset(
     JNIEnv* env, jobject, jboolean enabled, jstring j_preset_path) {
-    Settings::values.librashader_enabled.SetValue(enabled == JNI_TRUE);
-    Settings::values.librashader_preset_path.SetValue(GetJString(env, j_preset_path));
+    const bool enable_val = (enabled == JNI_TRUE);
+    const std::string preset_path = GetJString(env, j_preset_path);
+    const bool changed = (Settings::values.librashader_enabled.GetValue() != enable_val) ||
+                         (Settings::values.librashader_preset_path.GetValue() != preset_path);
+    Settings::values.librashader_enabled.SetValue(enable_val);
+    Settings::values.librashader_preset_path.SetValue(preset_path);
+    Config::AddDefaultSettingValue("librashader_enabled", enable_val ? "1" : "0");
+    Config::AddDefaultSettingValue("librashader_preset_path", preset_path);
+    if (changed) {
+        VideoCore::StormLibrashader::RequestReload();
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_configureLibrashader(
+    JNIEnv* env, jobject, jboolean enabled, jstring j_preset_path, jstring j_parameters,
+    jboolean clear_history) {
+    const bool enable_val = (enabled == JNI_TRUE);
+    const std::string preset_path = GetJString(env, j_preset_path);
+    const std::string parameters = GetJString(env, j_parameters);
+    const bool changed = (Settings::values.librashader_enabled.GetValue() != enable_val) ||
+                         (Settings::values.librashader_preset_path.GetValue() != preset_path);
+    Settings::values.librashader_enabled.SetValue(enable_val);
+    Settings::values.librashader_preset_path.SetValue(preset_path);
+    Settings::values.librashader_parameters.SetValue(parameters);
+    Config::AddDefaultSettingValue("librashader_enabled", enable_val ? "1" : "0");
+    Config::AddDefaultSettingValue("librashader_preset_path", preset_path);
+    Config::AddDefaultSettingValue("librashader_parameters", parameters);
+    if (clear_history == JNI_TRUE) {
+        VideoCore::StormLibrashader::RequestClearHistory();
+    }
+    if (changed) {
+        VideoCore::StormLibrashader::RequestReload();
+    }
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_storm3ds_emulator_nativebridge_NativeLibrary_queryLibrashaderParams(JNIEnv* env, jobject,
+                                                                             jstring j_preset_path) {
+    const std::string preset_path = GetJString(env, j_preset_path);
+    const auto params = VideoCore::StormLibrashader::QueryPresetParameters(preset_path);
+    jclass str_class = env->FindClass("java/lang/String");
+    jobjectArray out = env->NewObjectArray(static_cast<jsize>(params.size()), str_class, nullptr);
+    if (!out) {
+        return nullptr;
+    }
+    for (std::size_t i = 0; i < params.size(); ++i) {
+        std::string desc = params[i].description;
+        std::replace(desc.begin(), desc.end(), '\t', ' ');
+        std::replace(desc.begin(), desc.end(), '\r', ' ');
+        std::replace(desc.begin(), desc.end(), '\n', ' ');
+        std::ostringstream oss;
+        oss.imbue(std::locale::classic());
+        oss << params[i].name << '\t' << desc << '\t' << params[i].initial << '\t'
+            << params[i].minimum << '\t' << params[i].maximum << '\t' << params[i].step;
+        jstring jstr = env->NewStringUTF(oss.str().c_str());
+        env->SetObjectArrayElement(out, static_cast<jsize>(i), jstr);
+        env->DeleteLocalRef(jstr);
+    }
+    return out;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_com_storm3ds_emulator_nativebridge_NativeLibrary_consumeLibrashaderDiagnostics(JNIEnv* env,
+                                                                                    jobject) {
+    const auto records = VideoCore::StormLibrashader::ConsumeDiagnostics();
+    jclass str_class = env->FindClass("java/lang/String");
+    jobjectArray out = env->NewObjectArray(static_cast<jsize>(records.size()), str_class, nullptr);
+    if (!out) {
+        return nullptr;
+    }
+    for (std::size_t i = 0; i < records.size(); ++i) {
+        jstring jstr = env->NewStringUTF(records[i].c_str());
+        env->SetObjectArrayElement(out, static_cast<jsize>(i), jstr);
+        env->DeleteLocalRef(jstr);
+    }
+    return out;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_storm3ds_emulator_nativebridge_NativeLibrary_isLibrashaderAvailable(JNIEnv*, jobject) {
+    return VideoCore::StormLibrashader::IsLibraryAvailable() ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_setSpeedhacks(

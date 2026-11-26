@@ -50,7 +50,6 @@
 
         <Preference
                 android:key="settings_home_retroachievements"
-                app:isPreferenceVisible="false"
                 android:title="@string/retroachievements"
                 android:summary="@string/retroachievements_summary"
                 app:icon="@drawable/ic_trophy"

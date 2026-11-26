@@ -24,7 +24,14 @@ import com.storm3ds.emulator.ui.emulator.model.VulkanPresentationConfig
 import com.storm3ds.emulator.ui.emulator.rewind.model.RewindSaveState
 import com.storm3ds.emulator.ui.emulator.rewind.model.RewindWindow
 import java.io.File
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -88,6 +95,34 @@ object MelonEmulator {
     @Volatile private var fastForwardActive: Boolean = false
     @Volatile private var muteOnFastForward: Boolean = false
     @Volatile private var touchDown: Boolean = false
+
+    private const val LAN_DEFAULT_PORT = 24872
+    private const val LAN_DISCOVERY_PORT = 24873
+    private const val LAN_BEACON_PREFIX = "STORM3DS_LAN"
+    private const val LAN_PEER_TTL_MS = 8_000L
+
+    private data class LanDiscoveredPeer(
+        val roomName: String,
+        val endpoint: String,
+        val currentPlayers: Int,
+        val maxPlayers: Int,
+        val gameTitle: String,
+        val lastSeenMs: Long,
+    )
+
+    data class StreetPassBoxStats(
+        val enabled: Boolean,
+        val boxCount: Int,
+        val cecPath: String,
+    )
+
+    private val discoveredLanPeers = ConcurrentHashMap<String, LanDiscoveredPeer>()
+    @Volatile private var lanHostActive: Boolean = false
+    @Volatile private var lanDiscoveryActive: Boolean = false
+    @Volatile private var lanBeaconSocket: DatagramSocket? = null
+    @Volatile private var lanDiscoverySocket: DatagramSocket? = null
+    @Volatile private var lanBeaconThread: Thread? = null
+    @Volatile private var lanDiscoveryThread: Thread? = null
     @Volatile var captureFrameBitmapCallback: (() -> Bitmap?)? = null
     @Volatile private var latestScreenshotBitmap: Bitmap? = null
     @Volatile var isLongPreparationInProgress: Boolean = false
@@ -131,22 +166,17 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
 
         val jitMode = (prefs.getString("3ds_jit_mode", "3") ?: "3").toIntOrNull()?.coerceIn(0, 3) ?: 3
-        val adaptiveCacheMb = runCatching {
-            val am = NativeBridgeHost.appContext.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-            val mi = android.app.ActivityManager.MemoryInfo()
-            am?.getMemoryInfo(mi)
-            val totalMb = (mi.totalMem / (1024L * 1024L)).toInt()
-            when {
-                jitMode == 3 && totalMb >= 7000 -> 128
-                jitMode == 3 && totalMb >= 5000 -> 96
-                jitMode == 3 && totalMb in 1..3399 -> 48
-                jitMode == 3 -> 64
-                jitMode == 2 -> 48
-                totalMb in 1..3200 -> 48
-                totalMb in 3201..6400 -> 64
-                else -> 96
-            }
-        }.getOrDefault(if (jitMode == 3) 96 else 64)
+        val profile = com.storm3ds.emulator.common.device.DevicePerformanceProfiler.profile(
+            NativeBridgeHost.appContext,
+            com.storm3ds.emulator.MelonDSAndroidInterface.isVulkanRendererSupported(),
+        )
+        val adaptiveCacheMb = when {
+            jitMode == 3 -> profile.recommendedDynarmicCacheMb
+            jitMode == 2 -> (profile.recommendedDynarmicCacheMb / 2).coerceAtLeast(32)
+            profile.totalRamMb <= 3200 -> 48
+            profile.totalRamMb <= 6400 -> 64
+            else -> 96
+        }
         runCatching { NativeLibrary.setStormJitOptions(jitMode, adaptiveCacheMb) }
 
         val isNew3ds = cfg.isNew3dsOverride ?: prefs.getBoolean("3ds_is_new_3ds", true)
@@ -290,9 +320,15 @@ object MelonEmulator {
             }
         }
 
+        val customWebApi = prefs.getString("3ds_web_api_url", "").orEmpty().trim()
         val pretendoEnabled = prefs.getBoolean("3ds_pretendo_enabled", false)
-        NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
-        NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (pretendoEnabled) "1" else "0")
+        val effectiveWebApi = when {
+            customWebApi.isNotEmpty() -> customWebApi
+            pretendoEnabled -> "https://api.pretendo.cc"
+            else -> ""
+        }
+        NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), effectiveWebApi)
+        NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (effectiveWebApi.isNotEmpty()) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.async_fs_operations(), if (prefs.getBoolean("3ds_async_fs_operations", true)) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.deterministic_async_operations(), if (prefs.getBoolean("3ds_deterministic_async_operations", false)) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.lle_applets(), if (prefs.getBoolean("3ds_lle_applets", true)) "1" else "0")
@@ -312,11 +348,24 @@ object MelonEmulator {
         }
         NativeLibrary.addDefaultSetting(SettingKeys.use_artic_base_controller(), if (articController) "1" else "0")
 
-        val shaderPresetPath = if (cfg.rendererConfiguration.videoFiltering == com.storm3ds.emulator.domain.model.VideoFiltering.RETROARCH) {
+        val isRetroArch = cfg.rendererConfiguration.videoFiltering == com.storm3ds.emulator.domain.model.VideoFiltering.RETROARCH
+        val shaderPresetPath = if (isRetroArch) {
             cfg.rendererConfiguration.retroArchShader.presetPath.orEmpty()
         } else ""
-        NativeLibrary.addDefaultSetting(SettingKeys.librashader_enabled(), if (shaderPresetPath.isNotBlank()) "1" else "0")
+        val shaderParamsText = if (isRetroArch) {
+            cfg.rendererConfiguration.retroArchShader.parameterOverrides
+                .entries
+                .joinToString("\n") { "${it.key}=${it.value}" }
+        } else ""
+        val shaderEnabled = isRetroArch && shaderPresetPath.isNotBlank()
+        NativeLibrary.addDefaultSetting(SettingKeys.librashader_enabled(), if (shaderEnabled) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.librashader_preset_path(), shaderPresetPath)
+        NativeLibrary.configureLibrashader(
+            shaderEnabled,
+            shaderPresetPath,
+            shaderParamsText,
+            isRetroArch && cfg.rendererConfiguration.retroArchShader.clearHistory,
+        )
 
         runCatching {
             NativeLibrary.setSpeedhacks(fmvHack, skipSlowDraw, skipTexCopy, accurateMul, audioStretch, false)
@@ -664,6 +713,41 @@ object MelonEmulator {
         }, interval, interval, TimeUnit.SECONDS)
     }
 
+    data class RetroArchShaderParam(
+        val name: String,
+        val description: String,
+        val initial: Float,
+        val minimum: Float,
+        val maximum: Float,
+        val step: Float,
+    )
+
+    fun queryRetroArchShaderParameters(presetPath: String): List<RetroArchShaderParam> {
+        if (presetPath.isBlank()) return emptyList()
+        return runCatching {
+            com.storm3ds.emulator.NativeCoreLoader.load()
+            val rawRows = NativeLibrary.queryLibrashaderParams(presetPath) ?: return emptyList()
+            rawRows.mapNotNull { row ->
+                val parts = row.split('\t')
+                if (parts.size < 6) return@mapNotNull null
+                val name = parts[0].trim()
+                if (name.isEmpty()) return@mapNotNull null
+                val initial = parts[2].toFloatOrNull() ?: 0f
+                val minimum = parts[3].toFloatOrNull() ?: 0f
+                val maximum = (parts[4].toFloatOrNull() ?: 1f).coerceAtLeast(minimum)
+                val step = (parts[5].toFloatOrNull() ?: 0.01f).let { if (it > 0f) it else 0.01f }
+                RetroArchShaderParam(
+                    name = name,
+                    description = parts[1].ifBlank { name },
+                    initial = initial,
+                    minimum = minimum,
+                    maximum = maximum,
+                    step = step,
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
     fun precompileVulkanPipelines(
         videoFilteringOrdinal: Int,
         retroShaderPresetPath: String?,
@@ -672,7 +756,11 @@ object MelonEmulator {
         retroShaderParameterOverrides: Map<String, Float>,
     ): Boolean {
         val enabled = !retroShaderPresetPath.isNullOrBlank()
-        NativeLibrary.setLibrashaderPreset(enabled, retroShaderPresetPath.orEmpty())
+        val paramsText = retroShaderParameterOverrides.entries.joinToString("\n") { "${it.key}=${it.value}" }
+        runCatching {
+            com.storm3ds.emulator.NativeCoreLoader.load()
+            NativeLibrary.configureLibrashader(enabled, retroShaderPresetPath.orEmpty(), paramsText, false)
+        }
         return true
     }
 
@@ -686,14 +774,24 @@ object MelonEmulator {
         maxLayoutHeight: Int,
         passCount: Int,
     ) {
-        NativeLibrary.setLibrashaderPreset(enabled && !presetPath.isNullOrBlank(), presetPath.orEmpty())
+        val active = enabled && !presetPath.isNullOrBlank()
+        runCatching {
+            com.storm3ds.emulator.NativeCoreLoader.load()
+            NativeLibrary.configureLibrashader(active, presetPath.orEmpty(), parameterOverrides.orEmpty(), clearHistory)
+        }
     }
 
     fun prewarmOpenGlRetroArchFilter(atlasWidth: Int, atlasHeight: Int): Boolean = true
     fun releaseOpenGlRetroArchFilter() {
-        NativeLibrary.setLibrashaderPreset(false, "")
+        runCatching {
+            NativeLibrary.configureLibrashader(false, "", "", true)
+        }
     }
-    fun consumeShaderDiagnostics(): Array<String>? = null
+    fun consumeShaderDiagnostics(): Array<String>? {
+        return runCatching {
+            NativeLibrary.consumeLibrashaderDiagnostics()?.takeIf { it.isNotEmpty() }
+        }.getOrNull()
+    }
     fun presentFrame(deadlineNs: Long, frameRenderCallback: FrameRenderCallback) {}
     fun attachVulkanSurface(surface: Surface, width: Int, height: Int): Int {
         NativeLibrary.surfaceChanged(surface)
@@ -781,13 +879,20 @@ object MelonEmulator {
         val tid = if (currentTitleId != 0L) currentTitleId else runCatching { NativeLibrary.getRunningTitleId() }.getOrDefault(0L)
         if (tid == 0L) return null
         val userDir = NativeBridgeHost.resolveUserDirectoryPath()
-        val statesDir = File(userDir, "states")
+        val quicksavesDir = File(userDir, "quicksaves")
         val tidHex = String.format(java.util.Locale.US, "%016X", tid)
-        val exact = File(statesDir, "%s.%02d.cst".format(java.util.Locale.US, tidHex, slot))
+        val suffix = ".%02d.cst".format(java.util.Locale.US, slot)
+        val exact = File(quicksavesDir, "$tidHex$suffix")
         if (exact.isFile) return exact
-        return statesDir.listFiles()?.firstOrNull {
-            it.isFile && it.name.startsWith(tidHex, ignoreCase = true) && it.name.endsWith(".%02d.cst".format(java.util.Locale.US, slot))
-        } ?: exact
+        quicksavesDir.listFiles()?.firstOrNull {
+            it.isFile && it.name.startsWith(tidHex, ignoreCase = true) && it.name.endsWith(suffix)
+        }?.let { return it }
+        // Fallback read from legacy states dir if not yet migrated
+        val legacyDir = File(userDir, "states")
+        legacyDir.listFiles()?.firstOrNull {
+            it.isFile && it.name.startsWith(tidHex, ignoreCase = true) && it.name.endsWith(suffix)
+        }?.let { return it }
+        return exact
     }
 
     private fun mirrorCstToSaf(slot: Int, safUri: Uri) {
@@ -1041,32 +1146,185 @@ object MelonEmulator {
         NativeLibrary.reloadSettings()
     }
 
-    fun startLanHost(playerName: String, maxPlayers: Int): Boolean {
+    internal fun normalizeLanRoomName(rawName: String, fallbackPlayer: String = "Player"): String {
+        val clean = rawName.replace("|", " ").replace("\r", " ").replace("\n", " ").trim()
+        val base = if (clean.isNotEmpty()) {
+            clean
+        } else {
+            val p = fallbackPlayer.replace("|", " ").trim().ifEmpty { "Player" }
+            "$p Room"
+        }
+        val padded = when {
+            base.length >= 3 -> base
+            base.length == 2 -> "${base}1"
+            base.length == 1 -> "${base}3D"
+            else -> "3DS"
+        }
+        return padded.take(20)
+    }
+
+    internal fun parseHostAndPort(rawHost: String, defaultPort: Int = LAN_DEFAULT_PORT): Pair<String, Int> {
+        val trimmed = rawHost.trim()
+        val lastColon = trimmed.lastIndexOf(':')
+        return if (lastColon > 0 && trimmed.indexOf(':') == lastColon) {
+            val host = trimmed.substring(0, lastColon).trim()
+            val port = trimmed.substring(lastColon + 1).toIntOrNull()?.coerceIn(1, 65535) ?: defaultPort
+            host to port
+        } else {
+            trimmed to defaultPort
+        }
+    }
+
+    internal fun buildLanBeaconPayload(
+        roomName: String,
+        hostIp: String,
+        port: Int,
+        currentPlayers: Int,
+        maxPlayers: Int,
+        gameTitle: String,
+    ): String {
+        val safeRoom = roomName.replace("|", " ").trim().ifEmpty { "3DS Room" }
+        val safeGame = gameTitle.replace("|", " ").trim().ifEmpty { "Nintendo 3DS" }
+        return "$LAN_BEACON_PREFIX|$safeRoom|$hostIp|$port|$currentPlayers|$maxPlayers|$safeGame"
+    }
+
+    internal fun parseLanBeaconPayload(payload: String, senderAddress: String?): String? {
+        val parts = payload.trim().split("|")
+        if (parts.size < 6 || parts[0] != LAN_BEACON_PREFIX) return null
+        val roomName = parts[1].trim().ifEmpty { "3DS Room" }
+        val advertisedIp = parts[2].trim()
+        val resolvedIp = senderAddress?.takeIf { it.isNotBlank() && it != "0.0.0.0" } ?: advertisedIp
+        if (resolvedIp.isBlank() || resolvedIp == "0.0.0.0") return null
+        val port = parts[3].trim().toIntOrNull()?.coerceIn(1, 65535) ?: LAN_DEFAULT_PORT
+        val currentPlayers = parts[4].trim().toIntOrNull()?.coerceAtLeast(1) ?: 1
+        val maxPlayers = parts[5].trim().toIntOrNull()?.coerceIn(2, 16) ?: 4
+        val gameTitle = parts.getOrNull(6)?.trim()?.ifEmpty { "Nintendo 3DS" } ?: "Nintendo 3DS"
+        return "$roomName|$resolvedIp:$port|$currentPlayers/$maxPlayers|$gameTitle"
+    }
+
+    private fun resolveLocalLanIpv4(): String {
+        return runCatching {
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return@runCatching "127.0.0.1"
+            for (intf in interfaces) {
+                if (!intf.isUp || intf.isLoopback) continue
+                for (addr in intf.inetAddresses) {
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        val ip = addr.hostAddress ?: continue
+                        if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
+                            return@runCatching ip
+                        }
+                    }
+                }
+            }
+            "127.0.0.1"
+        }.getOrDefault("127.0.0.1")
+    }
+
+    private fun collectBroadcastTargets(): List<InetAddress> {
+        val targets = linkedSetOf<InetAddress>()
+        runCatching { targets.add(InetAddress.getByName("255.255.255.255")) }
+        runCatching {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            if (interfaces != null) {
+                for (intf in interfaces) {
+                    if (!intf.isUp || intf.isLoopback) continue
+                    for (ifAddr in intf.interfaceAddresses) {
+                        ifAddr.broadcast?.let { targets.add(it) }
+                    }
+                }
+            }
+        }
+        return targets.toList()
+    }
+
+    @JvmOverloads
+    fun startLanHost(
+        playerName: String,
+        maxPlayers: Int,
+        roomName: String = "",
+        password: String = "",
+        port: Int = LAN_DEFAULT_PORT,
+    ): Boolean {
         NativeCoreLoader.load()
         NativeLibrary.initMultiplayer()
-        return NetPlayManager.netPlayCreateRoom(
+        stopLanBeaconOnly()
+        val safePlayer = playerName.trim().ifBlank { "Player" }
+        val safeRoomName = normalizeLanRoomName(roomName, safePlayer)
+        val safeGameName = File(currentRomPath).nameWithoutExtension.ifBlank { "Nintendo 3DS" }
+        val safeMaxPlayers = maxPlayers.coerceIn(2, 8)
+        val safePort = port.coerceIn(1024, 65535)
+        val created = NetPlayManager.netPlayCreateRoom(
             "0.0.0.0",
-            24872,
-            playerName.ifBlank { "Player" },
-            File(currentRomPath).nameWithoutExtension.ifBlank { "Nintendo 3DS" },
+            safePort,
+            safePlayer,
+            safeGameName,
             currentTitleId,
-            "",
-            "${playerName}'s Room",
-            maxPlayers.coerceIn(2, 8)
+            password,
+            safeRoomName,
+            safeMaxPlayers,
+        ) == 0
+        if (created) {
+            startLanBeaconThread(safeRoomName, safePort, safeMaxPlayers, safeGameName)
+        }
+        return created
+    }
+
+    private fun startLanBeaconThread(roomName: String, port: Int, maxPlayers: Int, gameTitle: String) {
+        lanHostActive = true
+        val t = thread(start = true, isDaemon = true, name = "Storm3dsLanBeacon") {
+            val sock = runCatching { DatagramSocket().apply { broadcast = true } }.getOrNull() ?: return@thread
+            lanBeaconSocket = sock
+            try {
+                while (lanHostActive) {
+                    val memberCount = runCatching {
+                        val info = NetPlayManager.netPlayRoomInfo()
+                        (info.size - 1).coerceAtLeast(1)
+                    }.getOrDefault(1)
+                    val localIp = resolveLocalLanIpv4()
+                    val payload = buildLanBeaconPayload(roomName, localIp, port, memberCount, maxPlayers, gameTitle)
+                        .toByteArray(Charsets.UTF_8)
+                    for (target in collectBroadcastTargets()) {
+                        runCatching {
+                            sock.send(DatagramPacket(payload, payload.size, target, LAN_DISCOVERY_PORT))
+                        }
+                    }
+                    Thread.sleep(1500L)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                runCatching { sock.close() }
+                if (lanBeaconSocket === sock) {
+                    lanBeaconSocket = null
+                }
+            }
+        }
+        lanBeaconThread = t
+    }
+
+    private fun stopLanBeaconOnly() {
+        lanHostActive = false
+        runCatching { lanBeaconSocket?.close() }
+        lanBeaconSocket = null
+        lanBeaconThread?.interrupt()
+        lanBeaconThread = null
+    }
+
+    @JvmOverloads
+    fun startLanClient(playerName: String, hostIp: String, password: String = ""): Boolean {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        val (parsedHost, parsedPort) = parseHostAndPort(hostIp, LAN_DEFAULT_PORT)
+        if (parsedHost.isBlank()) return false
+        return NetPlayManager.netPlayJoinRoom(
+            parsedHost,
+            parsedPort,
+            playerName.trim().ifBlank { "Player" },
+            password,
         ) == 0
     }
 
-    fun startLanClient(playerName: String, hostIp: String): Boolean {
-        NativeCoreLoader.load()
-        NativeLibrary.initMultiplayer()
-        val trimmed = hostIp.trim()
-        val lastColon = trimmed.lastIndexOf(':')
-        val parsedHost = if (lastColon > 0 && trimmed.indexOf(':') == lastColon) trimmed.substring(0, lastColon) else trimmed
-        val parsedPort = if (lastColon > 0 && trimmed.indexOf(':') == lastColon) trimmed.substring(lastColon + 1).toIntOrNull() ?: 24872 else 24872
-        return NetPlayManager.netPlayJoinRoom(parsedHost, parsedPort, playerName.ifBlank { "Player" }, "") == 0
-    }
-
     fun stopLanSession() {
+        stopLanBeaconOnly()
         NativeCoreLoader.load()
         NativeLibrary.initMultiplayer()
         runCatching { NetPlayManager.netPlayLeaveRoom() }
@@ -1075,17 +1333,169 @@ object MelonEmulator {
     fun startLanDiscovery(): Boolean {
         NativeCoreLoader.load()
         NativeLibrary.initMultiplayer()
+        if (lanDiscoveryActive && lanDiscoveryThread?.isAlive == true) {
+            return true
+        }
+        stopLanDiscovery()
+        lanDiscoveryActive = true
+        lanDiscoveryThread = thread(start = true, isDaemon = true, name = "Storm3dsLanDiscovery") {
+            val sock = runCatching {
+                DatagramSocket(null).apply {
+                    reuseAddress = true
+                    broadcast = true
+                    soTimeout = 1000
+                    bind(InetSocketAddress(LAN_DISCOVERY_PORT))
+                }
+            }.getOrNull()
+            lanDiscoverySocket = sock
+            if (sock == null) {
+                lanDiscoveryActive = false
+                return@thread
+            }
+            val buf = ByteArray(1024)
+            try {
+                while (lanDiscoveryActive) {
+                    val packet = DatagramPacket(buf, buf.size)
+                    val received = runCatching {
+                        sock.receive(packet)
+                        true
+                    }.getOrDefault(false)
+                    if (!received || packet.length <= 0) continue
+                    val raw = String(packet.data, 0, packet.length, Charsets.UTF_8)
+                    val senderIp = packet.address?.hostAddress
+                    val formatted = parseLanBeaconPayload(raw, senderIp) ?: continue
+                    val parts = formatted.split("|")
+                    if (parts.size >= 4) {
+                        val endpoint = parts[1]
+                        val counts = parts[2].split("/")
+                        discoveredLanPeers[endpoint] = LanDiscoveredPeer(
+                            roomName = parts[0],
+                            endpoint = endpoint,
+                            currentPlayers = counts.getOrNull(0)?.toIntOrNull() ?: 1,
+                            maxPlayers = counts.getOrNull(1)?.toIntOrNull() ?: 4,
+                            gameTitle = parts[3],
+                            lastSeenMs = System.currentTimeMillis(),
+                        )
+                    }
+                }
+            } catch (_: Throwable) {
+            } finally {
+                runCatching { sock.close() }
+                if (lanDiscoverySocket === sock) {
+                    lanDiscoverySocket = null
+                }
+            }
+        }
         return true
     }
 
-    fun stopLanDiscovery() {}
+    fun stopLanDiscovery() {
+        lanDiscoveryActive = false
+        runCatching { lanDiscoverySocket?.close() }
+        lanDiscoverySocket = null
+        lanDiscoveryThread?.interrupt()
+        lanDiscoveryThread = null
+    }
 
     fun getLanDiscoveredSessions(): Array<String> {
         NativeCoreLoader.load()
         NativeLibrary.initMultiplayer()
-        return runCatching {
-            NetPlayManager.getPublicRooms().map { "${it.name}|${it.ip}:${it.port}|${it.members.size}/${it.maxPlayers}" }.toTypedArray()
-        }.getOrDefault(emptyArray())
+        val now = System.currentTimeMillis()
+        discoveredLanPeers.entries.removeIf { (_, peer) -> (now - peer.lastSeenMs) > LAN_PEER_TTL_MS }
+        val merged = linkedMapOf<String, String>()
+        for ((endpoint, peer) in discoveredLanPeers) {
+            merged[endpoint] = "${peer.roomName}|$endpoint|${peer.currentPlayers}/${peer.maxPlayers}|${peer.gameTitle}|LAN"
+        }
+        runCatching {
+            NetPlayManager.getPublicRooms().forEach { room ->
+                val endpoint = "${room.ip}:${room.port}"
+                val count = room.members.size.coerceAtLeast(1)
+                val game = room.preferredGameName.ifBlank { "Nintendo 3DS" }
+                val tag = if (room.hasPassword) "LOCKED" else "LOBBY"
+                merged.putIfAbsent(endpoint, "${room.name}|$endpoint|$count/${room.maxPlayers}|$game|$tag")
+            }
+        }
+        return merged.values.toTypedArray()
+    }
+
+    fun getActiveRoomInfo(): Array<String> {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return runCatching { NetPlayManager.netPlayRoomInfo() }.getOrDefault(emptyArray())
+    }
+
+    fun isRoomJoined(): Boolean {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return runCatching { NetPlayManager.netPlayIsJoined() }.getOrDefault(false)
+    }
+
+    fun isRoomModerator(): Boolean {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return runCatching { NetPlayManager.netPlayIsModerator() }.getOrDefault(false)
+    }
+
+    fun sendRoomChat(message: String) {
+        val clean = message.trim()
+        if (clean.isEmpty()) return
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        runCatching { NetPlayManager.netPlaySendMessage(clean) }
+    }
+
+    fun kickRoomMember(username: String) {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        runCatching { NetPlayManager.netPlayKickUser(username) }
+    }
+
+    fun banRoomMember(username: String) {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        runCatching { NetPlayManager.netPlayBanUser(username) }
+    }
+
+    fun unbanRoomMember(username: String) {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        runCatching { NetPlayManager.netPlayUnbanUser(username) }
+    }
+
+    fun getRoomBanList(): Array<String> {
+        NativeCoreLoader.load()
+        NativeLibrary.initMultiplayer()
+        return runCatching { NetPlayManager.netPlayGetBanList() }.getOrDefault(emptyArray())
+    }
+
+    fun setLobbyApiUrl(url: String) {
+        val clean = url.trim()
+        NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), clean)
+        NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (clean.isNotEmpty()) "1" else "0")
+        if (NativeLibrary.isRunning()) {
+            NativeLibrary.reloadSettings()
+        }
+    }
+
+    fun getStreetPassBoxStats(): StreetPassBoxStats {
+        val userRoot = NativeBridgeHost.resolveUserDirectoryPath()
+        val cecDir = File(userRoot, "nand/data/00000000000000000000000000000000/sysdata/00010026/00000000/CEC")
+        val fallbackDir = File(userRoot, "sysdata/streetpass")
+        val targetDir = when {
+            cecDir.exists() -> cecDir
+            fallbackDir.exists() -> fallbackDir
+            else -> cecDir
+        }
+        val boxCount = if (targetDir.isDirectory) {
+            targetDir.listFiles()?.count { it.isDirectory || it.isFile } ?: 0
+        } else {
+            0
+        }
+        return StreetPassBoxStats(
+            enabled = true,
+            boxCount = boxCount,
+            cecPath = targetDir.absolutePath,
+        )
     }
 
     @JvmStatic fun setVulkanCompositorMode(mode: Int) {}

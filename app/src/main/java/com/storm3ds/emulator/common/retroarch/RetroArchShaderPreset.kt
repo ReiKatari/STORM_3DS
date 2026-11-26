@@ -221,13 +221,20 @@ object RetroArchShaderPreset {
     }
 
     fun requiresNativeDsSource(presetRelativePath: String, readText: (String) -> String?): Boolean {
-        val presetText = readText(presetRelativePath) ?: return false
-        val assignments = parseAssignments(presetText)
-        val shaderQueue = ArrayDeque<String>()
-        shaderReferences(assignments).forEach { reference ->
-            resolveRelativePath(presetRelativePath, reference)?.let { shaderQueue.addLast(it) }
+        val chain = referenceChain(presetRelativePath, readText)
+        if (chain.isEmpty()) {
+            return false
         }
 
+        val merged = linkedMapOf<String, String>()
+        chain.forEach { entry ->
+            entry.assignments.forEach { (key, value) ->
+                merged.putIfAbsent(key, value)
+            }
+        }
+
+        val passes = resolvePasses(presetRelativePath, readText)
+        val shaderQueue = ArrayDeque(passes)
         val shaderTexts = mutableListOf<String>()
         val visited = mutableSetOf<String>()
         while (shaderQueue.isNotEmpty()) {
@@ -242,7 +249,7 @@ object RetroArchShaderPreset {
             }
         }
 
-        return requiresNativeDsSource(assignments, shaderTexts)
+        return requiresNativeDsSource(merged, shaderTexts)
     }
 
     private fun requiresNativeDsSource(assignments: Map<String, String>, shaderTexts: List<String>): Boolean {

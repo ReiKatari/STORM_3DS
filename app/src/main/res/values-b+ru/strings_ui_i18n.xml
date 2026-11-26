@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="ui_saved_games_count_fmt">Сохранённые (%1$d)</string>
     <string name="ui_achievement_unlocked_banner">ДОСТИЖЕНИЕ РАЗБЛОКИРОВАНО</string>
@@ -260,26 +260,25 @@
     <string name="ui_tech_clipboard_header">STORM 3DS - ТЕХНИЧЕСКИЙ ПАСПОРТ ROM</string>
     <string name="ui_tech_internal_title_fmt">Внутреннее имя: %1$s</string>
     <string name="ui_tech_rom_size_caps">РАЗМЕР ROM</string>
-    <string name="ui_tech_title_id_caps">TITLE ID</string>
+    <string name="ui_tech_title_id_caps">ИДЕНТИФИКАТОР ИГРЫ</string>
     <string name="ui_tech_unit_code_caps">ТИП ОБРАЗА</string>
     <string name="ui_tech_format_caps">ФОРМАТ</string>
-                <plurals name="ui_points_count">
+    <plurals name="ui_points_count">
         <item quantity="one">%1$d очко</item>
         <item quantity="few">%1$d очка</item>
         <item quantity="many">%1$d очков</item>
         <item quantity="other">%1$d очков</item>
-    </plurals>
-                <plurals name="ui_ledger_entries_count">
+        </plurals>
+    <plurals name="ui_ledger_entries_count">
         <item quantity="one">%1$d запись</item>
         <item quantity="few">%1$d записи</item>
         <item quantity="many">%1$d записей</item>
         <item quantity="other">%1$d записей</item>
-    </plurals>
-                <plurals name="ui_undo_steps_count">
+        </plurals>
+    <plurals name="ui_undo_steps_count">
         <item quantity="one">%1$d шаг</item>
         <item quantity="few">%1$d шага</item>
         <item quantity="many">%1$d шагов</item>
         <item quantity="other">%1$d шагов</item>
-    </plurals>
-</resources>
-
+        </plurals>
+    </resources>

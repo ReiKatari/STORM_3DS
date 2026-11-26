@@ -797,9 +797,13 @@ private fun Content(
                         showDivider = true,
                         onClick = {
                             if (romConfig.hasValidRetroArchShaderRoot) {
-                                retroArchPresetPathDialogState.show(
-                                    initialText = romConfig.retroArchShaderPresetPath.orEmpty(),
-                                    onConfirm = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderPresetPathUpdate(it.ifBlank { null })) },
+                                com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.showPresetPickerDialog(
+                                    context = context,
+                                    currentSelection = romConfig.retroArchShaderPresetPath,
+                                    allowUseGlobal = true,
+                                    onSelected = { selected ->
+                                        onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderPresetPathUpdate(selected?.ifBlank { null }))
+                                    },
                                 )
                             } else {
                                 Toast.makeText(context, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
@@ -812,9 +816,14 @@ private fun Content(
                         showDivider = true,
                         onClick = {
                             if (romConfig.hasValidRetroArchShaderRoot) {
-                                retroArchParametersDialogState.show(
-                                    initialText = romConfig.retroArchShaderParameters.orEmpty(),
-                                    onConfirm = { onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderParametersUpdate(it.ifBlank { null })) },
+                                val effectivePreset = romConfig.retroArchShaderPresetPath ?: globalRetroArchPresetPathLabel
+                                com.storm3ds.emulator.ui.settings.RetroArchShaderDialogs.showShaderParametersDialog(
+                                    context = context,
+                                    rawPresetPath = effectivePreset,
+                                    currentParamsText = romConfig.retroArchShaderParameters,
+                                    onSaved = { params ->
+                                        onConfigUpdate(RomConfigUpdateEvent.RetroArchShaderParametersUpdate(params.ifBlank { null }))
+                                    },
                                 )
                             } else {
                                 Toast.makeText(context, R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()

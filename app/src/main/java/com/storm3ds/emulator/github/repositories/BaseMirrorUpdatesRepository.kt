@@ -84,6 +84,22 @@ open class BaseMirrorUpdatesRepository(
                 context.resources.getBoolean(R.bool.adrenotools_enabled)
             }.getOrDefault(defaultAdrenotoolsEnabled)
 
+            if (currentVersion.type == Version.ReleaseType.NIGHTLY) {
+                GitHubReleaseSelector.selectNightly(releases)?.let { candidate ->
+                    return@suspendMapCatching AppUpdate(
+                        type = AppUpdate.Type.NIGHTLY,
+                        id = candidate.asset.id,
+                        downloadUri = candidate.asset.url.toUri(),
+                        newVersion = candidate.version,
+                        description = candidate.release.body,
+                        binarySize = candidate.asset.size,
+                        updateDate = candidate.publishedAt,
+                        releaseTag = candidate.release.tagName,
+                        sourceReleaseUrl = candidate.release.htmlUrl,
+                    )
+                }
+            }
+
             GitHubReleaseSelector.selectProduction(
                 releases = releases,
                 currentVersion = currentVersion,

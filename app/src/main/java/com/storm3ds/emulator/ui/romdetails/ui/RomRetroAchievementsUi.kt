@@ -785,7 +785,7 @@ private fun Ready(
             .map { bucket ->
                 bucket.copy(
                     achievements = bucket.achievements.filter {
-                        selectedTypeFilter.matches(it.actualAchievement().type)
+                        selectedTypeFilter.matchesAchievement(it.actualAchievement())
                     },
                 )
             }
@@ -968,7 +968,8 @@ private fun Header(
                 }
                 append(' ')
                 append(stringResource(id = R.string.points_abbreviated))
-                append(" • ${achievementsSummary.completedPercentage}%")
+                append(' ')
+                append(stringResource(id = R.string.ra_completion_pct_fmt, achievementsSummary.completedPercentage))
             },
             style = MaterialTheme.typography.body2,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.85f),

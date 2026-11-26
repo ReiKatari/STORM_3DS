@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="abort_button">Batalkan</string>
     <string name="about_diagnostics_title">Diagnostik STORM 3DS</string>
@@ -419,4 +419,64 @@ SDMC: %7$s</string>
     <string name="pref_mic_vu_meter_summary">Pratinjau langsung tingkat masukan mikrofon</string>
     <string name="pref_vibrate_on_touch_summary">Memberikan getaran haptik saat menyentuh tombol layar</string>
     <string name="pref_enable_cheats_summary">Mengizinkan kode cheat Gateway saat bermain</string>
-</resources>
+    <string name="retroarch_shader_manual_path">Masukkan path preset secara manual...</string>
+    <string name="retroarch_shader_edit_text">Ubah sebagai teks</string>
+    <string name="retroarch_shader_no_params">Tidak ada parameter shader yang dapat disesuaikan. Anda tetap dapat memasukkan kunci=nilai secara manual:</string>
+    <string name="retroarch_shader_reset_params">Setel ulang semua parameter</string>
+    <string name="freedreno_name_fd_dev_features">FD_DEV_FEATURES</string>
+    <string name="freedreno_name_tu_debug">TU_DEBUG</string>
+    <string name="freedreno_name_fd_mesa_debug">FD_MESA_DEBUG</string>
+    <string name="pref_3ds_quicksaves_title">Simpan Cepat</string>
+    <string name="pref_3ds_quicksaves_summary">Slot simpan cepat dan pratinjau disimpan di dalam /STORM 3DS/quicksaves</string>
+    <string name="pref_3ds_quicksaves_summary_path">Folder simpan cepat: %1$s</string>
+    <string name="quick_save">Simpan Cepat</string>
+    <string name="quick_load">Muat Cepat</string>
+    <string name="rom_libretro_covers_enabled_title">Unduh Sampul 3DS (Libretro)</string>
+    <string name="rom_libretro_covers_enabled_summary">Ambil sampul kotak Nintendo 3DS dari Libretro melalui jaringan</string>
+    <string name="rom_ra_badges_enabled_title">Unduh Lencana Pencapaian (RetroAchievements)</string>
+    <string name="rom_ra_badges_enabled_summary">Unduh ikon lencana lewat jaringan; nonaktif menampilkan ikon piala bawaan</string>
+    <string name="v794_video_preset_auto_device">Optimalkan Otomatis untuk Perangkat Ini</string>
+    <string name="ra_spectator_mode_title">Mode Penonton</string>
+    <string name="ra_spectator_mode_summary">Lacak pencapaian secara lokal tanpa mengirim pembukaan atau skor ke server</string>
+    <string name="ra_filter_progression">Progresi</string>
+    <string name="ra_filter_win">Kemenangan</string>
+    <string name="ra_sort_title">Urutkan</string>
+    <string name="ra_sort_default">Bawaan</string>
+    <string name="ra_sort_points">Poin</string>
+    <string name="ra_sort_unlocked">Terbuka Dulu</string>
+    <string name="ra_sort_locked">Terkunci Dulu</string>
+    <string name="ra_game_hash_info_fmt">ID: %1$s | Hash: %2$s</string>
+    <string name="ra_status_mastered">Dikuasai</string>
+    <string name="ra_status_completed">Selesai</string>
+    <string name="ra_points_gain_fmt">+%1$d POIN</string>
+    <string name="ra_points_dot_fmt">- %1$d</string>
+    <string name="ra_completion_pct_fmt">(%1$d%%)</string>
+    <string name="leaderboard_rank_fmt">#%1$d</string>
+    <string name="refresh">Segarkan</string>
+    <string name="netplay_3ds_tab_host">Host</string>
+    <string name="netplay_3ds_tab_room">Ruang</string>
+    <string name="netplay_3ds_connected_badge">TERHUBUNG</string>
+    <string name="netplay_3ds_password_hint">Kata Sandi</string>
+    <string name="netplay_3ds_optional_hint">Opsional</string>
+    <string name="netplay_3ds_host_form_title">Buat Ruang Multipemain</string>
+    <string name="netplay_3ds_room_name_label">Nama Ruang (3-20 karakter)</string>
+    <string name="netplay_3ds_nickname_label">Nama Pemain</string>
+    <string name="netplay_3ds_port_label">Port</string>
+    <string name="netplay_3ds_max_players_label">Pemain Maksimal</string>
+    <string name="netplay_3ds_not_in_room">Belum terhubung ke ruang mana pun. Gabung atau buat ruang terlebih dahulu.</string>
+    <string name="netplay_3ds_mod_role">Moderator - %1$d pemain</string>
+    <string name="netplay_3ds_member_role">Anggota - %1$d pemain</string>
+    <string name="netplay_3ds_leave_room_btn">Keluar</string>
+    <string name="netplay_3ds_members_title">Anggota Ruang</string>
+    <string name="netplay_3ds_kick_btn">Keluarkan</string>
+    <string name="netplay_3ds_ban_btn">Blokir</string>
+    <string name="netplay_3ds_ban_list_title">Pengguna Diblokir</string>
+    <string name="netplay_3ds_unban_btn">Buka Blokir</string>
+    <string name="netplay_3ds_chat_hint">Ketik pesan obrolan...</string>
+    <string name="netplay_3ds_send_btn">Kirim</string>
+    <string name="netplay_3ds_custom_lobby_label">URL Server Lobi Kustom</string>
+    <string name="netplay_3ds_custom_lobby_saved">URL server lobi disimpan</string>
+    <string name="netplay_3ds_streetpass_title">Nirkabel Lokal &amp; StreetPass (CECD)</string>
+    <string name="netplay_3ds_streetpass_stats_fmt">Kotak surat CECD aktif: %1$d</string>
+    <string name="setup_3ds_artic_saved_fmt">Tersimpan %1$s di direktori pengguna</string>
+    </resources>

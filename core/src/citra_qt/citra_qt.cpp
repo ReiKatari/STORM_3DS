@@ -266,15 +266,27 @@ static bool ShouldCheckForPrereleaseUpdates() {
 }
 
 static std::tuple<int, int, int> ParseSemVer(const std::string& raw) {
-    std::string s = raw;
-    if (!s.empty() && (s[0] == 'v' || s[0] == 'V')) {
-        s.erase(s.begin());
-    }
     int major = 0;
     int minor = 0;
     int patch = 0;
-    std::sscanf(s.c_str(), "%d.%d.%d", &major, &minor, &patch);
-    return {major, minor, patch};
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        if (std::isdigit(static_cast<unsigned char>(raw[i]))) {
+            if (std::sscanf(raw.c_str() + i, "%d.%d.%d", &major, &minor, &patch) >= 2) {
+                return {major, minor, patch};
+            }
+        }
+    }
+    return {0, 0, 0};
+}
+
+static std::string GetCurrentAppVersion() {
+    if (Common::g_build_fullname != nullptr) {
+        const auto parsed = ParseSemVer(Common::g_build_fullname);
+        if (std::get<0>(parsed) > 0 || std::get<1>(parsed) > 0 || std::get<2>(parsed) > 0) {
+            return Common::g_build_fullname;
+        }
+    }
+    return "1.10.0";
 }
 
 static bool IsRemoteVersionNewer(const std::string& remote, const std::string& current) {
@@ -4722,14 +4734,15 @@ void GMainWindow::OnEmulatorUpdateAvailable() {
         return;
     }
 
-    if (IsRemoteVersionNewer(release->version, Common::g_build_fullname)) {
-        UpdateDialog dialog(QString::fromUtf8(Common::g_build_fullname), *release, this);
+    const std::string current_version = GetCurrentAppVersion();
+    if (IsRemoteVersionNewer(release->version, current_version)) {
+        UpdateDialog dialog(QString::fromStdString(current_version), *release, this);
         dialog.exec();
     } else if (was_manual) {
         QMessageBox::information(
             this, tr("No Updates Available"),
             tr("You are running the latest version of STORM 3DS (%1).")
-                .arg(QString::fromUtf8(Common::g_build_fullname)));
+                .arg(QString::fromStdString(current_version)));
     }
 }
 #endif

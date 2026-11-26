@@ -132,7 +132,7 @@ fun AchievementListDialog(
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                             )
                             androidx.compose.material.Text(
-                                text = "RetroAchievements",
+                                text = stringResource(R.string.retroachievements),
                                 color = colors.text3,
                                 fontSize = 10.5.sp,
                             )

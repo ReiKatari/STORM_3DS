@@ -87,8 +87,8 @@ object GitHubReleaseSelector {
         return asset.id > 0 &&
             asset.size >= 0 &&
             (asset.url.startsWith("${GITHUB_RELEASE_URL_PREFIX}download/", ignoreCase = true) ||
-                asset.url.startsWith(STORM_GAMES_WORLD_DOWNLOAD_URL_PREFIX, ignoreCase = true) ||
-                asset.url.startsWith(STORM_GAMES_WORLD_ALT_DOWNLOAD_URL_PREFIX, ignoreCase = true))
+                asset.url.startsWith(STORM_GAMES_WORLD_UPLOADS_PREFIX, ignoreCase = true) ||
+                asset.url.startsWith(STORM_GAMES_WORLD_ALT_UPLOADS_PREFIX, ignoreCase = true))
     }
 
     private fun parsePublishedAt(release: ReleaseDto): Instant? {

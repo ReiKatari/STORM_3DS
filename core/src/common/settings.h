@@ -588,6 +588,7 @@ struct Values {
     Setting<f32> gyro_3d_strength{1.0f, Keys::gyro_3d_strength};
     Setting<bool> librashader_enabled{false, Keys::librashader_enabled};
     Setting<std::string> librashader_preset_path{"", Keys::librashader_preset_path};
+    Setting<std::string> librashader_parameters{"", Keys::librashader_parameters};
     Setting<bool> storm_custom_layout_enabled{false, Keys::storm_custom_layout_enabled};
     SwitchableSetting<bool> async_shader_compilation{false, Keys::async_shader_compilation};
     SwitchableSetting<bool> async_presentation{true, Keys::async_presentation};

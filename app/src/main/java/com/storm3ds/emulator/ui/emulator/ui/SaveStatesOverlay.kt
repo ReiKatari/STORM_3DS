@@ -445,8 +445,13 @@ private fun SaveStateSlotCard(
         ) {
             // Screenshot preview or Empty Placeholder
             if (slot.exists && slot.screenshot != null) {
+                val previewKey = "${slot.screenshot}_${slot.lastUsedDate?.time ?: 0L}"
                 AsyncImage(
-                    model = ImageRequest.Builder(context).data(slot.screenshot).build(),
+                    model = ImageRequest.Builder(context)
+                        .data(slot.screenshot)
+                        .memoryCacheKey(previewKey)
+                        .diskCacheKey(previewKey)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),

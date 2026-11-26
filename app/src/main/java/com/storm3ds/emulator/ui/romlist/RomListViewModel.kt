@@ -101,11 +101,11 @@ class RomListViewModel @Inject constructor(
 
     fun requestBoxArt(rom: Rom) {
         val isRaEnabled = settingsRepository.isRaCoverEnabled()
-        val isScraperEnabled = settingsRepository.isGameTdbCoversEnabled()
+        val isLibretroEnabled = settingsRepository.isLibretroCoversEnabled()
         val is2dEnabled = settingsRepository.isGameTdb2dCoversEnabled()
         val is3dEnabled = settingsRepository.isGameTdb3dCoversEnabled()
 
-        if (!isRaEnabled && !isScraperEnabled && !is2dEnabled && !is3dEnabled) return
+        if (!isRaEnabled && !isLibretroEnabled && !is2dEnabled && !is3dEnabled) return
 
         if (isRaEnabled && rom.retroAchievementsHash.isNotBlank()) {
             val raHash = rom.retroAchievementsHash
@@ -137,7 +137,7 @@ class RomListViewModel @Inject constructor(
             }
         }
 
-        if (isScraperEnabled) {
+        if (isLibretroEnabled) {
             val key = rom.uri.toString()
             if (!_boxArtByUri.value.containsKey(key)) {
                 val shouldFetchBoxArt: Boolean

@@ -105,6 +105,10 @@ abstract class RetroAchievementsViewModel (
                         _uiState.value = RomRetroAchievementsUiState.Ready(
                             sets = orderedCachedSets,
                             pendingLedgerAchievementIds = pendingLedgerAchievementIds,
+                            gameTitle = cachedData.title.ifBlank { rom.name },
+                            gameCode = rom.gameCode,
+                            romHash = rom.retroAchievementsHash,
+                            raGameId = cachedData.id.id.takeIf { it > 0L },
                         )
                     } else if (_uiState.value !is RomRetroAchievementsUiState.Ready) {
                         _uiState.value = RomRetroAchievementsUiState.Loading
@@ -141,6 +145,10 @@ abstract class RetroAchievementsViewModel (
                             _uiState.value = RomRetroAchievementsUiState.Ready(
                                 sets = orderedSets,
                                 pendingLedgerAchievementIds = pendingLedgerAchievementIds,
+                                gameTitle = userGameData?.title?.takeIf { it.isNotBlank() } ?: rom.name,
+                                gameCode = rom.gameCode,
+                                romHash = rom.retroAchievementsHash,
+                                raGameId = userGameData?.id?.id?.takeIf { it > 0L },
                             )
                         },
                         onFailure = {

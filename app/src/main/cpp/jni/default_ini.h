@@ -166,6 +166,7 @@ static const char* android_config_default_file_content = (BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(gyro_3d_strength) BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(librashader_enabled) BOOST_HANA_STRING(R"(
 )") DECLARE_KEY(librashader_preset_path) BOOST_HANA_STRING(R"(
+)") DECLARE_KEY(librashader_parameters) BOOST_HANA_STRING(R"(
 
 # Whether to use hardware shaders to emulate 3DS shaders
 # 0: Software, 1 (default): Hardware

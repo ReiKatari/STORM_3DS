@@ -41,6 +41,12 @@ interface SettingsRepository {
     fun isRaCoverEnabled(): Boolean
     fun observeRaCoverEnabled(): Flow<Boolean>
 
+    fun isLibretroCoversEnabled(): Boolean
+    fun observeLibretroCoversEnabled(): Flow<Boolean>
+
+    fun isRaBadgesEnabled(): Boolean
+    fun observeRaBadgesEnabled(): Flow<Boolean>
+
 
     fun getDefaultConsoleType(): ConsoleType
     fun observeDefaultConsoleType(): Flow<ConsoleType>
@@ -164,6 +170,8 @@ interface SettingsRepository {
     fun observeRetroAchievementsOfflineBackend(): Flow<RetroAchievementsOfflineBackend>
     fun areRetroAchievementsUnofficialAchievementsEnabled(): Boolean
     fun isRetroAchievementsEncoreModeEnabled(): Boolean
+    fun isRaSpectatorModeEnabled(): Boolean
+    fun observeRaSpectatorModeEnabled(): Flow<Boolean>
     fun areRetroAchievementsActiveChallengeIndicatorsEnabled(): Boolean
     fun areRetroAchievementsProgressIndicatorsEnabled(): Boolean
     fun areRetroAchievementsLeaderboardIndicatorsEnabled(): Boolean

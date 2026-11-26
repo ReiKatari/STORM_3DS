@@ -3,12 +3,30 @@
 // Refer to the LICENSE.txt file included.
 
 #include <algorithm>
+#include <cmath>
+#include <locale>
+#include <sstream>
+#include <unordered_map>
 #include <QColorDialog>
+#include <QCoreApplication>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDir>
+#include <QDoubleSpinBox>
+#include <QFileDialog>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QListView>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QSlider>
+#include <QVBoxLayout>
 #include "citra_qt/configuration/configuration_shared.h"
 #include "citra_qt/configuration/configure_enhancements.h"
 #include "common/settings.h"
 #include "ui_configure_enhancements.h"
+#include "video_core/storm_librashader.h"
 #ifdef ENABLE_OPENGL
 #include "video_core/renderer_opengl/post_processing_opengl.h"
 #endif
@@ -57,6 +75,47 @@ ConfigureEnhancements::ConfigureEnhancements(QWidget* parent)
         if (!ui->toggle_preload_textures->isEnabled())
             ui->toggle_preload_textures->setChecked(false);
     });
+
+    auto syncRetroArchUiEnabled = [this] {
+        const bool enabled = ui->retroarch_shader_enable->isChecked();
+        const bool has_path = !ui->retroarch_shader_path->text().trimmed().isEmpty();
+        ui->retroarch_shader_path->setEnabled(enabled);
+        ui->retroarch_shader_browse->setEnabled(enabled);
+        ui->retroarch_shader_clear->setEnabled(enabled && has_path);
+        ui->retroarch_shader_params_button->setEnabled(enabled && has_path);
+        ui->retroarch_shader_clear_history->setEnabled(enabled && has_path);
+        UpdateRetroArchStatusLabel();
+    };
+    connect(ui->retroarch_shader_enable, &QCheckBox::toggled, this, syncRetroArchUiEnabled);
+    connect(ui->retroarch_shader_path, &QLineEdit::textChanged, this, syncRetroArchUiEnabled);
+    connect(ui->retroarch_shader_browse, &QPushButton::clicked, this, [this] {
+        QString start_dir = QCoreApplication::applicationDirPath() + QStringLiteral("/shaders");
+        if (!QDir(start_dir).exists()) {
+            start_dir = QCoreApplication::applicationDirPath();
+        }
+        const QString current = ui->retroarch_shader_path->text().trimmed();
+        if (!current.isEmpty()) {
+            start_dir = QFileInfo(current).absolutePath();
+        }
+        const QString picked = QFileDialog::getOpenFileName(
+            this, tr("Select RetroArch Shader Preset"), start_dir,
+            tr("RetroArch Shader Presets (*.slangp);;All Files (*)"));
+        if (!picked.isEmpty()) {
+            ui->retroarch_shader_path->setText(QDir::toNativeSeparators(picked));
+            ui->retroarch_shader_enable->setChecked(true);
+        }
+    });
+    connect(ui->retroarch_shader_clear, &QPushButton::clicked, this, [this] {
+        ui->retroarch_shader_path->clear();
+        pending_librashader_parameters.clear();
+    });
+    connect(ui->retroarch_shader_params_button, &QPushButton::clicked, this,
+            &ConfigureEnhancements::OpenRetroArchParametersDialog);
+    connect(ui->retroarch_shader_clear_history, &QPushButton::clicked, this, [this] {
+        VideoCore::StormLibrashader::RequestClearHistory();
+        UpdateRetroArchStatusLabel();
+    });
+    syncRetroArchUiEnabled();
 }
 
 ConfigureEnhancements::~ConfigureEnhancements() = default;
@@ -96,6 +155,11 @@ void ConfigureEnhancements::SetConfiguration() {
     ui->toggle_preload_textures->setChecked(Settings::values.preload_textures.GetValue());
     ui->toggle_async_custom_loading->setChecked(Settings::values.async_custom_loading.GetValue());
     ui->disable_right_eye_render->setChecked(Settings::values.disable_right_eye_render.GetValue());
+    ui->retroarch_shader_enable->setChecked(Settings::values.librashader_enabled.GetValue());
+    ui->retroarch_shader_path->setText(
+        QString::fromStdString(Settings::values.librashader_preset_path.GetValue()));
+    pending_librashader_parameters = Settings::values.librashader_parameters.GetValue();
+    UpdateRetroArchStatusLabel();
 }
 
 void ConfigureEnhancements::updateShaders(Settings::StereoRenderOption stereo_option) {
@@ -205,6 +269,179 @@ void ConfigureEnhancements::ApplyConfiguration() {
     ConfigurationShared::ApplyPerGameSetting(&Settings::values.disable_right_eye_render,
                                              ui->disable_right_eye_render,
                                              disable_right_eye_render);
+    if (Settings::IsConfiguringGlobal()) {
+        const bool next_enabled = ui->retroarch_shader_enable->isChecked();
+        const std::string next_path =
+            QDir::toNativeSeparators(ui->retroarch_shader_path->text().trimmed()).toStdString();
+        const bool changed = (Settings::values.librashader_enabled.GetValue() != next_enabled) ||
+                             (Settings::values.librashader_preset_path.GetValue() != next_path);
+        Settings::values.librashader_enabled.SetValue(next_enabled);
+        Settings::values.librashader_preset_path.SetValue(next_path);
+        Settings::values.librashader_parameters.SetValue(pending_librashader_parameters);
+        if (changed) {
+            VideoCore::StormLibrashader::RequestReload();
+        }
+    }
+}
+
+void ConfigureEnhancements::UpdateRetroArchStatusLabel() {
+    if (!ui->retroarch_shader_enable->isChecked()) {
+        ui->retroarch_shader_status->setText(tr("RetroArch shaders disabled."));
+        return;
+    }
+    if (!VideoCore::StormLibrashader::IsLibraryAvailable()) {
+        ui->retroarch_shader_status->setText(
+            tr("librashader.dll not found next to executable."));
+        return;
+    }
+    const std::string summary = VideoCore::StormLibrashader::GetLastDiagnosticSummary();
+    if (!summary.empty()) {
+        ui->retroarch_shader_status->setText(QString::fromStdString(summary));
+    } else if (ui->retroarch_shader_path->text().trimmed().isEmpty()) {
+        ui->retroarch_shader_status->setText(
+            tr("Librashader ready. Select a .slangp preset."));
+    } else {
+        ui->retroarch_shader_status->setText(tr("Librashader ready."));
+    }
+}
+
+void ConfigureEnhancements::OpenRetroArchParametersDialog() {
+    const std::string path =
+        QDir::toNativeSeparators(ui->retroarch_shader_path->text().trimmed()).toStdString();
+    if (path.empty()) {
+        return;
+    }
+    const auto params = VideoCore::StormLibrashader::QueryPresetParameters(path);
+    std::unordered_map<std::string, float> overrides;
+    for (const auto& [k, v] :
+         VideoCore::StormLibrashader::ParseParameterOverrides(pending_librashader_parameters)) {
+        overrides[k] = v;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("RetroArch Shader Parameters"));
+    dialog.resize(480, 420);
+    auto* main_layout = new QVBoxLayout(&dialog);
+
+    if (params.empty()) {
+        main_layout->addWidget(
+            new QLabel(tr("No adjustable parameters reported for this preset."), &dialog));
+        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        main_layout->addWidget(buttons);
+        dialog.exec();
+        return;
+    }
+
+    auto* scroll = new QScrollArea(&dialog);
+    scroll->setWidgetResizable(true);
+    auto* container = new QWidget(scroll);
+    auto* grid = new QGridLayout(container);
+
+    struct RowBinding {
+        std::string name;
+        float initial;
+        float min_val;
+        float step_val;
+        QSlider* slider;
+        QDoubleSpinBox* spin;
+    };
+    std::vector<RowBinding> bindings;
+    bindings.reserve(params.size());
+
+    auto serialize = [&]() -> std::string {
+        std::ostringstream oss;
+        oss.imbue(std::locale::classic());
+        bool first = true;
+        for (const auto& b : bindings) {
+            const float val = static_cast<float>(b.spin->value());
+            if (std::abs(val - b.initial) > 1e-4f) {
+                if (!first) {
+                    oss << '\n';
+                }
+                oss << b.name << '=' << val;
+                first = false;
+            }
+        }
+        return oss.str();
+    };
+
+    for (std::size_t i = 0; i < params.size(); ++i) {
+        const auto& p = params[i];
+        const int row = static_cast<int>(i);
+        const float span = std::max(p.maximum - p.minimum, p.step);
+        const int steps = std::clamp(static_cast<int>(std::llround(span / p.step)), 1, 2000);
+        const float initial_clamped = std::clamp(
+            overrides.count(p.name) ? overrides[p.name] : p.initial, p.minimum, p.maximum);
+
+        grid->addWidget(new QLabel(QString::fromStdString(p.description), container), row, 0);
+
+        auto* slider = new QSlider(Qt::Horizontal, container);
+        slider->setRange(0, steps);
+        slider->setValue(
+            std::clamp(static_cast<int>(std::llround(((initial_clamped - p.minimum) / span) * steps)),
+                       0, steps));
+        grid->addWidget(slider, row, 1);
+
+        auto* spin = new QDoubleSpinBox(container);
+        spin->setRange(p.minimum, p.maximum);
+        spin->setSingleStep(p.step);
+        spin->setDecimals(p.step >= 1.0f ? 0 : (p.step >= 0.1f ? 1 : 3));
+        spin->setValue(initial_clamped);
+        grid->addWidget(spin, row, 2);
+
+        bindings.push_back(RowBinding{p.name, p.initial, p.minimum, p.step, slider, spin});
+
+        connect(slider, &QSlider::valueChanged, &dialog,
+                [spin, p, span, steps, &serialize](int pos) {
+                    const double val = std::clamp(
+                        static_cast<double>(p.minimum) + (static_cast<double>(pos) / steps) * span,
+                        static_cast<double>(p.minimum), static_cast<double>(p.maximum));
+                    if (std::abs(spin->value() - val) > 1e-4) {
+                        spin->blockSignals(true);
+                        spin->setValue(val);
+                        spin->blockSignals(false);
+                    }
+                    Settings::values.librashader_parameters.SetValue(serialize());
+                });
+        connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), &dialog,
+                [slider, p, span, steps, &serialize](double val) {
+                    const int pos = std::clamp(
+                        static_cast<int>(std::llround(((val - p.minimum) / span) * steps)), 0,
+                        steps);
+                    if (slider->value() != pos) {
+                        slider->blockSignals(true);
+                        slider->setValue(pos);
+                        slider->blockSignals(false);
+                    }
+                    Settings::values.librashader_parameters.SetValue(serialize());
+                });
+    }
+
+    scroll->setWidget(container);
+    main_layout->addWidget(scroll);
+
+    auto* buttons = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::RestoreDefaults,
+        &dialog);
+    connect(buttons->button(QDialogButtonBox::RestoreDefaults), &QPushButton::clicked, &dialog,
+            [&]() {
+                for (const auto& b : bindings) {
+                    b.spin->setValue(b.initial);
+                }
+                Settings::values.librashader_parameters.SetValue(serialize());
+            });
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, [&]() {
+        pending_librashader_parameters = serialize();
+        Settings::values.librashader_parameters.SetValue(pending_librashader_parameters);
+        dialog.accept();
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, [&]() {
+        Settings::values.librashader_parameters.SetValue(pending_librashader_parameters);
+        dialog.reject();
+    });
+    main_layout->addWidget(buttons);
+    dialog.exec();
 }
 
 void ConfigureEnhancements::SetupPerGameUI() {
@@ -230,6 +467,7 @@ void ConfigureEnhancements::SetupPerGameUI() {
     ui->mono_rendering_eye->setEnabled(false);
 
     ui->widget_shader->setVisible(false);
+    ui->widget_retroarch_shader->setVisible(false);
 
     ConfigurationShared::SetColoredTristate(ui->toggle_linear_filter, Settings::values.filter_mode,
                                             linear_filter);

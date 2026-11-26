@@ -2338,6 +2338,8 @@ class EmulatorViewModel @Inject constructor(
                     RomPauseMenuOption.SCREEN_LAYOUT -> _uiEvent.tryEmit(EmulatorUiEvent.ShowScreenLayoutDialog)
                     RomPauseMenuOption.RENDERER_DEBUG -> _uiEvent.tryEmit(EmulatorUiEvent.ShowRendererDebugMenu)
                     RomPauseMenuOption.RESET_COMPATIBILITY -> resetCurrentRomCompatibilityMode()
+                    RomPauseMenuOption.QUICK_SAVE -> doQuickSave(getActiveQuickSlot())
+                    RomPauseMenuOption.QUICK_LOAD -> doQuickLoad(getActiveQuickSlot())
                     RomPauseMenuOption.QUICK_SLOT_CAROUSEL,
                     RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE,
                     RomPauseMenuOption.TAKE_SCREENSHOT,
@@ -6804,9 +6806,11 @@ class EmulatorViewModel @Inject constructor(
             RomPauseMenuOption.ROM_SETTINGS,
             RomPauseMenuOption.NETPLAY -> _emulatorState.value is EmulatorState.RunningRom
             RomPauseMenuOption.SAVE_STATE -> emulatorSession.areSaveStatesAllowed()
+            RomPauseMenuOption.QUICK_SAVE -> emulatorSession.areSaveStatesAllowed()
             RomPauseMenuOption.REWIND -> settingsRepository.isRewindEnabled() && emulatorSession.areSaveStateLoadsAllowed()
             RomPauseMenuOption.LOAD_STATE -> true
-            RomPauseMenuOption.QUICK_SLOT_CAROUSEL -> false
+            RomPauseMenuOption.QUICK_LOAD -> emulatorSession.areSaveStateLoadsAllowed()
+            RomPauseMenuOption.QUICK_SLOT_CAROUSEL -> emulatorSession.areSaveStatesAllowed()
             RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE -> {
                 val rom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: currentRom
                 rom != null && hasPeriodicAutoSave(rom)

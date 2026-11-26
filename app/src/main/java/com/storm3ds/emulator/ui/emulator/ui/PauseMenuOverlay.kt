@@ -133,6 +133,8 @@ internal fun pauseOptionIcon(option: PauseMenuOption, isAudioMuted: Boolean = fa
     return when (option) {
         RomPauseMenuOption.SAVE_STATE -> Icons.Filled.Download
         RomPauseMenuOption.LOAD_STATE -> Icons.Filled.Upload
+        RomPauseMenuOption.QUICK_SAVE -> Icons.Filled.Download
+        RomPauseMenuOption.QUICK_LOAD -> Icons.Filled.Upload
         RomPauseMenuOption.QUICK_SLOT_CAROUSEL -> Icons.Filled.Layers
         RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE -> Icons.Filled.AccessTime
         RomPauseMenuOption.TAKE_SCREENSHOT -> Icons.Filled.CameraAlt
@@ -185,6 +187,8 @@ private fun getOptionCategory(option: PauseMenuOption): PauseMenuCategory {
     return when (option) {
         RomPauseMenuOption.SAVE_STATE,
         RomPauseMenuOption.LOAD_STATE,
+        RomPauseMenuOption.QUICK_SAVE,
+        RomPauseMenuOption.QUICK_LOAD,
         RomPauseMenuOption.LOAD_PERIODIC_AUTOSAVE,
         RomPauseMenuOption.REWIND,
         RomPauseMenuOption.SLOW_MOTION,

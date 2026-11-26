@@ -48,6 +48,7 @@ object SettingKeys {
     external fun gyro_3d_strength(): String
     external fun librashader_enabled(): String
     external fun librashader_preset_path(): String
+    external fun librashader_parameters(): String
     external fun storm_custom_layout_enabled(): String
     external fun async_shader_compilation(): String
     external fun async_presentation(): String

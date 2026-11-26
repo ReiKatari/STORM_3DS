@@ -32,15 +32,24 @@
 namespace Service::FS {
 
 bool IsInstalledApplication(std::string_view path) {
+#ifdef ANDROID
+    return path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) + "title", 0) == 0 ||
+           path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir), 0) == 0;
+#else
     return path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) + "title", 0) == 0 ||
            path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir) + "Nintendo 3DS", 0) == 0;
+#endif
 }
 
 MediaType GetMediaTypeFromPath(std::string_view path) {
     if (path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) + "title", 0) == 0) {
         return MediaType::NAND;
     }
+#ifdef ANDROID
+    if (path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir), 0) == 0) {
+#else
     if (path.rfind(FileUtil::GetUserPath(FileUtil::UserPath::SDMCDir) + "Nintendo 3DS", 0) == 0) {
+#endif
         return MediaType::SDMC;
     }
     return MediaType::GameCard;

@@ -17,7 +17,7 @@ struct Frame {
     u32 width{};                      ///< Width of the frame (to detect resize)
     u32 height{};                     ///< Height of the frame
     bool color_reloaded = false;      ///< Texture attachment was recreated (ie: resized)
-    OpenGL::OGLRenderbuffer color{};  ///< Buffer shared between the render/present FBO
+    OpenGL::OGLTexture color{};       ///< Texture shared between the render/present FBO
     OpenGL::OGLFramebuffer render{};  ///< FBO created on the render thread
     OpenGL::OGLFramebuffer present{}; ///< FBO created on the present thread
     GLsync render_fence{};            ///< Fence created on the render thread
