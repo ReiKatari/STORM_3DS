@@ -33,7 +33,7 @@ class SavesDirectoryPickerPreference(context: Context, attrs: AttributeSet?) : S
 
     override fun onAttached() {
         super.onAttached()
-        val persisted = getPersistedStringSet(emptySet()).firstOrNull()
+        val persisted = runCatching { getPersistedStringSet(emptySet()) }.getOrElse { emptySet() }.firstOrNull()
         val defaultDir = getDefaultDirectory()
         val defaultUri = Uri.fromFile(defaultDir)
         if (persisted == null || persisted.contains("data/user/0") || persisted.contains("files/saves")) {

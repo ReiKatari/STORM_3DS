@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Descargar carátulas de cajas Nintendo 3DS desde Libretro por internet</string>
     <string name="rom_ra_badges_enabled_title">Descargar insignias de logros (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Descargar iconos de insignias por red; desactivado muestra trofeos integrados</string>
-    <string name="v794_video_preset_auto_device">Auto-optimizar para este dispositivo</string>
+    <string name="v794_video_preset_auto_device">Auto-optimizar para este dispositivo (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">Modo espectador</string>
     <string name="ra_spectator_mode_summary">Seguir logros localmente sin enviar desbloqueos ni puntuaciones al servidor</string>
     <string name="ra_filter_progression">Progreso</string>

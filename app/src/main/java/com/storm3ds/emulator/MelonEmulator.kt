@@ -307,7 +307,11 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_left_name(), cameraDriver)
         NativeLibrary.addDefaultSetting(SettingKeys.camera_outer_right_name(), cameraDriver)
         if (cameraDriver == "image") {
-            val rawUri = prefs.getString("dsi_camera_static_image", "").orEmpty()
+            val rawUri = runCatching {
+                prefs.getStringSet("dsi_camera_static_image", null)?.firstOrNull()
+            }.getOrNull() ?: runCatching {
+                prefs.getString("dsi_camera_static_image", "")
+            }.getOrNull().orEmpty()
             val resolvedImg = if (rawUri.isNotBlank()) {
                 runCatching {
                     NativeLibrary.resolveNativeOrContentPath(android.net.Uri.parse(rawUri)).removePrefix("!")

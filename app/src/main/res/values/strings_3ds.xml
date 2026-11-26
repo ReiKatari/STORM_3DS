@@ -433,7 +433,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Fetch Nintendo 3DS box covers from Libretro Thumbnails over the network</string>
     <string name="rom_ra_badges_enabled_title">Download Achievement Badges (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Download RetroAchievements badge icons over the network; disabled shows clean trophy icons</string>
-    <string name="v794_video_preset_auto_device">Auto-Optimize for This Device</string>
+    <string name="v794_video_preset_auto_device">Auto-Optimize for This Device (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">Spectator Mode</string>
     <string name="ra_spectator_mode_summary">Track achievements locally without submitting unlocks or leaderboard scores to the server</string>
     <string name="ra_filter_progression">Progression</string>

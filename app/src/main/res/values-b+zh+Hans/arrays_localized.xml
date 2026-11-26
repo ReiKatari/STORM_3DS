@@ -71,6 +71,7 @@
         <item>精确模式 (安全)</item>
         <item>快速模式 (推荐)</item>
         <item>极速模式 (适合老旧/低配设备)</item>
+        <item>自适应 (根据设备与电量)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (快速 / 推荐)</item>

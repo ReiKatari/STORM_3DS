@@ -70,7 +70,7 @@ open class StoragePickerPreference(context: Context, attrs: AttributeSet?) : Pre
 
         val attrArray = context.theme.obtainStyledAttributes(attrs, R.styleable.DirectoryPickerPreference, 0, 0)
         val count = attrArray.indexCount
-        for (i in 0..count) {
+        for (i in 0 until count) {
             val attr = attrArray.getIndex(i)
             when (attr) {
                 R.styleable.DirectoryPickerPreference_selection -> multiSelection = attrArray.getInt(R.styleable.DirectoryPickerPreference_selection, 0) == 1

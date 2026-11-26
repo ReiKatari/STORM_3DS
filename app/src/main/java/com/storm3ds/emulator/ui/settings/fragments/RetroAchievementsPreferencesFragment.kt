@@ -265,11 +265,13 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
                         RetroAchievementsEndpointSnapshot.HostSource.RA_OFFLINE_PROXY_UNAVAILABLE ->
                             getString(R.string.ra_offline_proxy_not_active)
                     }
-                    offlineBackendPreference.summary = if (selectedEntry != null) {
+                    val offlineSummaryText = if (selectedEntry != null) {
                         "$selectedEntry - $statusSummary"
                     } else {
                         statusSummary
                     }
+                    offlineBackendPreference.summaryProvider =
+                        Preference.SummaryProvider<ListPreference> { offlineSummaryText }
                 }
             }
         }

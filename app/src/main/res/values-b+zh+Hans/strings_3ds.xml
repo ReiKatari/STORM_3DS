@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">通过网络从 Libretro 图库获取 Nintendo 3DS 盒装封面</string>
     <string name="rom_ra_badges_enabled_title">下载成就徽章图标 (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">联网下载 RetroAchievements 徽章图标; 关闭时显示本地奖杯图标</string>
-    <string name="v794_video_preset_auto_device">针对此设备自动优化</string>
+    <string name="v794_video_preset_auto_device">针对此设备自动优化 (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">观战模式</string>
     <string name="ra_spectator_mode_summary">仅在本地追踪成就进度, 不向服务器提交解锁或排行榜成绩</string>
     <string name="ra_filter_progression">主线进度</string>

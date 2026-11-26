@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Nintendo 3DS-Hüllenbilder über das Netzwerk von Libretro abrufen</string>
     <string name="rom_ra_badges_enabled_title">Erfolgsabzeichen herunterladen (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Erfolgsabzeichen online laden; deaktiviert werden lokale Pokale gezeigt</string>
-    <string name="v794_video_preset_auto_device">Automatisch für dieses Gerät optimieren</string>
+    <string name="v794_video_preset_auto_device">Automatisch für dieses Gerät optimieren (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">Zuschauermodus</string>
     <string name="ra_spectator_mode_summary">Erfolge lokal verfolgen, ohne Freischaltungen oder Bestenlisten an den Server zu senden</string>
     <string name="ra_filter_progression">Fortschritt</string>

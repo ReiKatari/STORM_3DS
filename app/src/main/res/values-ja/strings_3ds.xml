@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">ネットワーク経由でLibretroからNintendo 3DSパッケージを取得します</string>
     <string name="rom_ra_badges_enabled_title">実績バッジ画像をダウンロード (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">ネットワーク経由で実績バッジを取得; オフ時は標準トロフィーアイコンを表示</string>
-    <string name="v794_video_preset_auto_device">この端末に合わせて自動最適化</string>
+    <string name="v794_video_preset_auto_device">この端末に合わせて自動最適化 (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">スペクテイターモード</string>
     <string name="ra_spectator_mode_summary">サーバーに解除やスコアを送信せずローカルでのみ実績を追跡します</string>
     <string name="ra_filter_progression">進行必須</string>

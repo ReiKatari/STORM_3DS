@@ -26,7 +26,9 @@ class FirmwarePreferencesFragment : BasePreferenceFragment(), PreferenceFragment
             true
         }.getOrDefault(false)
 
-        val nicknamePref = findPreference<EditTextPreference>("firmware_settings_nickname")
+        val nicknamePref = findPreference<EditTextPreference>("firmware_settings_nickname")?.apply {
+            summaryProvider = null
+        }
         val birthdayPref = findPreference<Preference>("firmware_settings_birthday")
         val coinsPref = findPreference<SeekBarPreference>("3ds_play_coins")
         val macPref = findPreference<Preference>("internal_mac_address")

@@ -105,8 +105,9 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         micSourcePreference?.let { micPref ->
             updateMicSourceSummary(micPref, micPref.value)
             micPref.setOnPreferenceChangeListener { _, newValue ->
-                val newValStr = newValue as String
-                val newMicSource = enumValueOfIgnoreCase<MicSource>(newValStr)
+                val newValStr = newValue as? String ?: MicSource.BLOW.name.lowercase()
+                val newMicSource = runCatching { enumValueOfIgnoreCase<MicSource>(newValStr) }
+                    .getOrDefault(MicSource.BLOW)
                 if (newMicSource == MicSource.DEVICE && !requireContext().isMicrophonePermissionGranted()) {
                     requestMicrophonePermission(false)
                     false
@@ -381,31 +382,34 @@ class AudioPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
     private fun updateAudioLatencySummary(pref: ListPreference, value: String?) {
         val index = pref.findIndexOfValue(value)
-        val entry = if (index >= 0 && index < pref.entries.size) pref.entries[index] else (value ?: "")
+        val entry = if (index >= 0 && pref.entries != null && index < pref.entries.size) pref.entries[index] else (value ?: "")
         val approx = when (value) {
             "low" -> getString(R.string.v780_audio_latency_approx_low)
             "medium" -> getString(R.string.v780_audio_latency_approx_medium)
             "high" -> getString(R.string.v780_audio_latency_approx_high)
             else -> null
         }
-        pref.summary = if (approx != null) "$entry ($approx)" else entry
+        val text = if (approx != null) "$entry ($approx)" else entry.toString()
+        pref.summaryProvider = Preference.SummaryProvider<ListPreference> { text }
     }
 
     private fun updateMicSourceSummary(pref: ListPreference, value: String?) {
         val index = pref.findIndexOfValue(value)
-        val entry = if (index >= 0 && index < pref.entries.size) pref.entries[index] else (value ?: "")
-        val newMicSource = enumValueOfIgnoreCase<MicSource>(value ?: "")
-        if (newMicSource == MicSource.DEVICE) {
-            val hasPerm = requireContext().isMicrophonePermissionGranted()
+        val entry = if (index >= 0 && pref.entries != null && index < pref.entries.size) pref.entries[index] else (value ?: "")
+        val newMicSource = runCatching { enumValueOfIgnoreCase<MicSource>(value.orEmpty()) }
+            .getOrDefault(MicSource.BLOW)
+        val text = if (newMicSource == MicSource.DEVICE) {
+            val hasPerm = context?.isMicrophonePermissionGranted() == true
             val status = if (hasPerm) {
                 getString(R.string.v780_mic_permission_granted)
             } else {
                 getString(R.string.v780_mic_permission_required)
             }
-            pref.summary = "$entry - $status"
+            "$entry - $status"
         } else {
-            pref.summary = entry
+            entry.toString()
         }
+        pref.summaryProvider = Preference.SummaryProvider<ListPreference> { text }
     }
 
     private fun updateVolumePreferenceSummary(volumePreference: SeekBarPreference, volume: Int) {

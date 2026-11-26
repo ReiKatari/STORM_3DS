@@ -436,7 +436,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Загружать обложки коробок Nintendo 3DS из базы Libretro по сети</string>
     <string name="rom_ra_badges_enabled_title">Загружать бейджи достижений (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Загружать значки достижений по сети; если выключено, используются встроенные иконки кубков</string>
-    <string name="v794_video_preset_auto_device">Авто-оптимизация под это устройство</string>
+    <string name="v794_video_preset_auto_device">Авто-оптимизация под это устройство (%1$s, %2$d МБ)</string>
     <string name="ra_spectator_mode_title">Режим наблюдателя</string>
     <string name="ra_spectator_mode_summary">Отслеживать достижения локально без отправки разблокировок и рекордов на сервер</string>
     <string name="ra_filter_progression">Прогресс</string>

@@ -91,6 +91,7 @@
         <item>Akurat (Aman)</item>
         <item>Cepat (Disarankan)</item>
         <item>Turbo (Perangkat Lama/Lemah)</item>
+        <item>Auto-Adaptif (sesuai perangkat dan baterai)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (Cepat / Disarankan)</item>

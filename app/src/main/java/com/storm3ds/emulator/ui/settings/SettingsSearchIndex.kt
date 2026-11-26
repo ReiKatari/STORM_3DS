@@ -66,6 +66,8 @@ class SettingsSearchIndex(private val context: Context) {
         ScreenDescriptor(R.xml.pref_video, VideoPreferencesFragment::class.java.name, R.string.category_video, R.drawable.ic_video),
         ScreenDescriptor(R.xml.pref_audio, AudioPreferencesFragment::class.java.name, R.string.category_audio, R.drawable.ic_audio),
         ScreenDescriptor(R.xml.pref_input, InputPreferencesFragment::class.java.name, R.string.input, R.drawable.ic_input),
+        ScreenDescriptor(R.xml.pref_retroachievements, RetroAchievementsPreferencesFragment::class.java.name, R.string.retroachievements, R.drawable.ic_trophy),
+        ScreenDescriptor(R.xml.pref_internal_firmware_settings, com.storm3ds.emulator.ui.settings.fragments.FirmwarePreferencesFragment::class.java.name, R.string.pref_3ds_system_profile_title, R.drawable.ic_firmware),
         ScreenDescriptor(R.xml.pref_cheats, CheatsPreferencesFragment::class.java.name, R.string.cheats, R.drawable.ic_cheat),
         ScreenDescriptor(R.xml.pref_translator, TranslatorPreferencesFragment::class.java.name, R.string.category_translator, R.drawable.ic_translate),
         ScreenDescriptor(R.xml.pref_about, AboutPreferencesFragment::class.java.name, R.string.about_app_title, R.drawable.ic_info),

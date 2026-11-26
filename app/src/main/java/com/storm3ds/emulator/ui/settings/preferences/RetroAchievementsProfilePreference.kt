@@ -63,7 +63,7 @@ class RetroAchievementsProfilePreference(context: Context, attrs: AttributeSet?)
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         val composeView = holder.itemView as? ComposeView ?: return
-        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
         composeView.setContent {
             MelonTheme {
                 displayedProfile?.let {

@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Ambil sampul kotak Nintendo 3DS dari Libretro melalui jaringan</string>
     <string name="rom_ra_badges_enabled_title">Unduh Lencana Pencapaian (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Unduh ikon lencana lewat jaringan; nonaktif menampilkan ikon piala bawaan</string>
-    <string name="v794_video_preset_auto_device">Optimalkan Otomatis untuk Perangkat Ini</string>
+    <string name="v794_video_preset_auto_device">Optimalkan Otomatis untuk Perangkat Ini (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">Mode Penonton</string>
     <string name="ra_spectator_mode_summary">Lacak pencapaian secara lokal tanpa mengirim pembukaan atau skor ke server</string>
     <string name="ra_filter_progression">Progresi</string>

@@ -1321,4 +1321,111 @@ class Storm3dsCoreTest {
         assertTrue("update_checker.cpp must read SGW notes field", "JsonString(rel, \"notes\")" in checkerCpp)
         assertTrue("update_checker.cpp must unwrap repository.releases", "parsed[\"repository\"][\"releases\"]" in checkerCpp)
     }
+
+    @Test
+    fun `settings preference arrays match across all locales and crash guards hold`() {
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val proguardFile = File("proguard-rules.pro").takeIf { it.exists() } ?: File("app/proguard-rules.pro")
+        val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = true
+        }
+        val andNs = "http://schemas.android.com/apk/res/android"
+        val appNs = "http://schemas.android.com/apk/res-auto"
+
+        val localeDirs = resRoot.listFiles { f -> f.isDirectory && f.name.startsWith("values") }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+        assertTrue("Must have all 10 locale directories", localeDirs.size >= 10)
+
+        val arraysByLocale = mutableMapOf<String, MutableMap<String, List<String>>>()
+        for (dir in localeDirs) {
+            val map = mutableMapOf<String, List<String>>()
+            for (xmlFile in dir.listFiles { f -> f.extension == "xml" } ?: emptyArray()) {
+                val doc = factory.newDocumentBuilder().parse(xmlFile)
+                val arrayNodes = doc.getElementsByTagName("string-array")
+                for (i in 0 until arrayNodes.length) {
+                    val el = arrayNodes.item(i) as org.w3c.dom.Element
+                    val name = el.getAttribute("name")
+                    val items = mutableListOf<String>()
+                    val itemNodes = el.getElementsByTagName("item")
+                    for (j in 0 until itemNodes.length) {
+                        items += itemNodes.item(j).textContent.trim()
+                    }
+                    map[name] = items
+                }
+            }
+            arraysByLocale[dir.name] = map
+        }
+
+        val baseArrays = arraysByLocale.getValue("values")
+        val xmlDir = File(resRoot, "xml")
+        for (prefXml in xmlDir.listFiles { f -> f.name.startsWith("pref_") && f.extension == "xml" } ?: emptyArray()) {
+            val doc = factory.newDocumentBuilder().parse(prefXml)
+            val allNodes = doc.getElementsByTagName("*")
+            for (i in 0 until allNodes.length) {
+                val el = allNodes.item(i) as org.w3c.dom.Element
+                val tag = el.tagName
+                if (!tag.contains("ListPreference") && tag != "com.storm3ds.emulator.ui.settings.preferences.SoftwareInputBehaviourPreference") {
+                    continue
+                }
+                val entriesAttr = el.getAttributeNS(andNs, "entries").ifBlank { el.getAttributeNS(appNs, "entries") }
+                val valuesAttr = el.getAttributeNS(andNs, "entryValues").ifBlank { el.getAttributeNS(appNs, "entryValues") }
+                if (!entriesAttr.startsWith("@array/") || !valuesAttr.startsWith("@array/")) {
+                    continue
+                }
+                val entriesName = entriesAttr.removePrefix("@array/")
+                val valuesName = valuesAttr.removePrefix("@array/")
+                val valuesItems = baseArrays[valuesName] ?: emptyList()
+                val key = el.getAttributeNS(andNs, "key")
+
+                for ((localeName, locMap) in arraysByLocale) {
+                    val locEntries = locMap[entriesName] ?: baseArrays[entriesName]
+                    val locValues = locMap[valuesName] ?: valuesItems
+                    assertNotNull("Missing $entriesName for $key in $localeName", locEntries)
+                    assertEquals(
+                        "${prefXml.name} key=$key ($entriesName vs $valuesName) length mismatch in $localeName",
+                        locValues.size,
+                        locEntries!!.size,
+                    )
+                }
+
+                val defaultVal = el.getAttributeNS(andNs, "defaultValue")
+                if (defaultVal.isNotBlank() && !defaultVal.startsWith("@array/") && valuesItems.isNotEmpty()) {
+                    assertTrue(
+                        "${prefXml.name} key=$key defaultValue=$defaultVal missing from $valuesName",
+                        defaultVal in valuesItems,
+                    )
+                }
+            }
+        }
+
+        // Guard 1: Firmware nickname does not conflict useSimpleSummaryProvider with .summary updates
+        val prefFw = File(resRoot, "xml/pref_internal_firmware_settings.xml").readText()
+        assertFalse(
+            "firmware_settings_nickname must not set useSimpleSummaryProvider=true while code sets .summary",
+            "firmware_settings_nickname" in prefFw && "useSimpleSummaryProvider=\"true\"" in prefFw,
+        )
+
+        // Guard 2: StoragePickerPreference loop uses 0 until count (never 0..count)
+        val storagePickerTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/preferences/StoragePickerPreference.kt").readText()
+        assertTrue("StoragePickerPreference must iterate 0 until count", "for (i in 0 until count)" in storagePickerTxt)
+
+        // Guard 3: BasePreferenceFragment guards detached fragments inside view.post/rv.post
+        val baseFragTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/fragments/BasePreferenceFragment.kt").readText()
+        assertTrue("BasePreferenceFragment must guard isAdded inside post callbacks", "isAdded && context != null" in baseFragTxt)
+
+        // Guard 4: VideoPreferencesFragment guards lateinit properties on subscreens and avoids ListPreference.summaryProvider conflict
+        val videoFragTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/fragments/VideoPreferencesFragment.kt").readText()
+        assertTrue("VideoPreferencesFragment must guard dualScreenPresetsPreference initialization", "this::dualScreenPresetsPreference.isInitialized" in videoFragTxt)
+        assertTrue("VideoPreferencesFragment must guard adrenoVulkanDriverManager in onResume", "::adrenoVulkanDriverManager.isInitialized" in videoFragTxt)
+        assertFalse("VideoPreferencesFragment must not set summary = \"%s\" after SummaryProvider", "videoFilteringPreference.summary = \"%s\"" in videoFragTxt)
+
+        // Guard 5: ProGuard keeps custom preferences
+        val proguardTxt = proguardFile.readText()
+        assertTrue(
+            "proguard-rules.pro must keep ui.settings.preferences.**",
+            "-keep class com.storm3ds.emulator.ui.settings.preferences.** { *; }" in proguardTxt,
+        )
+    }
 }

@@ -286,7 +286,7 @@ static std::string GetCurrentAppVersion() {
             return Common::g_build_fullname;
         }
     }
-    return "1.10.0";
+    return "1.10.1";
 }
 
 static bool IsRemoteVersionNewer(const std::string& remote, const std::string& current) {

@@ -6,9 +6,7 @@
     <EditTextPreference
             android:key="firmware_settings_nickname"
             android:title="@string/pref_3ds_profile_nickname"
-            android:summary="%s"
             app:iconSpaceReserved="false"
-            app:useSimpleSummaryProvider="true"
             android:defaultValue="STORM 3DS" />
 
     <com.storm3ds.emulator.ui.settings.preferences.FirmwareBirthdayPreference

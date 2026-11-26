@@ -435,7 +435,7 @@ SDMC: %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Scarica le copertine Nintendo 3DS da Libretro tramite rete</string>
     <string name="rom_ra_badges_enabled_title">Scarica badge obiettivi (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Scarica le icone badge in rete; disattivato mostra trofei integrati</string>
-    <string name="v794_video_preset_auto_device">Ottimizzazione automatica per questo dispositivo</string>
+    <string name="v794_video_preset_auto_device">Ottimizzazione automatica per questo dispositivo (%1$s, %2$d MB)</string>
     <string name="ra_spectator_mode_title">Modalità spettatore</string>
     <string name="ra_spectator_mode_summary">Monitora gli obiettivi in locale senza inviare sblocchi o punteggi al server</string>
     <string name="ra_filter_progression">Progressione</string>

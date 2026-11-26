@@ -58,16 +58,18 @@ class PreferenceFragmentHelper(
         private val sBindPreferenceSummaryToValueListener = Preference.OnPreferenceChangeListener { preference, value ->
             when (preference) {
                 is ListPreference -> {
-                    val chosenValue = (value as? String) ?: preference.value
-                    val index = chosenValue
-                        ?.let { preference.findIndexOfValue(it) }
-                        ?: -1
+                    if (preference.summaryProvider == null) {
+                        val chosenValue = (value as? String) ?: preference.value
+                        val index = chosenValue
+                            ?.let { preference.findIndexOfValue(it) }
+                            ?: -1
 
-                    val summary = if (index >= 0)
-                        preference.entries?.getOrNull(index) ?: preference.context.getString(R.string.not_set)
-                    else
-                        preference.context.getString(R.string.not_set)
-                    preference.setSummary(summary)
+                        val summary = if (index >= 0)
+                            preference.entries?.getOrNull(index) ?: preference.context.getString(R.string.not_set)
+                        else
+                            preference.context.getString(R.string.not_set)
+                        preference.setSummary(summary.toString().replace("%", "%%"))
+                    }
                 }
                 is StoragePickerPreference -> {
                     if (value == null || value !is Set<*> || value.isEmpty())
@@ -105,13 +107,27 @@ class PreferenceFragmentHelper(
         if (preference == null)
             return
 
+        if (preference is ListPreference) {
+            preference.summaryProvider = Preference.SummaryProvider<ListPreference> { lp ->
+                val chosenValue = lp.value
+                val index = chosenValue?.let { lp.findIndexOfValue(it) } ?: -1
+                if (index >= 0) {
+                    lp.entries?.getOrNull(index) ?: lp.context.getString(R.string.not_set)
+                } else {
+                    lp.context.getString(R.string.not_set)
+                }
+            }
+            return
+        }
+
         preference.summaryProvider = null
         preference.addOnPreferenceChangeListener(sBindPreferenceSummaryToValueListener)
 
+        val sp = PreferenceManager.getDefaultSharedPreferences(preference.context)
         val initialValue: Any? = when (preference) {
-            is StoragePickerPreference -> PreferenceManager.getDefaultSharedPreferences(preference.context).getStringSet(preference.key, null)
-            is MasterSwitchPreference -> PreferenceManager.getDefaultSharedPreferences(preference.context).getBoolean(preference.key, false)
-            else -> PreferenceManager.getDefaultSharedPreferences(preference.context).getString(preference.key, null)
+            is StoragePickerPreference -> runCatching { sp.getStringSet(preference.key, null) }.getOrNull()
+            is MasterSwitchPreference -> runCatching { sp.getBoolean(preference.key, false) }.getOrNull()
+            else -> runCatching { sp.getString(preference.key, null) }.getOrNull()
         }
         sBindPreferenceSummaryToValueListener.onPreferenceChange(preference, initialValue)
     }

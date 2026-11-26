@@ -160,10 +160,6 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
                 val newAccent = newValue as String
                 com.storm3ds.emulator.ui.theme.AppThemeManager.accentColorState.value = newAccent
                 accentPreference.sharedPreferences?.edit()?.putString("theme_accent_color", newAccent)?.apply()
-                val idx = accentPreference.findIndexOfValue(newAccent)
-                if (idx >= 0) {
-                    accentPreference.summary = accentPreference.entries?.getOrNull(idx)
-                }
                 view?.post { applyAccentColorToViews() }
                 activity?.recreate()
                 true
@@ -176,16 +172,8 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
             themePreference.setOnPreferenceChangeListener { _, newValue ->
                 val newThemeKey = newValue as String
                 com.storm3ds.emulator.ui.theme.AppThemeManager.updateTheme(requireContext(), newThemeKey)
-                val themeIdx = themePreference.findIndexOfValue(newThemeKey)
-                if (themeIdx >= 0) {
-                    themePreference.summary = themePreference.entries?.getOrNull(themeIdx)
-                }
                 accentPreference?.let { accPref ->
                     accPref.value = com.storm3ds.emulator.ui.theme.AppThemeManager.DEFAULT_ACCENT_KEY
-                    val accIdx = accPref.findIndexOfValue(com.storm3ds.emulator.ui.theme.AppThemeManager.DEFAULT_ACCENT_KEY)
-                    if (accIdx >= 0) {
-                        accPref.summary = accPref.entries?.getOrNull(accIdx)
-                    }
                 }
                 activity?.recreate()
                 true
@@ -430,7 +418,7 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
         val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val hardcoreEnabled = preferences.getBoolean("ra_hardcore_enabled", false)
         frameLimitSpeedPreference.isVisible = !hardcoreEnabled
-        if (!hardcoreEnabled) {
+        if (!hardcoreEnabled && frameLimitSpeedPreference.summaryProvider == null) {
             frameLimitSpeedPreference.summary = frameLimitSpeedPreference.entry ?: getString(R.string.not_set)
         }
     }

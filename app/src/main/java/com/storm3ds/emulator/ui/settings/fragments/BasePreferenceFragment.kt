@@ -71,7 +71,7 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat() {
                     val pref = if (pos != RecyclerView.NO_POSITION) adapter?.getItem(pos) else null
                     applyThemeToPreferenceView(view, pref is androidx.preference.PreferenceCategory)
                     view.post {
-                        if (view.isAttachedToWindow) {
+                        if (view.isAttachedToWindow && isAdded && context != null) {
                             val postPos = recyclerView.getChildAdapterPosition(view)
                             val postPref = if (postPos != RecyclerView.NO_POSITION) adapter?.getItem(postPos) else pref
                             applyThemeToPreferenceView(view, postPref is androidx.preference.PreferenceCategory)
@@ -126,10 +126,11 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat() {
     }
 
     private fun createPreferenceCardDrawable(
+        ctx: android.content.Context,
         colors: com.storm3ds.emulator.ui.theme.WatermelonColors,
         radiusDp: Float,
     ): StateListDrawable {
-        val density = resources.displayMetrics.density
+        val density = ctx.resources.displayMetrics.density
         val radiusPx = radiusDp * density
         val strokeNormal = (1f * density).toInt().coerceAtLeast(1)
         val strokeFocused = (2f * density).toInt().coerceAtLeast(1)
@@ -178,8 +179,8 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat() {
         } else if (view is FrameLayout && view.childCount == 1) {
             val card = view.getChildAt(0)
             if (card is LinearLayout) {
-                val radiusDp = if (card.minimumHeight >= (80 * resources.displayMetrics.density).toInt()) 15f else 13f
-                card.background = createPreferenceCardDrawable(colors, radiusDp)
+                val radiusDp = if (card.minimumHeight >= (80 * ctx.resources.displayMetrics.density).toInt()) 15f else 13f
+                card.background = createPreferenceCardDrawable(ctx, colors, radiusDp)
             }
         }
         tintChildControls(view, colors, thumbCsl, trackCsl, titleCsl, summaryCsl)
@@ -194,6 +195,7 @@ abstract class BasePreferenceFragment : PreferenceFragmentCompat() {
         val rv = listView ?: return
         rv.setBackgroundColor(bgInt)
         rv.post {
+            if (!isAdded || context == null) return@post
             val adapter = rv.adapter as? PreferenceGroupAdapter
             for (i in 0 until rv.childCount) {
                 val child = rv.getChildAt(i)

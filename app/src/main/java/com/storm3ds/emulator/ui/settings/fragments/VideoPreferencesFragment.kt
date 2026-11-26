@@ -157,15 +157,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             it.inGameLockedMessageRes = R.string.video_setting_cannot_change_ingame
         }
         internalResolutionPreference.addOnPreferenceChangeListener { pref, newValue ->
-            val listPref = pref as ListPreference
-            val index = listPref.findIndexOfValue(newValue as? String)
-            val entry = if (index >= 0 && index < listPref.entries.size) listPref.entries[index] else (newValue?.toString() ?: "")
-            val mult = (newValue as? String)?.toIntOrNull() ?: 1
-            if (mult >= 8) {
-                listPref.summary = getString(R.string.v780_internal_resolution_warning_summary, entry)
-            } else {
-                listPref.summary = entry
-            }
+            updateInternalResolutionSummary(pref as ListPreference, newValue as? String)
             true
         }
         updateInternalResolutionSummary(internalResolutionPreference)
@@ -276,9 +268,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         findPreference<SwitchPreference>("video_renderer_debug_tools_enabled")?.setOnPreferenceChangeListener { _, newValue ->
             val on = newValue as Boolean
-            val currentRenderer = runCatching {
-                enumValueOfIgnoreCase<VideoRenderer>(rendererPreference.value)
-            }.getOrDefault(VideoRenderer.SOFTWARE)
+            val currentRenderer = videoRendererOrDefault(rendererPreference.value, VideoRenderer.SOFTWARE)
             findPreference<Preference>("video_renderer_debug_bgobj_enabled")?.isVisible = on
             findPreference<Preference>("video_renderer_debug_latch_trace_enabled")?.isVisible = on
             findPreference<Preference>("video_debug_3d_clear_magenta")?.isVisible =
@@ -362,9 +352,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
         texFilterPref?.setOnPreferenceChangeListener { pref, newValue ->
             val selected = newValue as? String ?: "0"
-            val currentRenderer = runCatching {
-                enumValueOfIgnoreCase<VideoRenderer>(rendererPreference.value)
-            }.getOrDefault(VideoRenderer.VULKAN)
+            val currentRenderer = videoRendererOrDefault(rendererPreference.value, VideoRenderer.VULKAN)
             if (currentRenderer == VideoRenderer.VULKAN && selected == "1") {
                 AlertDialog.Builder(requireContext())
                     .setTitle(R.string.pref_3ds_anime4k_vulkan_title)
@@ -413,7 +401,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
 
             setOnPreferenceChangeListener { _, newValue ->
                 val rendererValue = newValue as String
-                val newRenderer = enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+                val newRenderer = videoRendererOrDefault(rendererValue, VideoRenderer.VULKAN)
                 if (newRenderer == VideoRenderer.VULKAN) {
                     com.storm3ds.emulator.impl.compat.GameCompatibilityManager.clearDeviceVulkanUnavailable(requireContext())
                     MelonDSAndroidInterface.configureVulkanDriver(
@@ -487,7 +475,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         helper.bindPreferenceSummaryToValue(retroArchShaderPresetPreference)
         retroArchShaderParametersPreference?.let { helper.bindPreferenceSummaryToValue(it) }
         setupVulkanDriverPreferences(
-            renderer = enumValueOfIgnoreCase(rendererPreference.value),
+            renderer = videoRendererOrDefault(rendererPreference.value),
             category = vulkanDriverCategory,
             managerPreference = vulkanDriverManagerPreference,
             modePreference = vulkanDriverModePreference,
@@ -516,7 +504,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         observeShaderInstallWork()
 
         updateFilteringPreferences(
-            renderer = enumValueOfIgnoreCase(rendererPreference.value),
+            renderer = videoRendererOrDefault(rendererPreference.value),
             videoFilteringPreference = videoFilteringPreference,
             retroArchShaderRootPreference = retroArchShaderRootPreference,
             retroArchShaderPresetPreference = retroArchShaderPresetPreference,
@@ -536,7 +524,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             if (enabled && !videoFilteringPreference.value.equals("ai_upscale", ignoreCase = true)) {
                 videoFilteringPreference.value = "ai_upscale"
                 updateShaderPickerPreferences(
-                    renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                    renderer = videoRendererOrDefault(rendererPreference.value),
                     filteringValue = "ai_upscale",
                     retroArchShaderRootPreference = retroArchShaderRootPreference,
                     retroArchShaderPresetPreference = retroArchShaderPresetPreference,
@@ -546,7 +534,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             } else if (!enabled && videoFilteringPreference.value.equals("ai_upscale", ignoreCase = true)) {
                 videoFilteringPreference.value = "quilez"
                 updateShaderPickerPreferences(
-                    renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                    renderer = videoRendererOrDefault(rendererPreference.value),
                     filteringValue = "quilez",
                     retroArchShaderRootPreference = retroArchShaderRootPreference,
                     retroArchShaderPresetPreference = retroArchShaderPresetPreference,
@@ -580,7 +568,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
                 scalePref.isEnabled = aiSelected
             }
             updateShaderPickerPreferences(
-                renderer = enumValueOfIgnoreCase(rendererPreference.value),
+                renderer = videoRendererOrDefault(rendererPreference.value),
                 filteringValue = newFilteringValue,
                 retroArchShaderRootPreference = retroArchShaderRootPreference,
                 retroArchShaderPresetPreference = retroArchShaderPresetPreference,
@@ -793,7 +781,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             managerPreference?.summary = blockedSummary
             modePreference.isEnabled = false
             modePreference.value = VULKAN_SYSTEM_DRIVER_VALUE
-            modePreference.summary = blockedSummary
+            modePreference.summaryProvider = Preference.SummaryProvider<ListPreference> { blockedSummary }
             importPreference.isEnabled = false
             removePreference.isEnabled = false
             removePreference.isVisible = false
@@ -933,7 +921,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         modePreference.entries = arrayOf(getString(R.string.video_vulkan_driver_mode_system)) +
             installedDrivers.map { it.displayName }.toTypedArray()
         modePreference.value = if (useCustomDriver) selectedDriverId else VULKAN_SYSTEM_DRIVER_VALUE
-        modePreference.summary = if (useCustomDriver) {
+        val modeSummaryText = if (useCustomDriver) {
             getString(
                 R.string.video_vulkan_driver_active_custom,
                 installedDrivers.first { it.id == selectedDriverId }.displayName,
@@ -941,6 +929,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         } else {
             getString(R.string.video_vulkan_driver_active_system)
         }
+        modePreference.summaryProvider = Preference.SummaryProvider<ListPreference> { modeSummaryText }
         removePreference.isVisible = installedDrivers.isNotEmpty()
         updateVulkanManagerSummary(managerPreference)
     }
@@ -1016,7 +1005,13 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val selectedPreset = preference.value
         preference.entries = selectedPreset?.let { arrayOf(it) } ?: emptyArray()
         preference.entryValues = selectedPreset?.let { arrayOf(it) } ?: emptyArray()
-        preference.summary = selectedPreset ?: getString(R.string.video_retroarch_shader_preset_summary)
+        bindRetroArchPresetSummaryProvider(preference)
+    }
+
+    private fun bindRetroArchPresetSummaryProvider(preference: ListPreference) {
+        preference.summaryProvider = Preference.SummaryProvider<ListPreference> { lp ->
+            lp.value?.takeIf { it.isNotBlank() } ?: getString(R.string.video_retroarch_shader_preset_summary)
+        }
     }
 
     private data class ShaderBrowserEntry(val name: String, val isDirectory: Boolean)
@@ -1080,7 +1075,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     private fun showRetroArchPresetBrowserDialog(preference: ListPreference) {
         val lister = resolveShaderDirectoryLister()
         if (lister == null) {
-            preference.summary = getString(R.string.video_retroarch_shader_preset_summary)
+            bindRetroArchPresetSummaryProvider(preference)
             Toast.makeText(requireContext(), R.string.retroarch_shader_root_not_valid, Toast.LENGTH_LONG).show()
             return
         }
@@ -1360,7 +1355,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         allFilteringValues: Array<String>,
         allFilteringEntries: Array<String>,
     ) {
-        val newRenderer = enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+        val newRenderer = videoRendererOrDefault(rendererValue, VideoRenderer.VULKAN)
         when (newRenderer) {
             VideoRenderer.SOFTWARE -> {
                 threadedRendererPreferences.forEach {
@@ -1457,9 +1452,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     private fun refreshConditionalVideoVisibility() {
         val debugSwitch = findPreference<SwitchPreference>("video_renderer_debug_tools_enabled")
         val debugOn = debugSwitch?.isVisible == true && debugSwitch.isChecked
-        val currentRenderer = runCatching {
-            enumValueOfIgnoreCase<VideoRenderer>(findPreference<ListPreference>("video_renderer")?.value.orEmpty())
-        }.getOrDefault(VideoRenderer.SOFTWARE)
+        val currentRenderer = videoRendererOrDefault(
+            findPreference<ListPreference>("video_renderer")?.value,
+            VideoRenderer.SOFTWARE,
+        )
         findPreference<Preference>("video_renderer_debug_bgobj_enabled")?.isVisible = debugOn
         findPreference<Preference>("video_renderer_debug_latch_trace_enabled")?.isVisible = debugOn
         findPreference<Preference>("video_debug_3d_clear_magenta")?.isVisible =
@@ -1512,13 +1508,15 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         if (!currentFiltering.isSupportedByRenderer(renderer)) {
             videoFilteringPreference.value = VideoFiltering.NONE.name.lowercase()
         }
-        videoFilteringPreference.summary = "%s"
+        updateListPreferenceSummary(videoFilteringPreference)
 
         // Lock / Unlock 3D Internal Resolution on Software renderer
         findPreference<ListPreference>("video_internal_resolution")?.let { internalResPref ->
             if (isSoftware) {
                 internalResPref.isEnabled = false
-                internalResPref.summary = getString(R.string.video_prefs_internal_resolution_software_only)
+                internalResPref.summaryProvider = Preference.SummaryProvider<ListPreference> {
+                    getString(R.string.video_prefs_internal_resolution_software_only)
+                }
             } else {
                 internalResPref.isEnabled = true
                 updateInternalResolutionSummary(internalResPref)
@@ -1688,7 +1686,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
         val preferences = preferenceManager.sharedPreferences
         updateShaderPickerPreferences(
-            renderer = enumValueOfIgnoreCase(preferences?.getString("video_renderer", "software") ?: "software"),
+            renderer = videoRendererOrDefault(preferences?.getString("video_renderer", "vulkan"), VideoRenderer.VULKAN),
             filteringValue = preferences?.getString("video_filtering", "none") ?: "none",
             retroArchShaderRootPreference = shaderRootPreference,
             retroArchShaderPresetPreference = shaderPresetPreference,
@@ -1940,11 +1938,15 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun observeShaderInstallWork() {
+        val ctx = context ?: return
         shaderInstallObserverJob?.cancel()
         shaderInstallObserverJob = lifecycleScope.launch {
-            WorkManager.getInstance(requireContext())
-                .getWorkInfosForUniqueWorkFlow(RetroArchShaderInstallWorker.WORK_NAME)
-                .collect { workInfos ->
+            val flow = runCatching {
+                WorkManager.getInstance(ctx)
+                    .getWorkInfosForUniqueWorkFlow(RetroArchShaderInstallWorker.WORK_NAME)
+            }.getOrNull() ?: return@launch
+            flow.collect { workInfos ->
+                    if (!isAdded || context == null) return@collect
                     val info = workInfos.lastOrNull() ?: return@collect
                     when (info.state) {
                         WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> {
@@ -2101,6 +2103,11 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             .show()
     }
 
+    private fun videoRendererOrDefault(value: String?, fallback: VideoRenderer = VideoRenderer.VULKAN): VideoRenderer {
+        return runCatching { enumValueOfIgnoreCase<VideoRenderer>(value.orEmpty()) }
+            .getOrDefault(fallback)
+    }
+
     private fun videoFilteringOrNone(value: String?): VideoFiltering {
         return runCatching { enumValueOfIgnoreCase<VideoFiltering>(value.orEmpty()) }
             .getOrDefault(VideoFiltering.NONE)
@@ -2111,13 +2118,13 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             preference.value = null
             preference.entries = emptyArray()
             preference.entryValues = emptyArray()
-            preference.summary = getString(R.string.video_retroarch_shader_preset_summary)
+            bindRetroArchPresetSummaryProvider(preference)
             return
         }
         preference.value = selectedPreset
         preference.entries = arrayOf(selectedPreset)
         preference.entryValues = arrayOf(selectedPreset)
-        preference.summary = selectedPreset
+        bindRetroArchPresetSummaryProvider(preference)
     }
 
     private fun showVulkanUnavailableDialog() {
@@ -2129,7 +2136,8 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     }
 
     private fun updateDsiCameraImagePreference(preference: StoragePickerPreference, dsiCameraSourceValue: String) {
-        val newSource = enumValueOfIgnoreCase<DSiCameraSourceType>(dsiCameraSourceValue)
+        val newSource = runCatching { enumValueOfIgnoreCase<DSiCameraSourceType>(dsiCameraSourceValue) }
+            .getOrDefault(DSiCameraSourceType.PHYSICAL_CAMERAS)
         preference.isVisible = newSource == DSiCameraSourceType.STATIC_IMAGE
     }
 
@@ -2145,10 +2153,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val importPreference = findPreference<Preference>("video_vulkan_driver_import")
         val removePreference = findPreference<Preference>("video_vulkan_driver_remove")
         val managerPreference = findPreference<Preference>("video_vulkan_driver_manager")
-        if (vulkanCategory != null && modePreference != null && importPreference != null && removePreference != null) {
+        if (vulkanCategory != null && modePreference != null && importPreference != null && removePreference != null && ::adrenoVulkanDriverManager.isInitialized) {
             val rendererValue = findPreference<ListPreference>("video_renderer")?.value
             val currentRenderer = if (!rendererValue.isNullOrBlank()) {
-                enumValueOfIgnoreCase<VideoRenderer>(rendererValue)
+                videoRendererOrDefault(rendererValue, VideoRenderer.VULKAN)
             } else {
                 settingsRepository.getCurrentVideoRenderer()
             }
@@ -2519,18 +2527,46 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
     }
 
-    private fun updateInternalResolutionSummary(pref: ListPreference) {
-        val entry = pref.entry ?: pref.value ?: ""
-        val mult = pref.value?.toIntOrNull() ?: 1
-        if (mult >= 8) {
-            pref.summary = getString(R.string.v780_internal_resolution_warning_summary, entry)
-        } else {
-            pref.summary = entry
+    private fun updateInternalResolutionSummary(pref: ListPreference, valueOverride: String? = null) {
+        pref.summaryProvider = Preference.SummaryProvider<ListPreference> { lp ->
+            val currentVal = valueOverride ?: lp.value
+            val index = currentVal?.let { lp.findIndexOfValue(it) } ?: -1
+            val entry = if (index >= 0 && lp.entries != null && index < lp.entries.size) {
+                lp.entries[index].toString()
+            } else {
+                currentVal ?: ""
+            }
+            val mult = currentVal?.toIntOrNull() ?: 1
+            if (mult >= 8) {
+                getString(R.string.v780_internal_resolution_warning_summary, entry)
+            } else {
+                entry
+            }
+        }
+        if (valueOverride != null) {
+            pref.summaryProvider = Preference.SummaryProvider<ListPreference> { lp ->
+                val currentVal = lp.value ?: valueOverride
+                val index = lp.findIndexOfValue(currentVal)
+                val entry = if (index >= 0 && lp.entries != null && index < lp.entries.size) {
+                    lp.entries[index].toString()
+                } else {
+                    currentVal
+                }
+                val mult = currentVal.toIntOrNull() ?: 1
+                if (mult >= 8) {
+                    getString(R.string.v780_internal_resolution_warning_summary, entry)
+                } else {
+                    entry
+                }
+            }
         }
     }
 
     private fun updateListPreferenceSummary(pref: ListPreference) {
-        pref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+        pref.summaryProvider = Preference.SummaryProvider<ListPreference> { lp ->
+            val idx = lp.value?.let { lp.findIndexOfValue(it) } ?: -1
+            lp.entries?.getOrNull(idx)?.toString() ?: lp.value ?: getString(R.string.not_set)
+        }
     }
 
     private fun updateAiUpscaleSummary() {
@@ -2595,7 +2631,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         }
         findPreference<ListPreference>("video_retroarch_shader_preset")?.let {
             it.value = null
-            it.summary = getString(R.string.video_retroarch_shader_preset_summary)
+            bindRetroArchPresetSummaryProvider(it)
         }
         findPreference<EditTextPreference>("video_retroarch_shader_parameters")?.text = null
         findPreference<androidx.preference.TwoStatePreference>("video_retroarch_shader_clear_history")?.isChecked = false
@@ -2637,7 +2673,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val rendererPref = findPreference<ListPreference>("video_renderer")
         if (rendererPref != null && ::shaderRootPreference.isInitialized && ::shaderPresetPreference.isInitialized) {
             updateShaderPickerPreferences(
-                renderer = enumValueOfIgnoreCase(rendererPref.value),
+                renderer = videoRendererOrDefault(rendererPref.value),
                 filteringValue = defaultFiltering,
                 retroArchShaderRootPreference = shaderRootPreference,
                 retroArchShaderPresetPreference = shaderPresetPreference,
@@ -2765,7 +2801,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         val rendererPref = findPreference<ListPreference>("video_renderer")
         if (rendererPref != null && ::shaderRootPreference.isInitialized && ::shaderPresetPreference.isInitialized) {
             updateShaderPickerPreferences(
-                renderer = enumValueOfIgnoreCase(rendererPref.value),
+                renderer = videoRendererOrDefault(rendererPref.value),
                 filteringValue = filteringValue,
                 retroArchShaderRootPreference = shaderRootPreference,
                 retroArchShaderPresetPreference = shaderPresetPreference,

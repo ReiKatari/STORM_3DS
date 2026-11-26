@@ -289,8 +289,8 @@ class SettingsActivity :
 
     private fun updateTitle() {
         val fragment = supportFragmentManager.fragments.lastOrNull()
-        val title = if (fragment is PreferenceFragmentTitleProvider) {
-            fragment.getTitle()
+        val title = if (fragment is PreferenceFragmentTitleProvider && fragment.isAdded) {
+            runCatching { fragment.getTitle() }.getOrDefault(getString(R.string.settings))
         } else {
             getString(R.string.settings)
         }

@@ -204,6 +204,7 @@
         <item>Präzise (Sicher)</item>
         <item>Schnell (Empfohlen)</item>
         <item>Turbo (Schwache/alte Geräte)</item>
+        <item>Auto-Adaptiv (nach Gerät und Akku)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (Schnell / Empfohlen)</item>

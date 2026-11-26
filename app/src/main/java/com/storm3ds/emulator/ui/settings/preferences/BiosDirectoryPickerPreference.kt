@@ -70,7 +70,8 @@ class BiosDirectoryPickerPreference(context: Context, attrs: AttributeSet?) : St
         imageViewStatus?.isGone = false
         buttonResetDefault?.isGone = false
 
-        currentValidationResult = biosDirectoryValidator?.getBiosDirectoryValidationResult(consoleType!!, uri)
+        val type = consoleType ?: return
+        currentValidationResult = biosDirectoryValidator?.getBiosDirectoryValidationResult(type, uri)
         updateStatusView()
     }
 

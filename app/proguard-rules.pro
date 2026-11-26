@@ -49,6 +49,7 @@
 -keep class com.storm3ds.emulator.ui.emulator.rewind.model.RewindSaveState { *; }
 -keep class com.storm3ds.emulator.ui.emulator.rewind.model.RewindWindow { *; }
 -keep class com.storm3ds.emulator.ui.settings.fragments.** { *; }
+-keep class com.storm3ds.emulator.ui.settings.preferences.** { *; }
 -keepclassmembers class com.storm3ds.emulator.ui.emulator.EmulatorActivity {
     kotlin.Lazy viewModel$delegate;
 }

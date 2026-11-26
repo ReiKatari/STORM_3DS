@@ -435,7 +435,7 @@ SDMC : %7$s</string>
     <string name="rom_libretro_covers_enabled_summary">Récupérer les jaquettes Nintendo 3DS depuis Libretro via le réseau</string>
     <string name="rom_ra_badges_enabled_title">Télécharger les badges de succès (RetroAchievements)</string>
     <string name="rom_ra_badges_enabled_summary">Télécharger les icônes de badges en ligne; désactivé affiche des trophées intégrés</string>
-    <string name="v794_video_preset_auto_device">Optimisation automatique pour cet appareil</string>
+    <string name="v794_video_preset_auto_device">Optimisation automatique pour cet appareil (%1$s, %2$d Mo)</string>
     <string name="ra_spectator_mode_title">Mode spectateur</string>
     <string name="ra_spectator_mode_summary">Suivre les succès localement sans envoyer de déblocages ni de scores au serveur</string>
     <string name="ra_filter_progression">Progression</string>

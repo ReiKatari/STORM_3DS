@@ -106,6 +106,7 @@
         <item>Précis (sûr)</item>
         <item>Rapide (recommandé)</item>
         <item>Turbo (appareils modestes/anciens)</item>
+        <item>Auto-adaptatif (selon appareil et batterie)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (Rapide / Recommandé)</item>

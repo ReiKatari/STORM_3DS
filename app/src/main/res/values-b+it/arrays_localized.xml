@@ -103,6 +103,7 @@
         <item>Accurato (sicuro)</item>
         <item>Veloce (consigliato)</item>
         <item>Turbo (dispositivi vecchi/lenti)</item>
+        <item>Auto-adattivo (per dispositivo e batteria)</item>
     </string-array>
     <string-array name="audio_emulation_3ds_options">
         <item>HLE (Veloce / Consigliato)</item>
