@@ -93,6 +93,7 @@ class OpenGlFrameRenderCoordinator : FrameRenderCoordinator {
     private inner class FrameRenderThread : HandlerThread("FrameRenderThread") {
 
         private var handler: Handler? = null
+        private val pendingFrameDeadlineNanos = java.util.concurrent.atomic.AtomicLong(0L)
         @Volatile private var running = true
         private var cleanedUp = false
         private val renderStatistics = RenderStatistics()
@@ -119,7 +120,7 @@ class OpenGlFrameRenderCoordinator : FrameRenderCoordinator {
             handler = object : Handler(looper) {
                 override fun handleMessage(msg: Message) {
                     when (msg.what) {
-                        MSG_RENDER_FRAME -> renderFrame(msg.data.getLong(MSG_RENDER_FRAME_FRAME_DEADLINE_NS))
+                        MSG_RENDER_FRAME -> renderFrame(pendingFrameDeadlineNanos.get())
                         MSG_DESTROY_SURFACES -> destroySurfaces()
                         MSG_PREWARM_SHADERS -> prewarmShaders(msg.arg1, msg.arg2, msg.obj as PrewarmRequest)
                         MSG_STOP -> stopThread()
@@ -132,11 +133,10 @@ class OpenGlFrameRenderCoordinator : FrameRenderCoordinator {
             if (!running) {
                 return
             }
-            handler?.removeMessages(MSG_RENDER_FRAME)
-            handler?.obtainMessage(MSG_RENDER_FRAME)?.let {
-                it.data = bundleOf(MSG_RENDER_FRAME_FRAME_DEADLINE_NS to (frameDeadlineNanos ?: 0L))
-                handler?.sendMessage(it)
-            }
+            val currentHandler = handler ?: return
+            pendingFrameDeadlineNanos.set(frameDeadlineNanos ?: 0L)
+            currentHandler.removeMessages(MSG_RENDER_FRAME)
+            currentHandler.sendEmptyMessage(MSG_RENDER_FRAME)
         }
 
         fun prewarmShaders(atlasWidth: Int, atlasHeight: Int): Long {

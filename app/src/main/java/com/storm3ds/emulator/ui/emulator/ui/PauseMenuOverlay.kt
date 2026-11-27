@@ -28,6 +28,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
@@ -39,7 +41,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BatteryStd
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
@@ -95,6 +99,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -670,13 +675,19 @@ fun PauseMenuOverlay(
             if (rom != null && onQuick3dChanged != null) {
                 var sliderStrength by remember(quick3dStrength) { mutableIntStateOf(quick3dStrength.coerceIn(0, 100)) }
                 var active3dMode by remember(quick3dMode) { mutableIntStateOf(quick3dMode) }
-                val quickModes = listOf(0, 7, 1, 3)
-                val nextMode = quickModes[(quickModes.indexOf(active3dMode) + 1) % quickModes.size]
-                val modeText = when (active3dMode) {
-                    7 -> stringResource(R.string.pause_3d_mode_depth)
-                    1 -> stringResource(R.string.pause_3d_mode_sbs)
-                    3 -> stringResource(R.string.pause_3d_mode_anaglyph)
-                    else -> stringResource(R.string.off)
+                var show3dModeMenu by remember { mutableStateOf(false) }
+                val stereoUiOrder = listOf(0, 7, 3, 1, 2, 4, 5, 6)
+                val modes3dLabels = stringArrayResource(R.array.video_vulkan_3d_depth_mode_options)
+                val activeUiIdx = stereoUiOrder.indexOf(active3dMode)
+                val modeText = if (activeUiIdx in modes3dLabels.indices) {
+                    modes3dLabels[activeUiIdx]
+                } else {
+                    when (active3dMode) {
+                        7 -> stringResource(R.string.pause_3d_mode_depth)
+                        1 -> stringResource(R.string.pause_3d_mode_sbs)
+                        3 -> stringResource(R.string.pause_3d_mode_anaglyph)
+                        else -> stringResource(R.string.off)
+                    }
                 }
                 Row(
                     modifier = Modifier
@@ -689,32 +700,78 @@ fun PauseMenuOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(if (active3dMode != 0) colors.green.copy(alpha = 0.16f) else colors.bg)
-                            .border(
-                                1.dp,
-                                if (active3dMode != 0) colors.green.copy(alpha = 0.5f) else colors.line,
-                                RoundedCornerShape(7.dp),
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (active3dMode != 0) colors.green.copy(alpha = 0.16f) else colors.bg)
+                                .border(
+                                    1.dp,
+                                    if (active3dMode != 0) colors.green.copy(alpha = 0.5f) else colors.line,
+                                    RoundedCornerShape(7.dp),
+                                )
+                                .clickable { show3dModeMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = "3D: $modeText",
+                                color = if (active3dMode != 0) colors.green else colors.text2,
+                                fontFamily = WatermelonMono,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
                             )
-                            .clickable {
-                                active3dMode = nextMode
-                                if (nextMode != 0 && sliderStrength == 0) {
-                                    sliderStrength = 50
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDropDown,
+                                contentDescription = null,
+                                tint = if (active3dMode != 0) colors.green else colors.text2,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = show3dModeMenu,
+                            onDismissRequest = { show3dModeMenu = false },
+                            modifier = Modifier.background(colors.surface),
+                        ) {
+                            stereoUiOrder.forEachIndexed { idx, modeValue ->
+                                val label = modes3dLabels.getOrElse(idx) { modeValue.toString() }
+                                val isSelected = active3dMode == modeValue
+                                DropdownMenuItem(
+                                    onClick = {
+                                        active3dMode = modeValue
+                                        if (modeValue != 0 && sliderStrength == 0) {
+                                            sliderStrength = 50
+                                        }
+                                        onQuick3dChanged(modeValue, sliderStrength)
+                                        show3dModeMenu = false
+                                    },
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = if (isSelected) colors.green else colors.text,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null,
+                                                tint = colors.green,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+                                    }
                                 }
-                                onQuick3dChanged(active3dMode, sliderStrength)
                             }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    ) {
-                        Text(
-                            text = "3D: $modeText",
-                            color = if (active3dMode != 0) colors.green else colors.text2,
-                            fontFamily = WatermelonMono,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                        )
+                        }
                     }
                     Slider(
                         value = sliderStrength.toFloat(),

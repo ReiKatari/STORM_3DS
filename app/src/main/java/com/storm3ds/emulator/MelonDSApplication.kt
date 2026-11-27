@@ -13,9 +13,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.storm3ds.emulator.common.UriFileHandler
 import com.storm3ds.emulator.common.uridelegates.UriHandler
@@ -271,6 +271,8 @@ class MelonDSApplication : Application(), Configuration.Provider {
     @Inject lateinit var settingsBackupManager: SettingsBackupManager
     @Inject lateinit var appLogFileRecorder: AppLogFileRecorder
 
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
         runCatching { com.storm3ds.emulator.impl.FreedrenoSettings.applyAtStartup(base) }
@@ -282,19 +284,19 @@ class MelonDSApplication : Application(), Configuration.Provider {
         super.onCreate()
         runCatching { System.setProperty("http.agent", "STORM_3DS/${BuildConfig.VERSION_NAME}") }
         installCrashHandler()
-        runCatching { giveLibrashaderACacheDirectory() }
         runCatching { ButtonThemeManager.init(this) }
         runCatching { AppThemeManager.init(this) }
-        runCatching { RomDisplayNameManager.init(this) }
+        runCatching { createNotificationChannels() }
+        runCatching { applyTheme() }
         migrationScope.launch(Dispatchers.IO) {
+            runCatching { giveLibrashaderACacheDirectory() }
+            runCatching { RomDisplayNameManager.init(this@MelonDSApplication) }
+            runCatching { appLogFileRecorder.start() }
+            runCatching { performMigrations() }
             runCatching { settingsBackupManager.initializeMirror() }
             runCatching { com.storm3ds.emulator.impl.StormDeviceSystemInfoReporter.saveUnifiedReport(this@MelonDSApplication) }
         }
-        runCatching { createNotificationChannels() }
-        runCatching { applyTheme() }
-        runCatching { performMigrations() }
         runCatching { migrateStorageToRoot(this) }
-        runCatching { appLogFileRecorder.start() }
         runCatching { recoverUnexpectedHardcoreOfflineLossIfNeeded() }
         runCatching {
             MelonDSAndroidInterface.setup(
@@ -371,9 +373,8 @@ class MelonDSApplication : Application(), Configuration.Provider {
         notificationManager.createNotificationChannel(defaultChannel)
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun applyTheme() {
-        GlobalScope.launch(Dispatchers.Main) {
+        applicationScope.launch {
             settingsRepository.observeTheme().collect {
                 AppCompatDelegate.setDefaultNightMode(it.nightMode)
             }

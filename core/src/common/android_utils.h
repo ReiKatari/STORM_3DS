@@ -48,11 +48,11 @@
       "(Ljava/lang/String;)Z")
 namespace AndroidUtils {
 
-static JavaVM* g_jvm = nullptr;
-static jclass native_library = nullptr;
+extern JavaVM* g_jvm;
+extern jclass native_library;
 #define FR(FunctionName, ReturnValue, JMethodID, Caller, JMethodName, Signature) F(JMethodID)
 #define FS(FunctionName, ReturnValue, Parameters, JMethodID, JMethodName, Signature) F(JMethodID)
-#define F(JMethodID) static jmethodID JMethodID = nullptr;
+#define F(JMethodID) extern jmethodID JMethodID;
 ANDROID_SINGLE_PATH_DETERMINE_FUNCTIONS(FR)
 ANDROID_JNI_FUNCTIONS(FS)
 #undef F

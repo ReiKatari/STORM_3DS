@@ -346,7 +346,7 @@ fun FilterChipsRow(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(items) { (filter, label) ->
+        items(items, key = { (filter, _) -> filter.name }) { (filter, label) ->
             val titleText = stringResource(label)
             val displayText = when (filter) {
                 RomFilter.ALL -> "🎮 $titleText"
@@ -432,6 +432,7 @@ fun LibrarySectionHeader(
                     SortingMode.RECENTLY_PLAYED to null,
                     SortingMode.MOST_PLAYED to null,
                 ),
+                key = { (mode, _) -> mode.name },
             ) { (mode, literal) ->
                 val base = literal ?: when (mode) {
                     SortingMode.RECENTLY_PLAYED -> stringResource(R.string.rom_sort_recent_chip)
@@ -610,7 +611,7 @@ fun ContinuePlayingShelf(
                     contentPadding = PaddingValues(horizontal = horizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(roms, key = { it.uri.toString() }) { rom ->
+                    items(roms, key = { it.uri.toString() }, contentType = { "continue_rom" }) { rom ->
                         LaunchedEffect(rom.uri) {
                             onRomVisible(rom)
                         }

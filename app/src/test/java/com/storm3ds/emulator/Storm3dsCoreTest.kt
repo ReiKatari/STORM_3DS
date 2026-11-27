@@ -1472,4 +1472,46 @@ class Storm3dsCoreTest {
         assertEquals(GitHubUpdateChannel.STABLE, GitHubUpdateChannel.fromPreference("stable_and_prerelease"))
         assertEquals(GitHubUpdateChannel.STABLE, GitHubUpdateChannel.fromPreference("stable"))
     }
+
+    @Test
+    fun `release 1_11_0 enforces zero v version prefixes, list selectors, lower skin-safe layout, and jni hygiene`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val coreDir = File("../core").canonicalFile.let { if (it.exists()) it else File("core") }
+
+        // 1. Zero leading v before app/os version labels
+        val updateDialogs = File(srcJava, "com/storm3ds/emulator/ui/updates/StormUpdateDialogs.kt").readText()
+        assertFalse("StormUpdateDialogs must not display v prefix", ("\"" + "v$" + "clean") in updateDialogs)
+        assertFalse("StormUpdateDialogs badge must not prepend v", ("\"" + "v$" + "{versionBadge") in updateDialogs)
+
+        val bootScreen = File(srcJava, "com/storm3ds/emulator/ui/emulator/composables/Console3DBootScreen.kt").readText()
+        assertFalse("BootScreen OS text must not contain v11.17", "v11.17" in bootScreen)
+
+        val qtUpdateDialog = File(coreDir, "src/citra_qt/update_dialog.cpp").readText()
+        assertFalse("Qt UpdateDialog must not prepend QStringLiteral(\"v\")", "QStringLiteral(\"v\")" in qtUpdateDialog)
+
+        // 2. Zero arrow steppers; popup list dialogs/menus in setup, pause 3D, and translator settings
+        val setupTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/System3dsSetupDialog.kt").readText()
+        assertFalse("SetupIconStepperButton arrow cycler must be removed", "SetupIconStepperButton" in setupTxt)
+        assertTrue("3D mode must open SettingsChoiceDialogContent list", "SettingsChoiceDialogContent(" in setupTxt)
+
+        val pauseTxt = File(srcJava, "com/storm3ds/emulator/ui/emulator/ui/PauseMenuOverlay.kt").readText()
+        assertTrue("Pause 3D quick selector must use DropdownMenu list", "show3dModeMenu" in pauseTxt && "DropdownMenu(" in pauseTxt)
+
+        val translatorTxt = File(srcJava, "com/storm3ds/emulator/translator/ui/TranslatorSettingsBottomSheet.kt").readText()
+        assertTrue("TranslatorSettings must open choice dialogs instead of tap-cycling", "showEngineDialog" in translatorTxt && "showTriggerModeDialog" in translatorTxt && "showOverlayStyleDialog" in translatorTxt)
+
+        // 3. Skin-aware lower default portrait layout & skin contrast fixes
+        val layoutTxt = File(srcJava, "com/storm3ds/emulator/impl/layout/DefaultLayoutProvider.kt").readText()
+        assertTrue("DefaultLayoutProvider must check video_console_skin_enabled", "video_console_skin_enabled" in layoutTxt)
+        assertTrue("DefaultLayoutProvider must reserve skinHingeGap and minSkinClearance", "skinHingeGap" in layoutTxt && "minSkinClearance" in layoutTxt)
+
+        val skinTxt = File(srcJava, "com/storm3ds/emulator/ui/emulator/skin/ConsoleSkinOverlayView.kt").readText()
+        assertTrue("ConsoleSkinOverlayView must auto-adjust light surface brand text contrast", "effectiveBrandColor" in skinTxt)
+        assertTrue("Landscape SELECT|HOME|START decorative bar must guard slim bottom bands", "safeBottomH >= 52f * density" in skinTxt)
+
+        // 4. Shared JNI declarations in android_utils.h must use extern, not header-static
+        val androidUtilsH = File(coreDir, "src/common/android_utils.h").readText()
+        assertTrue("android_utils.h must declare extern JavaVM* g_jvm", "extern JavaVM* g_jvm;" in androidUtilsH)
+        assertFalse("android_utils.h must not declare static JavaVM* g_jvm", "static JavaVM* g_jvm" in androidUtilsH)
+    }
 }

@@ -36,27 +36,34 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_features_cheats_m
 
 JNIEXPORT jstring JNICALL
 Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_getName(JNIEnv* env, jobject obj) {
-    return ToJString(env, (*CheatFromJava(env, obj))->GetName());
+    auto* ptr = CheatFromJava(env, obj);
+    return ToJString(env, (ptr && *ptr) ? (*ptr)->GetName() : "");
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_getNotes(JNIEnv* env, jobject obj) {
-    return ToJString(env, (*CheatFromJava(env, obj))->GetComments());
+    auto* ptr = CheatFromJava(env, obj);
+    return ToJString(env, (ptr && *ptr) ? (*ptr)->GetComments() : "");
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_getCode(JNIEnv* env, jobject obj) {
-    return ToJString(env, (*CheatFromJava(env, obj))->GetCode());
+    auto* ptr = CheatFromJava(env, obj);
+    return ToJString(env, (ptr && *ptr) ? (*ptr)->GetCode() : "");
 }
 
 JNIEXPORT jboolean JNICALL
 Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_getEnabled(JNIEnv* env, jobject obj) {
-    return static_cast<jboolean>((*CheatFromJava(env, obj))->IsEnabled());
+    auto* ptr = CheatFromJava(env, obj);
+    return static_cast<jboolean>((ptr && *ptr) ? (*ptr)->IsEnabled() : false);
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_setEnabledImpl(
     JNIEnv* env, jobject obj, jboolean j_enabled) {
-    (*CheatFromJava(env, obj))->SetEnabled(static_cast<bool>(j_enabled));
+    auto* ptr = CheatFromJava(env, obj);
+    if (ptr && *ptr) {
+        (*ptr)->SetEnabled(static_cast<bool>(j_enabled));
+    }
 }
 
 JNIEXPORT jint JNICALL Java_com_storm3ds_emulator_nativebridge_features_cheats_model_Cheat_isValidGatewayCode(

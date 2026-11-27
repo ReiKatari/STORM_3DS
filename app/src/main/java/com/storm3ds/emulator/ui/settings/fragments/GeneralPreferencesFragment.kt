@@ -405,6 +405,13 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
         }
     }
 
+    override fun onDestroyView() {
+        if (::frameLimitSpeedPreference.isInitialized) {
+            frameLimitSpeedPreference.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(sharedPreferenceChangeListener)
+        }
+        super.onDestroyView()
+    }
+
     override fun onDestroy() {
         if (::frameLimitSpeedPreference.isInitialized) {
             frameLimitSpeedPreference.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(sharedPreferenceChangeListener)
@@ -421,8 +428,9 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
     }
 
     private fun updateFrameLimitSpeedPreferenceState() {
-        if (!::frameLimitSpeedPreference.isInitialized) return
-        val preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        if (!::frameLimitSpeedPreference.isInitialized || !isAdded) return
+        val ctx = context ?: return
+        val preferences = PreferenceManager.getDefaultSharedPreferences(ctx)
         val hardcoreEnabled = preferences.getBoolean("ra_hardcore_enabled", false)
         frameLimitSpeedPreference.isVisible = !hardcoreEnabled
         if (!hardcoreEnabled && frameLimitSpeedPreference.summaryProvider == null) {

@@ -215,7 +215,7 @@ object StormDeviceSystemInfoReporter {
             appendLine("   Vulkan 3D Engine: Active (SPIR-V Dynamic Indexing, Fence Sync, Pipeline Cache)")
             appendLine("   OpenGL ES 3.2 Renderer: Available Fallback")
             appendLine("   Librashader Shader Engine: Active (Rust C-API, Slang Shaders runtime)")
-            appendLine("   RetroAchievements Engine: Active (rcheevos v11.6.0 native bridge)")
+            appendLine("   RetroAchievements Engine: Active (rcheevos 11.6.0 native bridge)")
             appendLine("   Screen Layout Provider: Robust Orientation-Aware Presentation Engine")
             appendLine("   Modcrypt AES Engine: Hardware-accurate DSiWare decryption and DirectBoot")
             appendLine("   Save State Rewind: Active (Circular snapshot frame buffer)")

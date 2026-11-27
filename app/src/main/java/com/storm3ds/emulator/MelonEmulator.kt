@@ -1005,6 +1005,8 @@ object MelonEmulator {
 
     @Volatile
     private var touchIsSecondary: Boolean = false
+    private var lastSentTouchX: Int = Int.MIN_VALUE
+    private var lastSentTouchY: Int = Int.MIN_VALUE
 
     fun onScreenTouch(x: Int, y: Int) {
         val primaryRect = com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator.lastBottomRect
@@ -1023,15 +1025,21 @@ object MelonEmulator {
             sy = y.coerceIn(0, 239).toFloat()
         }
         val sx = if (!useSecondary && (depth3dMode == 1 || depth3dMode == 2 || depth3dMode == 6)) rawSx * 0.5f else rawSx
+        val intX = (sx + 0.5f).toInt()
+        val intY = (sy + 0.5f).toInt()
         touchIsSecondary = useSecondary
         if (!touchDown) {
             touchDown = true
+            lastSentTouchX = intX
+            lastSentTouchY = intY
             if (useSecondary) {
                 NativeLibrary.onSecondaryTouchEvent(sx, sy, true)
             } else {
                 NativeLibrary.onTouchEvent(sx, sy, true)
             }
-        } else {
+        } else if (intX != lastSentTouchX || intY != lastSentTouchY) {
+            lastSentTouchX = intX
+            lastSentTouchY = intY
             if (useSecondary) {
                 NativeLibrary.onSecondaryTouchMoved(sx, sy)
             } else {
@@ -1041,6 +1049,8 @@ object MelonEmulator {
     }
 
     fun onScreenRelease() {
+        lastSentTouchX = Int.MIN_VALUE
+        lastSentTouchY = Int.MIN_VALUE
         if (touchDown) {
             touchDown = false
             if (touchIsSecondary) {

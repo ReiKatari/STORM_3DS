@@ -23,6 +23,10 @@ static JavaVM* s_java_vm;
 
 static jclass s_core_error_class;
 static jclass s_savestate_info_class;
+static jfieldID s_savestate_info_slot_field;
+static jfieldID s_savestate_info_time_field;
+static jclass s_date_class;
+static jmethodID s_date_constructor;
 
 static jclass s_native_library_class;
 static jmethodID s_on_core_error;
@@ -77,6 +81,22 @@ jclass GetCoreErrorClass() {
 
 jclass GetSavestateInfoClass() {
     return s_savestate_info_class;
+}
+
+jfieldID GetSavestateInfoSlotField() {
+    return s_savestate_info_slot_field;
+}
+
+jfieldID GetSavestateInfoTimeField() {
+    return s_savestate_info_time_field;
+}
+
+jclass GetDateClass() {
+    return s_date_class;
+}
+
+jmethodID GetDateConstructor() {
+    return s_date_constructor;
 }
 
 jclass GetNativeLibraryClass() {
@@ -178,8 +198,16 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
         return JNI_ERR;
 
     // Initialize misc classes
-    s_savestate_info_class = reinterpret_cast<jclass>(
-        env->NewGlobalRef(env->FindClass("com/storm3ds/emulator/nativebridge/NativeLibrary$SaveStateInfo")));
+    jclass savestate_local = env->FindClass("com/storm3ds/emulator/nativebridge/NativeLibrary$SaveStateInfo");
+    s_savestate_info_class = reinterpret_cast<jclass>(env->NewGlobalRef(savestate_local));
+    s_savestate_info_slot_field = env->GetFieldID(s_savestate_info_class, "slot", "I");
+    s_savestate_info_time_field = env->GetFieldID(s_savestate_info_class, "time", "Ljava/util/Date;");
+    if (savestate_local) env->DeleteLocalRef(savestate_local);
+
+    jclass date_local = env->FindClass("java/util/Date");
+    s_date_class = reinterpret_cast<jclass>(env->NewGlobalRef(date_local));
+    s_date_constructor = env->GetMethodID(s_date_class, "<init>", "(J)V");
+    if (date_local) env->DeleteLocalRef(date_local);
     s_core_error_class = reinterpret_cast<jclass>(
         env->NewGlobalRef(env->FindClass("com/storm3ds/emulator/nativebridge/NativeLibrary$CoreError")));
 
@@ -289,6 +317,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
     }
 
     env->DeleteGlobalRef(s_savestate_info_class);
+    env->DeleteGlobalRef(s_date_class);
     env->DeleteGlobalRef(s_core_error_class);
     env->DeleteGlobalRef(s_disk_cache_progress_class);
     env->DeleteGlobalRef(s_native_library_class);

@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include "common/settings.h"
@@ -19,6 +20,7 @@ private:
     std::unique_ptr<INIReader> per_game_config;
     std::string per_game_config_loc;
     inline static std::map<std::string, std::string> default_android_values;
+    inline static std::mutex default_values_mutex;
 
     bool LoadINI(const std::string& default_contents = "", bool retry = true);
     void ReadValues();

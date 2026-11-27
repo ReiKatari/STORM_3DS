@@ -288,25 +288,37 @@ class EmulatorActivity : AppCompatActivity() {
 
     private val amiiboPickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            val userRoot = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
-            val amiiboDir = File(userRoot, "amiibo").apply { mkdirs() }
-            val dest = File(amiiboDir, "live_amiibo.bin")
-            val ok = runCatching {
-                contentResolver.openInputStream(uri)?.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
+            lifecycleScope.launch(Dispatchers.IO) {
+                val userRoot = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
+                val amiiboDir = File(userRoot, "amiibo").apply { mkdirs() }
+                val dest = File(amiiboDir, "live_amiibo.bin")
+                val ok = runCatching {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        dest.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(dest.absolutePath)
+                }.getOrDefault(false)
+                withContext(Dispatchers.Main) {
+                    if (!isFinishing && !isDestroyed) {
+                        android.widget.Toast.makeText(
+                            this@EmulatorActivity,
+                            getString(if (ok) R.string.amiibo_loaded_toast else R.string.amiibo_load_failed_toast),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    viewModel.resumeEmulator()
                 }
-                com.storm3ds.emulator.nativebridge.NativeLibrary.loadAmiibo(dest.absolutePath)
-            }.getOrDefault(false)
-            android.widget.Toast.makeText(
-                this,
-                getString(if (ok) R.string.amiibo_loaded_toast else R.string.amiibo_load_failed_toast),
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            }
+        } else {
+            viewModel.resumeEmulator()
         }
-        viewModel.resumeEmulator()
     }
 
     private var presentation: ExternalPresentation? = null
+    private val defaultPrefs by lazy(LazyThreadSafetyMode.NONE) { PreferenceManager.getDefaultSharedPreferences(this) }
+    private var lastFpsHudText: String? = null
+    private var lastResHudText: String? = null
+    private var lastResHudBg: Boolean? = null
     private var lastKnownGoodTopRect: Rect? = null
     private var lastKnownGoodBottomRect: Rect? = null
 
@@ -1708,18 +1720,21 @@ class EmulatorActivity : AppCompatActivity() {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.perfStats.collectLatest { snap ->
                     val sysFps = snap?.systemFps?.roundToInt()
-                    if (sysFps == null) {
-                        binding.textFps.text = null
+                    val nextFpsText = if (sysFps == null) {
+                        null
                     } else {
-                        val prefs = PreferenceManager.getDefaultSharedPreferences(this@EmulatorActivity)
                         val resHidden = cachedResolutionHudPosition == "hidden"
                         val baseFps = getString(R.string.info_fps, sysFps)
                         if (resHidden) {
-                            val telemetrySuffix = buildPerfTelemetrySuffix(prefs, snap, sysFps)
-                            binding.textFps.text = if (telemetrySuffix.isNotEmpty()) "$baseFps | $telemetrySuffix" else baseFps
+                            val telemetrySuffix = buildPerfTelemetrySuffix(defaultPrefs, snap, sysFps)
+                            if (telemetrySuffix.isNotEmpty()) "$baseFps | $telemetrySuffix" else baseFps
                         } else {
-                            binding.textFps.text = baseFps
+                            baseFps
                         }
+                    }
+                    if (nextFpsText != lastFpsHudText) {
+                        lastFpsHudText = nextFpsText
+                        binding.textFps.text = nextFpsText
                     }
                     handleDrsAndHudUpdate(sysFps, snap)
                 }
@@ -3013,15 +3028,20 @@ class EmulatorActivity : AppCompatActivity() {
                 return
             }
         }
-        val showHudBg = prefs.getBoolean("hud_show_background", true)
-        if (showHudBg) {
-            binding.textResolution.setBackgroundResource(R.drawable.bg_resolution_hud)
-        } else {
-            binding.textResolution.background = null
+        val showHudBg = defaultPrefs.getBoolean("hud_show_background", true)
+        if (lastResHudBg != showHudBg) {
+            lastResHudBg = showHudBg
+            if (showHudBg) {
+                binding.textResolution.setBackgroundResource(R.drawable.bg_resolution_hud)
+            } else {
+                binding.textResolution.background = null
+            }
         }
         binding.textResolution.layoutParams = newParams
-        binding.textResolution.isVisible = true
-        binding.textResolution.bringToFront()
+        if (!binding.textResolution.isVisible) {
+            binding.textResolution.isVisible = true
+            binding.textResolution.bringToFront()
+        }
         binding.textResolution.elevation = 999f
     }
 
@@ -3180,11 +3200,13 @@ class EmulatorActivity : AppCompatActivity() {
     private fun updateResolutionHudText(fps: Int?, snap: com.storm3ds.emulator.PerfStatsSnapshot? = null) {
         val position = cachedResolutionHudPosition
         if (position == "hidden" || !bootRomReady.value) {
-            binding.textResolution.isGone = true
+            if (!binding.textResolution.isGone) {
+                binding.textResolution.isGone = true
+            }
+            lastResHudText = null
             return
         }
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val renderer = currentRuntimeRendererConfiguration?.renderer ?: cachedFallbackVideoRenderer
 
         val scale = if (renderer == VideoRenderer.SOFTWARE) 1 else liveDrsScale
@@ -3197,7 +3219,7 @@ class EmulatorActivity : AppCompatActivity() {
         val width = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_WIDTH * scale
         val height = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_HEIGHT * scale
 
-        val telemetrySuffix = buildPerfTelemetrySuffix(prefs, snap, fps)
+        val telemetrySuffix = buildPerfTelemetrySuffix(defaultPrefs, snap, fps)
         val telemetryPart = if (telemetrySuffix.isNotEmpty()) " • $telemetrySuffix" else ""
 
         val drsPart = if (viewModel.isDrsEnabled() && renderer != VideoRenderer.SOFTWARE) {
@@ -3210,8 +3232,14 @@ class EmulatorActivity : AppCompatActivity() {
             ""
         }
 
-        binding.textResolution.text = "$rendererName | ${width}x${height} (${scale}x)$telemetryPart$drsPart"
-        binding.textResolution.isVisible = true
+        val nextText = "$rendererName | ${width}x${height} (${scale}x)$telemetryPart$drsPart"
+        if (nextText != lastResHudText) {
+            lastResHudText = nextText
+            binding.textResolution.text = nextText
+        }
+        if (!binding.textResolution.isVisible) {
+            binding.textResolution.isVisible = true
+        }
     }
 
     private var instantiatedLayoutIsLandscape: Boolean? = null
@@ -4398,6 +4426,7 @@ class EmulatorActivity : AppCompatActivity() {
                             .apply()
                     }
                     setupConsoleSkin()
+                    viewModel.notifyConsoleSkinChanged()
                     updateRendererScreenAreas()
                     handler.post { refreshRomSettingsMenuIfOpen() }
                 },
@@ -6987,6 +7016,8 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
             com.storm3ds.emulator.nativebridge.NativeBridgeHost.openImagePickerCallback = null
             com.storm3ds.emulator.nativebridge.camera.StillImageCameraHelper.onFilePickerResult(null)
         }
+        Storm3dsForegroundService.onTogglePauseRequested = null
+        Storm3dsForegroundService.onStopRequested = null
         com.storm3ds.emulator.nativebridge.NativeLibrary.clearEmulationActivity(this)
         runCatching { stopService(Intent(this, Storm3dsForegroundService::class.java)) }
         if (isDebugCaptureReceiverRegistered) {

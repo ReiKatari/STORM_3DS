@@ -1051,6 +1051,7 @@ private fun DrawScope.drawLandscapeLayout(
                 maxWidthPx = availW,
                 palette = palette,
                 density = density,
+                isUpperLid = false,
             )
             if (safeTopH >= 20f * density) {
                 drawCameraLens(
@@ -1072,9 +1073,9 @@ private fun DrawScope.drawLandscapeLayout(
         }
     }
 
-    // Bottom Band with SELECT | HOME | START pill bar
+    // Bottom Band with SELECT | HOME | START pill bar (hidden when slim to avoid overlapping touch buttons)
     val safeBottomH = (h - maxScreenBottom - outerBezelPx).coerceAtLeast(0f)
-    if (maxScreenBottom < h && safeBottomH >= 14f * density) {
+    if (maxScreenBottom < h && safeBottomH >= 52f * density) {
         val barCenterY = maxScreenBottom + outerBezelPx + safeBottomH * 0.50f
         drawSelectHomeStartBar(
             centerX = w / 2f,
@@ -2116,15 +2117,24 @@ private fun DrawScope.drawBrandText(
     maxWidthPx: Float,
     palette: ConsoleSkinPalette,
     density: Float,
+    isUpperLid: Boolean = true,
 ) {
     if (text.isBlank() || maxHeightPx < 6f * density || maxWidthPx < 24f * density) return
+    val surfaceBg = if (isUpperLid) (palette.upperLidBody ?: palette.primaryBody) else palette.primaryBody
+    val surfaceLum = surfaceBg.luminance()
+    val brandLum = palette.brandTextColor.luminance()
+    val effectiveBrandColor = when {
+        surfaceLum > 0.24f && brandLum > 0.55f -> Color(0xFF1C1917)
+        surfaceLum < 0.16f && brandLum < 0.25f -> Color(0xFFF3F4F6)
+        else -> palette.brandTextColor
+    }
     drawIntoCanvas { canvas ->
         val paint = Paint().apply {
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             letterSpacing = 0.06f
-            color = palette.brandTextColor.toArgb()
+            color = effectiveBrandColor.toArgb()
         }
 
         var sizePx = (9.5f * density).coerceAtMost(maxHeightPx * 0.84f).coerceAtLeast(6.0f * density)

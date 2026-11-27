@@ -881,6 +881,7 @@ private fun Ready(
 
             items(
                 items = bucket.achievements,
+                key = { it.actualAchievement().id },
                 contentType = { ACHIEVEMENT_ITEM_TYPE },
             ) { userAchievement ->
                 RomAchievementUi(

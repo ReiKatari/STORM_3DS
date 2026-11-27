@@ -125,11 +125,18 @@ std::mutex paused_mutex;
 std::mutex running_mutex;
 std::condition_variable running_cv;
 
+struct EmuTask {
+    explicit EmuTask(std::function<bool(Core::System&)> f) : fn(std::move(f)) {}
+    std::function<bool(Core::System&)> fn;
+    std::mutex m;
+    std::condition_variable cv;
+    bool done{false};
+    bool result{false};
+};
+
 std::mutex emu_task_mutex;
 std::condition_variable emu_task_done_cv;
-bool emu_task_pending{false};
-bool emu_task_result{false};
-std::function<bool(Core::System&)> emu_task_fn;
+std::shared_ptr<EmuTask> active_emu_task;
 std::atomic<bool> has_emu_task{false};
 std::atomic<bool> step_single_frame{false};
 std::atomic<bool> in_emu_loop{false};
@@ -142,27 +149,25 @@ bool ExecuteOnEmuThreadImpl(std::function<bool(Core::System&)> fn) {
     if (std::this_thread::get_id() == system.GetCoreLoopThreadId()) {
         return fn(system);
     }
-    std::unique_lock lock{emu_task_mutex};
-    emu_task_done_cv.wait(lock, [] { return !emu_task_pending || stop_run.load() || !in_emu_loop.load(); });
-    if (stop_run.load() || !in_emu_loop.load() || !system.IsPoweredOn()) {
-        return false;
+    auto task = std::make_shared<EmuTask>(std::move(fn));
+    {
+        std::unique_lock lock{emu_task_mutex};
+        emu_task_done_cv.wait(lock, [] { return !active_emu_task || stop_run.load() || !in_emu_loop.load(); });
+        if (stop_run.load() || !in_emu_loop.load() || !system.IsPoweredOn()) {
+            return false;
+        }
+        active_emu_task = task;
+        has_emu_task.store(true, std::memory_order_release);
     }
-    emu_task_fn = std::move(fn);
-    emu_task_pending = true;
-    has_emu_task.store(true, std::memory_order_release);
     {
         std::lock_guard plock{paused_mutex};
     }
     running_cv.notify_all();
-    const bool done = emu_task_done_cv.wait_for(
-        lock, std::chrono::seconds(4),
-        [] { return !emu_task_pending || stop_run.load() || !in_emu_loop.load(); });
-    if (!done) {
-        emu_task_pending = false;
-        has_emu_task.store(false, std::memory_order_release);
-        return false;
-    }
-    return !stop_run.load() && emu_task_result;
+    std::unique_lock tlock{task->m};
+    const bool completed = task->cv.wait_for(
+        tlock, std::chrono::seconds(4),
+        [&task] { return task->done || stop_run.load() || !in_emu_loop.load(); });
+    return completed && !stop_run.load() && task->result;
 }
 
 // Guards the lifetime of s_surface/s_secondary_surface and the (re)creation of the
@@ -226,18 +231,30 @@ static jobject ToJavaCoreError(Core::System::ResultStatus result) {
 
 static bool HandleCoreError(Core::System::ResultStatus result, const std::string& details) {
     JNIEnv* env = IDCache::GetEnvForThread();
-    return env->CallStaticBooleanMethod(IDCache::GetNativeLibraryClass(), IDCache::GetOnCoreError(),
-                                        ToJavaCoreError(result),
-                                        env->NewStringUTF(details.c_str())) != JNI_FALSE;
+    jobject err = ToJavaCoreError(result);
+    jstring jdetails = env->NewStringUTF(details.c_str());
+    const bool ret = env->CallStaticBooleanMethod(IDCache::GetNativeLibraryClass(), IDCache::GetOnCoreError(),
+                                                  err, jdetails) != JNI_FALSE;
+    if (jdetails) env->DeleteLocalRef(jdetails);
+    if (err) env->DeleteLocalRef(err);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
+    return ret;
 }
 
 static void LoadDiskCacheProgress(VideoCore::LoadCallbackStage stage, int progress, int max,
                                   const std::string& object) {
     JNIEnv* env = IDCache::GetEnvForThread();
+    jstring jobj = env->NewStringUTF(object.c_str());
     env->CallStaticVoidMethod(IDCache::GetDiskCacheProgressClass(),
                               IDCache::GetDiskCacheLoadProgress(),
                               IDCache::GetJavaLoadCallbackStage(stage), static_cast<jint>(progress),
-                              static_cast<jint>(max), env->NewStringUTF(object.c_str()));
+                              static_cast<jint>(max), jobj);
+    if (jobj) env->DeleteLocalRef(jobj);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
 }
 
 static Camera::NDK::Factory* g_ndk_factory{};
@@ -478,24 +495,31 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
         if (!has_emu_task.load(std::memory_order_acquire)) {
             return;
         }
-        std::function<bool(Core::System&)> local_fn;
+        std::shared_ptr<EmuTask> local_task;
         {
             std::scoped_lock tlock{emu_task_mutex};
-            if (!emu_task_pending) {
+            local_task = active_emu_task;
+            if (!local_task) {
                 has_emu_task.store(false, std::memory_order_release);
                 return;
             }
-            local_fn = std::move(emu_task_fn);
         }
         bool res = false;
-        if (local_fn && system.IsPoweredOn()) {
-            res = local_fn(system);
+        if (local_task->fn && system.IsPoweredOn()) {
+            res = local_task->fn(system);
         }
         {
+            std::scoped_lock lock{local_task->m};
+            local_task->result = res;
+            local_task->done = true;
+        }
+        local_task->cv.notify_all();
+        {
             std::scoped_lock tlock{emu_task_mutex};
-            emu_task_result = res;
-            emu_task_pending = false;
-            has_emu_task.store(false, std::memory_order_release);
+            if (active_emu_task == local_task) {
+                active_emu_task.reset();
+                has_emu_task.store(false, std::memory_order_release);
+            }
         }
         emu_task_done_cv.notify_all();
     };
@@ -503,7 +527,19 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
     in_emu_loop = true;
     SCOPE_EXIT({
         in_emu_loop = false;
-        has_emu_task.store(false, std::memory_order_release);
+        std::shared_ptr<EmuTask> leftover;
+        {
+            std::scoped_lock tlock{emu_task_mutex};
+            leftover = std::move(active_emu_task);
+            has_emu_task.store(false, std::memory_order_release);
+        }
+        if (leftover) {
+            {
+                std::scoped_lock lock{leftover->m};
+                leftover->done = true;
+            }
+            leftover->cv.notify_all();
+        }
         emu_task_done_cv.notify_all();
     });
 
@@ -1348,10 +1384,14 @@ jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getInstalledG
     ScanDir(nullptr, "",
             FileUtil::GetUserPath(FileUtil::UserPath::NANDDir) +
                 "00000000000000000000000000000000/title/00040010");
-    jobjectArray jgames = env->NewObjectArray(static_cast<jsize>(games.size()),
-                                              env->FindClass("java/lang/String"), nullptr);
-    for (jsize i = 0; i < games.size(); ++i)
-        env->SetObjectArrayElement(jgames, i, env->NewStringUTF(games[i].c_str()));
+    jclass str_class = env->FindClass("java/lang/String");
+    jobjectArray jgames = env->NewObjectArray(static_cast<jsize>(games.size()), str_class, nullptr);
+    if (str_class) env->DeleteLocalRef(str_class);
+    for (jsize i = 0; i < static_cast<jsize>(games.size()); ++i) {
+        jstring jg = env->NewStringUTF(games[i].c_str());
+        env->SetObjectArrayElement(jgames, i, jg);
+        if (jg) env->DeleteLocalRef(jg);
+    }
     return jgames;
 }
 
@@ -1439,11 +1479,14 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_stopEmulation([[maybe
         return;
     }
     pause_emulation = false;
-    if (window) {
-        window->StopPresenting();
-    }
-    if (secondary_window) {
-        secondary_window->StopPresenting();
+    {
+        std::scoped_lock lock{surface_mutex};
+        if (window) {
+            window->StopPresenting();
+        }
+        if (secondary_window) {
+            secondary_window->StopPresenting();
+        }
     }
     running_cv.notify_all();
     surface_cv.notify_all();
@@ -1520,6 +1563,7 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchEvent([[ma
                                                               [[maybe_unused]] jobject obj,
                                                               jfloat x, jfloat y,
                                                               jboolean pressed) {
+    std::scoped_lock lock{surface_mutex};
     if (!window) {
         return JNI_FALSE;
     }
@@ -1530,6 +1574,7 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchEvent([[ma
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onTouchMoved([[maybe_unused]] JNIEnv* env,
                                                           [[maybe_unused]] jobject obj, jfloat x,
                                                           jfloat y) {
+    std::scoped_lock lock{surface_mutex};
     if (window) {
         window->OnTouchMoved(static_cast<int>(x + 0.5f), static_cast<int>(y + 0.5f));
     }
@@ -1539,6 +1584,7 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onSecondaryTouchE
                                                                        [[maybe_unused]] jobject obj,
                                                                        jfloat x, jfloat y,
                                                                        jboolean pressed) {
+    std::scoped_lock lock{surface_mutex};
     if (!secondary_window) {
         return JNI_FALSE;
     }
@@ -1549,6 +1595,7 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onSecondaryTouchE
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_onSecondaryTouchMoved([[maybe_unused]] JNIEnv* env,
                                                                    [[maybe_unused]] jobject obj,
                                                                    jfloat x, jfloat y) {
+    std::scoped_lock lock{surface_mutex};
     if (secondary_window) {
         secondary_window->OnTouchMoved(static_cast<int>(x + 0.5f), static_cast<int>(y + 0.5f));
     }
@@ -1597,9 +1644,8 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_logUserDirectory(JNIE
                                                               [[maybe_unused]] jobject obj,
                                                               jstring j_path) {
     EnsureLoggingInitialized();
-    std::string_view path = env->GetStringUTFChars(j_path, 0);
+    const std::string path = GetJString(env, j_path);
     LOG_INFO(Frontend, "User directory path: {}", path);
-    env->ReleaseStringUTFChars(j_path, path.data());
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_reloadSettings([[maybe_unused]] JNIEnv* env,
@@ -1691,8 +1737,11 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_removeAmiibo([[maybe_
     nfc->RemoveAmiibo();
 }
 
+static std::mutex s_multiplayer_mutex;
+
 static void EnsureMultiplayerInitialized() {
     EnsureLoggingInitialized();
+    std::scoped_lock lock{s_multiplayer_mutex};
     if (multiplayer) {
         return;
     }
@@ -1856,12 +1905,12 @@ JNIEXPORT jobject JNICALL Java_com_storm3ds_emulator_nativebridge_utils_CiaInsta
 
 jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getSavestateInfo(
     JNIEnv* env, [[maybe_unused]] jobject obj) {
-    const jclass date_class = env->FindClass("java/util/Date");
-    const auto date_constructor = env->GetMethodID(date_class, "<init>", "(J)V");
+    const jclass date_class = IDCache::GetDateClass();
+    const auto date_constructor = IDCache::GetDateConstructor();
 
     const jclass savestate_info_class = IDCache::GetSavestateInfoClass();
-    const auto slot_field = env->GetFieldID(savestate_info_class, "slot", "I");
-    const auto date_field = env->GetFieldID(savestate_info_class, "time", "Ljava/util/Date;");
+    const auto slot_field = IDCache::GetSavestateInfoSlotField();
+    const auto date_field = IDCache::GetSavestateInfoTimeField();
 
     const Core::System& system{Core::System::GetInstance()};
     if (!system.IsPoweredOn()) {
@@ -1879,11 +1928,13 @@ jobjectArray Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getSavestateI
     for (std::size_t i = 0; i < savestates.size(); ++i) {
         const jobject object = env->AllocObject(savestate_info_class);
         env->SetIntField(object, slot_field, static_cast<jint>(savestates[i].slot));
-        env->SetObjectField(object, date_field,
-                            env->NewObject(date_class, date_constructor,
-                                           static_cast<jlong>(savestates[i].time * 1000)));
+        jobject date_obj = env->NewObject(date_class, date_constructor,
+                                          static_cast<jlong>(savestates[i].time * 1000));
+        env->SetObjectField(object, date_field, date_obj);
+        if (date_obj) env->DeleteLocalRef(date_obj);
 
-        env->SetObjectArrayElement(array, i, object);
+        env->SetObjectArrayElement(array, static_cast<jsize>(i), object);
+        if (object) env->DeleteLocalRef(object);
     }
     return array;
 }
@@ -1983,12 +2034,16 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_disableTemporaryFrame
     Settings::is_temporary_frame_limit = false;
 }
 
+static std::mutex s_ptm_mutex;
+
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerInit(JNIEnv* env, jobject obj) {
+    std::scoped_lock lock{s_ptm_mutex};
     play_time_manager = std::make_unique<PlayTime::PlayTimeManager>();
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStart(JNIEnv* env, jobject obj,
                                                                   jlong title_id) {
+    std::scoped_lock lock{s_ptm_mutex};
     ptm_current_title_id = title_id;
     if (play_time_manager) {
         play_time_manager->SetProgramId(static_cast<u64>(title_id));
@@ -1997,6 +2052,7 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStart(
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStop(JNIEnv* env, jobject obj) {
+    std::scoped_lock lock{s_ptm_mutex};
     if (play_time_manager) {
         play_time_manager->Stop();
     }
@@ -2004,6 +2060,7 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerStop(J
 
 jlong Java_com_storm3ds_emulator_nativebridge_NativeLibrary_playTimeManagerGetPlayTime(JNIEnv* env, jobject obj,
                                                                          jlong title_id) {
+    std::scoped_lock lock{s_ptm_mutex};
     if (!play_time_manager) {
         return 0;
     }

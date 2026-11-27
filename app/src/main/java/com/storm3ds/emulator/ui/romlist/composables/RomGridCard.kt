@@ -64,6 +64,31 @@ fun Modifier.watermelonFocusRing(focused: Boolean, red: Color, shape: RoundedCor
 }
 
 @OptIn(ExperimentalFoundationApi::class)
+private val RomCardSpineBrush = Brush.horizontalGradient(
+    listOf(
+        Color.Black.copy(alpha = 0.65f),
+        Color.Black.copy(alpha = 0.40f),
+        Color.White.copy(alpha = 0.35f),
+        Color.Transparent,
+    )
+)
+private val RomCardTopGlossBrush = Brush.verticalGradient(
+    listOf(
+        Color.White.copy(alpha = 0.30f),
+        Color.White.copy(alpha = 0.05f),
+        Color.Transparent,
+    )
+)
+private val RomCardGlassBrush = Brush.verticalGradient(
+    listOf(
+        Color.White.copy(alpha = 0.15f),
+        Color.Transparent,
+    )
+)
+private val RomCardFooterScrimBrush = Brush.verticalGradient(
+    listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+)
+
 @Composable
 fun RomGridCard(
     rom: Rom,
@@ -147,31 +172,14 @@ fun RomGridCard(
                 Modifier
                     .fillMaxHeight()
                     .width(10.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.65f),
-                                Color.Black.copy(alpha = 0.40f),
-                                Color.White.copy(alpha = 0.35f),
-                                Color.Transparent,
-                            )
-                        )
-                    )
+                    .background(RomCardSpineBrush)
             )
             // Top gloss reflection
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(32.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.30f),
-                                Color.White.copy(alpha = 0.05f),
-                                Color.Transparent,
-                            )
-                        )
-                    )
+                    .background(RomCardTopGlossBrush)
             )
         } else if (cardStyle == "glassmorphism") {
             // Frosted glass gloss overlay
@@ -179,14 +187,7 @@ fun RomGridCard(
                 Modifier
                     .fillMaxWidth()
                     .height(24.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.15f),
-                                Color.Transparent,
-                            )
-                        )
-                    )
+                    .background(RomCardGlassBrush)
             )
         }
 
@@ -250,7 +251,7 @@ fun RomGridCard(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
+                    .background(RomCardFooterScrimBrush)
                     .padding(start = 8.dp, end = 8.dp, top = 20.dp, bottom = 8.dp),
             ) {
                 Text(

@@ -130,10 +130,9 @@ GameInfoData* GetNewGameInfoData(const std::string& path) {
     }();
 
     GameInfoData* gid = new GameInfoData();
-    if (smdh.empty()) {
-        std::memset(&gid->smdh, 0, sizeof(Loader::SMDH));
-    } else {
-        std::memcpy(&gid->smdh, smdh.data(), smdh.size());
+    std::memset(&gid->smdh, 0, sizeof(Loader::SMDH));
+    if (!smdh.empty()) {
+        std::memcpy(&gid->smdh, smdh.data(), std::min(smdh.size(), sizeof(Loader::SMDH)));
     }
     gid->loaded = true;
     gid->is_encrypted = is_encrypted;
@@ -195,12 +194,14 @@ JNIEXPORT jlong JNICALL Java_com_storm3ds_emulator_nativebridge_model_GameInfo_i
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_model_GameInfo_isValid(JNIEnv* env,
                                                                             jobject obj) {
-    return GetPointer(env, obj)->loaded;
+    auto* ptr = GetPointer(env, obj);
+    return ptr ? static_cast<jboolean>(ptr->loaded) : JNI_FALSE;
 }
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_model_GameInfo_isEncrypted(JNIEnv* env,
                                                                                 jobject obj) {
-    return GetPointer(env, obj)->is_encrypted;
+    auto* ptr = GetPointer(env, obj);
+    return ptr ? static_cast<jboolean>(ptr->is_encrypted) : JNI_FALSE;
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_model_GameInfo_finalize(JNIEnv* env, jobject obj) {
@@ -208,7 +209,11 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_model_GameInfo_fi
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getTitle(JNIEnv* env, jobject obj) {
-    Loader::SMDH* smdh = &GetPointer(env, obj)->smdh;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return ToJString(env, "");
+    }
+    Loader::SMDH* smdh = &ptr->smdh;
     if (!smdh->IsValid()) {
         return ToJString(env, "");
     }
@@ -216,7 +221,11 @@ jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getTitle(JNIEnv* 
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getCompany(JNIEnv* env, jobject obj) {
-    Loader::SMDH* smdh = &GetPointer(env, obj)->smdh;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return ToJString(env, "");
+    }
+    Loader::SMDH* smdh = &ptr->smdh;
     if (!smdh->IsValid()) {
         return ToJString(env, "");
     }
@@ -224,11 +233,16 @@ jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getCompany(JNIEnv
 }
 
 jlong Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getTitleID(JNIEnv* env, jobject obj) {
-    return static_cast<jlong>(GetPointer(env, obj)->title_id);
+    auto* ptr = GetPointer(env, obj);
+    return ptr ? static_cast<jlong>(ptr->title_id) : 0;
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getRegions(JNIEnv* env, jobject obj) {
-    Loader::SMDH* smdh = &GetPointer(env, obj)->smdh;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return ToJString(env, "Invalid region");
+    }
+    Loader::SMDH* smdh = &ptr->smdh;
     if (!smdh->IsValid()) {
         return ToJString(env, "");
     }
@@ -255,16 +269,25 @@ jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getRegions(JNIEnv
     }
 
     const std::string separator = "|";
-    std::string result = regions_map.at(regions.front());
-    for (auto region = ++regions.begin(); region != regions.end(); ++region) {
-        result += separator + regions_map.at(*region);
+    std::string result;
+    for (const auto region : regions) {
+        const auto it = regions_map.find(region);
+        const char* label = (it != regions_map.end()) ? it->second : "Invalid region";
+        if (!result.empty()) {
+            result += separator;
+        }
+        result += label;
     }
 
     return ToJString(env, result);
 }
 
 jintArray Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getIcon(JNIEnv* env, jobject obj) {
-    Loader::SMDH* smdh = &GetPointer(env, obj)->smdh;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return nullptr;
+    }
+    Loader::SMDH* smdh = &ptr->smdh;
     if (!smdh->IsValid()) {
         return nullptr;
     }
@@ -294,25 +317,33 @@ jintArray Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getIcon(JNIEnv*
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_model_GameInfo_isSystemTitle(JNIEnv* env, jobject obj) {
-    return ((GetPointer(env, obj)->title_id >> 32) & 0xFFFFFFFF) == 0x00040010;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return JNI_FALSE;
+    }
+    return ((ptr->title_id >> 32) & 0xFFFFFFFF) == 0x00040010;
 }
 
 jboolean Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getIsVisibleSystemTitle(JNIEnv* env,
                                                                           jobject obj) {
-    Loader::SMDH* smdh = &GetPointer(env, obj)->smdh;
+    auto* ptr = GetPointer(env, obj);
+    if (!ptr) {
+        return JNI_FALSE;
+    }
+    Loader::SMDH* smdh = &ptr->smdh;
     if (!smdh->IsValid()) {
-        return false;
+        return JNI_FALSE;
     }
 
     return smdh->flags.visible;
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getFileType(JNIEnv* env, jobject obj) {
-    std::string& file_type = GetPointer(env, obj)->file_type;
-
-    return ToJString(env, file_type);
+    auto* ptr = GetPointer(env, obj);
+    return ToJString(env, ptr ? ptr->file_type : "");
 }
 jboolean Java_com_storm3ds_emulator_nativebridge_model_GameInfo_getIsInsertable(JNIEnv* env, jobject obj) {
-    return GetPointer(env, obj)->is_insertable;
+    auto* ptr = GetPointer(env, obj);
+    return ptr ? static_cast<jboolean>(ptr->is_insertable) : JNI_FALSE;
 }
 }

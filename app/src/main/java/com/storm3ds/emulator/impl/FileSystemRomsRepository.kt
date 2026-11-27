@@ -421,7 +421,7 @@ class FileSystemRomsRepository(
     }
 
     override fun invalidateRoms() {
-        runBlocking {
+        val clearBlock: suspend () -> Unit = {
             initJob.join()
             romDataMutex.withLock {
                 if (areRomsLoaded.compareAndSet(true, false)) {
@@ -445,6 +445,11 @@ class FileSystemRomsRepository(
 
                 directoryScanStatusFlow.value = emptyList()
             }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            coroutineScope.launch { clearBlock() }
+        } else {
+            runBlocking { clearBlock() }
         }
     }
 

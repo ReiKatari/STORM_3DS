@@ -468,6 +468,7 @@ private fun Content(
 
                     items(
                         items = bucket.achievements,
+                        key = { it.actualAchievement().id },
                         contentType = { CONTENT_TYPE_ACHIEVEMENT },
                     ) { achievementModel ->
                         val inLedger = pendingLedgerAchievementIds.contains(achievementModel.actualAchievement().id)

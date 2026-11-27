@@ -16,7 +16,7 @@ extern "C" {
 
 void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_save([[maybe_unused]] JNIEnv* env,
                                                          [[maybe_unused]] jobject obj) {
-    if (changes_pending) {
+    if (changes_pending && cfg) {
         changes_pending = false;
         cfg->UpdateConfigNANDSavegame();
     }
@@ -30,18 +30,19 @@ void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_load([[maybe_u
 
 jboolean Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_getIsSystemSetupNeeded(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj) {
-    return cfg->IsSystemSetupNeeded();
+    return cfg ? cfg->IsSystemSetupNeeded() : JNI_FALSE;
 }
 
 void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_setSystemSetupNeeded(
     [[maybe_unused]] JNIEnv* env, [[maybe_unused]] jobject obj, jboolean needed) {
+    if (!cfg) return;
     cfg->SetSystemSetupNeeded(needed);
     changes_pending = true;
 }
 
 jstring Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_getUsername([[maybe_unused]] JNIEnv* env,
                                                                    [[maybe_unused]] jobject obj) {
-    return ToJString(env, Common::UTF16ToUTF8(cfg->GetUsername()));
+    return ToJString(env, cfg ? Common::UTF16ToUTF8(cfg->GetUsername()) : "");
 }
 
 void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_setUsername([[maybe_unused]] JNIEnv* env,
@@ -59,6 +60,7 @@ void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_setUsername([[
             name = u"STORM 3DS";
         }
     }
+    if (!cfg) return;
     cfg->SetUsername(name);
     changes_pending = true;
 }
@@ -142,17 +144,19 @@ void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_regenerateCons
 
 jstring Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_getMac(JNIEnv* env,
                                                               [[maybe_unused]] jobject obj) {
-    return ToJString(env, cfg->GetMacAddress());
+    return ToJString(env, cfg ? cfg->GetMacAddress() : "");
 }
 
 void Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_regenerateMac(JNIEnv* env,
                                                                   [[maybe_unused]] jobject obj) {
+    if (!cfg) return;
     cfg->GetMacAddress() = Service::CFG::GenerateRandomMAC();
     cfg->SaveMacAddress();
 }
 
 jint Java_com_storm3ds_emulator_nativebridge_utils_SystemSaveGame_getCountryCompatibility(
     JNIEnv* env, [[maybe_unused]] jobject obj, jint region) {
+    if (!cfg) return 0;
     int res = 0;
     u8 country = cfg->GetCountryCode();
     if (region != Settings::REGION_VALUE_AUTO_SELECT &&

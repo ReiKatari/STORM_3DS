@@ -425,10 +425,10 @@ fun WatermelonRomArt(
         )
 
         if (activeModel != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
+            val imageRequest = remember(context, rom.uri, activeModel) {
+                ImageRequest.Builder(context)
                     .data(activeModel)
-                    .crossfade(true)
+                    .allowRgb565(true)
                     .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                     .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                     .networkCachePolicy(coil.request.CachePolicy.ENABLED)
@@ -455,7 +455,10 @@ fun WatermelonRomArt(
                             onArtLoadedChanged(false)
                         },
                     )
-                    .build(),
+                    .build()
+            }
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = title,
                 contentScale = contentScale,
                 filterQuality = FilterQuality.High,
@@ -494,18 +497,18 @@ fun RomMiniIcon(
     }
 }
 
+private val ScanlinesBrush = Brush.verticalGradient(
+    listOf(
+        Color.Transparent,
+        Color.Black.copy(alpha = 0.12f),
+    )
+)
+
 @Composable
 fun ScanlinesOverlay(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.12f),
-                    )
-                )
-            )
+            .background(ScanlinesBrush)
     )
 }

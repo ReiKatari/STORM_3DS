@@ -85,14 +85,14 @@ UpdateDialog::UpdateDialog(const QString& current_version, const UpdateChecker::
 
     auto* version_row = new QHBoxLayout();
     version_row->setSpacing(10);
-    version_row->addWidget(BuildVersionPill(tr("Installed Version"), QStringLiteral("v") + clean_cur, false), 1);
+    version_row->addWidget(BuildVersionPill(tr("Installed Version"), clean_cur, false), 1);
 
     auto* arrow_lbl = new QLabel(QStringLiteral("->"));
     arrow_lbl->setAlignment(Qt::AlignCenter);
     arrow_lbl->setStyleSheet(QStringLiteral("font-weight: bold; font-size: 15px; color: #00c8ff;"));
     version_row->addWidget(arrow_lbl);
 
-    version_row->addWidget(BuildVersionPill(tr("New Version"), QStringLiteral("v") + clean_new, true), 1);
+    version_row->addWidget(BuildVersionPill(tr("New Version"), clean_new, true), 1);
     root->addLayout(version_row);
 
     // Metadata strip (Source, Archive Size, Date)

@@ -23,18 +23,28 @@ AndroidMultiplayer::AndroidMultiplayer(Core::System& system_,
 AndroidMultiplayer::~AndroidMultiplayer() = default;
 
 void AndroidMultiplayer::AddNetPlayMessage(jint type, jstring msg) {
-    IDCache::GetEnvForThread()->CallStaticVoidMethod(IDCache::GetNativeLibraryClass(),
-                                                     IDCache::GetAddNetPlayMessage(), type, msg);
+    JNIEnv* env = IDCache::GetEnvForThread();
+    env->CallStaticVoidMethod(IDCache::GetNativeLibraryClass(),
+                              IDCache::GetAddNetPlayMessage(), type, msg);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
 }
 
 void AndroidMultiplayer::AddNetPlayMessage(int type, const std::string& msg) {
     JNIEnv* env = IDCache::GetEnvForThread();
-    AddNetPlayMessage(type, ToJString(env, msg));
+    jstring jmsg = ToJString(env, msg);
+    AddNetPlayMessage(type, jmsg);
+    if (jmsg) env->DeleteLocalRef(jmsg);
 }
 
 void AndroidMultiplayer::ClearChat() {
-    IDCache::GetEnvForThread()->CallStaticVoidMethod(IDCache::GetNativeLibraryClass(),
-                                                     IDCache::ClearChat());
+    JNIEnv* env = IDCache::GetEnvForThread();
+    env->CallStaticVoidMethod(IDCache::GetNativeLibraryClass(),
+                              IDCache::ClearChat());
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
 }
 
 bool AndroidMultiplayer::NetworkInit() {

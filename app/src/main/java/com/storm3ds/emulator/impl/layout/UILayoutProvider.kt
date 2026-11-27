@@ -59,8 +59,9 @@ class UILayoutProvider(private val defaultLayoutProvider: DefaultLayoutProvider)
     }.distinctUntilChanged().debounce(32.milliseconds)
 
     private val _currentLayoutConfiguration = MutableStateFlow<LayoutConfiguration?>(null)
+    private val skinLayoutVersion = MutableStateFlow(0)
 
-    val currentLayout = combine(_currentLayoutConfiguration, currentLayoutVariant) { layoutConfiguration, variant ->
+    val currentLayout = combine(_currentLayoutConfiguration, currentLayoutVariant, skinLayoutVersion) { layoutConfiguration, variant, _ ->
         if (layoutConfiguration == null || variant == null) {
             null
         } else {
@@ -90,6 +91,10 @@ class UILayoutProvider(private val defaultLayoutProvider: DefaultLayoutProvider)
 
     fun setCurrentLayoutConfiguration(layoutConfiguration: LayoutConfiguration) {
         _currentLayoutConfiguration.value = layoutConfiguration
+    }
+
+    fun notifyConsoleSkinChanged() {
+        skinLayoutVersion.value += 1
     }
 
     private fun getOptimalLayoutForVariant(layoutConfiguration: LayoutConfiguration, variant: UILayoutVariant): UILayout {

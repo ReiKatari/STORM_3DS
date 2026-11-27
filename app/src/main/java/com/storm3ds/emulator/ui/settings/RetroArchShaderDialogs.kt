@@ -2,6 +2,8 @@ package com.storm3ds.emulator.ui.settings
 
 import android.content.Context
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
@@ -104,45 +106,55 @@ object RetroArchShaderDialogs {
         allowUseGlobal: Boolean,
         onSelected: (String?) -> Unit,
     ) {
-        val presets = listInstalledPresetRelativePaths(context)
-        val labels = mutableListOf<String>()
-        val values = mutableListOf<String?>()
-
-        if (allowUseGlobal) {
-            labels += context.getString(R.string.use_global_preference)
-            values += null
-        }
-        labels += context.getString(R.string.off)
-        values += "none"
-
-        presets.forEach { rel ->
-            labels += rel.removeSuffix(".slangp")
-            values += rel
-        }
-
-        labels += context.getString(R.string.retroarch_shader_manual_path)
-        val manualIndex = labels.lastIndex
-
-        val cleanCurrent = currentSelection?.takeUnless { it.isBlank() }
-        val checkedIndex = values.indexOfFirst { it == cleanCurrent }.coerceAtLeast(0)
-
-        AlertDialog.Builder(context)
-            .setTitle(R.string.video_retroarch_shader_preset_title)
-            .setSingleChoiceItems(labels.toTypedArray(), checkedIndex) { dialog, which ->
-                dialog.dismiss()
-                if (which == manualIndex) {
-                    showManualTextDialog(
-                        context = context,
-                        titleRes = R.string.video_retroarch_shader_preset_title,
-                        initialText = currentSelection.orEmpty(),
-                        onConfirm = { entered -> onSelected(entered?.ifBlank { null }) },
-                    )
-                } else {
-                    onSelected(values[which])
+        val appCtx = context.applicationContext
+        val mainHandler = Handler(Looper.getMainLooper())
+        thread(start = true, name = "ShaderPresetScan") {
+            val presets = listInstalledPresetRelativePaths(appCtx)
+            mainHandler.post {
+                val activity = context as? android.app.Activity
+                if (activity != null && (activity.isFinishing || activity.isDestroyed)) {
+                    return@post
                 }
+                val labels = mutableListOf<String>()
+                val values = mutableListOf<String?>()
+
+                if (allowUseGlobal) {
+                    labels += context.getString(R.string.use_global_preference)
+                    values += null
+                }
+                labels += context.getString(R.string.off)
+                values += "none"
+
+                presets.forEach { rel ->
+                    labels += rel.removeSuffix(".slangp")
+                    values += rel
+                }
+
+                labels += context.getString(R.string.retroarch_shader_manual_path)
+                val manualIndex = labels.lastIndex
+
+                val cleanCurrent = currentSelection?.takeUnless { it.isBlank() }
+                val checkedIndex = values.indexOfFirst { it == cleanCurrent }.coerceAtLeast(0)
+
+                AlertDialog.Builder(context)
+                    .setTitle(R.string.video_retroarch_shader_preset_title)
+                    .setSingleChoiceItems(labels.toTypedArray(), checkedIndex) { dialog, which ->
+                        dialog.dismiss()
+                        if (which == manualIndex) {
+                            showManualTextDialog(
+                                context = context,
+                                titleRes = R.string.video_retroarch_shader_preset_title,
+                                initialText = currentSelection.orEmpty(),
+                                onConfirm = { entered -> onSelected(entered?.ifBlank { null }) },
+                            )
+                        } else {
+                            onSelected(values[which])
+                        }
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        }
     }
 
     fun showShaderParametersDialog(

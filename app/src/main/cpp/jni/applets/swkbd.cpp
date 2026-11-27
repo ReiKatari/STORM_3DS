@@ -29,21 +29,27 @@ static jobject ToJavaKeyboardConfig(const Frontend::KeyboardConfig& config) {
                      static_cast<jint>(config.max_text_length));
     env->SetBooleanField(object, env->GetFieldID(s_keyboard_config_class, "multilineMode", "Z"),
                          static_cast<jboolean>(config.multiline_mode));
+    jstring jhint = ToJString(env, config.hint_text);
     env->SetObjectField(object,
                         env->GetFieldID(s_keyboard_config_class, "hintText", "Ljava/lang/String;"),
-                        ToJString(env, config.hint_text));
+                        jhint);
+    if (jhint) env->DeleteLocalRef(jhint);
 
     const jclass string_class = reinterpret_cast<jclass>(env->FindClass("java/lang/String"));
+    jstring initial_btn = config.button_text.empty() ? env->NewStringUTF("") : ToJString(env, config.button_text[0]);
     const jobjectArray array =
-        env->NewObjectArray(static_cast<jsize>(config.button_text.size()), string_class,
-                            ToJString(env, config.button_text[0]));
+        env->NewObjectArray(static_cast<jsize>(config.button_text.size()), string_class, initial_btn);
+    if (initial_btn) env->DeleteLocalRef(initial_btn);
+    if (string_class) env->DeleteLocalRef(string_class);
     for (std::size_t i = 1; i < config.button_text.size(); ++i) {
-        env->SetObjectArrayElement(array, static_cast<jsize>(i),
-                                   ToJString(env, config.button_text[i]));
+        jstring btn = ToJString(env, config.button_text[i]);
+        env->SetObjectArrayElement(array, static_cast<jsize>(i), btn);
+        if (btn) env->DeleteLocalRef(btn);
     }
     env->SetObjectField(
         object, env->GetFieldID(s_keyboard_config_class, "buttonText", "[Ljava/lang/String;"),
         array);
+    if (array) env->DeleteLocalRef(array);
 
     return object;
 }
@@ -63,14 +69,28 @@ AndroidKeyboard::~AndroidKeyboard() = default;
 void AndroidKeyboard::Execute(const Frontend::KeyboardConfig& config) {
     SoftwareKeyboard::Execute(config);
 
-    const auto data = ToFrontendKeyboardData(IDCache::GetEnvForThread()->CallStaticObjectMethod(
-        s_software_keyboard_class, s_swkbd_execute, ToJavaKeyboardConfig(config)));
+    JNIEnv* env = IDCache::GetEnvForThread();
+    jobject jcfg = ToJavaKeyboardConfig(config);
+    jobject jdata = env->CallStaticObjectMethod(s_software_keyboard_class, s_swkbd_execute, jcfg);
+    if (jcfg) env->DeleteLocalRef(jcfg);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        Finalize("", 0);
+        return;
+    }
+    const auto data = ToFrontendKeyboardData(jdata);
+    if (jdata) env->DeleteLocalRef(jdata);
     Finalize(data.text, data.button);
 }
 
 void AndroidKeyboard::ShowError(const std::string& error) {
     JNIEnv* env = IDCache::GetEnvForThread();
-    env->CallStaticVoidMethod(s_software_keyboard_class, s_swkbd_show_error, ToJString(env, error));
+    jstring jerr = ToJString(env, error);
+    env->CallStaticVoidMethod(s_software_keyboard_class, s_swkbd_show_error, jerr);
+    if (jerr) env->DeleteLocalRef(jerr);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
 }
 
 void InitJNI(JNIEnv* env) {

@@ -19,6 +19,10 @@ JNIEnv* GetEnvForThread();
 
 jclass GetCoreErrorClass();
 jclass GetSavestateInfoClass();
+jfieldID GetSavestateInfoSlotField();
+jfieldID GetSavestateInfoTimeField();
+jclass GetDateClass();
+jmethodID GetDateConstructor();
 
 jclass GetNativeLibraryClass();
 jmethodID GetOnCoreError();

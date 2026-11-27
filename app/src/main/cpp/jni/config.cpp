@@ -77,6 +77,7 @@ static const std::array<int, Settings::NativeAnalog::NumAnalogs> default_analogs
 }};
 
 void Config::AddDefaultSettingValue(const std::string& key, const std::string& value) {
+    std::scoped_lock lock{default_values_mutex};
     default_android_values.insert_or_assign(key, value);
 }
 
@@ -110,8 +111,15 @@ template <typename Type>
 Type Config::GetSettingFromKey(const std::string& group, const std::string& key,
                                std::optional<Type> default_value) {
 
-    const bool has_storm_override = default_android_values.contains(key);
-    const std::string default_str = has_storm_override ? default_android_values.at(key) : "";
+    bool has_storm_override = false;
+    std::string default_str;
+    {
+        std::scoped_lock lock{default_values_mutex};
+        if (const auto it = default_android_values.find(key); it != default_android_values.end()) {
+            has_storm_override = true;
+            default_str = it->second;
+        }
+    }
 
     const bool has_per_game = per_game_config && per_game_config->HasValue(group, key);
     const bool has_android = android_config && android_config->HasValue(group, key);
@@ -129,25 +137,41 @@ Type Config::GetSettingFromKey(const std::string& group, const std::string& key,
         }
         return value;
     } else if constexpr (std::is_floating_point_v<Type>) {
+        const auto safe_stod = [](const std::string& s, double fallback) -> double {
+            try {
+                return s.empty() ? fallback : std::stod(s);
+            } catch (...) {
+                return fallback;
+            }
+        };
+        const double base_default = default_value ? static_cast<double>(*default_value) : 0.0;
         double value = (default_value && !has_storm_override)
-                           ? static_cast<double>(*default_value)
-                           : (default_str.empty() ? 0.0 : std::stod(default_str));
+                           ? base_default
+                           : safe_stod(default_str, base_default);
         if (has_per_game) {
             value = per_game_config->GetReal(group, key, value);
         } else if (has_storm_override && !default_str.empty()) {
-            return static_cast<Type>(std::stod(default_str));
+            return static_cast<Type>(safe_stod(default_str, value));
         } else if (has_android) {
             value = android_config->GetReal(group, key, value);
         }
         return static_cast<Type>(value);
     } else if constexpr (std::is_integral_v<Type>) {
+        const auto safe_stol = [](const std::string& s, long fallback) -> long {
+            try {
+                return s.empty() ? fallback : std::stol(s);
+            } catch (...) {
+                return fallback;
+            }
+        };
+        const long base_default = default_value ? static_cast<long>(*default_value) : 0L;
         long value = (default_value && !has_storm_override)
-                         ? static_cast<long>(*default_value)
-                         : (default_str.empty() ? 0L : std::stol(default_str));
+                         ? base_default
+                         : safe_stol(default_str, base_default);
         if (has_per_game) {
             value = per_game_config->GetInteger(group, key, value);
         } else if (has_storm_override && !default_str.empty()) {
-            return static_cast<Type>(std::stol(default_str));
+            return static_cast<Type>(safe_stol(default_str, value));
         } else if (has_android) {
             value = android_config->GetInteger(group, key, value);
         }

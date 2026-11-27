@@ -41,6 +41,7 @@ import com.storm3ds.emulator.impl.mappers.retroachievements.mapToEntity
 import com.storm3ds.emulator.impl.mappers.retroachievements.mapToModel
 import com.storm3ds.emulator.utils.enumValueOfIgnoreCase
 import me.magnum.rcheevosapi.RAApi
+import me.magnum.rcheevosapi.model.RAAchievementSet
 import me.magnum.rcheevosapi.RAUserAuthStore
 import me.magnum.rcheevosapi.RAUserProfileStore
 import me.magnum.rcheevosapi.exception.UserNotAuthenticatedException
@@ -337,7 +338,7 @@ class AndroidRetroAchievementsRepository(
                 setId = it.id,
                 gameId = RAGameId(it.gameId),
                 title = it.title,
-                type = enumValueOfIgnoreCase(it.type),
+                type = runCatching { enumValueOfIgnoreCase<RAAchievementSet.Type>(it.type) }.getOrDefault(RAAchievementSet.Type.Core),
                 iconUrl = URL(it.iconUrl),
             )
         }

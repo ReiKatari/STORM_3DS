@@ -74,8 +74,8 @@ object CoilModule {
                     .build()
             }
             // Box art never changes: reuse the disk copy without revalidating it over the network.
+            .allowRgb565(true)
             .respectCacheHeaders(false)
-            .crossfade(true)
             .build()
     }
 

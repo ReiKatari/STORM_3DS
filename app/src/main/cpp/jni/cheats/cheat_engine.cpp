@@ -38,15 +38,20 @@ Java_com_storm3ds_emulator_nativebridge_features_cheats_model_CheatEngine_getChe
         env->NewObjectArray(static_cast<jsize>(cheats.size()), IDCache::GetCheatClass(), nullptr);
 
     jsize i = 0;
-    for (auto& cheat : cheats)
-        env->SetObjectArrayElement(array, i++, CheatToJava(env, std::move(cheat)));
+    for (auto& cheat : cheats) {
+        jobject jcheat = CheatToJava(env, std::move(cheat));
+        env->SetObjectArrayElement(array, i++, jcheat);
+        if (jcheat) env->DeleteLocalRef(jcheat);
+    }
 
     return array;
 }
 
 JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_features_cheats_model_CheatEngine_addCheat(
     JNIEnv* env, jclass, jobject j_cheat) {
-    auto cheat = *CheatFromJava(env, j_cheat);
+    auto* ptr = CheatFromJava(env, j_cheat);
+    if (!ptr || !*ptr) return;
+    auto cheat = *ptr;
     GetEngine().AddCheat(std::move(cheat));
 }
 

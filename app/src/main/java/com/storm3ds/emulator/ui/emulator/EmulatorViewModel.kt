@@ -1365,6 +1365,10 @@ class EmulatorViewModel @Inject constructor(
         uiLayoutProvider.updateDisplays(displays)
     }
 
+    fun notifyConsoleSkinChanged() {
+        uiLayoutProvider.notifyConsoleSkinChanged()
+    }
+
     fun setExternalDisplayKeepAspectRatioEnabled(enabled: Boolean) {
         _externalDisplayKeepAspectRatioEnabled.value = enabled
         val runningRom = (_emulatorState.value as? EmulatorState.RunningRom)?.rom ?: currentRom

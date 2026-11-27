@@ -313,7 +313,7 @@ fun Console3DBootScreen(
                                 )
                                 Spacer(Modifier.height(3.dp))
                                 Text(
-                                    text = if (isEnhancedMode) "HORIZON OS - ENHANCED NAND" else "HORIZON 3DS OS v11.17",
+                                    text = if (isEnhancedMode) "HORIZON OS - ENHANCED NAND" else "HORIZON 3DS OS 11.17",
                                     color = Color(0xFF94A3B8),
                                     fontSize = 8.5.sp,
                                     fontWeight = FontWeight.Medium,

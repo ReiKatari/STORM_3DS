@@ -78,7 +78,7 @@ class SaveStateAdapter(
                 binding.textDate.isGone = false
                 binding.textTime.isGone = false
                 binding.textSlot.text = context.getString(R.string.save_state_slot, getSaveSateSlotName(context, item))
-                binding.textDate.text = dateFormat.format(item.lastUsedDate!!)
+                binding.textDate.text = item.lastUsedDate?.let { dateFormat.format(it) }.orEmpty()
                 binding.textTime.text = timeFormat.format(item.lastUsedDate)
             } else {
                 binding.textDate.isGone = true

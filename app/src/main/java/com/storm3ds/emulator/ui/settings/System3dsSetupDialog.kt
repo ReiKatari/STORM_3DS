@@ -33,9 +33,8 @@ import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileOpen
@@ -70,6 +69,7 @@ import com.storm3ds.emulator.nativebridge.NativeBridgeHost
 import com.storm3ds.emulator.nativebridge.NativeLibrary
 import com.storm3ds.emulator.nativebridge.features.settings.SettingKeys
 import com.storm3ds.emulator.ui.common.WatermelonSwitch
+import com.storm3ds.emulator.ui.settings.dialogs.SettingsChoiceDialogContent
 import com.storm3ds.emulator.ui.settings.dialogs.SettingsDialogScaffold
 import com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog
 import com.storm3ds.emulator.ui.theme.LocalWatermelonColors
@@ -329,8 +329,19 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                         .fillMaxWidth()
                         .heightIn(min = 58.dp)
                         .clickable {
-                            val nextUiIdx = (currentUiIdx + 1) % stereoUiOrder.size
-                            render3dMode = stereoUiOrder[nextUiIdx]
+                            showSettingsComposeDialog(context) { dismissChoice ->
+                                SettingsChoiceDialogContent(
+                                    title = context.getString(R.string.setup_3ds_3d_mode_label),
+                                    icon = Icons.Filled.Layers,
+                                    options = modes3d.toList(),
+                                    values = stereoUiOrder.map { it.toString() },
+                                    selectedValue = render3dMode.toString(),
+                                    onSelect = { selected ->
+                                        render3dMode = selected.toIntOrNull() ?: 0
+                                    },
+                                    onDismiss = dismissChoice,
+                                )
+                            }
                         }
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -360,16 +371,12 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SetupIconStepperButton(icon = Icons.Filled.ChevronLeft) {
-                            val prevUiIdx = (currentUiIdx - 1 + stereoUiOrder.size) % stereoUiOrder.size
-                            render3dMode = stereoUiOrder[prevUiIdx]
-                        }
-                        SetupIconStepperButton(icon = Icons.Filled.ChevronRight) {
-                            val nextUiIdx = (currentUiIdx + 1) % stereoUiOrder.size
-                            render3dMode = stereoUiOrder[nextUiIdx]
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        tint = colors.text2,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
                 SetupCardDivider()
                 Column(
@@ -752,31 +759,6 @@ private fun SetupActionButton(
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun SetupIconStepperButton(
-    icon: ImageVector,
-    onClick: () -> Unit,
-) {
-    val colors = LocalWatermelonColors.current
-    val shape = RoundedCornerShape(9.dp)
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(shape)
-            .background(colors.surface)
-            .border(1.dp, colors.line, shape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colors.text,
-            modifier = Modifier.size(18.dp),
         )
     }
 }

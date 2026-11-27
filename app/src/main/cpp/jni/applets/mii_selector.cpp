@@ -39,7 +39,9 @@ void AndroidMiiSelector::Setup(const Frontend::MiiSelectorConfig& config) {
         env->NewObjectArray(static_cast<jsize>(miis.size()), string_class, nullptr);
     for (std::size_t i = 0; i < miis.size(); ++i) {
         const auto name = Common::UTF16BufferToUTF8(miis[i].mii_name);
-        env->SetObjectArrayElement(array, static_cast<jsize>(i), ToJString(env, name));
+        jstring jname = ToJString(env, name);
+        env->SetObjectArrayElement(array, static_cast<jsize>(i), jname);
+        if (jname) env->DeleteLocalRef(jname);
     }
     env->SetObjectField(
         java_config,

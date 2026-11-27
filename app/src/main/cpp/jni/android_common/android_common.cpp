@@ -32,10 +32,18 @@ jstring ToJString(JNIEnv* env, std::string_view str) {
 }
 
 jobjectArray ToJStringArray(JNIEnv* env, const std::vector<std::string>& strs) {
-    jobjectArray array =
-        env->NewObjectArray(strs.size(), env->FindClass("java/lang/String"), env->NewStringUTF(""));
-    for (int i = 0; i < strs.size(); ++i) {
-        env->SetObjectArrayElement(array, i, ToJString(env, strs[i]));
+    jclass str_class = env->FindClass("java/lang/String");
+    jstring empty_str = env->NewStringUTF("");
+    jobjectArray array = env->NewObjectArray(static_cast<jsize>(strs.size()), str_class, empty_str);
+    if (empty_str) env->DeleteLocalRef(empty_str);
+    if (str_class) env->DeleteLocalRef(str_class);
+    if (!array) {
+        return nullptr;
+    }
+    for (std::size_t i = 0; i < strs.size(); ++i) {
+        jstring elem = ToJString(env, strs[i]);
+        env->SetObjectArrayElement(array, static_cast<jsize>(i), elem);
+        if (elem) env->DeleteLocalRef(elem);
     }
     return array;
 }

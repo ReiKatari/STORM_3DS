@@ -283,7 +283,7 @@ static std::string GetCurrentAppVersion() {
             return Common::g_build_fullname;
         }
     }
-    return "1.10.2";
+    return "1.11.0";
 }
 
 static bool IsRemoteVersionNewer(const std::string& remote, const std::string& current) {
@@ -574,11 +574,29 @@ GMainWindow::GMainWindow(Core::System& system_)
 }
 
 GMainWindow::~GMainWindow() {
-    // Will get automatically deleted otherwise
-    if (!render_window->parent()) {
-        delete render_window;
+#ifdef ENABLE_QT_UPDATE_CHECKER
+    if (update_watcher.isRunning()) {
+        update_watcher.cancel();
+        update_watcher.waitForFinished();
     }
-    filter->hotkey_registry = nullptr;
+#endif
+    // Will get automatically deleted otherwise
+    if (render_window && !render_window->parent()) {
+        delete render_window;
+        render_window = nullptr;
+    }
+    if (secondary_window && !secondary_window->parent()) {
+        delete secondary_window;
+        secondary_window = nullptr;
+    }
+    if (filter) {
+        if (qApp) {
+            qApp->removeEventFilter(filter);
+        }
+        filter->hotkey_registry = nullptr;
+        delete filter;
+        filter = nullptr;
+    }
 
     Pica::g_debug_context.reset();
     Network::Shutdown();

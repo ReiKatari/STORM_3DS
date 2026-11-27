@@ -2,6 +2,7 @@
 // Licensed under GPLv3 or any later version
 #include <array>
 #include <cstring>
+#include <mutex>
 #include <vector>
 #include <jni.h>
 #include "common/common_types.h"
@@ -61,6 +62,7 @@ struct SearchSession {
     }
 };
 
+std::mutex g_search_mutex;
 SearchSession g_search_session;
 
 template <typename T>
@@ -112,7 +114,7 @@ void SearchMemory(SearchSession& session) {
         const u8* base_ptr = static_cast<u8*>(pagetable->pointers[i]);
         if (base_ptr != nullptr) {
             const u32 endOff = (i == stopPage)
-                                   ? std::min<u32>(stopOffset, Memory::CITRA_PAGE_SIZE)
+                                   ? std::min<u32>(stopOffset + 1U, Memory::CITRA_PAGE_SIZE)
                                    : Memory::CITRA_PAGE_SIZE;
             for (u32 off = startOffset; off + sizeof(T) <= endOff; off += sizeof(T)) {
                 T val{};
@@ -217,6 +219,7 @@ JNIEXPORT jintArray JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrar
     const u32 s = static_cast<u32>(start_addr);
     const u32 e = static_cast<u32>(stop_addr);
     if (s > e) return WrapResults(env, {});
+    std::scoped_lock lock{g_search_mutex};
 
     if (g_search_session.search_type != static_cast<u32>(search_type) ||
         g_search_session.value_type != static_cast<u32>(value_type) ||
@@ -284,6 +287,7 @@ JNIEXPORT jintArray JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrar
 
 JNIEXPORT jintArray JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_getSearchResults(
     JNIEnv* env, jobject) {
+    std::scoped_lock lock{g_search_mutex};
     return WrapResults(env, g_search_session.results);
 }
 

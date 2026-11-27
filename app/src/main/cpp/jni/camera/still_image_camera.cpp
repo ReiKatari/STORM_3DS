@@ -5,6 +5,7 @@
 #include <android/bitmap.h>
 #include <libyuv.h>
 #include "common/logging/log.h"
+#include "common/scope_exit.h"
 #include "core/frontend/camera/blank_camera.h"
 #include "jni/camera/still_image_camera.h"
 
@@ -45,11 +46,15 @@ void Interface::StartCapture() {
     jobject bitmap =
         env->CallStaticObjectMethod(s_still_image_camera_helper_class, s_load_image_from_file,
                                     path.get(), resolution.width, resolution.height);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
     if (bitmap == nullptr) {
         LOG_ERROR(Frontend, "Could not load image from file");
         opened = false;
         return;
     }
+    SCOPE_EXIT({ env->DeleteLocalRef(bitmap); });
 
     int ret;
 

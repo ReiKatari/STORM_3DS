@@ -322,35 +322,43 @@ std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::GetLatestRelease(bool i
             {"storm-games.world", "/api/programs/releases?repo=STORM_3DS"},
             {"storm-games.world", "/api/programs?repo=STORM_3DS"},
         };
+        bool sgw_succeeded = false;
         for (const auto& [host, path] : sgw_endpoints) {
-            const auto sgw_resp = GetResponse(host, path);
-            if (!sgw_resp) {
-                continue;
-            }
-            const auto parsed = nlohmann::json::parse(*sgw_resp);
-            const nlohmann::json* releases_arr = nullptr;
-            if (parsed.contains("repository") && parsed["repository"].is_object() &&
-                parsed["repository"].contains("releases") &&
-                parsed["repository"]["releases"].is_array()) {
-                releases_arr = &parsed["repository"]["releases"];
-            } else if (parsed.contains("releases") && parsed["releases"].is_array()) {
-                releases_arr = &parsed["releases"];
-            }
-            if (!releases_arr) {
-                continue;
-            }
-            const std::string base_host = "https://" + host;
-            for (const auto& rel : *releases_arr) {
-                const bool is_pre = rel.value("isPrerelease", false);
-                if (!include_prereleases && is_pre) {
+            try {
+                const auto sgw_resp = GetResponse(host, path);
+                if (!sgw_resp) {
                     continue;
                 }
-                if (auto info = ParseSgwRelease(rel, base_host);
-                    info && IsBetterCandidate(*info, best)) {
-                    best = *info;
+                const auto parsed = nlohmann::json::parse(*sgw_resp);
+                const nlohmann::json* releases_arr = nullptr;
+                if (parsed.contains("repository") && parsed["repository"].is_object() &&
+                    parsed["repository"].contains("releases") &&
+                    parsed["repository"]["releases"].is_array()) {
+                    releases_arr = &parsed["repository"]["releases"];
+                } else if (parsed.contains("releases") && parsed["releases"].is_array()) {
+                    releases_arr = &parsed["releases"];
                 }
+                if (!releases_arr) {
+                    continue;
+                }
+                const std::string base_host = "https://" + host;
+                for (const auto& rel : *releases_arr) {
+                    const bool is_pre = rel.value("isPrerelease", false);
+                    if (!include_prereleases && is_pre) {
+                        continue;
+                    }
+                    if (auto info = ParseSgwRelease(rel, base_host);
+                        info && IsBetterCandidate(*info, best)) {
+                        best = *info;
+                    }
+                }
+                sgw_succeeded = true;
+            } catch (const nlohmann::json::exception& ex) {
+                LOG_WARNING(Frontend, "SGW update endpoint {}{} JSON parse error: {}", host, path, ex.what());
+            } catch (const std::exception& ex) {
+                LOG_WARNING(Frontend, "SGW update endpoint {}{} error: {}", host, path, ex.what());
             }
-            if (best.has_value()) {
+            if (sgw_succeeded) {
                 break;
             }
         }

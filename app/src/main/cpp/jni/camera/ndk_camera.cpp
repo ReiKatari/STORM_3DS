@@ -170,8 +170,12 @@ void CaptureSession::Load(ACameraManager* manager, const std::string& id) {
     CREATE(ACameraDevice, device,
            CAMERA_CALL(ACameraManager_openCamera(manager, id.c_str(), &device_callbacks, &raw)));
 
-    ACameraMetadata* metadata;
+    ACameraMetadata* metadata = nullptr;
     CAMERA_CALL(ACameraManager_getCameraCharacteristics(manager, id.c_str(), &metadata));
+    SCOPE_EXIT({
+        if (metadata) {
+                }
+    });
 
     ACameraMetadata_const_entry entry;
     CAMERA_CALL(ACameraMetadata_getConstEntry(
@@ -500,8 +504,10 @@ std::unique_ptr<CameraInterface> Factory::Create(const std::string& config,
             continue;
         }
 
-        ACameraMetadata* metadata;
-        ACameraManager_getCameraCharacteristics(manager.get(), id, &metadata);
+        ACameraMetadata* metadata = nullptr;
+        if (ACameraManager_getCameraCharacteristics(manager.get(), id, &metadata) != ACAMERA_OK || !metadata) {
+            continue;
+        }
         SCOPE_EXIT({ ACameraMetadata_free(metadata); });
 
         ACameraMetadata_const_entry entry;

@@ -316,6 +316,7 @@ class VulkanFrameRenderCoordinator(
         @Volatile
         private var running = true
         private var cleanedUp = false
+        private val pendingFrameDeadlineNanos = java.util.concurrent.atomic.AtomicLong(0L)
         private val renderStatistics = RenderStatistics()
         private val pendingDetachLatches = mutableSetOf<CountDownLatch>()
 
@@ -340,7 +341,7 @@ class VulkanFrameRenderCoordinator(
                             msg.data.parcelable(MSG_BACKGROUND_BITMAP),
                         )
                         MSG_DETACH_SURFACE -> detachSurface(msg.arg1, msg.obj as? CountDownLatch)
-                        MSG_RENDER_FRAME -> renderFrame(msg.data.getLong(MSG_FRAME_DEADLINE_NS))
+                        MSG_RENDER_FRAME -> renderFrame(pendingFrameDeadlineNanos.get())
                         MSG_STOP -> stopThread()
                     }
                 }
@@ -504,17 +505,14 @@ class VulkanFrameRenderCoordinator(
                 return
             }
             val currentHandler = getActiveHandler() ?: return
+            pendingFrameDeadlineNanos.set(frameDeadlineNanos ?: 0L)
             currentHandler.removeMessages(MSG_RENDER_FRAME)
-            currentHandler.obtainMessage(MSG_RENDER_FRAME).also {
-                it.data = bundleOf(MSG_FRAME_DEADLINE_NS to (frameDeadlineNanos ?: 0L))
-                try {
-                    currentHandler.sendMessage(it)
-                } catch (_: IllegalStateException) {
-                    if (handler === currentHandler) {
-                        currentHandler.removeCallbacksAndMessages(null)
-                        handler = null
-                    }
-                    it.recycle()
+            try {
+                currentHandler.sendEmptyMessage(MSG_RENDER_FRAME)
+            } catch (_: IllegalStateException) {
+                if (handler === currentHandler) {
+                    currentHandler.removeCallbacksAndMessages(null)
+                    handler = null
                 }
             }
         }

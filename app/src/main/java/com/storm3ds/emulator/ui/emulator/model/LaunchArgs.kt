@@ -57,10 +57,10 @@ sealed class LaunchArgs {
 
             return if (bootFirmwareOnly) {
                 val consoleTypeParameter = extras.getInt(EmulatorActivity.KEY_BOOT_FIRMWARE_CONSOLE, -1)
-                if (consoleTypeParameter == -1) {
+                val firmwareConsoleType = ConsoleType.entries.getOrNull(consoleTypeParameter)
+                if (firmwareConsoleType == null) {
                     null
                 } else {
-                    val firmwareConsoleType = ConsoleType.entries[consoleTypeParameter]
                     Firmware(firmwareConsoleType)
                 }
             } else {
@@ -70,8 +70,7 @@ sealed class LaunchArgs {
                     romParcelable?.rom != null -> RomObject(romParcelable.rom)
                     intent.data != null -> RomUri(intent.data!!)
                     extras?.containsKey(EmulatorActivity.KEY_PATH) == true -> {
-                        val romPath = extras.getString(EmulatorActivity.KEY_PATH)!!
-                        RomPath(romPath)
+                        extras.getString(EmulatorActivity.KEY_PATH)?.let(::RomPath)
                     }
                     extras?.containsKey(EmulatorActivity.KEY_URI) == true -> {
                         @Suppress("DEPRECATION")

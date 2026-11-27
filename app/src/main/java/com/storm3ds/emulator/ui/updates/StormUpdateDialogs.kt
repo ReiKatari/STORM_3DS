@@ -310,7 +310,7 @@ fun showStormUpdateAvailableDialog(
                 ) {
                     VersionBadgeColumn(
                         label = stringResource(R.string.update_dialog_current_label),
-                        version = "v$cleanCur",
+                        version = cleanCur,
                         accent = false,
                         colors = colors,
                         modifier = Modifier.weight(1f),
@@ -332,7 +332,7 @@ fun showStormUpdateAvailableDialog(
                     }
                     VersionBadgeColumn(
                         label = stringResource(R.string.update_dialog_new_label),
-                        version = "v$cleanNew",
+                        version = cleanNew,
                         accent = true,
                         colors = colors,
                         modifier = Modifier.weight(1f),
@@ -635,7 +635,7 @@ fun showStormUpdateProgressDialog(
                         )
                         if (cleanVer.isNotBlank()) {
                             Text(
-                                text = "STORM 3DS v$cleanVer",
+                                text = "STORM 3DS $cleanVer",
                                 color = colors.text2,
                                 fontFamily = WatermelonMono,
                                 fontSize = 11.5.sp,
@@ -785,7 +785,7 @@ fun showStormUpdateInfoDialog(
                         )
                         if (!versionBadge.isNullOrBlank()) {
                             Text(
-                                text = "v${versionBadge.removePrefix("v").removePrefix("V")}",
+                                text = versionBadge.removePrefix("v").removePrefix("V"),
                                 color = accentColor,
                                 fontFamily = WatermelonMono,
                                 fontSize = 12.sp,

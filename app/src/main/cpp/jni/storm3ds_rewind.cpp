@@ -53,32 +53,32 @@ JNIEXPORT void JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_cle
 
 JNIEXPORT jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_NativeLibrary_captureRewindSnapshot(
     JNIEnv*, jobject) {
-    std::vector<u8> buf;
-    const bool captured = StormBridge::ExecuteOnEmuThread([&buf](Core::System& sys) {
+    auto buf = std::make_shared<std::vector<u8>>();
+    const bool captured = StormBridge::ExecuteOnEmuThread([buf](Core::System& sys) {
         if (!sys.IsPoweredOn()) {
             return false;
         }
         try {
-            buf = sys.SaveStateBuffer();
-            return !buf.empty();
+            *buf = sys.SaveStateBuffer();
+            return !buf->empty();
         } catch (...) {
-            buf.clear();
+            buf->clear();
             return false;
         }
     });
-    if (!captured || buf.empty()) {
+    if (!captured || buf->empty()) {
         return JNI_FALSE;
     }
     const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::system_clock::now().time_since_epoch())
                             .count();
     std::scoped_lock lock{g_rewind_mutex};
-    const std::size_t sz = buf.size();
+    const std::size_t sz = buf->size();
     if (sz > g_rewind_budget_bytes) {
         return JNI_FALSE;
     }
     g_rewind_total_bytes += sz;
-    g_rewind_ring.push_back(RewindSnapshot{std::move(buf), static_cast<jlong>(now_ms)});
+    g_rewind_ring.push_back(RewindSnapshot{std::move(*buf), static_cast<jlong>(now_ms)});
     TrimToBudgetLocked();
     return JNI_TRUE;
 }

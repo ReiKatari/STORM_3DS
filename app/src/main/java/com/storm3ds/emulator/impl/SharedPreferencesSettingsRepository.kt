@@ -629,12 +629,12 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getFastForwardSpeedMultiplier(): Float {
-        val speedMultiplierPreference = preferences.getString("fast_forward_speed_multiplier", "-1")!!
+        val speedMultiplierPreference = preferences.getString("fast_forward_speed_multiplier", "-1") ?: "-1"
         return speedMultiplierPreference.toFloatOrNull() ?: -1.0f
     }
 
     override fun getFrameLimitSpeedMultiplier(): Float {
-        val speedMultiplierPreference = preferences.getString("frame_limit_speed_multiplier", "1")!!
+        val speedMultiplierPreference = preferences.getString("frame_limit_speed_multiplier", "1") ?: "1"
         return speedMultiplierPreference.toFloatOrNull()?.coerceIn(0.25f, 1.0f) ?: 1.0f
     }
 
@@ -762,7 +762,7 @@ class SharedPreferencesSettingsRepository(
     }
 
     override fun getFirmwareConfiguration(): FirmwareConfiguration {
-        val birthdayPreference = preferences.getString("firmware_settings_birthday", "01/01")!!
+        val birthdayPreference = preferences.getString("firmware_settings_birthday", "01/01") ?: "01/01"
         val parts = birthdayPreference.split("/")
         val birthday = if (parts.size != 2) {
             Pair(1, 1)
@@ -810,8 +810,8 @@ class SharedPreferencesSettingsRepository(
         }
 
         return FirmwareConfiguration(
-                preferences.getString("firmware_settings_nickname", com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.DEFAULT_3DS_USERNAME)!!,
-                preferences.getString("firmware_settings_message", "Hello!")!!,
+                preferences.getString("firmware_settings_nickname", com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.DEFAULT_3DS_USERNAME) ?: com.storm3ds.emulator.nativebridge.utils.SystemSaveGame.DEFAULT_3DS_USERNAME,
+                preferences.getString("firmware_settings_message", "Hello!") ?: "Hello!",
                 effectiveLanguage,
                 preferences.getInt("firmware_settings_colour", 0).coerceIn(0, 15),
                 birthday.second,

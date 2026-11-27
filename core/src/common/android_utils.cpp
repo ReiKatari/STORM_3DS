@@ -11,30 +11,51 @@
 #include "common/logging/log.h"
 
 namespace AndroidUtils {
+
+JavaVM* g_jvm = nullptr;
+jclass native_library = nullptr;
+#define FR(FunctionName, ReturnValue, JMethodID, Caller, JMethodName, Signature) F(JMethodID)
+#define FS(FunctionName, ReturnValue, Parameters, JMethodID, JMethodName, Signature) F(JMethodID)
+#define F(JMethodID) jmethodID JMethodID = nullptr;
+ANDROID_SINGLE_PATH_DETERMINE_FUNCTIONS(FR)
+ANDROID_JNI_FUNCTIONS(FS)
+#undef F
+#undef FS
+#undef FR
 JNIEnv* GetEnvForThread() {
+    if (!g_jvm) {
+        return nullptr;
+    }
     thread_local static struct OwnedEnv {
         OwnedEnv() {
+            if (!g_jvm) {
+                return;
+            }
             status = g_jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
-            if (status == JNI_EDETACHED)
+            if (status == JNI_EDETACHED) {
                 g_jvm->AttachCurrentThread(&env, nullptr);
+            }
         }
 
         ~OwnedEnv() {
-            if (status == JNI_EDETACHED)
+            if (status == JNI_EDETACHED && g_jvm) {
                 g_jvm->DetachCurrentThread();
+            }
         }
 
-        int status;
+        int status = JNI_OK;
         JNIEnv* env = nullptr;
     } owned;
     return owned.env;
 }
 
 AndroidOpenMode ParseOpenmode(const std::string_view openmode) {
+    if (openmode.empty()) {
+        return AndroidOpenMode::NEVER;
+    }
     AndroidOpenMode android_open_mode = AndroidOpenMode::NEVER;
-    const char* mode = openmode.data();
     int o = 0;
-    switch (*mode++) {
+    switch (openmode[0]) {
     case 'r':
         android_open_mode = AndroidUtils::AndroidOpenMode::READ;
         break;
@@ -49,7 +70,8 @@ AndroidOpenMode ParseOpenmode(const std::string_view openmode) {
     }
 
     // [rwa]\+ or [rwa]b\+ means read and write
-    if (*mode == '+' || (*mode == 'b' && mode[1] == '+')) {
+    if ((openmode.size() >= 2 && openmode[1] == '+') ||
+        (openmode.size() >= 3 && openmode[1] == 'b' && openmode[2] == '+')) {
         android_open_mode = AndroidUtils::AndroidOpenMode::READ_WRITE;
     }
 
@@ -58,7 +80,11 @@ AndroidOpenMode ParseOpenmode(const std::string_view openmode) {
 
 void InitJNI(JNIEnv* env, jclass clazz) {
     env->GetJavaVM(&g_jvm);
-    native_library = clazz;
+    if (native_library != nullptr) {
+        env->DeleteGlobalRef(native_library);
+        native_library = nullptr;
+    }
+    native_library = clazz ? reinterpret_cast<jclass>(env->NewGlobalRef(clazz)) : nullptr;
 
 #define FR(FunctionName, ReturnValue, JMethodID, Caller, JMethodName, Signature)                   \
     F(JMethodID, JMethodName, Signature)
@@ -74,6 +100,13 @@ void InitJNI(JNIEnv* env, jclass clazz) {
 }
 
 void CleanupJNI() {
+    if (g_jvm != nullptr && native_library != nullptr) {
+        JNIEnv* env = nullptr;
+        if (g_jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) == JNI_OK && env != nullptr) {
+            env->DeleteGlobalRef(native_library);
+        }
+    }
+    native_library = nullptr;
 #define FR(FunctionName, ReturnValue, JMethodID, Caller, JMethodName, Signature) F(JMethodID)
 #define FS(FunctionName, ReturnValue, Parameters, JMethodID, JMethodName, Signature) F(JMethodID)
 #define F(JMethodID) JMethodID = nullptr;
@@ -245,13 +278,35 @@ std::string GetBuildFlavor() {
 }
 
 bool IsPortraitMode() {
+    if (!g_jvm || !native_library || !is_portrait_mode) {
+        return false;
+    }
     auto env = GetEnvForThread();
-    return (JNI_FALSE != env->CallStaticBooleanMethod(native_library, is_portrait_mode));
+    if (!env) {
+        return false;
+    }
+    const bool result = (JNI_FALSE != env->CallStaticBooleanMethod(native_library, is_portrait_mode));
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return false;
+    }
+    return result;
 }
 
 bool IsUsingAngleForOpenGL() {
+    if (!g_jvm || !native_library || !is_using_angle_for_opengl) {
+        return false;
+    }
     auto env = GetEnvForThread();
-    return env->CallStaticBooleanMethod(native_library, is_using_angle_for_opengl);
+    if (!env) {
+        return false;
+    }
+    const bool result = (JNI_FALSE != env->CallStaticBooleanMethod(native_library, is_using_angle_for_opengl));
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return false;
+    }
+    return result;
 }
 
 bool CopyFile(const std::string& source, const std::string& destination_path,

@@ -20,7 +20,7 @@ data class UILayoutVariantDto(
         return UILayoutVariant(
             uiSize.toModel(),
             insets.toModel(),
-            enumValueOf(orientation),
+            runCatching { enumValueOf<com.storm3ds.emulator.domain.model.ui.Orientation>(orientation) }.getOrDefault(com.storm3ds.emulator.domain.model.ui.Orientation.PORTRAIT),
             folds.map {
                 it.toModel()
             },

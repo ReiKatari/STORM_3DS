@@ -48,6 +48,9 @@ fun TranslatorSettingsContent(
     var ttsEnabled by remember { mutableStateOf(preferences.getBoolean(GameTranslatorManager.PREF_TRANSLATOR_TTS_ENABLED, false)) }
     var voiceEnginePref by remember { mutableStateOf(preferences.getString(GameTtsManager.PREF_TRANSLATOR_TTS_VOICE_ENGINE, "neural_edge") ?: "neural_edge") }
     var ttsLangPref by remember { mutableStateOf(preferences.getString(GameTtsManager.PREF_TRANSLATOR_TTS_LANG, "auto") ?: "auto") }
+    var showEngineDialog by remember { mutableStateOf(false) }
+    var showTriggerModeDialog by remember { mutableStateOf(false) }
+    var showOverlayStyleDialog by remember { mutableStateOf(false) }
 
     var voiceModelPref by remember { mutableStateOf(preferences.getString("translator_local_voice_model", "auto_gender_neural") ?: "auto_gender_neural") }
     var voicePitchVariance by remember { mutableStateOf(preferences.getInt(GameTtsManager.PREF_TRANSLATOR_LOCAL_PITCH_VARIANCE, 65).coerceIn(0, 100).toFloat()) }
@@ -152,13 +155,7 @@ fun TranslatorSettingsContent(
                 SettingsOption(
                     label = context.getString(R.string.translator_engine),
                     value = TranslatorEngineType.fromPreference(enginePref).displayName.substringBefore(" ("),
-                    onClick = {
-                        val engines = TranslatorEngineType.entries.map { it.preferenceValue to it.displayName.substringBefore(" (") }
-                        val nextIdx = (engines.indexOfFirst { it.first == enginePref } + 1) % engines.size
-                        enginePref = engines[nextIdx].first
-                        updatePref(GameTranslatorManager.PREF_TRANSLATOR_ENGINE, enginePref)
-                        (onEngineChanged ?: onSyncOverlay)()
-                    }
+                    onClick = { showEngineDialog = true }
                 )
                 Divider(color = watermelon.line)
                 SettingsOption(
@@ -167,11 +164,7 @@ fun TranslatorSettingsContent(
                         TranslatorTriggerMode.ON_DEMAND -> context.getString(R.string.translator_trigger_mode_on_demand)
                         TranslatorTriggerMode.AUTO_SCREEN_CHANGE -> context.getString(R.string.translator_trigger_mode_auto)
                     },
-                    onClick = {
-                        triggerModePref = if (triggerModePref == "on_demand") "auto_screen_change" else "on_demand"
-                        updatePref(GameTranslatorManager.PREF_TRANSLATOR_TRIGGER_MODE, triggerModePref)
-                        onStartAutoTranslate()
-                    }
+                    onClick = { showTriggerModeDialog = true }
                 )
             }
             
@@ -188,13 +181,7 @@ fun TranslatorSettingsContent(
                         TranslatorOverlayStyle.TRANSLUCENT_BUBBLE -> context.getString(R.string.translator_style_neon_bubble)
                         TranslatorOverlayStyle.OUTLINE_ONLY -> context.getString(R.string.translator_style_outline_only)
                     },
-                    onClick = {
-                        val styles = TranslatorOverlayStyle.entries.map { it.preferenceValue }
-                        val nextIdx = (styles.indexOf(overlayStylePref) + 1) % styles.size
-                        overlayStylePref = styles[nextIdx]
-                        updatePref(GameTranslatorManager.PREF_TRANSLATOR_OVERLAY_STYLE, overlayStylePref)
-                        onSyncOverlay()
-                    }
+                    onClick = { showOverlayStyleDialog = true }
                 )
                 Divider(color = watermelon.line)
                 SettingsSlider(
@@ -486,6 +473,235 @@ fun TranslatorSettingsContent(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(onClick = { showTtsLangDialog = false }) {
+                                Text(context.getString(R.string.close), color = watermelon.green, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                )
+            }
+
+            if (showEngineDialog) {
+                val engineOptions = TranslatorEngineType.entries.map {
+                    it.preferenceValue to it.displayName.substringBefore(" (")
+                }
+                AlertDialog(
+                    onDismissRequest = { showEngineDialog = false },
+                    backgroundColor = watermelon.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    title = {
+                        Text(
+                            text = context.getString(R.string.translator_engine),
+                            color = watermelon.text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            engineOptions.forEach { (id, title) ->
+                                val isSelected = id == enginePref
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) watermelon.green.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
+                                        .clickable {
+                                            enginePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_ENGINE, id)
+                                            (onEngineChanged ?: onSyncOverlay)()
+                                            showEngineDialog = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = title,
+                                        color = if (isSelected) watermelon.green else watermelon.text,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            enginePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_ENGINE, id)
+                                            (onEngineChanged ?: onSyncOverlay)()
+                                            showEngineDialog = false
+                                        },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = watermelon.green,
+                                            unselectedColor = watermelon.text2
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    buttons = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showEngineDialog = false }) {
+                                Text(context.getString(R.string.close), color = watermelon.green, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                )
+            }
+
+            if (showTriggerModeDialog) {
+                val triggerOptions = listOf(
+                    "on_demand" to context.getString(R.string.translator_trigger_mode_on_demand),
+                    "auto_screen_change" to context.getString(R.string.translator_trigger_mode_auto),
+                )
+                AlertDialog(
+                    onDismissRequest = { showTriggerModeDialog = false },
+                    backgroundColor = watermelon.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    title = {
+                        Text(
+                            text = context.getString(R.string.translator_trigger_mode),
+                            color = watermelon.text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            triggerOptions.forEach { (id, title) ->
+                                val isSelected = id == triggerModePref
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) watermelon.green.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
+                                        .clickable {
+                                            triggerModePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_TRIGGER_MODE, id)
+                                            onStartAutoTranslate()
+                                            showTriggerModeDialog = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = title,
+                                        color = if (isSelected) watermelon.green else watermelon.text,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            triggerModePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_TRIGGER_MODE, id)
+                                            onStartAutoTranslate()
+                                            showTriggerModeDialog = false
+                                        },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = watermelon.green,
+                                            unselectedColor = watermelon.text2
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    buttons = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showTriggerModeDialog = false }) {
+                                Text(context.getString(R.string.close), color = watermelon.green, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                )
+            }
+
+            if (showOverlayStyleDialog) {
+                val styleOptions = listOf(
+                    TranslatorOverlayStyle.SMART_BACKGROUND_MATCH.preferenceValue to context.getString(R.string.translator_style_smart_match),
+                    TranslatorOverlayStyle.SEMI_TRANSPARENT.preferenceValue to context.getString(R.string.translator_style_semi_transparent),
+                    TranslatorOverlayStyle.TRANSLUCENT_BUBBLE.preferenceValue to context.getString(R.string.translator_style_neon_bubble),
+                    TranslatorOverlayStyle.OUTLINE_ONLY.preferenceValue to context.getString(R.string.translator_style_outline_only),
+                )
+                AlertDialog(
+                    onDismissRequest = { showOverlayStyleDialog = false },
+                    backgroundColor = watermelon.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    title = {
+                        Text(
+                            text = context.getString(R.string.translator_overlay_style),
+                            color = watermelon.text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            styleOptions.forEach { (id, title) ->
+                                val isSelected = id == overlayStylePref
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) watermelon.green.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
+                                        .clickable {
+                                            overlayStylePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_OVERLAY_STYLE, id)
+                                            onSyncOverlay()
+                                            showOverlayStyleDialog = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = title,
+                                        color = if (isSelected) watermelon.green else watermelon.text,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            overlayStylePref = id
+                                            updatePref(GameTranslatorManager.PREF_TRANSLATOR_OVERLAY_STYLE, id)
+                                            onSyncOverlay()
+                                            showOverlayStyleDialog = false
+                                        },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = watermelon.green,
+                                            unselectedColor = watermelon.text2
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    buttons = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showOverlayStyleDialog = false }) {
                                 Text(context.getString(R.string.close), color = watermelon.green, fontWeight = FontWeight.Bold)
                             }
                         }
