@@ -37,9 +37,9 @@ class DefaultLayoutProvider(
     }.getOrDefault(false)
 
     private fun effectiveInsets(insets: Insets): Insets {
-        val minBottom = dp(14f)
+        val minBottom = dp(4f)
         val minTop = dp(8f)
-        val minSide = dp(12f)
+        val minSide = dp(10f)
         return Insets(
             left = max(insets.left, minSide),
             top = max(insets.top, minTop),
@@ -80,50 +80,49 @@ class DefaultLayoutProvider(
         val availableHeight = (bottomAnchor - deckTopY).coerceAtLeast(dp(200f))
         val availableWidth = (width - safeLeft - safeRight).coerceAtLeast(dp(300f))
         val narrow = availableWidth < dp(380f)
-        val compact = availableHeight < dp(280f)
+        val compact = availableHeight < dp(290f)
 
-        val dpadSize = dp(if (narrow || compact) 106f else 116f)
-        val circlePadSize = dp(if (compact) 92f else 102f)
-        val faceButtonsSize = dp(if (narrow || compact) 114f else 124f)
-        val cStickSize = dp(if (compact) 50f else 56f)
+        val dpadSize = dp(if (narrow || compact) 106f else 114f)
+        val circlePadSize = dp(if (compact) 88f else 98f)
+        val faceButtonsSize = dp(if (narrow || compact) 114f else 122f)
+        val cStickSize = dp(if (compact) 48f else 54f)
 
         val lrWidth = dp(if (narrow) 48f else 54f)
-        val lrHeight = dp(34f)
+        val lrHeight = dp(32f)
         val zlWidth = dp(if (narrow) 40f else 44f)
-        val zlHeight = dp(30f)
+        val zlHeight = dp(28f)
 
         val selectStartWidth = dp(if (narrow) 44f else 48f)
-        val selectStartHeight = dp(34f)
+        val selectStartHeight = dp(32f)
         val homeW = dp(38f)
-        val homeH = dp(32f)
-        val utilSize = dp(if (narrow || compact) 32f else 34f)
-        val utilGap = dp(if (narrow) 4f else 6f)
+        val homeH = dp(30f)
+        val utilSize = dp(if (narrow || compact) 30f else 32f)
+        val utilGap = dp(if (narrow) 4f else 5f)
         val centerX = safeLeft + availableWidth / 2
 
         val controls = mutableListOf<PositionedLayoutComponent>()
 
-        // Anchor control deck downward toward natural thumb reach (STORM DS style) while keeping
-        // full visual clearance below BOTTOM_SCREEN for 3D skin hardware details (SELECT | HOME | START, LEDs).
+        // 1. Bottom tier flush to bottomAnchor (STORM DS style): DPAD, ABXY, SELECT, START, HOME
         val dpadY = bottomAnchor - dpadSize
         val faceButtonsY = bottomAnchor - faceButtonsSize
-        val baseCirclePadY = dpadY - circlePadSize - dp(8f)
-        val baseCStickY = faceButtonsY - cStickSize - dp(10f)
+        val selectStartY = bottomAnchor - selectStartHeight
+        val startStopGap = dp(6f)
+        val homeY = selectStartY - homeH - dp(6f)
+
+        // 2. Sticks cleanly above D-Pad / ABXY
+        val baseCirclePadY = dpadY - circlePadSize - dp(6f)
+        val baseCStickY = faceButtonsY - cStickSize - dp(8f)
         val sticksTopY = min(baseCirclePadY, baseCStickY)
 
-        val minSkinClearance = if (skinEnabled) dp(30f) else dp(12f)
-        val minShoulderY = deckTopY + minSkinClearance
-        val desiredExtraBarY = sticksTopY - utilSize - dp(8f)
-        val desiredShoulderY = desiredExtraBarY - lrHeight - dp(5f)
-        val shoulderY = max(desiredShoulderY, minShoulderY)
-        val extraBarY = shoulderY + lrHeight + dp(5f)
+        // 3. Dedicated L/ZL and ZR/R shoulder row cleanly below hotkeys & above sticks (no hotkey overlap)
+        val minSkinY = deckTopY + (if (skinEnabled) dp(30f) else dp(8f))
+        val desiredShoulderY = sticksTopY - lrHeight - dp(8f)
+        val desiredExtraBarY = desiredShoulderY - utilSize - dp(6f)
+        val desiredCoreBarY = desiredExtraBarY - utilSize - dp(5f)
 
-        val triggerGap = dp(4f)
-        controls += PositionedLayoutComponent(Rect(safeLeft, shoulderY, lrWidth, lrHeight), LayoutComponent.BUTTON_L)
-        controls += PositionedLayoutComponent(Rect(safeLeft + lrWidth + triggerGap, shoulderY + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZL)
-
-        val rightRLeft = width - safeRight - lrWidth
-        controls += PositionedLayoutComponent(Rect(rightRLeft, shoulderY, lrWidth, lrHeight), LayoutComponent.BUTTON_R)
-        controls += PositionedLayoutComponent(Rect(rightRLeft - triggerGap - zlWidth, shoulderY + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZR)
+        val coreBarY = max(desiredCoreBarY, minSkinY)
+        val extraBarY = coreBarY + utilSize + (if (desiredCoreBarY >= minSkinY) dp(5f) else dp(4f))
+        val shoulderY = max(desiredShoulderY, extraBarY + utilSize + dp(5f))
 
         val coreStrip = listOf(
             LayoutComponent.BUTTON_PAUSE,
@@ -131,7 +130,7 @@ class DefaultLayoutProvider(
             LayoutComponent.BUTTON_SWAP_SCREENS,
             LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS,
         )
-        controls += centeredStrip(centerX, shoulderY + (lrHeight - utilSize) / 2, utilSize, utilGap, coreStrip)
+        controls += centeredStrip(centerX, coreBarY, utilSize, utilGap, coreStrip)
 
         val extraStrip = listOf(
             LayoutComponent.BUTTON_QUICK_SAVE,
@@ -142,20 +141,26 @@ class DefaultLayoutProvider(
         )
         controls += centeredStrip(centerX, extraBarY, utilSize, utilGap, extraStrip)
 
-        val minStickY = extraBarY + utilSize + dp(4f)
+        val triggerGap = dp(4f)
+        controls += PositionedLayoutComponent(Rect(safeLeft, shoulderY, lrWidth, lrHeight), LayoutComponent.BUTTON_L)
+        controls += PositionedLayoutComponent(Rect(safeLeft + lrWidth + triggerGap, shoulderY + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZL)
+
+        val rightRLeft = width - safeRight - lrWidth
+        controls += PositionedLayoutComponent(Rect(rightRLeft, shoulderY, lrWidth, lrHeight), LayoutComponent.BUTTON_R)
+        controls += PositionedLayoutComponent(Rect(rightRLeft - triggerGap - zlWidth, shoulderY + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZR)
+
+        val minStickY = shoulderY + lrHeight + dp(4f)
         val circlePadY = baseCirclePadY.coerceAtLeast(minStickY).coerceAtMost(dpadY - dp(4f))
         val circlePadX = safeLeft + (dpadSize - circlePadSize) / 2
         controls += PositionedLayoutComponent(Rect(circlePadX, circlePadY, circlePadSize, circlePadSize), LayoutComponent.CIRCLE_PAD)
         controls += PositionedLayoutComponent(Rect(safeLeft, dpadY, dpadSize, dpadSize), LayoutComponent.DPAD)
 
         val faceButtonsX = width - safeRight - faceButtonsSize
-        val cStickX = (faceButtonsX - cStickSize / 2 - dp(4f)).coerceAtLeast(centerX + dp(16f))
+        val cStickX = (faceButtonsX - cStickSize / 2 - dp(4f)).coerceAtLeast(centerX + dp(18f))
         val cStickY = baseCStickY.coerceAtLeast(minStickY).coerceAtMost(faceButtonsY - dp(4f))
         controls += PositionedLayoutComponent(Rect(cStickX, cStickY, cStickSize, cStickSize), LayoutComponent.C_STICK)
         controls += PositionedLayoutComponent(Rect(faceButtonsX, faceButtonsY, faceButtonsSize, faceButtonsSize), LayoutComponent.BUTTONS)
 
-        val selectStartY = bottomAnchor - selectStartHeight
-        val startStopGap = dp(6f)
         controls += PositionedLayoutComponent(
             Rect(centerX - selectStartWidth - startStopGap / 2, selectStartY, selectStartWidth, selectStartHeight),
             LayoutComponent.BUTTON_SELECT,
@@ -164,9 +169,8 @@ class DefaultLayoutProvider(
             Rect(centerX + startStopGap / 2, selectStartY, selectStartWidth, selectStartHeight),
             LayoutComponent.BUTTON_START,
         )
-        val homeY = (selectStartY - homeH - dp(6f)).coerceAtLeast(extraBarY + utilSize + dp(4f))
         controls += PositionedLayoutComponent(
-            Rect(centerX - homeW / 2, homeY, homeW, homeH),
+            Rect(centerX - homeW / 2, homeY.coerceAtLeast(minStickY), homeW, homeH),
             LayoutComponent.BUTTON_HOME,
         )
 
@@ -180,6 +184,7 @@ class DefaultLayoutProvider(
         width: Int,
         height: Int,
         safeInsets: Insets,
+        bottomSystemCenterX: Int? = null,
     ): List<PositionedLayoutComponent> {
         val safeLeft = safeInsets.left
         val safeTop = safeInsets.top
@@ -189,36 +194,37 @@ class DefaultLayoutProvider(
         val bottomAnchor = height - safeBottom
 
         val compactHeight = (bottomAnchor - safeTop) < dp(350f)
-        val dpadSize = dp(if (compactHeight) 104f else 116f)
-        val circlePadSize = dp(if (compactHeight) 96f else 108f)
-        val faceButtonsSize = dp(if (compactHeight) 114f else 126f)
-        val cStickSize = dp(if (compactHeight) 52f else 58f)
+        val dpadSize = dp(if (compactHeight) 100f else 108f)
+        val circlePadSize = dp(if (compactHeight) 86f else 94f)
+        val faceButtonsSize = dp(if (compactHeight) 108f else 116f)
+        val cStickSize = dp(if (compactHeight) 46f else 52f)
 
-        val lrWidth = dp(62f)
-        val lrHeight = dp(40f)
-        val zlWidth = dp(50f)
-        val zlHeight = dp(36f)
-        val utilSize = dp(36f)
-        val gap = dp(6f)
+        val lrWidth = dp(54f)
+        val lrHeight = dp(34f)
+        val zlWidth = dp(42f)
+        val zlHeight = dp(30f)
+        val utilSize = dp(30f)
+        val utilGap = dp(5f)
+        val trigGap = dp(4f)
 
         val controls = mutableListOf<PositionedLayoutComponent>()
 
-        // Upper shoulder triggers: L + ZL on left, ZR + R mirrored on right
+        // Upper shoulder triggers: L + ZL fit inside left rail (98dp), ZR + R fit inside right rail (98dp)
         controls += PositionedLayoutComponent(Rect(safeLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_L)
-        controls += PositionedLayoutComponent(Rect(safeLeft + lrWidth + gap, safeTop + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZL)
+        controls += PositionedLayoutComponent(Rect(safeLeft + lrWidth + trigGap, safeTop + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZL)
 
         val rLeft = width - safeRight - lrWidth
         controls += PositionedLayoutComponent(Rect(rLeft, safeTop, lrWidth, lrHeight), LayoutComponent.BUTTON_R)
-        controls += PositionedLayoutComponent(Rect(rLeft - gap - zlWidth, safeTop + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZR)
+        controls += PositionedLayoutComponent(Rect(rLeft - trigGap - zlWidth, safeTop + (lrHeight - zlHeight) / 2, zlWidth, zlHeight), LayoutComponent.BUTTON_ZR)
 
-        // Symmetrical top utility bar centered cleanly
+        // Compact top utility bar within topReserve (38dp), secondary strip tucked below when toggled on
         val coreStrip = listOf(
             LayoutComponent.BUTTON_PAUSE,
             LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE,
             LayoutComponent.BUTTON_SWAP_SCREENS,
             LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS,
         )
-        controls += centeredStrip(centerX, safeTop, utilSize, gap, coreStrip)
+        controls += centeredStrip(centerX, safeTop, utilSize, utilGap, coreStrip)
 
         val extraStrip = listOf(
             LayoutComponent.BUTTON_QUICK_SAVE,
@@ -227,30 +233,35 @@ class DefaultLayoutProvider(
             LayoutComponent.BUTTON_HINGE,
             LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT,
         )
-        controls += centeredStrip(centerX, safeTop + utilSize + dp(6f), utilSize, gap, extraStrip)
+        controls += centeredStrip(centerX, safeTop + utilSize + dp(4f), utilSize, utilGap, extraStrip)
 
-        // Left grip rail: Circle Pad above D-Pad
+        // Left grip rail: Circle Pad above D-Pad (stays inside leftRail = 114dp)
         val dpadY = bottomAnchor - dpadSize
-        val circlePadY = (dpadY - circlePadSize - dp(12f)).coerceAtLeast(safeTop + lrHeight + dp(8f))
-        val circlePadX = safeLeft + dp(2f) + (dpadSize - circlePadSize) / 2
+        val circlePadY = (dpadY - circlePadSize - dp(8f)).coerceAtLeast(safeTop + lrHeight + dp(6f))
+        val circlePadX = safeLeft + (dpadSize - circlePadSize) / 2
         controls += PositionedLayoutComponent(Rect(circlePadX, circlePadY, circlePadSize, circlePadSize), LayoutComponent.CIRCLE_PAD)
         controls += PositionedLayoutComponent(Rect(safeLeft, dpadY, dpadSize, dpadSize), LayoutComponent.DPAD)
 
-        // Right grip rail: ABXY face buttons + C-Stick tucked above-inboard for natural thumb sweep
+        // Right grip rail: ABXY + C-Stick kept inside rightRail (122dp) so gameplay screen stays uncovered
         val faceButtonsX = width - safeRight - faceButtonsSize
         val faceButtonsY = bottomAnchor - faceButtonsSize
-        val cStickX = (faceButtonsX - cStickSize / 2 - dp(6f)).coerceAtLeast(centerX + dp(40f))
-        val cStickY = (faceButtonsY - cStickSize - dp(10f)).coerceAtLeast(safeTop + lrHeight + dp(8f))
+        val rightRailMinX = width - safeRight - dp(122f)
+        val cStickX = (faceButtonsX - cStickSize / 3).coerceAtLeast(rightRailMinX)
+        val cStickY = (faceButtonsY - cStickSize - dp(8f)).coerceAtLeast(safeTop + lrHeight + dp(6f))
         controls += PositionedLayoutComponent(Rect(cStickX, cStickY, cStickSize, cStickSize), LayoutComponent.C_STICK)
         controls += PositionedLayoutComponent(Rect(faceButtonsX, faceButtonsY, faceButtonsSize, faceButtonsSize), LayoutComponent.BUTTONS)
 
-        // Center bottom row: SELECT - HOME - START
-        val selectStartWidth = dp(52f)
-        val selectStartHeight = dp(36f)
-        val homeSize = dp(36f)
-        val bottomGap = dp(8f)
+        // Bottom row: SELECT - HOME - START (placed under bottom screen pocket in uneven landscape when provided)
+        val selectStartWidth = dp(46f)
+        val selectStartHeight = dp(30f)
+        val homeSize = dp(32f)
+        val bottomGap = dp(6f)
         val bottomGroupWidth = selectStartWidth * 2 + homeSize + bottomGap * 2
-        val bottomStartX = centerX - bottomGroupWidth / 2
+        val targetBottomCenterX = (bottomSystemCenterX ?: centerX).coerceIn(
+            safeLeft + bottomGroupWidth / 2,
+            width - safeRight - bottomGroupWidth / 2,
+        )
+        val bottomStartX = targetBottomCenterX - bottomGroupWidth / 2
         val bottomRowY = bottomAnchor - selectStartHeight
         controls += PositionedLayoutComponent(Rect(bottomStartX, bottomRowY, selectStartWidth, selectStartHeight), LayoutComponent.BUTTON_SELECT)
         controls += PositionedLayoutComponent(Rect(bottomStartX + selectStartWidth + bottomGap, bottomRowY, homeSize, homeSize), LayoutComponent.BUTTON_HOME)
@@ -352,7 +363,7 @@ class DefaultLayoutProvider(
         val skinHingeGap = if (skinEnabled && singleScreenComponent == null) dp(20f) else 0
 
         // Reserve ergonomic lower deck height + 3D skin hinge/pill-bar clearance
-        val minDeckHeight = dp(if (skinEnabled) 326f else 312f)
+        val minDeckHeight = dp(if (skinEnabled) 356f else 334f)
         val minScreensTotalHeight = (safeHeight * 0.44f).toInt()
         val maxScreenBudget = (safeHeight - minDeckHeight - skinHingeGap).coerceAtLeast(minScreensTotalHeight)
 
@@ -428,13 +439,15 @@ class DefaultLayoutProvider(
         val safeWidth = (width - safeLeft - safeRight).coerceAtLeast(240)
         val safeHeight = (height - safeTop - safeBottom).coerceAtLeast(180)
 
-        // Side grip rails reserve dedicated horizontal space so controls never cover screens on wide phones
-        val railWidth = if (safeWidth >= dp(560f)) dp(136f) else 0
-        val centerAreaWidth = (safeWidth - railWidth * 2).coerceAtLeast(dp(260f))
-        val topBarReserve = dp(42f)
-        val bottomBarReserve = dp(40f)
+        // Dedicated side grip rails (114dp left / 122dp right) so screens stay cleanly inside middle window
+        val leftRail = if (safeWidth >= dp(480f)) dp(114f) else 0
+        val rightRail = if (safeWidth >= dp(480f)) dp(122f) else 0
+        val railWidth = leftRail
+        val centerAreaWidth = (safeWidth - leftRail - rightRail).coerceAtLeast(dp(240f))
+        val topBarReserve = dp(38f)
+        val bottomBarReserve = dp(38f)
         val centerAreaHeight = (safeHeight - topBarReserve - bottomBarReserve).coerceAtLeast((safeHeight * 0.68f).toInt())
-        val centerAreaTop = safeTop + ((safeHeight - centerAreaHeight) / 2).coerceAtLeast(topBarReserve / 2)
+        val centerAreaTop = safeTop + topBarReserve
 
         val screenComponents = if (singleScreenComponent == null) {
             var screenHeight = centerAreaHeight
@@ -614,32 +627,40 @@ class DefaultLayoutProvider(
         val safeHeight = (height - safeTop - safeBottom).coerceAtLeast(180)
 
         // Keep both screens inside the clear middle window between the left & right grip rails
-        val railWidth = if (safeWidth >= dp(560f)) dp(136f) else 0
-        val centerAreaWidth = (safeWidth - railWidth * 2).coerceAtLeast(dp(260f))
-        val topReserve = dp(42f)
-        val bottomReserve = dp(40f)
-        val centerAreaHeight = (safeHeight - topReserve - bottomReserve).coerceAtLeast((safeHeight * 0.68f).toInt())
-        val centerAreaTop = safeTop + ((safeHeight - centerAreaHeight) / 2).coerceAtLeast(topReserve / 2)
+        val leftRail = if (safeWidth >= dp(480f)) dp(114f) else 0
+        val rightRail = if (safeWidth >= dp(480f)) dp(122f) else 0
+        val centerAreaWidth = (safeWidth - leftRail - rightRail).coerceAtLeast(dp(240f))
+        val topReserve = dp(38f)
+        val bottomReserve = dp(6f)
+        val centerAreaHeight = (safeHeight - topReserve - bottomReserve).coerceAtLeast((safeHeight * 0.72f).toInt())
+        val centerAreaTop = safeTop + topReserve
         val gapBetweenScreens = dp(8f)
 
         var mainW = (centerAreaHeight * ThreeDS.TOP_SCREEN_ASPECT_RATIO).toInt()
         var mainH = centerAreaHeight
-        val maxMainW = (centerAreaWidth * 0.68f).toInt()
+        val maxMainW = (centerAreaWidth * 0.64f).toInt()
         if (mainW > maxMainW) {
             mainW = maxMainW
             mainH = (mainW / ThreeDS.TOP_SCREEN_ASPECT_RATIO).toInt()
         }
 
         val subMaxW = (centerAreaWidth - mainW - gapBetweenScreens).coerceAtLeast(dp(84f))
-        val subW = subMaxW.coerceAtMost((mainH * 0.65f * ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtLeast(subMaxW))
-        val subH = (subW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost(centerAreaHeight)
+        val desiredSubW = (mainH * 0.62f * ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtLeast(dp(84f))
+        val subW = subMaxW.coerceAtMost(desiredSubW)
+        val subH = (subW / ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO).toInt().coerceAtMost((centerAreaHeight - dp(40f)).coerceAtLeast(60))
 
         val combinedW = mainW + gapBetweenScreens + subW
-        val startX = safeLeft + railWidth + ((centerAreaWidth - combinedW) / 2).coerceAtLeast(0)
+        val startX = safeLeft + leftRail + ((centerAreaWidth - combinedW) / 2).coerceAtLeast(0)
         val mainRect = Rect(startX, centerAreaTop + (centerAreaHeight - mainH) / 2, mainW, mainH)
-        val subRect = Rect(startX + mainW + gapBetweenScreens, centerAreaTop + (centerAreaHeight - subH) / 2, subW, subH)
+        val subRect = Rect(startX + mainW + gapBetweenScreens, mainRect.y, subW, subH)
+        val hasBottomRightPocket = (subRect.width >= dp(136f)) && (safeTop + safeHeight - subRect.bottom >= dp(36f))
 
-        val controls = buildLandscapeControls(width, height, safe)
+        val controls = buildLandscapeControls(
+            width = width,
+            height = height,
+            safeInsets = safe,
+            bottomSystemCenterX = if (hasBottomRightPocket) subRect.x + subRect.width / 2 else null,
+        )
         return ScreenLayout(
             listOf(
                 PositionedLayoutComponent(mainRect, LayoutComponent.TOP_SCREEN),
@@ -657,12 +678,13 @@ class DefaultLayoutProvider(
         val safeWidth = (width - safeLeft - safeRight).coerceAtLeast(240)
         val safeHeight = (height - safeTop - safeBottom).coerceAtLeast(180)
 
-        val railWidth = if (safeWidth >= dp(560f)) dp(136f) else 0
-        val centerAreaWidth = (safeWidth - railWidth * 2).coerceAtLeast(dp(260f))
-        val topReserve = dp(42f)
-        val bottomReserve = dp(40f)
+        val leftRail = if (safeWidth >= dp(480f)) dp(114f) else 0
+        val rightRail = if (safeWidth >= dp(480f)) dp(122f) else 0
+        val centerAreaWidth = (safeWidth - leftRail - rightRail).coerceAtLeast(dp(240f))
+        val topReserve = dp(38f)
+        val bottomReserve = dp(38f)
         val centerAreaHeight = (safeHeight - topReserve - bottomReserve).coerceAtLeast((safeHeight * 0.72f).toInt())
-        val centerAreaTop = safeTop + ((safeHeight - centerAreaHeight) / 2).coerceAtLeast(topReserve / 2)
+        val centerAreaTop = safeTop + topReserve
 
         var sWidth = (centerAreaHeight * consoleAspectRatio).toInt()
         var sHeight = centerAreaHeight
@@ -670,7 +692,7 @@ class DefaultLayoutProvider(
             sWidth = centerAreaWidth
             sHeight = (sWidth / consoleAspectRatio).toInt()
         }
-        val x = safeLeft + railWidth + (centerAreaWidth - sWidth) / 2
+        val x = safeLeft + leftRail + (centerAreaWidth - sWidth) / 2
         val y = centerAreaTop + (centerAreaHeight - sHeight) / 2
         val screenRect = Rect(x, y, sWidth, sHeight)
 

@@ -1503,7 +1503,7 @@ class Storm3dsCoreTest {
         // 3. Skin-aware lower default portrait layout & skin contrast fixes
         val layoutTxt = File(srcJava, "com/storm3ds/emulator/impl/layout/DefaultLayoutProvider.kt").readText()
         assertTrue("DefaultLayoutProvider must check video_console_skin_enabled", "video_console_skin_enabled" in layoutTxt)
-        assertTrue("DefaultLayoutProvider must reserve skinHingeGap and minSkinClearance", "skinHingeGap" in layoutTxt && "minSkinClearance" in layoutTxt)
+        assertTrue("DefaultLayoutProvider must reserve skinHingeGap and minSkinY", "skinHingeGap" in layoutTxt && "minSkinY" in layoutTxt)
 
         val skinTxt = File(srcJava, "com/storm3ds/emulator/ui/emulator/skin/ConsoleSkinOverlayView.kt").readText()
         assertTrue("ConsoleSkinOverlayView must auto-adjust light surface brand text contrast", "effectiveBrandColor" in skinTxt)
@@ -1567,5 +1567,29 @@ class Storm3dsCoreTest {
 
         val plainNotes = "- Plain changelog line"
         assertEquals(plainNotes, com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(plainNotes, java.util.Locale("ru")))
+    }
+
+    @Test
+    fun `release 1_11_1 enforces amiibo surface guard, unified netplay dialog, and non-overlapping layouts`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val srcCpp = File("src/main/cpp").takeIf { it.exists() } ?: File("app/src/main/cpp")
+
+        val nativeTxt = File(srcCpp, "jni/native.cpp").readText()
+        assertTrue("native.cpp must gate RunCitra loop with has_live_surface", "has_live_surface.load(" in nativeTxt)
+        assertTrue("native.cpp must route loadAmiibo through ExecuteOnEmuThreadImpl", "nfc->LoadAmiibo(filepath)" in nativeTxt && "ExecuteOnEmuThreadImpl([filepath]" in nativeTxt)
+
+        val actTxt = File(srcJava, "com/storm3ds/emulator/ui/emulator/EmulatorActivity.kt").readText()
+        assertTrue("EmulatorActivity must gate resumes on tryResumeEmulatorIfReady()", "tryResumeEmulatorIfReady()" in actTxt)
+        assertTrue("EmulatorActivity must only pass cutout insets into uiInsets", "windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())" in actTxt)
+
+        val netplayTxt = File(srcJava, "com/storm3ds/emulator/ui/romdetails/ui/NetplayLobbyDialog.kt").readText()
+        assertTrue("NetplayLobbyDialog must use bottom-centered UnifiedBackButton", "UnifiedBackButton(" in netplayTxt)
+        assertFalse("NetplayHubTab must not truncate tabs with ellipsis", "TextOverflow.Ellipsis" in netplayTxt.substringAfter("private fun NetplayHubTab(").substringBefore("private fun NetplayInputBox("))
+        assertTrue("NetplayLobbyDialog tab bar must scroll horizontally", "horizontalScroll(" in netplayTxt)
+
+        val layoutTxt = File(srcJava, "com/storm3ds/emulator/impl/layout/DefaultLayoutProvider.kt").readText()
+        assertTrue("DefaultLayoutProvider must set minBottom = dp(4f)", "val minBottom = dp(4f)" in layoutTxt)
+        assertTrue("DefaultLayoutProvider must reserve leftRail and rightRail in landscape", "val leftRail =" in layoutTxt && "val rightRail =" in layoutTxt)
+        assertTrue("DefaultLayoutProvider must separate coreBarY and shoulderY in portrait", "coreBarY" in layoutTxt && "desiredShoulderY" in layoutTxt)
     }
 }

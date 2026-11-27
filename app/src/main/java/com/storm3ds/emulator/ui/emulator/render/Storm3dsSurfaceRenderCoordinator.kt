@@ -45,14 +45,24 @@ class Storm3dsSurfaceRenderCoordinator(
     private var lastSentLayout: SentLayoutKey? = null
     @Volatile
     private var stopped = false
+    @Volatile
+    var isMainSurfaceValid: Boolean = false
+        private set
+    @Volatile
+    var onMainSurfaceValidityChanged: ((Boolean) -> Unit)? = null
 
     override fun addSurface(surface: EmulatorSurfaceView) {
         if (stopped) return
         if (mainSurfaceView == null || mainSurfaceView === surface) {
             mainSurfaceView = surface
             surface.setSurfaceLifecycleListener(this)
-            surface.getCurrentSurface()?.let { s ->
-                if (s.isValid) NativeLibrary.surfaceChanged(s)
+            val currentSurface = surface.getCurrentSurface()
+            if (currentSurface != null && currentSurface.isValid) {
+                NativeLibrary.surfaceChanged(currentSurface)
+                isMainSurfaceValid = true
+                onMainSurfaceValidityChanged?.invoke(true)
+            } else {
+                isMainSurfaceValid = false
             }
         } else {
             secondarySurfaceView = surface
@@ -66,6 +76,8 @@ class Storm3dsSurfaceRenderCoordinator(
     override fun removeSurface(surface: EmulatorSurfaceView) {
         surface.setSurfaceLifecycleListener(null)
         if (mainSurfaceView === surface) {
+            isMainSurfaceValid = false
+            onMainSurfaceValidityChanged?.invoke(false)
             mainSurfaceView = null
             lastSentLayout = null
             runCatching { NativeLibrary.surfaceDestroyed() }
@@ -125,6 +137,8 @@ class Storm3dsSurfaceRenderCoordinator(
 
     override fun stop() {
         stopped = true
+        isMainSurfaceValid = false
+        onMainSurfaceValidityChanged = null
         lastSentLayout = null
         mainSurfaceView?.setSurfaceLifecycleListener(null)
         mainSurfaceView = null
@@ -143,6 +157,8 @@ class Storm3dsSurfaceRenderCoordinator(
             NativeLibrary.secondarySurfaceChanged(surface)
         } else {
             NativeLibrary.surfaceChanged(surface)
+            isMainSurfaceValid = true
+            onMainSurfaceValidityChanged?.invoke(true)
         }
     }
 
@@ -152,6 +168,8 @@ class Storm3dsSurfaceRenderCoordinator(
             NativeLibrary.secondarySurfaceChanged(surface)
         } else {
             NativeLibrary.surfaceChanged(surface)
+            isMainSurfaceValid = true
+            onMainSurfaceValidityChanged?.invoke(true)
         }
     }
 
@@ -160,6 +178,8 @@ class Storm3dsSurfaceRenderCoordinator(
         if (surfaceView === secondarySurfaceView) {
             runCatching { NativeLibrary.secondarySurfaceDestroyed() }
         } else {
+            isMainSurfaceValid = false
+            onMainSurfaceValidityChanged?.invoke(false)
             runCatching { NativeLibrary.surfaceDestroyed() }
         }
     }

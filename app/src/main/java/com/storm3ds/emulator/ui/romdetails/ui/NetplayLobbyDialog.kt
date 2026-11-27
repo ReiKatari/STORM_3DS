@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,10 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
@@ -324,121 +325,131 @@ fun NetplayLobbyDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = if (colors.isDark) 0.90f else 0.60f))
-                .padding(14.dp),
+                .background(Color.Black.copy(alpha = if (colors.isDark) 0.90f else 0.60f)),
             contentAlignment = Alignment.Center,
         ) {
             Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .fillMaxWidth(0.96f)
-                    .fillMaxHeight(0.92f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.bg)
-                    .border(1.dp, colors.line, RoundedCornerShape(20.dp))
-                    .padding(18.dp),
+                    .widthIn(max = 760.dp)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp),
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 14.dp, top = 20.dp, bottom = 12.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(colors.surface)
+                        .border(1.dp, colors.line, RoundedCornerShape(22.dp))
+                        .padding(16.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onDismiss,
+                    // Unified Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
-                                .background(colors.surface2),
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(colors.surface2)
+                                .border(1.dp, colors.line, RoundedCornerShape(10.dp)),
                         ) {
                             Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = colors.text,
-                                modifier = Modifier.size(18.dp),
+                                imageVector = Icons.Filled.Wifi,
+                                contentDescription = null,
+                                tint = colors.green,
+                                modifier = Modifier.size(19.dp),
                             )
                         }
-                        Spacer(Modifier.width(10.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = stringResource(R.string.netplay_3ds_header_title),
                                 color = colors.text,
                                 fontFamily = SpaceGrotesk,
-                                fontSize = 15.sp,
+                                fontSize = 15.5.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = stringResource(R.string.netplay_3ds_header_subtitle),
                                 color = colors.text2,
                                 fontFamily = WatermelonMono,
-                                fontSize = 9.5.sp,
+                                fontSize = 10.sp,
                             )
+                        }
+
+                        if (isJoined) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF10B981).copy(alpha = 0.2f))
+                                    .clickable { selectedTab = 2 }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.netplay_3ds_connected_badge),
+                                    color = Color(0xFF10B981),
+                                    fontFamily = WatermelonMono,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
                     }
 
-                    if (isJoined) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF10B981).copy(alpha = 0.2f))
-                                .clickable { selectedTab = 2 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.netplay_3ds_connected_badge),
-                                color = Color(0xFF10B981),
-                                fontFamily = WatermelonMono,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(colors.line),
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    // Horizontally scrollable full-word 4-Tab Bar (zero truncation)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surface2)
+                            .horizontalScroll(rememberScrollState())
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        NetplayHubTab(
+                            selected = selectedTab == 0,
+                            accent = Color(0xFF00E5FF),
+                            icon = Icons.Filled.Wifi,
+                            label = stringResource(R.string.netplay_3ds_tab_lan),
+                            onClick = { selectedTab = 0 },
+                        )
+                        NetplayHubTab(
+                            selected = selectedTab == 1,
+                            accent = Color(0xFFA855F7),
+                            icon = Icons.Filled.SportsEsports,
+                            label = stringResource(R.string.netplay_3ds_tab_host),
+                            onClick = { selectedTab = 1 },
+                        )
+                        NetplayHubTab(
+                            selected = selectedTab == 2,
+                            accent = Color(0xFFF59E0B),
+                            icon = Icons.Filled.Person,
+                            label = stringResource(R.string.netplay_3ds_tab_room),
+                            onClick = { selectedTab = 2 },
+                        )
+                        NetplayHubTab(
+                            selected = selectedTab == 3,
+                            accent = Color(0xFF10B981),
+                            icon = Icons.Filled.Language,
+                            label = stringResource(R.string.netplay_3ds_tab_online),
+                            onClick = { selectedTab = 3 },
+                        )
                     }
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                // 4-Tab Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.surface2)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    NetplayHubTab(
-                        selected = selectedTab == 0,
-                        accent = Color(0xFF00E5FF),
-                        icon = Icons.Filled.Wifi,
-                        label = stringResource(R.string.netplay_3ds_tab_lan),
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedTab = 0 },
-                    )
-                    NetplayHubTab(
-                        selected = selectedTab == 1,
-                        accent = Color(0xFFA855F7),
-                        icon = Icons.Filled.SportsEsports,
-                        label = stringResource(R.string.netplay_3ds_tab_host),
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedTab = 1 },
-                    )
-                    NetplayHubTab(
-                        selected = selectedTab == 2,
-                        accent = Color(0xFFF59E0B),
-                        icon = Icons.Filled.Person,
-                        label = stringResource(R.string.netplay_3ds_tab_room),
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedTab = 2 },
-                    )
-                    NetplayHubTab(
-                        selected = selectedTab == 3,
-                        accent = Color(0xFF10B981),
-                        icon = Icons.Filled.Language,
-                        label = stringResource(R.string.netplay_3ds_tab_online),
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedTab = 3 },
-                    )
-                }
 
                 Spacer(Modifier.height(12.dp))
 
@@ -1301,6 +1312,12 @@ fun NetplayLobbyDialog(
                         }
                     }
                 }
+                }
+
+                // Unified Bottom Circular Back Arrow
+                com.storm3ds.emulator.ui.common.UnifiedBackButton(
+                    onClick = onDismiss,
+                )
             }
         }
     }
@@ -1321,20 +1338,19 @@ private fun NetplayHubTab(
             .clip(RoundedCornerShape(9.dp))
             .background(if (selected) accent.copy(alpha = 0.25f) else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = if (selected) accent else colors.text2, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = label,
                 color = if (selected) accent else colors.text2,
-                fontFamily = WatermelonMono,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
+                fontFamily = SpaceGrotesk,
+                fontSize = 11.5.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

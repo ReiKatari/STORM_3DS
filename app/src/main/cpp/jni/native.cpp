@@ -120,6 +120,7 @@ jlong ptm_current_title_id = std::numeric_limits<jlong>::max(); // Arbitrary def
 
 std::atomic<bool> stop_run{true};
 std::atomic<bool> pause_emulation{false};
+std::atomic<bool> has_live_surface{false};
 
 std::mutex paused_mutex;
 std::mutex running_mutex;
@@ -303,6 +304,7 @@ static void TryShutdown() {
     system.EjectCartridge();
     inserted_cartridge.clear();
     pause_emulation = false;
+    has_live_surface.store(false, std::memory_order_release);
     step_single_frame = false;
 
     window.reset();
@@ -550,7 +552,7 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
             break;
         }
         const bool stepping = step_single_frame.exchange(false);
-        if (!pause_emulation || stepping) {
+        if ((!pause_emulation || stepping) && has_live_surface.load(std::memory_order_acquire)) {
             const auto result = system.RunLoop();
             if (result == Core::System::ResultStatus::Success) {
                 continue;
@@ -579,9 +581,11 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
 
             std::unique_lock pause_lock{paused_mutex};
             running_cv.wait(pause_lock, [] {
-                return !pause_emulation || stop_run ||
+                const bool surface_ready = has_live_surface.load(std::memory_order_acquire);
+                return stop_run.load() ||
                        has_emu_task.load(std::memory_order_acquire) ||
-                       step_single_frame.load(std::memory_order_acquire);
+                       (surface_ready && (!pause_emulation.load() ||
+                                          step_single_frame.load(std::memory_order_acquire)));
             });
             if (window) {
                 window->PollEvents();
@@ -1048,6 +1052,11 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_surfaceChanged(JNIEnv
     if (notify && system.IsPoweredOn()) {
         system.GPU().Renderer().NotifySurfaceChanged(false);
     }
+    has_live_surface.store(s_surface != nullptr, std::memory_order_release);
+    {
+        std::scoped_lock plock{paused_mutex};
+    }
+    running_cv.notify_all();
 
     LOG_INFO(Frontend, "Surface changed");
 }
@@ -1115,6 +1124,7 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_secondarySurfaceDestr
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_surfaceDestroyed([[maybe_unused]] JNIEnv* env,
                                                               [[maybe_unused]] jobject obj) {
     std::scoped_lock lock(surface_mutex);
+    has_live_surface.store(false, std::memory_order_release);
 
     if (s_surface != nullptr) {
         ANativeWindow_release(s_surface);
@@ -1455,7 +1465,10 @@ jboolean JNICALL Java_com_storm3ds_emulator_nativebridge_utils_GpuDriverHelper_i
 // TODO(xperia64): ensure these cannot be called in an invalid state (e.g. after StopEmulation)
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_unPauseEmulation([[maybe_unused]] JNIEnv* env,
                                                               [[maybe_unused]] jobject obj) {
-    pause_emulation = false;
+    {
+        std::scoped_lock lock{paused_mutex};
+        pause_emulation = false;
+    }
     running_cv.notify_all();
     auto* handler = InputManager::NDKMotionHandler();
     if (handler) {
@@ -1465,7 +1478,10 @@ void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_unPauseEmulation([[ma
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_pauseEmulation([[maybe_unused]] JNIEnv* env,
                                                             [[maybe_unused]] jobject obj) {
-    pause_emulation = true;
+    {
+        std::scoped_lock lock{paused_mutex};
+        pause_emulation = true;
+    }
     auto* handler = InputManager::NDKMotionHandler();
     if (handler) {
         handler->DisableSensors();
@@ -1715,26 +1731,28 @@ jboolean Java_com_storm3ds_emulator_nativebridge_NativeLibrary_loadAmiibo(JNIEnv
                                                             [[maybe_unused]] jobject obj,
                                                             jstring j_file) {
     std::string filepath = GetJString(env, j_file);
-    Core::System& system{Core::System::GetInstance()};
-    Service::SM::ServiceManager& sm = system.ServiceManager();
-    auto nfc = sm.GetService<Service::NFC::Module::Interface>("nfc:u");
-    if (nfc == nullptr) {
-        return static_cast<jboolean>(false);
-    }
-
-    return static_cast<jboolean>(nfc->LoadAmiibo(filepath));
+    const bool loaded = ExecuteOnEmuThreadImpl([filepath](Core::System& system) {
+        Service::SM::ServiceManager& sm = system.ServiceManager();
+        auto nfc = sm.GetService<Service::NFC::Module::Interface>("nfc:u");
+        if (nfc == nullptr) {
+            return false;
+        }
+        return nfc->LoadAmiibo(filepath);
+    });
+    return static_cast<jboolean>(loaded);
 }
 
 void Java_com_storm3ds_emulator_nativebridge_NativeLibrary_removeAmiibo([[maybe_unused]] JNIEnv* env,
                                                           [[maybe_unused]] jobject obj) {
-    Core::System& system{Core::System::GetInstance()};
-    Service::SM::ServiceManager& sm = system.ServiceManager();
-    auto nfc = sm.GetService<Service::NFC::Module::Interface>("nfc:u");
-    if (nfc == nullptr) {
-        return;
-    }
-
-    nfc->RemoveAmiibo();
+    ExecuteOnEmuThreadImpl([](Core::System& system) {
+        Service::SM::ServiceManager& sm = system.ServiceManager();
+        auto nfc = sm.GetService<Service::NFC::Module::Interface>("nfc:u");
+        if (nfc == nullptr) {
+            return false;
+        }
+        nfc->RemoveAmiibo();
+        return true;
+    });
 }
 
 static std::mutex s_multiplayer_mutex;

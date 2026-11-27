@@ -283,7 +283,7 @@ class EmulatorActivity : AppCompatActivity() {
             }
         }
         com.storm3ds.emulator.nativebridge.camera.StillImageCameraHelper.onFilePickerResult(uri?.toString())
-        viewModel.resumeEmulator()
+        tryResumeEmulatorIfReady()
     }
 
     private val amiiboPickerLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -306,11 +306,11 @@ class EmulatorActivity : AppCompatActivity() {
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
-                    viewModel.resumeEmulator()
+                    tryResumeEmulatorIfReady()
                 }
             }
         } else {
-            viewModel.resumeEmulator()
+            tryResumeEmulatorIfReady()
         }
     }
 
@@ -855,16 +855,14 @@ class EmulatorActivity : AppCompatActivity() {
                     WindowInsetsCompat.Type.navigationBars() or
                     WindowInsetsCompat.Type.mandatorySystemGestures()
             )
-            val navOnlyInsets = windowInsets.getInsets(
-                WindowInsetsCompat.Type.navigationBars() or
-                    WindowInsetsCompat.Type.mandatorySystemGestures()
-            )
+            val cutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
             binding.listRewind.setPadding(safeInsets.left, 0, safeInsets.right, safeInsets.bottom)
 
+            // Match STORM DS: fullscreen hides navigation bars, so only reserve actual display cutouts for controls.
             val uiInsets = if (viewModel.shouldIgnoreDisplayCutoutInLayouts()) {
-                Insets(navOnlyInsets.left, navOnlyInsets.top, navOnlyInsets.right, navOnlyInsets.bottom)
+                Insets.Zero
             } else {
-                Insets(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
+                Insets(cutoutInsets.left, cutoutInsets.top, cutoutInsets.right, cutoutInsets.bottom)
             }
             viewModel.setUiInsets(uiInsets)
 
@@ -2804,14 +2802,7 @@ class EmulatorActivity : AppCompatActivity() {
         }
         registerLowBatteryMonitor()
 
-        if (
-            lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
-            !activeOverlays.hasActiveOverlays() &&
-            viewModel.canResumeEmulatorFromLifecycle()
-        ) {
-            disableScreenTimeOut()
-            viewModel.resumeEmulator()
-        }
+        tryResumeEmulatorIfReady()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -3518,23 +3509,31 @@ class EmulatorActivity : AppCompatActivity() {
         var bottomAlpha = bottomView?.baseAlpha ?: 1f
         var usedFallbackForStaleOrientation = false
 
+        val densityPx = resources.displayMetrics.density
+        val leftRailPx = if (isLandscape && surfaceW >= (520f * densityPx).roundToInt()) (124f * densityPx).roundToInt() else 0
+        val rightRailPx = if (isLandscape && surfaceW >= (520f * densityPx).roundToInt()) (132f * densityPx).roundToInt() else 0
+        val topReservePx = if (isLandscape) (42f * densityPx).roundToInt() else 0
+        val bottomReservePx = if (isLandscape) (40f * densityPx).roundToInt() else 0
+        val centerAreaW = (surfaceW - leftRailPx - rightRailPx).coerceAtLeast((240f * densityPx).roundToInt())
+
         when (currentScreenLayoutMode) {
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE -> {
+                val availH = (surfaceH - topReservePx - bottomReservePx).coerceAtLeast((surfaceH * 0.68f).roundToInt())
                 val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
                 val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
                 val firstRatio = if (areScreensSwapped) botAspect else topAspect
                 val secondRatio = if (areScreensSwapped) topAspect else botAspect
-                var sHeight = (surfaceW / (firstRatio + secondRatio)).toInt().coerceAtMost(surfaceH)
+                var sHeight = (centerAreaW / (firstRatio + secondRatio)).toInt().coerceAtMost(availH)
                 var w1 = (sHeight * firstRatio).toInt()
                 var w2 = (sHeight * secondRatio).toInt()
-                if (w1 + w2 > surfaceW) {
-                    val scale = surfaceW.toFloat() / (w1 + w2).coerceAtLeast(1)
+                if (w1 + w2 > centerAreaW) {
+                    val scale = centerAreaW.toFloat() / (w1 + w2).coerceAtLeast(1)
                     w1 = (w1 * scale).toInt()
-                    w2 = surfaceW - w1
-                    sHeight = (w1 / firstRatio).toInt().coerceAtMost(surfaceH)
+                    w2 = centerAreaW - w1
+                    sHeight = (w1 / firstRatio).toInt().coerceAtMost(availH)
                 }
-                val hMargin = ((surfaceW - (w1 + w2)) / 2).coerceAtLeast(0)
-                val vMargin = ((surfaceH - sHeight) / 2).coerceAtLeast(0)
+                val hMargin = leftRailPx + ((centerAreaW - (w1 + w2)) / 2).coerceAtLeast(0)
+                val vMargin = topReservePx + ((availH - sHeight) / 2).coerceAtLeast(0)
                 val first = Rect(hMargin, vMargin, w1, sHeight)
                 val second = Rect(hMargin + w1, vMargin, w2, sHeight)
                 binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
@@ -3543,23 +3542,27 @@ class EmulatorActivity : AppCompatActivity() {
                 bottomRect = if (areScreensSwapped) first else second
             }
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.UNEVEN_LANDSCAPE -> {
-                // 2. Неровная альбомная: 2 экрана (один большой, второй маленький)
                 if (isLandscape) {
-                    var mainW = (surfaceH * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
-                    var mainH = surfaceH
-                    if (mainW > (surfaceW * 0.72f).toInt()) {
-                        mainW = (surfaceW * 0.70f).toInt()
+                    val availH = (surfaceH - topReservePx - (8f * densityPx).roundToInt()).coerceAtLeast((surfaceH * 0.72f).roundToInt())
+                    val gapPx = (8f * densityPx).roundToInt()
+                    var mainW = (availH * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
+                    var mainH = availH
+                    val maxMainW = (centerAreaW * 0.64f).toInt()
+                    if (mainW > maxMainW) {
+                        mainW = maxMainW
                         mainH = (mainW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
                     }
-                    val mainVMargin = ((surfaceH - mainH) / 2).coerceAtLeast(0)
-                    val mainRect = Rect(0, mainVMargin, mainW, mainH)
-
                     val subAspect = if (areScreensSwapped) com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO else com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
-                    val subW = ((surfaceW - mainW) - 12).coerceAtLeast(100)
-                    val subH = (subW / subAspect).toInt().coerceAtMost(surfaceH)
-                    val subX = surfaceW - subW
-                    val subY = 8 // прижат к верхнему краю
-                    val subRect = Rect(subX, subY, subW, subH)
+                    val subMaxW = (centerAreaW - mainW - gapPx).coerceAtLeast((84f * densityPx).roundToInt())
+                    val desiredSubW = (mainH * 0.62f * subAspect).toInt().coerceAtLeast((84f * densityPx).roundToInt())
+                    val subW = subMaxW.coerceAtMost(desiredSubW)
+                    val subH = (subW / subAspect).toInt().coerceAtMost((availH - (40f * densityPx).roundToInt()).coerceAtLeast(60))
+
+                    val combinedW = mainW + gapPx + subW
+                    val startX = leftRailPx + ((centerAreaW - combinedW) / 2).coerceAtLeast(0)
+                    val mainY = topReservePx + ((availH - mainH) / 2).coerceAtLeast(0)
+                    val mainRect = Rect(startX, mainY, mainW, mainH)
+                    val subRect = Rect(startX + mainW + gapPx, mainY, subW, subH)
 
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, mainRect)
                     binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, subRect)
@@ -3567,9 +3570,8 @@ class EmulatorActivity : AppCompatActivity() {
                     topRect = if (areScreensSwapped) subRect else mainRect
                     bottomRect = if (areScreensSwapped) mainRect else subRect
                 } else {
-                    // Portrait adaptation for uneven mode: Main screen on top, Sub screen below
                     val mainW = surfaceW
-                    val mainH = (mainW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost((surfaceH * 0.50f).toInt())
+                    val mainH = (mainW / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt().coerceAtMost((surfaceH * 0.44f).toInt())
                     val mainRect = Rect(0, 0, mainW, mainH)
 
                     val subAspect = if (areScreensSwapped) com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO else com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
@@ -3587,58 +3589,42 @@ class EmulatorActivity : AppCompatActivity() {
                 }
             }
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_PORTRAIT_LOCKED -> {
-                // 3. Ровная портретная: 2 экрана в портретном режиме друг под другом (100% ширины)
                 val isSkin = isConsoleSkinActive()
-                val density = resources.displayMetrics.density
-                if (isSkin) {
-                    val topInsetPx = (24f * density).roundToInt()
-                    val sideInsetPx = (6f * density).roundToInt()
-                    val hingeGapPx = (22f * density).roundToInt()
+                val minDeckPx = ((if (isSkin) 356f else 334f) * densityPx).roundToInt()
+                val topInsetPx = if (isSkin) (28f * densityPx).roundToInt() else (8f * densityPx).roundToInt()
+                val sideInsetPx = if (isSkin) (6f * densityPx).roundToInt() else (10f * densityPx).roundToInt()
+                val hingeGapPx = if (isSkin) (20f * densityPx).roundToInt() else 0
 
-                    val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
-                    val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
-                    val firstAspect = if (areScreensSwapped) botAspect else topAspect
-                    val secondAspect = if (areScreensSwapped) topAspect else botAspect
-                    val availableWidth = (surfaceW - 2 * sideInsetPx).coerceAtLeast(100)
-                    var sHeight = (availableWidth / topAspect).toInt()
-                    val maxCombinedHeight = surfaceH - topInsetPx - hingeGapPx
-                    if (sHeight * 2 > maxCombinedHeight && maxCombinedHeight > 100) {
-                        sHeight = maxCombinedHeight / 2
-                    }
-                    val w1 = (sHeight * firstAspect).toInt().coerceAtMost(availableWidth)
-                    val w2 = (sHeight * secondAspect).toInt().coerceAtMost(availableWidth)
-                    val first = Rect(sideInsetPx + (availableWidth - w1) / 2, topInsetPx, w1, sHeight)
-                    val second = Rect(sideInsetPx + (availableWidth - w2) / 2, topInsetPx + sHeight + hingeGapPx, w2, sHeight)
-                    binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
-                    binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
-                    topRect = if (areScreensSwapped) second else first
-                    bottomRect = if (areScreensSwapped) first else second
-                } else {
-                    val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
-                    val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
-                    val firstAspect = if (areScreensSwapped) botAspect else topAspect
-                    val secondAspect = if (areScreensSwapped) topAspect else botAspect
-                    val sHeight = (surfaceW / topAspect).toInt().coerceAtMost(surfaceH / 2)
-                    val w1 = (sHeight * firstAspect).toInt().coerceAtMost(surfaceW)
-                    val w2 = (sHeight * secondAspect).toInt().coerceAtMost(surfaceW)
-                    val first = Rect((surfaceW - w1) / 2, 0, w1, sHeight)
-                    val second = Rect((surfaceW - w2) / 2, sHeight, w2, sHeight)
-                    binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
-                    binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
-                    topRect = if (areScreensSwapped) second else first
-                    bottomRect = if (areScreensSwapped) first else second
+                val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
+                val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
+                val firstAspect = if (areScreensSwapped) botAspect else topAspect
+                val secondAspect = if (areScreensSwapped) topAspect else botAspect
+                val availableWidth = (surfaceW - 2 * sideInsetPx).coerceAtLeast(100)
+                val minScreensPx = (surfaceH * 0.44f).roundToInt()
+                val maxCombinedHeight = (surfaceH - topInsetPx - hingeGapPx - minDeckPx).coerceAtLeast(minScreensPx)
+                var sHeight = (availableWidth / topAspect).toInt()
+                if (sHeight * 2 > maxCombinedHeight && maxCombinedHeight > 100) {
+                    sHeight = maxCombinedHeight / 2
                 }
+                val w1 = (sHeight * firstAspect).toInt().coerceAtMost(availableWidth)
+                val w2 = (sHeight * secondAspect).toInt().coerceAtMost(availableWidth)
+                val first = Rect(sideInsetPx + (availableWidth - w1) / 2, topInsetPx, w1, sHeight)
+                val second = Rect(sideInsetPx + (availableWidth - w2) / 2, topInsetPx + sHeight + hingeGapPx, w2, sHeight)
+                binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, first)
+                binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, second)
+                topRect = if (areScreensSwapped) second else first
+                bottomRect = if (areScreensSwapped) first else second
             }
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.PROPORTIONAL_LANDSCAPE -> {
-                // 4. Пропорциональная альбомная: один большой экран по центру (4:3), второй скрыт
-                var sWidth = (surfaceH * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
-                var sHeight = surfaceH
-                if (sWidth > surfaceW) {
-                    sWidth = surfaceW
+                val availH = (surfaceH - topReservePx - bottomReservePx).coerceAtLeast((surfaceH * 0.72f).roundToInt())
+                var sWidth = (availH * com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
+                var sHeight = availH
+                if (sWidth > centerAreaW) {
+                    sWidth = centerAreaW
                     sHeight = (sWidth / com.storm3ds.emulator.domain.model.consoleAspectRatio).toInt()
                 }
-                val x = (surfaceW - sWidth) / 2
-                val y = (surfaceH - sHeight) / 2
+                val x = leftRailPx + (centerAreaW - sWidth) / 2
+                val y = topReservePx + (availH - sHeight) / 2
                 val visibleRect = Rect(x, y, sWidth, sHeight)
                 val hiddenRect = Rect(0, 0, 0, 0)
                 binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, visibleRect)
@@ -4213,8 +4199,32 @@ class EmulatorActivity : AppCompatActivity() {
         }
     }
 
+    private fun isMainSurfaceReadyForEmulation(): Boolean {
+        val coordinator = if (::frameRenderCoordinator.isInitialized) frameRenderCoordinator else null
+        return (coordinator as? com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator)?.isMainSurfaceValid
+            ?: (::binding.isInitialized && binding.surfaceMain.getCurrentSurface()?.isValid == true)
+    }
+
+    private fun tryResumeEmulatorIfReady() {
+        if (
+            lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+            !activeOverlays.hasActiveOverlays() &&
+            viewModel.canResumeEmulatorFromLifecycle() &&
+            isMainSurfaceReadyForEmulation()
+        ) {
+            disableScreenTimeOut()
+            viewModel.resumeEmulator()
+        }
+    }
+
     private fun createFrameRenderCoordinator(backend: PresentationBackend): FrameRenderCoordinator {
-        return com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator(applicationContext)
+        return com.storm3ds.emulator.ui.emulator.render.Storm3dsSurfaceRenderCoordinator(applicationContext).apply {
+            onMainSurfaceValidityChanged = { valid ->
+                if (valid) {
+                    runOnUiThread { tryResumeEmulatorIfReady() }
+                }
+            }
+        }
     }
 
     private fun VideoRenderer.toPresentationBackend(): PresentationBackend {
