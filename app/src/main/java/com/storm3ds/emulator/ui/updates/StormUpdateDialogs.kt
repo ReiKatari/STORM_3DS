@@ -83,6 +83,118 @@ private sealed interface ReleaseNoteBlock {
     object Divider : ReleaseNoteBlock
 }
 
+private fun normalizeReleaseLocaleCode(raw: String): String {
+    val clean = raw.trim().lowercase(Locale.ROOT).replace('_', '-')
+    return when {
+        clean == "in" || clean.startsWith("in-") -> "id" + clean.removePrefix("in")
+        clean == "iw" || clean.startsWith("iw-") -> "he" + clean.removePrefix("iw")
+        else -> clean
+    }
+}
+
+private fun matchReleaseLanguageHeading(rawHeading: String): String? {
+    val trimmed = rawHeading.trim()
+        .removePrefix("###").removePrefix("##").removePrefix("#")
+        .trim()
+        .trim('[', ']', '(', ')')
+        .lowercase(Locale.ROOT)
+        .replace('_', '-')
+    return when {
+        trimmed == "ru" || trimmed.contains("русский") || trimmed.contains("russian") -> "ru"
+        trimmed == "en" || trimmed.contains("english") || trimmed.contains("английск") -> "en"
+        trimmed == "de" || trimmed.contains("deutsch") || trimmed.contains("german") -> "de"
+        trimmed == "es" || trimmed.contains("español") || trimmed.contains("espanol") || trimmed.contains("spanish") -> "es"
+        trimmed == "fr" || trimmed.contains("français") || trimmed.contains("francais") || trimmed.contains("french") -> "fr"
+        trimmed == "id" || trimmed.contains("bahasa indonesia") || trimmed.contains("indonesian") -> "id"
+        trimmed == "it" || trimmed.contains("italiano") || trimmed.contains("italian") -> "it"
+        trimmed == "ja" || trimmed.contains("日本語") || trimmed.contains("japanese") -> "ja"
+        trimmed == "pt-br" || trimmed == "pt" || trimmed.contains("português") || trimmed.contains("portugues") || trimmed.contains("portuguese") ->
+            if (trimmed.contains("br")) "pt-br" else "pt"
+        trimmed == "zh-hans" || trimmed == "zh-cn" || trimmed == "zh" || trimmed.contains("简体中文") || trimmed.contains("中文") || trimmed.contains("chinese") ->
+            if (trimmed.contains("hans") || trimmed.contains("cn") || trimmed.contains("简体")) "zh-hans" else "zh"
+        else -> null
+    }
+}
+
+internal fun selectLocalizedReleaseNotes(raw: String, locale: Locale = Locale.getDefault()): String {
+    val normalized = raw.replace("\r\n", "\n")
+    val lines = normalized.lines()
+    val commentTagRegex = Regex("""<!--\s*lang\s*:\s*([a-zA-Z_-]+)\s*-->""", RegexOption.IGNORE_CASE)
+    val commentEndRegex = Regex("""<!--\s*/lang\s*-->""", RegexOption.IGNORE_CASE)
+    val htmlCommentLineRegex = Regex("""^\s*<!--.*-->\s*$""")
+
+    // Pass 1: explicit <!-- lang:XX --> ... <!-- /lang --> blocks
+    val markerSections = linkedMapOf<String, MutableList<String>>()
+    var activeMarker: String? = null
+    for (line in lines) {
+        val startMatch = commentTagRegex.find(line)
+        if (startMatch != null) {
+            activeMarker = normalizeReleaseLocaleCode(startMatch.groupValues[1])
+            markerSections.getOrPut(activeMarker) { mutableListOf() }
+            val stripped = line.replace(commentTagRegex, "").replace(commentEndRegex, "").trimEnd()
+            if (stripped.isNotBlank()) markerSections[activeMarker]?.add(stripped)
+            if (commentEndRegex.containsMatchIn(line)) activeMarker = null
+            continue
+        }
+        if (commentEndRegex.containsMatchIn(line)) {
+            activeMarker = null
+            continue
+        }
+        val current = activeMarker
+        if (current != null && !htmlCommentLineRegex.matches(line)) {
+            markerSections[current]?.add(line)
+        }
+    }
+
+    // Pass 2: Markdown heading sections (e.g. ## Русский / ## English / ...)
+    val headingSections = linkedMapOf<String, MutableList<String>>()
+    if (markerSections.size < 2) {
+        var activeHeadingLang: String? = null
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("## ") || trimmed.startsWith("### ")) {
+                val detected = matchReleaseLanguageHeading(trimmed)
+                if (detected != null) {
+                    activeHeadingLang = detected
+                    headingSections.getOrPut(detected) { mutableListOf() }
+                    continue
+                }
+            }
+            val current = activeHeadingLang
+            if (current != null && !htmlCommentLineRegex.matches(line)) {
+                headingSections[current]?.add(line)
+            }
+        }
+    }
+
+    val chosenMap = if (markerSections.size >= 2) markerSections else if (headingSections.size >= 2) headingSections else null
+    if (chosenMap == null) {
+        return lines.filterNot { htmlCommentLineRegex.matches(it) }.joinToString("\n").trim()
+    }
+
+    val lang = normalizeReleaseLocaleCode(locale.language)
+    val country = locale.country.lowercase(Locale.ROOT)
+    val script = locale.script.lowercase(Locale.ROOT)
+    val candidates = buildList {
+        if (lang.isNotEmpty() && script.isNotEmpty()) add("$lang-$script")
+        if (lang.isNotEmpty() && country.isNotEmpty()) add("$lang-$country")
+        if (lang == "zh") add("zh-hans")
+        if (lang.isNotEmpty()) add(lang)
+        add("en")
+        add("ru")
+    }
+
+    val picked = candidates.firstNotNullOfOrNull { key ->
+        chosenMap[key]?.takeIf { list -> list.any { it.isNotBlank() } }
+    } ?: chosenMap.values.firstOrNull { list -> list.any { it.isNotBlank() } }
+
+    return picked
+        ?.filterNot { htmlCommentLineRegex.matches(it) }
+        ?.joinToString("\n")
+        ?.trim()
+        ?: normalized.trim()
+}
+
 private fun parseReleaseNotes(raw: String): List<ReleaseNoteBlock> {
     val lines = raw.replace("\r\n", "\n").lines()
     val result = mutableListOf<ReleaseNoteBlock>()
@@ -90,6 +202,7 @@ private fun parseReleaseNotes(raw: String): List<ReleaseNoteBlock> {
         val trimmed = line.trim()
         when {
             trimmed.isEmpty() -> continue
+            trimmed.startsWith("<!--") && trimmed.endsWith("-->") -> continue
             trimmed == "---" || trimmed == "***" || trimmed == "___" -> {
                 result += ReleaseNoteBlock.Divider
             }
@@ -205,9 +318,14 @@ fun showStormUpdateAvailableDialog(
     val cleanNew = newVersion.trim().removePrefix("v").removePrefix("V")
     val mirrorLabel = detectMirrorLabel(sourceReleaseUrl, downloadUrl)
     val dateLabel = formatEpochMillisDate(publishedEpochMillis)
-    val parsedBlocks = parseReleaseNotes(
-        changelogMd.ifBlank { "STORM 3DS $cleanNew" }
-    )
+    val activeLocale = context.resources.configuration.locales.let {
+        if (!it.isEmpty) it[0] else Locale.getDefault()
+    }
+    val localizedNotes = selectLocalizedReleaseNotes(
+        raw = changelogMd.ifBlank { "STORM 3DS $cleanNew" },
+        locale = activeLocale,
+    ).ifBlank { "STORM 3DS $cleanNew" }
+    val parsedBlocks = parseReleaseNotes(localizedNotes)
 
     return showSettingsComposeDialog(
         context = context,

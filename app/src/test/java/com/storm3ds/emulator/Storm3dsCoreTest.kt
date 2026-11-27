@@ -1513,5 +1513,59 @@ class Storm3dsCoreTest {
         val androidUtilsH = File(coreDir, "src/common/android_utils.h").readText()
         assertTrue("android_utils.h must declare extern JavaVM* g_jvm", "extern JavaVM* g_jvm;" in androidUtilsH)
         assertFalse("android_utils.h must not declare static JavaVM* g_jvm", "static JavaVM* g_jvm" in androidUtilsH)
+        assertTrue("Qt UpdateDialog must select localized release notes", "SelectLocalizedReleaseNotes(" in qtUpdateDialog)
+    }
+
+    @Test
+    fun `update changelog selector picks system language across markdown headings and comment markers`() {
+        val mdNotes = """
+            # STORM 3DS 1.11.0
+
+            ## Русский
+            - Исправлен ввод и раскладка
+
+            ## English
+            - Fixed input and layout
+
+            ## Deutsch
+            - Eingabe und Layout behoben
+
+            ## Bahasa Indonesia
+            - Tata letak diperbaiki
+
+            ## 日本語
+            - レイアウト修正
+
+            ## Português
+            - Layout corrigido
+
+            ## 简体中文
+            - 修复布局
+        """.trimIndent()
+
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale("ru", "RU")).contains("Исправлен ввод"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale.ENGLISH).contains("Fixed input"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale.GERMAN).contains("behoben"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale("id")).contains("diperbaiki"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale("in")).contains("diperbaiki"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale.JAPANESE).contains("レイアウト"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale("pt", "BR")).contains("corrigido"))
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale.SIMPLIFIED_CHINESE).contains("修复布局"))
+        // Unsupported locale falls back cleanly to English
+        assertTrue(com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(mdNotes, java.util.Locale("ko")).contains("Fixed input"))
+
+        val markerNotes = """
+            <!-- lang:ru -->
+            - Русский текст
+            <!-- /lang -->
+            <!-- lang:en -->
+            - English text
+            <!-- /lang -->
+        """.trimIndent()
+        assertEquals("- Русский текст", com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(markerNotes, java.util.Locale("ru")))
+        assertEquals("- English text", com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(markerNotes, java.util.Locale.US))
+
+        val plainNotes = "- Plain changelog line"
+        assertEquals(plainNotes, com.storm3ds.emulator.ui.updates.selectLocalizedReleaseNotes(plainNotes, java.util.Locale("ru")))
     }
 }

@@ -6,13 +6,183 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QList>
+#include <QLocale>
+#include <QMap>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QTextBrowser>
 #include <QUrl>
 #include <QVBoxLayout>
 #include "citra_qt/update_dialog.h"
 
 namespace {
+
+QString NormalizeLocaleCode(const QString& raw) {
+    QString clean = raw.trimmed().toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
+    if (clean == QStringLiteral("in") || clean.startsWith(QStringLiteral("in-"))) {
+        clean = QStringLiteral("id") + clean.mid(2);
+    } else if (clean == QStringLiteral("iw") || clean.startsWith(QStringLiteral("iw-"))) {
+        clean = QStringLiteral("he") + clean.mid(2);
+    }
+    return clean;
+}
+
+QString MatchReleaseLanguageHeading(const QString& raw_heading) {
+    QString trimmed = raw_heading.trimmed();
+    while (trimmed.startsWith(QLatin1Char('#'))) {
+        trimmed.remove(0, 1);
+    }
+    trimmed = trimmed.trimmed();
+    if (trimmed.startsWith(QLatin1Char('[')) && trimmed.endsWith(QLatin1Char(']'))) {
+        trimmed = trimmed.mid(1, trimmed.size() - 2).trimmed();
+    }
+    trimmed = trimmed.toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
+    if (trimmed == QStringLiteral("ru") || trimmed.contains(QStringLiteral("русский")) || trimmed.contains(QStringLiteral("russian"))) {
+        return QStringLiteral("ru");
+    }
+    if (trimmed == QStringLiteral("en") || trimmed.contains(QStringLiteral("english")) || trimmed.contains(QStringLiteral("английск"))) {
+        return QStringLiteral("en");
+    }
+    if (trimmed == QStringLiteral("de") || trimmed.contains(QStringLiteral("deutsch")) || trimmed.contains(QStringLiteral("german"))) {
+        return QStringLiteral("de");
+    }
+    if (trimmed == QStringLiteral("es") || trimmed.contains(QStringLiteral("español")) || trimmed.contains(QStringLiteral("espanol")) || trimmed.contains(QStringLiteral("spanish"))) {
+        return QStringLiteral("es");
+    }
+    if (trimmed == QStringLiteral("fr") || trimmed.contains(QStringLiteral("français")) || trimmed.contains(QStringLiteral("francais")) || trimmed.contains(QStringLiteral("french"))) {
+        return QStringLiteral("fr");
+    }
+    if (trimmed == QStringLiteral("id") || trimmed.contains(QStringLiteral("bahasa indonesia")) || trimmed.contains(QStringLiteral("indonesian"))) {
+        return QStringLiteral("id");
+    }
+    if (trimmed == QStringLiteral("it") || trimmed.contains(QStringLiteral("italiano")) || trimmed.contains(QStringLiteral("italian"))) {
+        return QStringLiteral("it");
+    }
+    if (trimmed == QStringLiteral("ja") || trimmed.contains(QStringLiteral("日本語")) || trimmed.contains(QStringLiteral("japanese"))) {
+        return QStringLiteral("ja");
+    }
+    if (trimmed == QStringLiteral("pt-br") || trimmed.contains(QStringLiteral("português")) || trimmed.contains(QStringLiteral("portugues")) || trimmed.contains(QStringLiteral("portuguese")) || trimmed == QStringLiteral("pt")) {
+        return trimmed.contains(QStringLiteral("br")) ? QStringLiteral("pt-br") : QStringLiteral("pt");
+    }
+    if (trimmed == QStringLiteral("zh-hans") || trimmed == QStringLiteral("zh-cn") || trimmed == QStringLiteral("zh") || trimmed.contains(QStringLiteral("简体中文")) || trimmed.contains(QStringLiteral("中文")) || trimmed.contains(QStringLiteral("chinese"))) {
+        return (trimmed.contains(QStringLiteral("hans")) || trimmed.contains(QStringLiteral("cn")) || trimmed.contains(QStringLiteral("简体")))
+                   ? QStringLiteral("zh-hans")
+                   : QStringLiteral("zh");
+    }
+    return {};
+}
+
+QString SelectLocalizedReleaseNotes(const QString& raw, const QLocale& locale) {
+    QString normalized = raw;
+    normalized.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    const QStringList lines = normalized.split(QLatin1Char('\n'));
+
+    static const QRegularExpression kCommentTagRe(
+        QStringLiteral("<!--\\s*lang\\s*:\\s*([a-zA-Z_-]+)\\s*-->"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression kCommentEndRe(
+        QStringLiteral("<!--\\s*/lang\\s*-->"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression kHtmlCommentLineRe(QStringLiteral("^\\s*<!--.*-->\\s*$"));
+
+    QMap<QString, QStringList> marker_sections;
+    QStringList marker_order;
+    QString active_marker;
+    for (const QString& line : lines) {
+        const auto m = kCommentTagRe.match(line);
+        if (m.hasMatch()) {
+            active_marker = NormalizeLocaleCode(m.captured(1));
+            if (!marker_sections.contains(active_marker)) {
+                marker_order.append(active_marker);
+            }
+            QString stripped = line;
+            stripped.remove(kCommentTagRe);
+            stripped.remove(kCommentEndRe);
+            stripped = stripped.trimmed();
+            if (!stripped.isEmpty()) {
+                marker_sections[active_marker].append(stripped);
+            }
+            if (kCommentEndRe.match(line).hasMatch()) {
+                active_marker.clear();
+            }
+            continue;
+        }
+        if (kCommentEndRe.match(line).hasMatch()) {
+            active_marker.clear();
+            continue;
+        }
+        if (!active_marker.isEmpty() && !kHtmlCommentLineRe.match(line).hasMatch()) {
+            marker_sections[active_marker].append(line);
+        }
+    }
+
+    QMap<QString, QStringList> heading_sections;
+    QStringList heading_order;
+    if (marker_sections.size() < 2) {
+        QString active_heading;
+        for (const QString& line : lines) {
+            const QString trimmed = line.trimmed();
+            if (trimmed.startsWith(QStringLiteral("## ")) || trimmed.startsWith(QStringLiteral("### "))) {
+                const QString detected = MatchReleaseLanguageHeading(trimmed);
+                if (!detected.isEmpty()) {
+                    active_heading = detected;
+                    if (!heading_sections.contains(detected)) {
+                        heading_order.append(detected);
+                    }
+                    continue;
+                }
+            }
+            if (!active_heading.isEmpty() && !kHtmlCommentLineRe.match(line).hasMatch()) {
+                heading_sections[active_heading].append(line);
+            }
+        }
+    }
+
+    const bool use_markers = marker_sections.size() >= 2;
+    const bool use_headings = !use_markers && heading_sections.size() >= 2;
+    if (!use_markers && !use_headings) {
+        QStringList clean;
+        for (const QString& line : lines) {
+            if (!kHtmlCommentLineRe.match(line).hasMatch()) {
+                clean.append(line);
+            }
+        }
+        return clean.join(QLatin1Char('\n')).trimmed();
+    }
+
+    const auto& chosen_map = use_markers ? marker_sections : heading_sections;
+    const auto& chosen_order = use_markers ? marker_order : heading_order;
+
+    const QString bcp = NormalizeLocaleCode(locale.bcp47Name());
+    const QString base_lang = bcp.section(QLatin1Char('-'), 0, 0);
+    QStringList candidates;
+    if (!bcp.isEmpty()) {
+        candidates.append(bcp);
+    }
+    if (base_lang == QStringLiteral("zh")) {
+        candidates.append(QStringLiteral("zh-hans"));
+    }
+    if (!base_lang.isEmpty()) {
+        candidates.append(base_lang);
+    }
+    candidates.append(QStringLiteral("en"));
+    candidates.append(QStringLiteral("ru"));
+
+    for (const QString& key : candidates) {
+        const auto it = chosen_map.constFind(key);
+        if (it != chosen_map.constEnd() && !it.value().join(QString()).trimmed().isEmpty()) {
+            return it.value().join(QLatin1Char('\n')).trimmed();
+        }
+    }
+    for (const QString& key : chosen_order) {
+        const auto it = chosen_map.constFind(key);
+        if (it != chosen_map.constEnd() && !it.value().join(QString()).trimmed().isEmpty()) {
+            return it.value().join(QLatin1Char('\n')).trimmed();
+        }
+    }
+    return normalized.trimmed();
+}
 
 QString FormatArchiveSize(std::uint64_t bytes) {
     if (bytes == 0) {
@@ -120,9 +290,12 @@ UpdateDialog::UpdateDialog(const QString& current_version, const UpdateChecker::
 
     auto* changelog_browser = new QTextBrowser(this);
     changelog_browser->setOpenExternalLinks(true);
-    const QString md_notes = info.changelog_md.empty()
+    QString localized_notes = info.changelog_md.empty()
+                                  ? QString()
+                                  : SelectLocalizedReleaseNotes(QString::fromStdString(info.changelog_md), QLocale());
+    const QString md_notes = localized_notes.trimmed().isEmpty()
                                  ? tr("STORM 3DS %1 is ready to download.").arg(clean_new)
-                                 : QString::fromStdString(info.changelog_md);
+                                 : localized_notes;
     changelog_browser->setMarkdown(md_notes);
     changelog_browser->setMinimumHeight(230);
     root->addWidget(changelog_browser, 1);
