@@ -17,3 +17,9 @@ scratch/
 *.keystore
 *.p12
 .storm-secrets/
+installer/Output/
+installer/STORM_Certificate.cer
+installer/StormInstaller/bin/
+installer/StormInstaller/obj/
+STORM_Certificate.cer
+*.pfx

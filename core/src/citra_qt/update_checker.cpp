@@ -158,12 +158,83 @@ std::string ToLowerAscii(std::string s) {
     return s;
 }
 
-bool IsWindowsDesktopAsset(const std::string& name) {
+bool IsWindowsSetupAsset(const std::string& name) {
+    const std::string low = ToLowerAscii(name);
+    return low.ends_with("_setup.exe") ||
+           (low.ends_with(".exe") && low.find("setup") != std::string::npos);
+}
+
+bool IsWindowsZipAsset(const std::string& name) {
     const std::string low = ToLowerAscii(name);
     if (low.ends_with(".zip") && low.find("windows") != std::string::npos) {
         return true;
     }
     return low.ends_with(".zip") && low.find("win64") != std::string::npos;
+}
+
+bool IsPortableWindowsInstall() {
+#ifdef _WIN32
+    wchar_t module_path[MAX_PATH]{};
+    const DWORD len = GetModuleFileNameW(nullptr, module_path, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) {
+        return false;
+    }
+    std::wstring dir(module_path, len);
+    const std::size_t slash = dir.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) {
+        return false;
+    }
+    dir.resize(slash + 1);
+    const DWORD user_attrs = GetFileAttributesW((dir + L"user").c_str());
+    if (user_attrs != INVALID_FILE_ATTRIBUTES && (user_attrs & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+        return true;
+    }
+    const DWORD marker_attrs = GetFileAttributesW((dir + L".portable").c_str());
+    return marker_attrs != INVALID_FILE_ATTRIBUTES;
+#else
+    return false;
+#endif
+}
+
+template <typename UrlExtractor>
+void SelectBestWindowsAsset(const nlohmann::json& assets, UpdateChecker::ReleaseInfo& info,
+                            UrlExtractor&& extract_url) {
+    if (!assets.is_array()) {
+        return;
+    }
+    const bool prefer_zip = IsPortableWindowsInstall();
+    std::string fallback_name;
+    std::uint64_t fallback_size = 0;
+    std::string fallback_url;
+
+    for (const auto& asset : assets) {
+        const std::string aname = JsonString(asset, "name");
+        const bool is_setup = IsWindowsSetupAsset(aname);
+        const bool is_zip = IsWindowsZipAsset(aname);
+        if (!is_setup && !is_zip) {
+            continue;
+        }
+        const std::string dl = extract_url(asset);
+        const std::uint64_t sz = JsonUInt64(asset, "size");
+        const bool is_preferred = (prefer_zip && is_zip) || (!prefer_zip && is_setup);
+        if (is_preferred) {
+            info.asset_name = aname;
+            info.asset_size = sz;
+            info.download_url = dl;
+            return;
+        }
+        if (fallback_name.empty()) {
+            fallback_name = aname;
+            fallback_size = sz;
+            fallback_url = dl;
+        }
+    }
+
+    if (!fallback_name.empty()) {
+        info.asset_name = fallback_name;
+        info.asset_size = fallback_size;
+        info.download_url = fallback_url;
+    }
 }
 
 std::optional<UpdateChecker::ReleaseInfo> ParseGitHubRelease(const nlohmann::json& item) {
@@ -192,16 +263,10 @@ std::optional<UpdateChecker::ReleaseInfo> ParseGitHubRelease(const nlohmann::jso
     }
     info.source_name = "GitHub";
 
-    if (item.contains("assets") && item["assets"].is_array()) {
-        for (const auto& asset : item["assets"]) {
-            const std::string aname = JsonString(asset, "name");
-            if (IsWindowsDesktopAsset(aname)) {
-                info.asset_name = aname;
-                info.asset_size = JsonUInt64(asset, "size");
-                info.download_url = JsonString(asset, "browser_download_url");
-                break;
-            }
-        }
+    if (item.contains("assets")) {
+        SelectBestWindowsAsset(item["assets"], info, [](const nlohmann::json& asset) {
+            return JsonString(asset, "browser_download_url");
+        });
     }
     return info;
 }
@@ -242,25 +307,17 @@ std::optional<UpdateChecker::ReleaseInfo> ParseSgwRelease(const nlohmann::json& 
     info.release_url = base_host + "/programs?repo=STORM_3DS&tag=" + ver;
     info.source_name = "STORM GAMES WORLD";
 
-    if (rel.contains("assets") && rel["assets"].is_array()) {
-        for (const auto& asset : rel["assets"]) {
-            const std::string aname = JsonString(asset, "name");
-            if (IsWindowsDesktopAsset(aname)) {
-                info.asset_name = aname;
-                info.asset_size = JsonUInt64(asset, "size");
-                std::string dl = JsonString(asset, "downloadUrl");
-                if (!dl.empty()) {
-                    if (dl.rfind("http", 0) != 0) {
-                        if (dl[0] != '/') {
-                            dl = "/" + dl;
-                        }
-                        dl = base_host + dl;
-                    }
-                    info.download_url = dl;
+    if (rel.contains("assets")) {
+        SelectBestWindowsAsset(rel["assets"], info, [&base_host](const nlohmann::json& asset) {
+            std::string dl = JsonString(asset, "downloadUrl");
+            if (!dl.empty() && dl.rfind("http", 0) != 0) {
+                if (dl[0] != '/') {
+                    dl = "/" + dl;
                 }
-                break;
+                dl = base_host + dl;
             }
-        }
+            return dl;
+        });
     }
     return info;
 }

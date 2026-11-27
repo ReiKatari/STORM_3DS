@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <ApplicationIcon>..\..\core\dist\storm3ds.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>StormInstaller</AssemblyName>
+    <AssemblyTitle>STORM 3DS</AssemblyTitle>
+    <Title>STORM 3DS</Title>
+    <RootNamespace>Storm3ds.Installer</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.11.1</Version>
+    <AssemblyVersion>1.11.1.0</AssemblyVersion>
+    <FileVersion>1.11.1.0</FileVersion>
+    <Product>STORM 3DS</Product>
+    <Company>STORM TEAM</Company>
+    <Copyright>Copyright © 2026 STORM TEAM. All rights reserved.</Copyright>
+    <Description>STORM 3DS</Description>
+    <NoWarn>$(NoWarn);WFO1000;SYSLIB0057</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\releases\STORM_3DS_$(Version)_Windows_x64.zip" Link="Payload.zip" Condition="Exists('..\..\releases\STORM_3DS_$(Version)_Windows_x64.zip')" />
+    <EmbeddedResource Include="..\..\core\dist\storm3ds.ico" Link="app.ico" />
+    <EmbeddedResource Include="$(STORM_CERT_PATH)" Link="STORM_CERTIFICATE.cer" Condition="'$(STORM_CERT_PATH)' != '' and Exists('$(STORM_CERT_PATH)')" />
+    <EmbeddedResource Include="..\STORM_Certificate.cer" Link="STORM_CERTIFICATE.cer" Condition="('$(STORM_CERT_PATH)' == '' or !Exists('$(STORM_CERT_PATH)')) and Exists('..\STORM_Certificate.cer')" />
+  </ItemGroup>
+
+</Project>
