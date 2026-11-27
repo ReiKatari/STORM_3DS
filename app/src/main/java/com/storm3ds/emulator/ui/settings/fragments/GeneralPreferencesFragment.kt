@@ -109,6 +109,13 @@ class GeneralPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentT
         runCatching { setPreferencesFromResource(R.xml.pref_general, rootKey) }
         runCatching { addPreferencesFromResource(R.xml.pref_general_updates) }
         hideDependentsWhenInactive("github_check_for_updates", "github_update_channel")
+        findPreference<ListPreference>("github_update_channel")?.let { channelPref ->
+            val stableVal = com.storm3ds.emulator.github.GitHubUpdateChannel.STABLE.preferenceValue
+            if (channelPref.value != stableVal) {
+                channelPref.value = stableVal
+            }
+            helper.bindPreferenceSummaryToValue(channelPref)
+        }
 
         findPreference<Preference>("manual_check_updates")?.setOnPreferenceClickListener {
             com.storm3ds.emulator.ui.settings.ManualUpdateChecker.checkNow(activity ?: requireContext())

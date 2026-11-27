@@ -91,7 +91,13 @@ bool CreateFile(const std::string& directory, const std::string& filename) {
     auto env = GetEnvForThread();
     jstring j_directory = env->NewStringUTF(directory.c_str());
     jstring j_filename = env->NewStringUTF(filename.c_str());
-    return env->CallStaticBooleanMethod(native_library, create_file, j_directory, j_filename);
+    const bool result = env->CallStaticBooleanMethod(native_library, create_file, j_directory, j_filename);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
+    if (j_directory) env->DeleteLocalRef(j_directory);
+    if (j_filename) env->DeleteLocalRef(j_filename);
+    return result;
 }
 
 bool CreateDir(const std::string& directory, const std::string& filename) {
@@ -101,7 +107,13 @@ bool CreateDir(const std::string& directory, const std::string& filename) {
     auto env = GetEnvForThread();
     jstring j_directory = env->NewStringUTF(directory.c_str());
     jstring j_directory_name = env->NewStringUTF(filename.c_str());
-    return env->CallStaticBooleanMethod(native_library, create_dir, j_directory, j_directory_name);
+    const bool result = env->CallStaticBooleanMethod(native_library, create_dir, j_directory, j_directory_name);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
+    if (j_directory) env->DeleteLocalRef(j_directory);
+    if (j_directory_name) env->DeleteLocalRef(j_directory_name);
+    return result;
 }
 
 int OpenContentUri(const std::string& filepath, AndroidOpenMode openmode) {
@@ -138,7 +150,13 @@ int OpenContentUri(const std::string& filepath, AndroidOpenMode openmode) {
     auto env = GetEnvForThread();
     jstring j_filepath = env->NewStringUTF(filepath.c_str());
     jstring j_mode = env->NewStringUTF(mode);
-    return env->CallStaticIntMethod(native_library, open_content_uri, j_filepath, j_mode);
+    const int fd = env->CallStaticIntMethod(native_library, open_content_uri, j_filepath, j_mode);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
+    if (j_filepath) env->DeleteLocalRef(j_filepath);
+    if (j_mode) env->DeleteLocalRef(j_mode);
+    return fd;
 }
 
 std::vector<std::string> GetFilesName(const std::string& filepath) {
@@ -150,12 +168,26 @@ std::vector<std::string> GetFilesName(const std::string& filepath) {
     jstring j_filepath = env->NewStringUTF(filepath.c_str());
     auto j_object =
         (jobjectArray)env->CallStaticObjectMethod(native_library, get_files_name, j_filepath);
+    if (j_filepath) env->DeleteLocalRef(j_filepath);
+    if (env->ExceptionCheck() || j_object == nullptr) {
+        env->ExceptionClear();
+        if (j_object) env->DeleteLocalRef(j_object);
+        return vector;
+    }
     const jsize j_size = env->GetArrayLength(j_object);
     vector.reserve(j_size);
     for (int i = 0; i < j_size; i++) {
         auto string = (jstring)(env->GetObjectArrayElement(j_object, i));
-        vector.emplace_back(env->GetStringUTFChars(string, nullptr));
+        if (string != nullptr) {
+            const char* chars = env->GetStringUTFChars(string, nullptr);
+            if (chars != nullptr) {
+                vector.emplace_back(chars);
+                env->ReleaseStringUTFChars(string, chars);
+            }
+            env->DeleteLocalRef(string);
+        }
     }
+    env->DeleteLocalRef(j_object);
     return vector;
 }
 
@@ -172,6 +204,7 @@ std::optional<std::string> GetUserDirectory() {
 
     if (env->ExceptionCheck() || j_user_directory == nullptr) {
         env->ExceptionClear();
+        if (j_user_directory) env->DeleteLocalRef(j_user_directory);
         return std::nullopt;
     }
 
@@ -179,7 +212,8 @@ std::optional<std::string> GetUserDirectory() {
 
     std::string result = chars ? chars : "";
 
-    env->ReleaseStringUTFChars(j_user_directory, chars);
+    if (chars) env->ReleaseStringUTFChars(j_user_directory, chars);
+    env->DeleteLocalRef(j_user_directory);
 
     if (result.empty()) {
         return std::nullopt;
@@ -189,14 +223,25 @@ std::optional<std::string> GetUserDirectory() {
 }
 
 std::string GetBuildFlavor() {
-    if (get_build_flavor == nullptr) {
-        throw std::runtime_error(
-            "Unable get build flavor: Function with ID 'get_build_flavor' is missing");
-    }
-    auto env = GetEnvForThread();
-    const auto jflavor =
-        (jstring)(env->CallStaticObjectMethod(native_library, get_build_flavor, nullptr));
-    return env->GetStringUTFChars(jflavor, nullptr);
+    static const std::string cached_flavor = []() -> std::string {
+        if (get_build_flavor == nullptr) {
+            return "";
+        }
+        auto env = GetEnvForThread();
+        const auto jflavor =
+            (jstring)(env->CallStaticObjectMethod(native_library, get_build_flavor, nullptr));
+        if (env->ExceptionCheck() || jflavor == nullptr) {
+            env->ExceptionClear();
+            if (jflavor) env->DeleteLocalRef(jflavor);
+            return "";
+        }
+        const char* chars = env->GetStringUTFChars(jflavor, nullptr);
+        std::string res = chars ? chars : "";
+        if (chars) env->ReleaseStringUTFChars(jflavor, chars);
+        env->DeleteLocalRef(jflavor);
+        return res;
+    }();
+    return cached_flavor;
 }
 
 bool IsPortraitMode() {
@@ -218,8 +263,13 @@ bool CopyFile(const std::string& source, const std::string& destination_path,
     jstring j_source_path = env->NewStringUTF(source.c_str());
     jstring j_destination_path = env->NewStringUTF(destination_path.c_str());
     jstring j_destination_filename = env->NewStringUTF(destination_filename.c_str());
-    return env->CallStaticBooleanMethod(native_library, copy_file, j_source_path,
+    const bool result = env->CallStaticBooleanMethod(native_library, copy_file, j_source_path,
                                         j_destination_path, j_destination_filename);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (j_source_path) env->DeleteLocalRef(j_source_path);
+    if (j_destination_path) env->DeleteLocalRef(j_destination_path);
+    if (j_destination_filename) env->DeleteLocalRef(j_destination_filename);
+    return result;
 }
 
 bool RenameFile(const std::string& source, const std::string& filename) {
@@ -234,8 +284,12 @@ bool RenameFile(const std::string& source, const std::string& filename) {
     auto env = GetEnvForThread();
     jstring j_source_path = env->NewStringUTF(source.c_str());
     jstring j_destination_path = env->NewStringUTF(filename.c_str());
-    return env->CallStaticBooleanMethod(native_library, rename_file, j_source_path,
+    const bool result = env->CallStaticBooleanMethod(native_library, rename_file, j_source_path,
                                         j_destination_path);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (j_source_path) env->DeleteLocalRef(j_source_path);
+    if (j_destination_path) env->DeleteLocalRef(j_destination_path);
+    return result;
 }
 
 bool UpdateDocumentLocation(const std::string& source_path, const std::string& destination_path) {
@@ -245,8 +299,12 @@ bool UpdateDocumentLocation(const std::string& source_path, const std::string& d
     auto env = GetEnvForThread();
     jstring j_source_path = env->NewStringUTF(source_path.c_str());
     jstring j_destination_path = env->NewStringUTF(destination_path.c_str());
-    return env->CallStaticBooleanMethod(native_library, update_document_location, j_source_path,
+    const bool result = env->CallStaticBooleanMethod(native_library, update_document_location, j_source_path,
                                         j_destination_path);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (j_source_path) env->DeleteLocalRef(j_source_path);
+    if (j_destination_path) env->DeleteLocalRef(j_destination_path);
+    return result;
 }
 
 bool MoveFile(const std::string& filename, const std::string& source_dir_path,
@@ -262,8 +320,13 @@ bool MoveFile(const std::string& filename, const std::string& source_dir_path,
     jstring j_filename = env->NewStringUTF(filename.c_str());
     jstring j_source_dir_path = env->NewStringUTF(source_dir_path.c_str());
     jstring j_destination_dir_path = env->NewStringUTF(destination_dir_path.c_str());
-    return env->CallStaticBooleanMethod(native_library, move_file, j_filename, j_source_dir_path,
+    const bool result = env->CallStaticBooleanMethod(native_library, move_file, j_filename, j_source_dir_path,
                                         j_destination_dir_path);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (j_filename) env->DeleteLocalRef(j_filename);
+    if (j_source_dir_path) env->DeleteLocalRef(j_source_dir_path);
+    if (j_destination_dir_path) env->DeleteLocalRef(j_destination_dir_path);
+    return result;
 }
 
 bool MoveAndRenameFile(const std::string& src_full_path, const std::string& dest_full_path) {
@@ -357,7 +420,14 @@ bool CanUseRawFS() {
         }                                                                                          \
         auto env = GetEnvForThread();                                                              \
         jstring j_filepath = env->NewStringUTF(filepath.c_str());                                  \
-        return env->Caller(native_library, JMethodID, j_filepath);                                 \
+        const ReturnValue result = env->Caller(native_library, JMethodID, j_filepath);             \
+        if (env->ExceptionCheck()) {                                                               \
+            env->ExceptionClear();                                                                 \
+        }                                                                                          \
+        if (j_filepath) {                                                                          \
+            env->DeleteLocalRef(j_filepath);                                                       \
+        }                                                                                          \
+        return result;                                                                             \
     }
 ANDROID_SINGLE_PATH_DETERMINE_FUNCTIONS(FR)
 #undef F

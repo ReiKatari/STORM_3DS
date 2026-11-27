@@ -44,10 +44,12 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +75,10 @@ import com.storm3ds.emulator.ui.settings.dialogs.showSettingsComposeDialog
 import com.storm3ds.emulator.ui.theme.LocalWatermelonColors
 import com.storm3ds.emulator.ui.theme.SpaceGrotesk
 import com.storm3ds.emulator.ui.theme.WatermelonMono
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (this) {
@@ -82,7 +88,6 @@ private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (
 }
 
 fun showSystem3dsSetupDialog(context: Context): Dialog {
-    NativeCoreLoader.load()
     return showSettingsComposeDialog(context) { dismiss ->
         System3dsSetupContent(context = context, onDismiss = dismiss)
     }
@@ -98,13 +103,53 @@ private fun resolveDisplayName(context: Context, uri: Uri): String {
     return uri.lastPathSegment?.substringAfterLast('/').orEmpty()
 }
 
+private fun computeLocalKeyMask(userDir: String): Int {
+    val sysDir = File(userDir, "sysdata")
+    var mask = 0
+    if (File(sysDir, "boot9.bin").let { it.isFile && it.length() > 0L }) mask = mask or (1 shl 0)
+    if (File(sysDir, "keys.txt").let { it.isFile && it.length() > 0L }) mask = mask or (1 shl 1)
+    if (File(sysDir, "aes_keys.txt").let { it.isFile && it.length() > 0L }) mask = mask or (1 shl 2)
+    if (File(sysDir, "seeddb.bin").let { it.isFile && it.length() > 0L }) mask = mask or (1 shl 3)
+    return mask
+}
+
 @Composable
 private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     val colors = LocalWatermelonColors.current
+    val coroutineScope = rememberCoroutineScope()
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    var keyMask by remember { mutableIntStateOf(runCatching { NativeLibrary.getAesKeyStatusMask() }.getOrDefault(0)) }
-    val sysTitlesStatus = remember(keyMask) {
-        runCatching { NativeLibrary.areSystemTitlesInstalled() }.getOrElse { booleanArrayOf(false, false) }
+    var keyMask by remember { mutableIntStateOf(0) }
+    var sysTitlesStatus by remember { mutableStateOf(booleanArrayOf(false, false)) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(refreshTrigger) {
+        val localResult = withContext(Dispatchers.IO) {
+            val userDir = runCatching { NativeBridgeHost.resolveUserDirectoryPath() }.getOrDefault("")
+            val localMask = if (userDir.isNotBlank()) computeLocalKeyMask(userDir) else 0
+            userDir to localMask
+        }
+        keyMask = localResult.second
+
+        val nativeResult = withContext(Dispatchers.IO) {
+            val userDir = localResult.first
+            runCatching {
+                NativeCoreLoader.load()
+                if (userDir.isNotBlank()) {
+                    NativeLibrary.setUserDirectory(userDir)
+                }
+            }
+            val nativeMask = runCatching { NativeLibrary.getAesKeyStatusMask() }.getOrNull()
+            val nandDir = if (userDir.isNotBlank()) File(userDir, "nand") else null
+            val hasNandData = nandDir?.isDirectory == true && !nandDir.list().isNullOrEmpty()
+            val titles = if (hasNandData) {
+                runCatching { NativeLibrary.areSystemTitlesInstalled() }.getOrNull()
+            } else {
+                booleanArrayOf(false, false)
+            }
+            nativeMask to titles
+        }
+        nativeResult.first?.let { keyMask = it }
+        nativeResult.second?.let { sysTitlesStatus = it }
     }
 
     var fmvHack by remember { mutableStateOf(prefs.getBoolean("3ds_fmv_hack", true)) }
@@ -126,10 +171,12 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
     }
     val stereoUiOrder = remember { listOf(0, 7, 3, 1, 2, 4, 5, 6) }
     var render3dMode by remember {
-        mutableIntStateOf(prefs.getInt("3ds_render_mode", initialVideoMode).coerceIn(0, 7))
+        mutableIntStateOf(runCatching { prefs.getInt("3ds_render_mode", initialVideoMode) }.getOrDefault(initialVideoMode).coerceIn(0, 7))
     }
     val initialVideoDepth = prefs.getString("video_vulkan_3d_depth_strength", "50")?.toIntOrNull()?.coerceIn(0, 100) ?: 50
-    var depth3d by remember { mutableIntStateOf(prefs.getInt("3ds_depth_factor", initialVideoDepth).coerceIn(0, 100)) }
+    var depth3d by remember {
+        mutableIntStateOf(runCatching { prefs.getInt("3ds_depth_factor", initialVideoDepth) }.getOrDefault(initialVideoDepth).coerceIn(0, 100))
+    }
     var pretendoEnabled by remember { mutableStateOf(prefs.getBoolean("3ds_pretendo_enabled", false)) }
     var articIp by remember { mutableStateOf(prefs.getString("3ds_artic_ip", "192.168.1.100") ?: "192.168.1.100") }
     var articController by remember { mutableStateOf(prefs.getBoolean("3ds_artic_controller", false)) }
@@ -149,25 +196,32 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
         regRef = activity.activityResultRegistry.register(key, ActivityResultContracts.OpenDocument()) { uri ->
             regRef?.unregister()
             if (uri != null) {
-                val rawName = resolveDisplayName(context, uri)
-                val targetName = when {
-                    rawName.contains("boot9", ignoreCase = true) -> "boot9.bin"
-                    rawName.contains("aes_keys", ignoreCase = true) -> "aes_keys.txt"
-                    rawName.contains("keys", ignoreCase = true) -> "keys.txt"
-                    rawName.contains("seeddb", ignoreCase = true) -> "seeddb.bin"
-                    rawName.isNotBlank() -> rawName
-                    else -> "aes_keys.txt"
-                }
-                val sysDir = File(NativeBridgeHost.resolveUserDirectoryPath(), "sysdata").apply { mkdirs() }
-                val dest = File(sysDir, targetName)
-                runCatching {
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        dest.outputStream().use { output -> input.copyTo(output) }
+                coroutineScope.launch {
+                    val outcome = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val rawName = resolveDisplayName(context, uri)
+                            val targetName = when {
+                                rawName.contains("boot9", ignoreCase = true) -> "boot9.bin"
+                                rawName.contains("aes_keys", ignoreCase = true) -> "aes_keys.txt"
+                                rawName.contains("keys", ignoreCase = true) -> "keys.txt"
+                                rawName.contains("seeddb", ignoreCase = true) -> "seeddb.bin"
+                                rawName.isNotBlank() -> rawName
+                                else -> "aes_keys.txt"
+                            }
+                            val sysDir = File(NativeBridgeHost.resolveUserDirectoryPath(), "sysdata").apply { mkdirs() }
+                            val dest = File(sysDir, targetName)
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                dest.outputStream().use { output -> input.copyTo(output) }
+                            } ?: error("Cannot open input stream")
+                            targetName
+                        }
                     }
-                    keyMask = NativeLibrary.getAesKeyStatusMask()
-                    Toast.makeText(context, context.getString(R.string.setup_3ds_imported_toast, targetName), Toast.LENGTH_SHORT).show()
-                }.onFailure { ex ->
-                    Toast.makeText(context, context.getString(R.string.setup_3ds_import_failed_toast, ex.message ?: ""), Toast.LENGTH_SHORT).show()
+                    outcome.onSuccess { targetName ->
+                        refreshTrigger++
+                        Toast.makeText(context, context.getString(R.string.setup_3ds_imported_toast, targetName), Toast.LENGTH_SHORT).show()
+                    }.onFailure { ex ->
+                        Toast.makeText(context, context.getString(R.string.setup_3ds_import_failed_toast, ex.message ?: ""), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -499,19 +553,23 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
                             .putString("3ds_log_regex", logRegex)
                             .apply()
 
-                        runCatching {
-                            NativeLibrary.setSpeedhacks(fmvHack, skipSlowDraw, skipTexCopy, accurateMul, audioStretch, false)
-                            NativeLibrary.setSpirvOptimization(if (spirvOpt) 1 else 0, false, false)
-                            NativeLibrary.setRender3dMode(render3dMode)
-                            NativeLibrary.setFactor3d(depth3d)
-                            NativeLibrary.setDisableRightEyeRender(disableRightEye)
-                            NativeLibrary.setLogFilterAndRegex(logFilter, logRegex)
-                            NativeLibrary.addDefaultSetting(SettingKeys.last_artic_base_addr(), articIp.trim())
-                            NativeLibrary.addDefaultSetting(SettingKeys.use_artic_base_controller(), if (articController) "1" else "0")
-                            NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
-                            NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (pretendoEnabled) "1" else "0")
-                            if (NativeLibrary.isRunning()) {
-                                NativeLibrary.reloadSettings()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            runCatching {
+                                NativeCoreLoader.load()
+                                NativeLibrary.setUserDirectory(NativeBridgeHost.resolveUserDirectoryPath())
+                                NativeLibrary.setSpeedhacks(fmvHack, skipSlowDraw, skipTexCopy, accurateMul, audioStretch, false)
+                                NativeLibrary.setSpirvOptimization(if (spirvOpt) 1 else 0, false, false)
+                                NativeLibrary.setRender3dMode(render3dMode)
+                                NativeLibrary.setFactor3d(depth3d)
+                                NativeLibrary.setDisableRightEyeRender(disableRightEye)
+                                NativeLibrary.setLogFilterAndRegex(logFilter, logRegex)
+                                NativeLibrary.addDefaultSetting(SettingKeys.last_artic_base_addr(), articIp.trim())
+                                NativeLibrary.addDefaultSetting(SettingKeys.use_artic_base_controller(), if (articController) "1" else "0")
+                                NativeLibrary.addDefaultSetting(SettingKeys.web_api_url(), if (pretendoEnabled) "https://api.pretendo.cc" else "")
+                                NativeLibrary.addDefaultSetting(SettingKeys.enable_required_online_lle_modules(), if (pretendoEnabled) "1" else "0")
+                                if (NativeLibrary.isRunning()) {
+                                    NativeLibrary.reloadSettings()
+                                }
                             }
                         }
                         Toast.makeText(context, context.getString(R.string.setup_3ds_saved_toast), Toast.LENGTH_SHORT).show()

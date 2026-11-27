@@ -322,6 +322,7 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             val report = runCatching {
                 com.storm3ds.emulator.NativeCoreLoader.load()
                 val userDir = com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath()
+                com.storm3ds.emulator.nativebridge.NativeLibrary.setUserDirectory(userDir)
                 val sysDir = java.io.File(userDir, "sysdata")
                 val sdmcDir = java.io.File(userDir, "sdmc/Nintendo 3DS")
                 val nandDir = java.io.File(userDir, "nand")
@@ -382,6 +383,9 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
         lifecycleScope.launch(Dispatchers.IO) {
             val entries = runCatching {
                 com.storm3ds.emulator.NativeCoreLoader.load()
+                com.storm3ds.emulator.nativebridge.NativeLibrary.setUserDirectory(
+                    com.storm3ds.emulator.nativebridge.NativeBridgeHost.resolveUserDirectoryPath(),
+                )
                 com.storm3ds.emulator.nativebridge.NativeLibrary.getInstalledGamePaths().mapNotNull { ig ->
                     val tid = runCatching {
                         com.storm3ds.emulator.nativebridge.NativeLibrary.getTitleId(ig.path)

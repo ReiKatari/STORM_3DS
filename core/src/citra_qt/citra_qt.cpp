@@ -259,10 +259,7 @@ bool IsPrereleaseBuild() {
 
 #ifdef ENABLE_QT_UPDATE_CHECKER
 static bool ShouldCheckForPrereleaseUpdates() {
-    const bool update_channel = UISettings::values.update_check_channel.GetValue();
-    const bool using_prerelease_channel =
-        (update_channel == UISettings::UpdateCheckChannels::PRERELEASE);
-    return (IsPrereleaseBuild() || using_prerelease_channel);
+    return false;
 }
 
 static std::tuple<int, int, int> ParseSemVer(const std::string& raw) {
@@ -286,7 +283,7 @@ static std::string GetCurrentAppVersion() {
             return Common::g_build_fullname;
         }
     }
-    return "1.10.1";
+    return "1.10.2";
 }
 
 static bool IsRemoteVersionNewer(const std::string& remote, const std::string& current) {

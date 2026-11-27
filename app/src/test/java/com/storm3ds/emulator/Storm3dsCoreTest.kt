@@ -1428,4 +1428,48 @@ class Storm3dsCoreTest {
             "-keep class com.storm3ds.emulator.ui.settings.preferences.** { *; }" in proguardTxt,
         )
     }
+
+    @Test
+    fun `setup 3ds dialog jni local ref hygiene and stable-only update channel hold`() {
+        val srcJava = File("src/main/java").takeIf { it.exists() } ?: File("app/src/main/java")
+        val resRoot = File("src/main/res").takeIf { it.exists() } ?: File("app/src/main/res")
+        val coreDir = File("../core").canonicalFile.let { if (it.exists()) it else File("core") }
+
+        // 1. android_utils.cpp cleans up local JNI references to prevent local ref table overflow
+        val androidUtilsTxt = File(coreDir, "src/common/android_utils.cpp").readText()
+        assertTrue("GetUserDirectory must DeleteLocalRef(j_user_directory)", "DeleteLocalRef(j_user_directory)" in androidUtilsTxt)
+        assertTrue("GetBuildFlavor must DeleteLocalRef(jflavor)", "DeleteLocalRef(jflavor)" in androidUtilsTxt)
+        assertTrue("Single-path JNI wrapper must DeleteLocalRef(j_filepath)", "DeleteLocalRef(j_filepath)" in androidUtilsTxt)
+
+        // 2. System3dsSetupDialog runs native loading/queries on Dispatchers.IO via LaunchedEffect
+        val setupTxt = File(srcJava, "com/storm3ds/emulator/ui/settings/System3dsSetupDialog.kt").readText()
+        assertTrue("System3dsSetupDialog must use LaunchedEffect", "LaunchedEffect(" in setupTxt)
+        assertTrue("System3dsSetupDialog must use Dispatchers.IO", "Dispatchers.IO" in setupTxt)
+        assertTrue("System3dsSetupDialog must bind NativeLibrary.setUserDirectory", "NativeLibrary.setUserDirectory" in setupTxt)
+
+        // 3. Update channel only offers Stable across all 10 locales and defaults to STABLE
+        val localeDirs = resRoot.listFiles { f -> f.isDirectory && f.name.startsWith("values") }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+        val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance().apply { isNamespaceAware = false }
+        for (dir in localeDirs) {
+            val arraysFile = File(dir, "arrays.xml")
+            if (!arraysFile.exists()) continue
+            val doc = factory.newDocumentBuilder().parse(arraysFile)
+            val arrays = doc.getElementsByTagName("string-array")
+            for (i in 0 until arrays.length) {
+                val el = arrays.item(i) as org.w3c.dom.Element
+                val name = el.getAttribute("name")
+                if (name == "update_channel_options" || name == "update_channel_values") {
+                    val items = el.getElementsByTagName("item")
+                    assertEquals("${dir.name}/arrays.xml $name must only have 1 option (stable)", 1, items.length)
+                    if (name == "update_channel_values") {
+                        assertEquals("stable", items.item(0).textContent.trim())
+                    }
+                }
+            }
+        }
+        assertEquals(GitHubUpdateChannel.STABLE, GitHubUpdateChannel.fromPreference("stable_and_prerelease"))
+        assertEquals(GitHubUpdateChannel.STABLE, GitHubUpdateChannel.fromPreference("stable"))
+    }
 }

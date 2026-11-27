@@ -31,7 +31,7 @@ enum class GitHubUpdateChannel(val preferenceValue: String) {
 
     companion object {
         fun fromPreference(value: String?): GitHubUpdateChannel {
-            return entries.firstOrNull { it.preferenceValue == value } ?: STABLE
+            return STABLE
         }
     }
 }
