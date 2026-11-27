@@ -15,6 +15,8 @@ open class LayoutView(context: Context, attrs: AttributeSet?) : FrameLayout(cont
 
     init {
         layoutDirection = LAYOUT_DIRECTION_LTR
+        clipChildren = false
+        clipToPadding = false
     }
 
     fun setLayoutComponentViewBuilderFactory(factory: LayoutComponentViewBuilderFactory) {

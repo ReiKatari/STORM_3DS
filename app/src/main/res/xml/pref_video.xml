@@ -30,7 +30,7 @@
                 app:iconSpaceReserved="false"
                 android:entries="@array/video_internal_resolution_options"
                 android:entryValues="@array/video_internal_resolution_values"
-                android:defaultValue="2"/>
+                android:defaultValue="1"/>
 
         <SwitchPreference
                 android:key="video_async_shader_compilation"
@@ -63,7 +63,7 @@
                 app:iconSpaceReserved="false"
                 android:entries="@array/video_filtering_options"
                 android:entryValues="@array/video_filtering_values"
-                android:defaultValue="quilez"/>
+                android:defaultValue="linear"/>
 
         <SwitchPreference
                 android:key="3ds_accurate_mul"

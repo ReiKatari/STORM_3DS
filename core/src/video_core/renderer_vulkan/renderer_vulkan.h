@@ -82,7 +82,9 @@ public:
     void NotifySurfaceChanged(bool second) override;
 
     void SwapBuffers() override;
-    void TryPresent(int timeout_ms, bool is_secondary) override {}
+    bool TryPresent(int timeout_ms, bool is_secondary) override {
+        return true;
+    }
 
 private:
     void ReloadPipeline(Settings::StereoRenderOption render_3d);

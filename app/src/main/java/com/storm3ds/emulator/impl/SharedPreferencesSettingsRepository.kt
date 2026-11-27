@@ -387,15 +387,15 @@ class SharedPreferencesSettingsRepository(
                 renderInputs.core.renderer
             }
             val requestedFiltering = when {
-                safeProfile?.safeVisuals == true -> VideoFiltering.NONE
+                safeProfile?.safeVisuals == true -> VideoFiltering.LINEAR
                 aiEnabled && !preferences.contains("video_filtering") -> VideoFiltering.AI_UPSCALE
                 else -> renderInputs.core.filtering
             }
             val effectiveFiltering = when {
-                safeProfile?.safeVisuals == true -> VideoFiltering.NONE
+                safeProfile?.safeVisuals == true -> VideoFiltering.LINEAR
                 !requestedFiltering.isSupportedByRenderer(effectiveRenderer) -> VideoFiltering.NONE
                 requestedFiltering == VideoFiltering.RETROARCH &&
-                    retroArchShader.presetPath.isNullOrBlank() -> if (aiEnabled) VideoFiltering.AI_UPSCALE else VideoFiltering.NONE
+                    retroArchShader.presetPath.isNullOrBlank() -> if (aiEnabled) VideoFiltering.AI_UPSCALE else VideoFiltering.LINEAR
                 else -> requestedFiltering
             }
             val effectiveThreadedRendering = resolveThreadedRendering(
@@ -1232,15 +1232,15 @@ class SharedPreferencesSettingsRepository(
 
     override fun getVideoInternalResolutionScaling(): Flow<Int> {
         return getOrCreatePreferenceSharedFlow("video_internal_resolution") {
-            val internalResolutionPreference = preferences.getString("video_internal_resolution", "2") ?: "2"
-            internalResolutionPreference.toIntOrNull() ?: 2
+            val internalResolutionPreference = preferences.getString("video_internal_resolution", "1") ?: "1"
+            internalResolutionPreference.toIntOrNull() ?: 1
         }
     }
 
     override fun getCurrentVideoFiltering(): VideoFiltering {
-        val filteringPreference = preferences.getString("video_filtering", "quilez") ?: "quilez"
+        val filteringPreference = preferences.getString("video_filtering", "linear") ?: "linear"
         return runCatching { VideoFiltering.valueOf(filteringPreference.uppercase()) }
-            .getOrDefault(VideoFiltering.QUILEZ)
+            .getOrDefault(VideoFiltering.LINEAR)
     }
 
     override fun getEffectiveVideoFiltering(romConfig: RomConfig): VideoFiltering {

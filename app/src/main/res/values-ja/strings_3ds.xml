@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">STORM コンパイラ最適化プロファイル</string>
     <string name="pref_3ds_low_end_preset_title">低スペック・旧型端末向けに最適化</string>
     <string name="pref_3ds_low_end_preset_summary">Turbo ARM11 JIT、CPUクロック75%、1x解像度、重複フレームスキップ、右目描画無効、FMVハック、HLE音声を有効化しFPSを最大化します</string>
-    <string name="pref_3ds_low_end_preset_applied">低スペック端末向け高速プロファイルを適用しました (Turbo JIT, CPU 75%, 1x, HLE音声)</string>
+    <string name="pref_3ds_low_end_preset_applied">低スペック端末高速モードをオンにしました (1x, Hyper JIT, Linear)</string>
     <string name="pref_3ds_profile_nand_cat">3DSプロフィール・システムファイル・通信</string>
     <string name="pref_3ds_system_profile_title">Nintendo 3DS システムプロフィール</string>
     <string name="pref_3ds_system_profile_summary">3DSユーザー名、誕生日、ゲームコイン(0-300)、MACアドレスと本体ID</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">ローカル通信 &amp; すれちがい通信 (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">有効なCECDメールボックス数: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">ユーザーディレクトリに %1$s を保存しました</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">オン: 1x解像度・Hyper JIT (CPU 100%)・リニア文字補間・右目と低速描画をスキップ</string>
+    <string name="pref_3ds_low_end_preset_summary_off">オフ: タップして高速モードを有効化 (1x・Hyper JIT・リニア補間)</string>
+    <string name="pref_3ds_low_end_preset_disabled">低スペック端末高速モードをオフにし、元の設定に戻しました</string>
+    <string name="layout_custom_touch_title">画面の手動調整 (指操作)</string>
+    <string name="layout_custom_touch_summary">上下2画面の位置と大きさを指でドラッグ・拡大縮小して自由に調整します</string>
+    <string name="screen_editor_top_label">上画面</string>
+    <string name="screen_editor_bottom_label">下画面</string>
+    <string name="screen_editor_hint">画面をドラッグで移動 - 角や端のドラッグ・2本指ピンチでサイズ調整</string>
+    <string name="screen_editor_aspect_lock">比率固定</string>
+    <string name="screen_editor_reset">リセット</string>
+    <string name="screen_editor_cancel">キャンセル</string>
+    <string name="screen_editor_done">完了</string>
+    <string name="screen_editor_saved_toast">カスタム画面配置を保存しました</string>
+</resources>

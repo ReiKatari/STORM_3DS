@@ -175,29 +175,100 @@ class SystemPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTi
             }
         }
 
-        findPreference<Preference>("3ds_low_end_preset")?.setOnPreferenceClickListener {
-            sharedPrefs?.edit()?.apply {
-                putBoolean("enable_storm_compiler", true)
-                putString("3ds_jit_mode", "2")
-                putString("3ds_cpu_clock_percentage", "75")
-                putString("video_internal_resolution", "1")
-                putBoolean("video_async_shader_compilation", true)
-                putString("video_filtering", "none")
-                putBoolean("3ds_fmv_hack", true)
-                putBoolean("3ds_skip_slow_draw", true)
-                putBoolean("3ds_skip_duplicate_frames", true)
-                putBoolean("3ds_disable_right_eye", true)
-                putBoolean("3ds_accurate_mul", false)
-                putBoolean("3ds_spirv_opt", true)
-                putBoolean("3ds_audio_stretch", true)
-                putString("3ds_audio_emulation", "0")
-                apply()
+        val lowEndPresetPref = findPreference<SwitchPreference>("3ds_low_end_preset")
+        fun updateLowEndPresetSummary(enabled: Boolean) {
+            lowEndPresetPref?.summary = getString(
+                if (enabled) R.string.pref_3ds_low_end_preset_summary_on
+                else R.string.pref_3ds_low_end_preset_summary_off,
+            )
+        }
+        updateLowEndPresetSummary(lowEndPresetPref?.isChecked == true)
+
+        lowEndPresetPref?.setOnPreferenceChangeListener { _, newValue ->
+            val enabled = newValue as? Boolean ?: false
+            val prefs = sharedPrefs ?: return@setOnPreferenceChangeListener true
+            if (enabled) {
+                val backupActive = prefs.getBoolean("3ds_low_end_backup_saved", false)
+                prefs.edit().apply {
+                    if (!backupActive) {
+                        putBoolean("3ds_low_end_prev_jit", prefs.getBoolean("enable_storm_compiler", true))
+                        putString("3ds_low_end_prev_jit_mode", prefs.getString("3ds_jit_mode", "3") ?: "3")
+                        putString("3ds_low_end_prev_cpu_clock", prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100")
+                        putString("3ds_low_end_prev_res", prefs.getString("video_internal_resolution", "1") ?: "1")
+                        putBoolean("3ds_low_end_prev_async_shaders", prefs.getBoolean("video_async_shader_compilation", true))
+                        putString("3ds_low_end_prev_filtering", prefs.getString("video_filtering", "linear") ?: "linear")
+                        putBoolean("3ds_low_end_prev_fmv", prefs.getBoolean("3ds_fmv_hack", false))
+                        putBoolean("3ds_low_end_prev_skip_slow", prefs.getBoolean("3ds_skip_slow_draw", false))
+                        putBoolean("3ds_low_end_prev_skip_dup", prefs.getBoolean("3ds_skip_duplicate_frames", false))
+                        putBoolean("3ds_low_end_prev_right_eye", prefs.getBoolean("3ds_disable_right_eye", false))
+                        putBoolean("3ds_low_end_prev_acc_mul", prefs.getBoolean("3ds_accurate_mul", false))
+                        putBoolean("3ds_low_end_prev_spirv", prefs.getBoolean("3ds_spirv_opt", false))
+                        putBoolean("3ds_low_end_prev_audio_stretch", prefs.getBoolean("3ds_audio_stretch", false))
+                        putString("3ds_low_end_prev_audio_emu", prefs.getString("3ds_audio_emulation", "0") ?: "0")
+                        putBoolean("3ds_low_end_backup_saved", true)
+                    }
+                    putBoolean("enable_storm_compiler", true)
+                    putString("3ds_jit_mode", "3")
+                    putString("3ds_cpu_clock_percentage", "100")
+                    putString("video_internal_resolution", "1")
+                    putBoolean("video_async_shader_compilation", true)
+                    putString("video_filtering", "linear")
+                    putBoolean("3ds_fmv_hack", false)
+                    putBoolean("3ds_skip_slow_draw", true)
+                    putBoolean("3ds_skip_duplicate_frames", true)
+                    putBoolean("3ds_disable_right_eye", true)
+                    putBoolean("3ds_accurate_mul", false)
+                    putBoolean("3ds_spirv_opt", false)
+                    putBoolean("3ds_audio_stretch", true)
+                    putString("3ds_audio_emulation", "0")
+                    apply()
+                }
+                stormCompilerPreference?.isChecked = true
+                jitModePref?.isEnabled = true
+                jitModePref?.value = "3"
+                findPreference<ListPreference>("3ds_cpu_clock_percentage")?.value = "100"
+                updateLowEndPresetSummary(true)
+                Toast.makeText(requireContext(), R.string.pref_3ds_low_end_preset_applied, Toast.LENGTH_LONG).show()
+            } else {
+                val prevJit = prefs.getBoolean("3ds_low_end_prev_jit", true)
+                val prevJitMode = prefs.getString("3ds_low_end_prev_jit_mode", "3") ?: "3"
+                val prevCpuClock = prefs.getString("3ds_low_end_prev_cpu_clock", "100") ?: "100"
+                val prevRes = prefs.getString("3ds_low_end_prev_res", "1") ?: "1"
+                val prevAsyncShaders = prefs.getBoolean("3ds_low_end_prev_async_shaders", true)
+                val prevFiltering = prefs.getString("3ds_low_end_prev_filtering", "linear") ?: "linear"
+                val prevFmv = prefs.getBoolean("3ds_low_end_prev_fmv", false)
+                val prevSkipSlow = prefs.getBoolean("3ds_low_end_prev_skip_slow", false)
+                val prevSkipDup = prefs.getBoolean("3ds_low_end_prev_skip_dup", false)
+                val prevRightEye = prefs.getBoolean("3ds_low_end_prev_right_eye", false)
+                val prevAccMul = prefs.getBoolean("3ds_low_end_prev_acc_mul", false)
+                val prevSpirv = prefs.getBoolean("3ds_low_end_prev_spirv", false)
+                val prevAudioStretch = prefs.getBoolean("3ds_low_end_prev_audio_stretch", false)
+                val prevAudioEmu = prefs.getString("3ds_low_end_prev_audio_emu", "0") ?: "0"
+                prefs.edit().apply {
+                    putBoolean("enable_storm_compiler", prevJit)
+                    putString("3ds_jit_mode", prevJitMode)
+                    putString("3ds_cpu_clock_percentage", prevCpuClock)
+                    putString("video_internal_resolution", prevRes)
+                    putBoolean("video_async_shader_compilation", prevAsyncShaders)
+                    putString("video_filtering", prevFiltering)
+                    putBoolean("3ds_fmv_hack", prevFmv)
+                    putBoolean("3ds_skip_slow_draw", prevSkipSlow)
+                    putBoolean("3ds_skip_duplicate_frames", prevSkipDup)
+                    putBoolean("3ds_disable_right_eye", prevRightEye)
+                    putBoolean("3ds_accurate_mul", prevAccMul)
+                    putBoolean("3ds_spirv_opt", prevSpirv)
+                    putBoolean("3ds_audio_stretch", prevAudioStretch)
+                    putString("3ds_audio_emulation", prevAudioEmu)
+                    putBoolean("3ds_low_end_backup_saved", false)
+                    apply()
+                }
+                stormCompilerPreference?.isChecked = prevJit
+                jitModePref?.isEnabled = prevJit
+                jitModePref?.value = prevJitMode
+                findPreference<ListPreference>("3ds_cpu_clock_percentage")?.value = prevCpuClock
+                updateLowEndPresetSummary(false)
+                Toast.makeText(requireContext(), R.string.pref_3ds_low_end_preset_disabled, Toast.LENGTH_SHORT).show()
             }
-            stormCompilerPreference?.isChecked = true
-            jitModePref?.isEnabled = true
-            jitModePref?.value = "2"
-            findPreference<ListPreference>("3ds_cpu_clock_percentage")?.value = "75"
-            Toast.makeText(requireContext(), R.string.pref_3ds_low_end_preset_applied, Toast.LENGTH_LONG).show()
             true
         }
 

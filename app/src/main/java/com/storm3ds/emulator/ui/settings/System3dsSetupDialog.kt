@@ -152,7 +152,7 @@ private fun System3dsSetupContent(context: Context, onDismiss: () -> Unit) {
         nativeResult.second?.let { sysTitlesStatus = it }
     }
 
-    var fmvHack by remember { mutableStateOf(prefs.getBoolean("3ds_fmv_hack", true)) }
+    var fmvHack by remember { mutableStateOf(prefs.getBoolean("3ds_fmv_hack", false)) }
     var skipSlowDraw by remember { mutableStateOf(prefs.getBoolean("3ds_skip_slow_draw", false)) }
     var skipTexCopy by remember { mutableStateOf(prefs.getBoolean("3ds_skip_tex_copy", false)) }
     var accurateMul by remember { mutableStateOf(prefs.getBoolean("3ds_accurate_mul", false)) }

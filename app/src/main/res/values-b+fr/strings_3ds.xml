@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">Profil du compilateur STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimiser pour appareils anciens ou faibles</string>
     <string name="pref_3ds_low_end_preset_summary">Active Turbo ARM11 JIT, horloge processeur 75%, résolution 1x, saut d\'images doublons, œil droit désactivé, hack FMV et audio HLE pour un FPS maximal</string>
-    <string name="pref_3ds_low_end_preset_applied">Profil rapide pour appareils modestes appliqué (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_low_end_preset_applied">Mode appareils modestes ACTIVE (1x, Hyper JIT, filtre lineaire)</string>
     <string name="pref_3ds_profile_nand_cat">Profil 3DS, fichiers système et réseau</string>
     <string name="pref_3ds_system_profile_title">Profil système Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Pseudo 3DS, anniversaire, pièces de jeu (0-300), adresse MAC et ID console</string>
@@ -479,4 +479,17 @@ SDMC : %7$s</string>
     <string name="netplay_3ds_streetpass_title">Sans-fil local et StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Boîtes CECD actives: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Enregistré %1$s dans le dossier utilisateur</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ACTIVE : echelle 1x, Hyper JIT (100% CPU), filtre lineaire du texte, sans rendu oeil droit</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DESACTIVE : appuyez pour activer le mode rapide (1x, Hyper JIT, filtre lineaire)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Mode appareils modestes DESACTIVE, reglages precedents restaures</string>
+    <string name="layout_custom_touch_title">Reglage manuel des ecrans</string>
+    <string name="layout_custom_touch_summary">Deplacez et redimensionnez les deux ecrans 3DS librement au doigt</string>
+    <string name="screen_editor_top_label">ECRAN SUPERIEUR</string>
+    <string name="screen_editor_bottom_label">ECRAN INFERIEUR</string>
+    <string name="screen_editor_hint">Glisser pour deplacer - tirer les coins/bords ou pincer a deux doigts</string>
+    <string name="screen_editor_aspect_lock">Proportions</string>
+    <string name="screen_editor_reset">Reinitialiser</string>
+    <string name="screen_editor_cancel">Annuler</string>
+    <string name="screen_editor_done">Terminer</string>
+    <string name="screen_editor_saved_toast">Disposition des ecrans enregistree</string>
+</resources>

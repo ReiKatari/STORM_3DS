@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">Perfil del compilador STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimizar para dispositivos antiguos y básicos</string>
     <string name="pref_3ds_low_end_preset_summary">Activa Turbo ARM11 JIT, reloj al 75%, resolución 1x, omisión de fotogramas duplicados, omisión de ojo derecho, hack FMV y audio HLE para máximo FPS</string>
-    <string name="pref_3ds_low_end_preset_applied">Perfil de velocidad para equipos básicos aplicado (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_low_end_preset_applied">Modo para dispositivos debiles ACTIVADO (1x, Hyper JIT, lineal)</string>
     <string name="pref_3ds_profile_nand_cat">Perfil 3DS, archivos del sistema y red</string>
     <string name="pref_3ds_system_profile_title">Perfil del sistema Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Nombre en 3DS, cumpleaños, monedas de juego (0-300), MAC e ID de consola</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Conexión local y StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Buzones CECD activos: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Guardado %1$s en la carpeta de usuario</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ACTIVADO: escala 1x, Hyper JIT (100% CPU), filtro lineal de texto, omision de ojo derecho y slow-draw</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DESACTIVADO: toca para activar modo rapido (1x, Hyper JIT, filtro lineal, 2D)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Modo para dispositivos debiles DESACTIVADO, ajustes restaurados</string>
+    <string name="layout_custom_touch_title">Ajuste manual de pantallas</string>
+    <string name="layout_custom_touch_summary">Mueve y estira ambas pantallas 3DS libremente directamente con el dedo</string>
+    <string name="screen_editor_top_label">PANTALLA SUPERIOR</string>
+    <string name="screen_editor_bottom_label">PANTALLA INFERIOR</string>
+    <string name="screen_editor_hint">Arrastra para mover - tira de esquinas/bordes o pellizca con dos dedos</string>
+    <string name="screen_editor_aspect_lock">Proporciones</string>
+    <string name="screen_editor_reset">Restablecer</string>
+    <string name="screen_editor_cancel">Cancelar</string>
+    <string name="screen_editor_done">Listo</string>
+    <string name="screen_editor_saved_toast">Disposicion personalizada guardada</string>
+</resources>

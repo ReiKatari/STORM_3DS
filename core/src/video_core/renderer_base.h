@@ -48,10 +48,10 @@ public:
     virtual void SwapBuffers() = 0;
 
     /// Draws the latest frame to the window waiting timeout_ms for a frame to arrive (Renderer
-    /// specific implementation)
-    virtual void TryPresent(int timeout_ms, bool is_secondary) = 0;
-    virtual void TryPresent(int timeout_ms) {
-        TryPresent(timeout_ms, false);
+    /// specific implementation). Returns true if a frame was presented.
+    virtual bool TryPresent(int timeout_ms, bool is_secondary) = 0;
+    virtual bool TryPresent(int timeout_ms) {
+        return TryPresent(timeout_ms, false);
     }
 
     /// Prepares for video dumping (e.g. create necessary buffers, etc)

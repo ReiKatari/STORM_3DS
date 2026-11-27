@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">STORM 编译器优化模式</string>
     <string name="pref_3ds_low_end_preset_title">为老旧及低配设备优化性能</string>
     <string name="pref_3ds_low_end_preset_summary">开启 Turbo ARM11 JIT、75% CPU 频率、1x 分辨率、跳过重复帧、禁用右眼渲染、FMV 加速与 HLE 音频以获取最高帧率</string>
-    <string name="pref_3ds_low_end_preset_applied">已应用低配设备极速配置 (Turbo JIT, 75% CPU, 1x, HLE 音频)</string>
+    <string name="pref_3ds_low_end_preset_applied">低配置加速模式已开启 (1x, Hyper JIT, 线性过滤)</string>
     <string name="pref_3ds_profile_nand_cat">3DS 个人资料、系统文件与联网</string>
     <string name="pref_3ds_system_profile_title">Nintendo 3DS 系统个人资料</string>
     <string name="pref_3ds_system_profile_summary">3DS 用户名、生日、游戏币 (0-300)、MAC 地址与主机 ID</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">本地无线与擦肩通信 (StreetPass CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">活动 CECD 邮箱数量: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">已保存 %1$s 至用户目录</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">已开启：1x 分辨率、Hyper JIT (100% CPU)、文字线性过滤、跳过右眼与慢速绘制</string>
+    <string name="pref_3ds_low_end_preset_summary_off">已关闭：点击开启流畅加速模式 (1x、Hyper JIT、线性过滤)</string>
+    <string name="pref_3ds_low_end_preset_disabled">低配置加速模式已关闭，已恢复原设置</string>
+    <string name="layout_custom_touch_title">手动触控调整双屏</string>
+    <string name="layout_custom_touch_summary">用手指直接拖动和拉伸上下两个 3DS 屏幕的位置与大小</string>
+    <string name="screen_editor_top_label">上屏幕</string>
+    <string name="screen_editor_bottom_label">下屏幕</string>
+    <string name="screen_editor_hint">拖动屏幕移动位置 - 拖动边角或双指捏合缩放大小</string>
+    <string name="screen_editor_aspect_lock">锁定比例</string>
+    <string name="screen_editor_reset">重置</string>
+    <string name="screen_editor_cancel">取消</string>
+    <string name="screen_editor_done">完成</string>
+    <string name="screen_editor_saved_toast">已保存自定义 3DS 屏幕布局</string>
+</resources>

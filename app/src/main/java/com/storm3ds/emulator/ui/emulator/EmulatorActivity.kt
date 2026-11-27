@@ -682,9 +682,17 @@ class EmulatorActivity : AppCompatActivity() {
     private val showPendingSubmissionsDialog = mutableStateOf(false)
     private val showDualScreenPresets = mutableStateOf(false)
     private val showScreenLayoutDialog = mutableStateOf(false)
+    private val showInteractiveScreenEditor = mutableStateOf(false)
     private val showNetplayDialog = mutableStateOf(false)
     private val cheatsOverlayRomInfo = mutableStateOf<com.storm3ds.emulator.domain.model.RomInfo?>(null)
     private var currentScreenLayoutMode: com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode? = null
+    private var customTouchEditorInitialTopRect = Rect(0, 0, 400, 240)
+    private var customTouchEditorInitialBottomRect = Rect(0, 240, 320, 240)
+    private var customTouchLiveTopRect: Rect? = null
+    private var customTouchLiveBottomRect: Rect? = null
+    private var customTouchBackupMode: com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode? = null
+    private var customTouchBackupTopRect: Rect? = null
+    private var customTouchBackupBottomRect: Rect? = null
     private val pauseMenuState = mutableStateOf<com.storm3ds.emulator.ui.emulator.model.PauseMenu?>(null)
 
     private val showBootAnimation = mutableStateOf(true)
@@ -1116,6 +1124,7 @@ class EmulatorActivity : AppCompatActivity() {
                 val isAnyComposeModalOpen = rewindWindow != null ||
                     showDualScreenPresets.value ||
                     showScreenLayoutDialog.value ||
+                    showInteractiveScreenEditor.value ||
                     showNetplayDialog.value ||
                     topConsoleNode != null ||
                     showQuickSlotCarousel.value ||
@@ -1186,6 +1195,31 @@ class EmulatorActivity : AppCompatActivity() {
                             onResumeGame = { resumeGameDirectly() },
                         )
                     }
+                    showInteractiveScreenEditor.value -> {
+                        val (surfW, surfH) = resolveActiveMainSurfaceSize()
+                        com.storm3ds.emulator.ui.emulator.ui.InteractiveScreenEditorOverlay(
+                            initialTopRect = customTouchEditorInitialTopRect,
+                            initialBottomRect = customTouchEditorInitialBottomRect,
+                            surfaceWidth = surfW,
+                            surfaceHeight = surfH,
+                            onRectsChanged = { topR, botR ->
+                                customTouchLiveTopRect = topR
+                                customTouchLiveBottomRect = botR
+                                updateRendererScreenAreas()
+                            },
+                            onResetRequested = {
+                                val isLand = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                                val (curW, curH) = resolveActiveMainSurfaceSize()
+                                computeDefaultEditorScreenRects(curW, curH, isLand)
+                            },
+                            onCancel = {
+                                cancelInteractiveScreenEditor()
+                            },
+                            onDone = { topR, botR ->
+                                finishInteractiveScreenEditor(topR, botR)
+                            },
+                        )
+                    }
                     showScreenLayoutDialog.value -> {
                         com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutOverlay(
                             currentLayoutMode = currentScreenLayoutMode,
@@ -1195,7 +1229,9 @@ class EmulatorActivity : AppCompatActivity() {
                             onDismiss = {
                                 activeOverlays.removeActiveOverlay(EmulatorOverlay.SCREEN_LAYOUT_DIALOG)
                                 showScreenLayoutDialog.value = false
-                                reopenPauseMenu()
+                                if (!showInteractiveScreenEditor.value) {
+                                    reopenPauseMenu()
+                                }
                             },
                             onResumeGame = { resumeGameDirectly() },
                         )
@@ -3346,7 +3382,161 @@ class EmulatorActivity : AppCompatActivity() {
         }
     }
 
+    private fun customTouchPrefKey(isLandscape: Boolean): String =
+        if (isLandscape) "3ds_custom_touch_landscape_rects" else "3ds_custom_touch_portrait_rects"
+
+    private fun customTouchActivePrefKey(isLandscape: Boolean): String =
+        if (isLandscape) "3ds_custom_touch_active_landscape" else "3ds_custom_touch_active_portrait"
+
+    private fun saveCustomTouchRects(isLandscape: Boolean, surfaceW: Int, surfaceH: Int, top: Rect, bottom: Rect) {
+        val sw = surfaceW.coerceAtLeast(1).toFloat()
+        val sh = surfaceH.coerceAtLeast(1).toFloat()
+        val payload = listOf(
+            top.x / sw, top.y / sh, top.width / sw, top.height / sh,
+            bottom.x / sw, bottom.y / sh, bottom.width / sw, bottom.height / sh,
+        ).joinToString(",") { String.format(java.util.Locale.ROOT, "%.5f", it) }
+        defaultPrefs.edit()
+            .putString(customTouchPrefKey(isLandscape), payload)
+            .putBoolean(customTouchActivePrefKey(isLandscape), true)
+            .apply()
+    }
+
+    private fun loadCustomTouchRects(isLandscape: Boolean, surfaceW: Int, surfaceH: Int): Pair<Rect, Rect>? {
+        val raw = defaultPrefs.getString(customTouchPrefKey(isLandscape), null) ?: return null
+        val vals = raw.split(",").mapNotNull { it.toFloatOrNull() }
+        if (vals.size != 8) return null
+        val minW = 96.coerceAtMost(surfaceW.coerceAtLeast(1))
+        val minH = 72.coerceAtMost(surfaceH.coerceAtLeast(1))
+        fun decode(off: Int): Rect {
+            val w = (vals[off + 2] * surfaceW).roundToInt().coerceIn(minW, surfaceW.coerceAtLeast(minW))
+            val h = (vals[off + 3] * surfaceH).roundToInt().coerceIn(minH, surfaceH.coerceAtLeast(minH))
+            val x = (vals[off] * surfaceW).roundToInt().coerceIn(0, (surfaceW - w).coerceAtLeast(0))
+            val y = (vals[off + 1] * surfaceH).roundToInt().coerceIn(0, (surfaceH - h).coerceAtLeast(0))
+            return Rect(x, y, w, h)
+        }
+        return decode(0) to decode(4)
+    }
+
+    private fun computeDefaultEditorScreenRects(surfaceW: Int, surfaceH: Int, isLandscape: Boolean): Pair<Rect, Rect> {
+        val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
+        val botAspect = com.storm3ds.emulator.domain.model.ThreeDS.BOTTOM_SCREEN_ASPECT_RATIO
+        val density = resources.displayMetrics.density
+        if (isLandscape) {
+            val pad = (16f * density).roundToInt()
+            val gap = (12f * density).roundToInt()
+            val availW = (surfaceW - pad * 2 - gap).coerceAtLeast(200)
+            val availH = (surfaceH - pad * 2).coerceAtLeast(140)
+            var h = (availW / (topAspect + botAspect)).toInt().coerceAtMost(availH)
+            val topW = (h * topAspect).toInt()
+            val botW = (h * botAspect).toInt()
+            val totalW = topW + gap + botW
+            val startX = ((surfaceW - totalW) / 2).coerceAtLeast(0)
+            val startY = ((surfaceH - h) / 2).coerceAtLeast(0)
+            return Rect(startX, startY, topW, h) to Rect(startX + topW + gap, startY, botW, h)
+        } else {
+            val pad = (12f * density).roundToInt()
+            val gap = (16f * density).roundToInt()
+            val availW = (surfaceW - pad * 2).coerceAtLeast(160)
+            var topH = (availW / topAspect).toInt()
+            var topW = availW
+            var botH = (availW / botAspect).toInt()
+            var botW = (botH * botAspect).toInt()
+            val maxSumH = (surfaceH * 0.72f).roundToInt() - gap
+            if (topH + botH > maxSumH && maxSumH > 120) {
+                val scale = maxSumH.toFloat() / (topH + botH).coerceAtLeast(1)
+                topH = (topH * scale).roundToInt().coerceAtLeast(80)
+                topW = (topH * topAspect).roundToInt().coerceAtMost(availW)
+                botH = (botH * scale).roundToInt().coerceAtLeast(72)
+                botW = (botH * botAspect).roundToInt().coerceAtMost(availW)
+            }
+            val topX = ((surfaceW - topW) / 2).coerceAtLeast(0)
+            val topY = (28f * density).roundToInt().coerceAtMost((surfaceH - topH - botH - gap).coerceAtLeast(0))
+            val botX = ((surfaceW - botW) / 2).coerceAtLeast(0)
+            val botY = (topY + topH + gap).coerceIn(0, (surfaceH - botH).coerceAtLeast(0))
+            return Rect(topX, topY, topW, topH) to Rect(botX, botY, botW, botH)
+        }
+    }
+
+    private fun openInteractiveScreenEditor() {
+        val isLand = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val (surfaceW, surfaceH) = resolveActiveMainSurfaceSize()
+        val currentAreas = resolveMainScreenPresentationAreas()
+        customTouchBackupMode = currentScreenLayoutMode
+        customTouchBackupTopRect = customTouchLiveTopRect
+        customTouchBackupBottomRect = customTouchLiveBottomRect
+
+        val saved = loadCustomTouchRects(isLand, surfaceW, surfaceH)
+        val defaults = computeDefaultEditorScreenRects(surfaceW, surfaceH, isLand)
+        val initTop = saved?.first
+            ?: currentAreas.topScreenRect?.takeIf { it.width >= 60 && it.height >= 40 }
+            ?: defaults.first
+        val initBottom = saved?.second
+            ?: currentAreas.bottomScreenRect?.takeIf { it.width >= 60 && it.height >= 40 }
+            ?: defaults.second
+
+        customTouchEditorInitialTopRect = initTop
+        customTouchEditorInitialBottomRect = initBottom
+        customTouchLiveTopRect = initTop
+        customTouchLiveBottomRect = initBottom
+        currentScreenLayoutMode = com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH
+
+        activeOverlays.removeActiveOverlay(EmulatorOverlay.SCREEN_LAYOUT_DIALOG)
+        showScreenLayoutDialog.value = false
+        activeOverlays.addActiveOverlay(EmulatorOverlay.INTERACTIVE_SCREEN_EDITOR)
+        showInteractiveScreenEditor.value = true
+        binding.viewLayoutControls.visibility = View.INVISIBLE
+        updateRendererScreenAreas()
+        requestOverlayHostFocus()
+    }
+
+    private fun cancelInteractiveScreenEditor() {
+        currentScreenLayoutMode = customTouchBackupMode
+        customTouchLiveTopRect = customTouchBackupTopRect
+        customTouchLiveBottomRect = customTouchBackupBottomRect
+        activeOverlays.removeActiveOverlay(EmulatorOverlay.INTERACTIVE_SCREEN_EDITOR)
+        showInteractiveScreenEditor.value = false
+        if (!showBootAnimation.value) {
+            binding.viewLayoutControls.visibility = View.VISIBLE
+        }
+        updateRendererScreenAreas()
+        reopenPauseMenu()
+    }
+
+    private fun finishInteractiveScreenEditor(topRect: Rect, bottomRect: Rect) {
+        val isLand = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val (surfaceW, surfaceH) = resolveActiveMainSurfaceSize()
+        saveCustomTouchRects(isLand, surfaceW, surfaceH, topRect, bottomRect)
+        customTouchLiveTopRect = topRect
+        customTouchLiveBottomRect = bottomRect
+        currentScreenLayoutMode = com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH
+        activeOverlays.removeActiveOverlay(EmulatorOverlay.INTERACTIVE_SCREEN_EDITOR)
+        showInteractiveScreenEditor.value = false
+        if (!showBootAnimation.value) {
+            binding.viewLayoutControls.visibility = View.VISIBLE
+        }
+        Toast.makeText(this, R.string.screen_editor_saved_toast, Toast.LENGTH_SHORT).show()
+        updateRendererScreenAreas()
+        scheduleStartupPresentationRefreshes()
+        resumeGameDirectly()
+    }
+
     private fun applyScreenLayoutMode(mode: com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode) {
+        if (mode == com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH) {
+            openInteractiveScreenEditor()
+            return
+        }
+        if (mode == com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.OPEN_LAYOUT_EDITOR) {
+            val activeLayoutId = viewModel.getActiveLayoutId()
+            val intent = Intent(this, com.storm3ds.emulator.ui.layouteditor.LayoutEditorActivity::class.java).apply {
+                putExtra(com.storm3ds.emulator.ui.layouteditor.LayoutEditorActivity.KEY_LAYOUT_ID, activeLayoutId.toString())
+            }
+            startActivity(intent)
+            return
+        }
+        val isLand = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        defaultPrefs.edit().putBoolean(customTouchActivePrefKey(isLand), false).apply()
+        customTouchLiveTopRect = null
+        customTouchLiveBottomRect = null
         currentScreenLayoutMode = mode
         when (mode) {
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE -> {
@@ -3379,14 +3569,8 @@ class EmulatorActivity : AppCompatActivity() {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 Toast.makeText(this, getString(R.string.toast_layout_applied, getString(R.string.layout_auto_rotate)), Toast.LENGTH_SHORT).show()
             }
-            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.OPEN_LAYOUT_EDITOR -> {
-                val activeLayoutId = viewModel.getActiveLayoutId()
-                val intent = Intent(this, com.storm3ds.emulator.ui.layouteditor.LayoutEditorActivity::class.java).apply {
-                    putExtra(com.storm3ds.emulator.ui.layouteditor.LayoutEditorActivity.KEY_LAYOUT_ID, activeLayoutId.toString())
-                }
-                startActivity(intent)
-                return
-            }
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH,
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.OPEN_LAYOUT_EDITOR -> return
         }
 
         updateRendererScreenAreas()
@@ -3516,7 +3700,44 @@ class EmulatorActivity : AppCompatActivity() {
         val bottomReservePx = if (isLandscape) (40f * densityPx).roundToInt() else 0
         val centerAreaW = (surfaceW - leftRailPx - rightRailPx).coerceAtLeast((240f * densityPx).roundToInt())
 
-        when (currentScreenLayoutMode) {
+        val effectiveMode = if (showInteractiveScreenEditor.value ||
+            (currentScreenLayoutMode == null && defaultPrefs.getBoolean(customTouchActivePrefKey(isLandscape), false))
+        ) {
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH
+        } else {
+            currentScreenLayoutMode
+        }
+
+        when (effectiveMode) {
+            com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH -> {
+                val pair = (if (showInteractiveScreenEditor.value && customTouchLiveTopRect != null && customTouchLiveBottomRect != null) {
+                    customTouchLiveTopRect!! to customTouchLiveBottomRect!!
+                } else {
+                    loadCustomTouchRects(isLandscape, surfaceW, surfaceH)
+                        ?: computeDefaultEditorScreenRects(surfaceW, surfaceH, isLandscape)
+                })
+                val rawT = pair.first
+                val rawB = pair.second
+                val tW = rawT.width.coerceIn(96.coerceAtMost(surfaceW), surfaceW.coerceAtLeast(1))
+                val tH = rawT.height.coerceIn(72.coerceAtMost(surfaceH), surfaceH.coerceAtLeast(1))
+                val clampedTop = Rect(rawT.x.coerceIn(0, (surfaceW - tW).coerceAtLeast(0)), rawT.y.coerceIn(0, (surfaceH - tH).coerceAtLeast(0)), tW, tH)
+                val bW = rawB.width.coerceIn(96.coerceAtMost(surfaceW), surfaceW.coerceAtLeast(1))
+                val bH = rawB.height.coerceIn(72.coerceAtMost(surfaceH), surfaceH.coerceAtLeast(1))
+                val clampedBot = Rect(rawB.x.coerceIn(0, (surfaceW - bW).coerceAtLeast(0)), rawB.y.coerceIn(0, (surfaceH - bH).coerceAtLeast(0)), bW, bH)
+                if (areScreensSwapped) {
+                    topRect = clampedBot
+                    bottomRect = clampedTop
+                    topAlpha = bottomView?.baseAlpha ?: 1f
+                    bottomAlpha = topView?.baseAlpha ?: 1f
+                } else {
+                    topRect = clampedTop
+                    bottomRect = clampedBot
+                    topAlpha = topView?.baseAlpha ?: 1f
+                    bottomAlpha = bottomView?.baseAlpha ?: 1f
+                }
+                binding.viewLayoutControls.updateComponentRect(LayoutComponent.TOP_SCREEN, clampedTop)
+                binding.viewLayoutControls.updateComponentRect(LayoutComponent.BOTTOM_SCREEN, clampedBot)
+            }
             com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.EVEN_LANDSCAPE -> {
                 val availH = (surfaceH - topReservePx - bottomReservePx).coerceAtLeast((surfaceH * 0.68f).roundToInt())
                 val topAspect = com.storm3ds.emulator.domain.model.ThreeDS.TOP_SCREEN_ASPECT_RATIO
@@ -3792,7 +4013,8 @@ class EmulatorActivity : AppCompatActivity() {
         val baseTopRect = topRect
         val baseBottomRect = bottomRect
         if (baseTopRect != null && baseBottomRect != null) {
-            if (hingeGapPx > 0 && kotlin.math.abs(baseTopRect.x - baseBottomRect.x) < 40) {
+            val isCustomTouch = effectiveMode == com.storm3ds.emulator.ui.emulator.ui.ScreenLayoutMode.CUSTOM_TOUCH
+            if (!isCustomTouch && hingeGapPx > 0 && kotlin.math.abs(baseTopRect.x - baseBottomRect.x) < 40) {
                 val upperIsTop = baseTopRect.y <= baseBottomRect.y
                 val upper = if (upperIsTop) baseTopRect else baseBottomRect
                 val lower = if (upperIsTop) baseBottomRect else baseTopRect
@@ -4293,6 +4515,13 @@ class EmulatorActivity : AppCompatActivity() {
         rewindOverlayState.value = null
         showDualScreenPresets.value = false
         showScreenLayoutDialog.value = false
+        if (showInteractiveScreenEditor.value) {
+            activeOverlays.removeActiveOverlay(EmulatorOverlay.INTERACTIVE_SCREEN_EDITOR)
+            showInteractiveScreenEditor.value = false
+            if (!showBootAnimation.value) {
+                binding.viewLayoutControls.visibility = View.VISIBLE
+            }
+        }
         showNetplayDialog.value = false
         showAchievementList.value = false
         cheatsOverlayRomInfo.value = null
@@ -6514,7 +6743,8 @@ private fun refreshRomSettingsMenuIfOpen(): Boolean {
     private fun hasComposeOverlayOpen(): Boolean {
         return pauseMenuState.value != null || saveStatesOverlayState.value != null ||
             consoleOverlayStack.isNotEmpty() || showDualScreenPresets.value ||
-            showScreenLayoutDialog.value || showNetplayDialog.value || showAchievementList.value ||
+            showScreenLayoutDialog.value || showInteractiveScreenEditor.value ||
+            showNetplayDialog.value || showAchievementList.value ||
             cheatsOverlayRomInfo.value != null || showQuickSlotCarousel.value ||
             showSlowMotionSpeedDialog.value ||
             rewindOverlayState.value != null || activeOverlays.hasActiveOverlays()

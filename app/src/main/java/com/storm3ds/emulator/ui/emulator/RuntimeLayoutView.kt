@@ -86,6 +86,7 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         updateInputs()
         updateVisibility()
         setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_SOFT_INPUT, isSoftInputVisible)
+        setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS, areExtraButtonsVisible)
     }
 
     private fun updateInputs() {
@@ -159,30 +160,32 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         updateScreenInputs()
     }
 
-    private var areExtraButtonsVisible = true
+    private var areExtraButtonsVisible = false
+
+    private fun isExtraOverlayComponent(c: LayoutComponent): Boolean {
+        val isCore = c == LayoutComponent.DPAD ||
+                c == LayoutComponent.CIRCLE_PAD ||
+                c == LayoutComponent.BUTTONS ||
+                c == LayoutComponent.C_STICK ||
+                c == LayoutComponent.BUTTON_L ||
+                c == LayoutComponent.BUTTON_R ||
+                c == LayoutComponent.BUTTON_ZL ||
+                c == LayoutComponent.BUTTON_ZR ||
+                c == LayoutComponent.BUTTON_START ||
+                c == LayoutComponent.BUTTON_SELECT ||
+                c == LayoutComponent.BUTTON_HOME ||
+                c == LayoutComponent.BUTTON_PAUSE ||
+                c == LayoutComponent.BUTTON_SWAP_SCREENS ||
+                c == LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE ||
+                c == LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS ||
+                c.isScreen()
+        return !isCore
+    }
 
     fun toggleExtraButtonsVisibility() {
         areExtraButtonsVisible = !areExtraButtonsVisible
         getLayoutComponentViews().forEach { compView ->
-            val c = compView.component
-            // Core New 3DS controls and primary quick toggles stay visible; secondary shortcuts toggle cleanly
-            val isCore = c == LayoutComponent.DPAD ||
-                    c == LayoutComponent.CIRCLE_PAD ||
-                    c == LayoutComponent.BUTTONS ||
-                    c == LayoutComponent.C_STICK ||
-                    c == LayoutComponent.BUTTON_L ||
-                    c == LayoutComponent.BUTTON_R ||
-                    c == LayoutComponent.BUTTON_ZL ||
-                    c == LayoutComponent.BUTTON_ZR ||
-                    c == LayoutComponent.BUTTON_START ||
-                    c == LayoutComponent.BUTTON_SELECT ||
-                    c == LayoutComponent.BUTTON_HOME ||
-                    c == LayoutComponent.BUTTON_PAUSE ||
-                    c == LayoutComponent.BUTTON_SWAP_SCREENS ||
-                    c == LayoutComponent.BUTTON_FAST_FORWARD_TOGGLE ||
-                    c == LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS ||
-                    c.isScreen()
-            if (!isCore) {
+            if (isExtraOverlayComponent(compView.component)) {
                 compView.view.isVisible = areExtraButtonsVisible
             }
         }
@@ -264,9 +267,11 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
         }
         visibleComponents.forEach { component ->
             if (!component.isScreen()) {
-                getLayoutComponentView(component)?.view?.isVisible = true
+                val show = areExtraButtonsVisible || !isExtraOverlayComponent(component)
+                getLayoutComponentView(component)?.view?.isVisible = show
             }
         }
+        setLayoutComponentToggleState(LayoutComponent.BUTTON_TOGGLE_EXTRA_BUTTONS, areExtraButtonsVisible)
     }
 
     fun applyConsoleSkinButtonShift(isConsoleSkinEnabled: Boolean, shiftPx: Int) {

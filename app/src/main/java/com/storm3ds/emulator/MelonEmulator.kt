@@ -160,8 +160,32 @@ object MelonEmulator {
         NativeLibrary.reloadSettings()
     }
 
+    private fun applyPerformanceCompatibilityMigration(prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("3ds_perf_fix_migration_11200", false)) return
+        prefs.edit().apply {
+            if (prefs.getBoolean("3ds_fmv_hack", false)) {
+                putBoolean("3ds_fmv_hack", false)
+            }
+            if (prefs.getBoolean("3ds_spirv_opt", false)) {
+                putBoolean("3ds_spirv_opt", false)
+            }
+            if ((prefs.getString("video_filtering", "linear") ?: "linear") == "none") {
+                putString("video_filtering", "linear")
+            }
+            if ((prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100") == "75") {
+                putString("3ds_cpu_clock_percentage", "100")
+            }
+            if ((prefs.getString("3ds_jit_mode", "3") ?: "3") == "2") {
+                putString("3ds_jit_mode", "3")
+            }
+            putBoolean("3ds_perf_fix_migration_11200", true)
+            apply()
+        }
+    }
+
     private fun applyConfigurationToAzahar(cfg: EmulatorConfiguration) {
         val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(NativeBridgeHost.appContext)
+        applyPerformanceCompatibilityMigration(prefs)
         NativeLibrary.addDefaultSetting(SettingKeys.use_virtual_sd(), "1")
         NativeLibrary.addDefaultSetting(SettingKeys.use_cpu_jit(), if (cfg.useJit) "1" else "0")
 
@@ -224,7 +248,7 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.dump_textures(), if (dumpTex) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.preload_textures(), if (preloadTex) "1" else "0")
 
-        val fmvHack = prefs.getBoolean("3ds_fmv_hack", true)
+        val fmvHack = prefs.getBoolean("3ds_fmv_hack", false)
         val skipSlowDraw = prefs.getBoolean("3ds_skip_slow_draw", false)
         val skipTexCopy = prefs.getBoolean("3ds_skip_tex_copy", false)
         val accurateMul = prefs.getBoolean("3ds_accurate_mul", false)

@@ -1,20 +1,20 @@
 package com.storm3ds.emulator.ui.common.views
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.*
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.OvershootInterpolator
 import androidx.preference.PreferenceManager
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.min
 
 /**
  * Nintendo 3DS recessed analog Circle Pad with concentric machined rubber cap,
- * draggable 360-degree thumb tracking, and spring-back release animation.
+ * smooth zero-allocation 360-degree thumb tracking, and exponential spring return.
  */
 class ModernCirclePadView @JvmOverloads constructor(
     context: Context,
@@ -22,13 +22,22 @@ class ModernCirclePadView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
+    companion object {
+        private const val DEADZONE = 0.035f
+        private const val SEND_EPSILON = 0.0015f
+    }
+
     var onAxisChanged: ((Float, Float) -> Unit)? = null
 
-    private var axisX = 0f
-    private var axisY = 0f
+    private var targetAxisX = 0f
+    private var targetAxisY = 0f
+    private var displayAxisX = 0f
+    private var displayAxisY = 0f
+    private var lastSentX = 0f
+    private var lastSentY = 0f
     private var isDragging = false
     private var activePointerId = MotionEvent.INVALID_POINTER_ID
-    private var springAnimator: ValueAnimator? = null
+    private var lastFrameTimeMs = 0L
 
     private val wellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val wellRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -69,8 +78,15 @@ class ModernCirclePadView @JvmOverloads constructor(
     }
     private val centerDishPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
+    private val capRect = RectF()
+    private val shaderMatrix = Matrix()
+    private var cachedCapShader: RadialGradient? = null
+    private var cachedShaderSize = -1f
+    private var cachedShaderStyle: ButtonColorStyle? = null
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "button_color_theme") {
+            cachedCapShader = null
             postInvalidate()
         }
     }
@@ -87,21 +103,20 @@ class ModernCirclePadView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        springAnimator?.cancel()
         PreferenceManager.getDefaultSharedPreferences(context)
             .unregisterOnSharedPreferenceChangeListener(prefListener)
     }
 
     fun updateAxis(x: Float, y: Float) {
-        springAnimator?.cancel()
         val mag = hypot(x, y)
-        if (mag > 1f) {
-            axisX = x / mag
-            axisY = y / mag
-        } else {
-            axisX = x.coerceIn(-1f, 1f)
-            axisY = y.coerceIn(-1f, 1f)
-        }
+        val clampedX = if (mag > 1f) x / mag else x.coerceIn(-1f, 1f)
+        val clampedY = if (mag > 1f) y / mag else y.coerceIn(-1f, 1f)
+        targetAxisX = clampedX
+        targetAxisY = clampedY
+        displayAxisX = clampedX
+        displayAxisY = clampedY
+        lastSentX = clampedX
+        lastSentY = clampedY
         invalidate()
     }
 
@@ -113,17 +128,28 @@ class ModernCirclePadView @JvmOverloads constructor(
         val size = min(w, h)
         val cx = w / 2f
         val cy = h / 2f
-        val outerRadius = size * 0.45f
-        val thumbRadius = size * 0.255f
-        val maxTravel = (outerRadius - thumbRadius * 0.48f).coerceAtLeast(1f)
+        val outerRadius = size * 0.44f
+        val thumbRadius = size * 0.24f
+        val maxTravel = (outerRadius - thumbRadius * 0.88f).coerceAtLeast(1f)
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
-                springAnimator?.cancel()
                 activePointerId = event.getPointerId(0)
                 isDragging = true
+                lastFrameTimeMs = SystemClock.uptimeMillis()
                 updateFromTouch(event.x, event.y, cx, cy, maxTravel)
+                return true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                if (activePointerId == MotionEvent.INVALID_POINTER_ID) {
+                    val idx = event.actionIndex
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    activePointerId = event.getPointerId(idx)
+                    isDragging = true
+                    lastFrameTimeMs = SystemClock.uptimeMillis()
+                    updateFromTouch(event.getX(idx), event.getY(idx), cx, cy, maxTravel)
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -134,21 +160,13 @@ class ModernCirclePadView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isDragging = false
-                activePointerId = MotionEvent.INVALID_POINTER_ID
-                parent?.requestDisallowInterceptTouchEvent(false)
-                onAxisChanged?.invoke(0f, 0f)
-                animateSpringBack()
+                releaseStick()
                 return true
             }
             MotionEvent.ACTION_POINTER_UP -> {
                 val pointerIndex = event.actionIndex
                 if (event.getPointerId(pointerIndex) == activePointerId) {
-                    isDragging = false
-                    activePointerId = MotionEvent.INVALID_POINTER_ID
-                    parent?.requestDisallowInterceptTouchEvent(false)
-                    onAxisChanged?.invoke(0f, 0f)
-                    animateSpringBack()
+                    releaseStick()
                 }
                 return true
             }
@@ -156,42 +174,48 @@ class ModernCirclePadView @JvmOverloads constructor(
         return super.onTouchEvent(event)
     }
 
+    private fun releaseStick() {
+        isDragging = false
+        activePointerId = MotionEvent.INVALID_POINTER_ID
+        parent?.requestDisallowInterceptTouchEvent(false)
+        targetAxisX = 0f
+        targetAxisY = 0f
+        lastFrameTimeMs = SystemClock.uptimeMillis()
+        emitAxisIfNeeded(0f, 0f, forceZero = true)
+        postInvalidateOnAnimation()
+    }
+
     private fun updateFromTouch(touchX: Float, touchY: Float, cx: Float, cy: Float, maxTravel: Float) {
         val dx = touchX - cx
         val dy = touchY - cy
         val dist = hypot(dx, dy)
-        val clampedDist = min(dist, maxTravel)
-        val newX = if (dist > 0.001f) (dx / dist) * (clampedDist / maxTravel) else 0f
-        val newY = if (dist > 0.001f) (dy / dist) * (clampedDist / maxTravel) else 0f
-
-        if (newX != axisX || newY != axisY) {
-            axisX = newX
-            axisY = newY
-            onAxisChanged?.invoke(axisX, axisY)
-            invalidate()
+        val rawNorm = (dist / maxTravel).coerceIn(0f, 1f)
+        val newX: Float
+        val newY: Float
+        if (rawNorm <= DEADZONE || dist <= 0.001f) {
+            newX = 0f
+            newY = 0f
+        } else {
+            val scaledMag = ((rawNorm - DEADZONE) / (1f - DEADZONE)).coerceIn(0f, 1f)
+            val ux = dx / dist
+            val uy = dy / dist
+            newX = ux * scaledMag
+            newY = uy * scaledMag
         }
+
+        targetAxisX = newX
+        targetAxisY = newY
+        emitAxisIfNeeded(newX, newY, forceZero = (newX == 0f && newY == 0f))
+        postInvalidateOnAnimation()
     }
 
-    private fun animateSpringBack() {
-        springAnimator?.cancel()
-        val startX = axisX
-        val startY = axisY
-        if (hypot(startX, startY) < 0.005f) {
-            axisX = 0f
-            axisY = 0f
-            invalidate()
-            return
-        }
-        springAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = 140L
-            interpolator = OvershootInterpolator(1.1f)
-            addUpdateListener { anim ->
-                val f = anim.animatedValue as Float
-                axisX = startX * f
-                axisY = startY * f
-                invalidate()
-            }
-            start()
+    private fun emitAxisIfNeeded(newX: Float, newY: Float, forceZero: Boolean) {
+        val delta = hypot(newX - lastSentX, newY - lastSentY)
+        val zeroChanged = forceZero && (lastSentX != 0f || lastSentY != 0f)
+        if (zeroChanged || delta >= SEND_EPSILON) {
+            lastSentX = newX
+            lastSentY = newY
+            onAxisChanged?.invoke(newX, newY)
         }
     }
 
@@ -201,14 +225,35 @@ class ModernCirclePadView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
+        val now = SystemClock.uptimeMillis()
+        if (lastFrameTimeMs == 0L) lastFrameTimeMs = now
+        val dtSec = ((now - lastFrameTimeMs).coerceIn(1L, 50L)) / 1000f
+        lastFrameTimeMs = now
+
+        val diffX = targetAxisX - displayAxisX
+        val diffY = targetAxisY - displayAxisY
+        val diffMag = hypot(diffX, diffY)
+        val needsMoreFrames = if (diffMag > 0.002f) {
+            val speed = if (isDragging) 48f else 24f
+            val alpha = 1f - exp(-dtSec * speed)
+            displayAxisX += diffX * alpha
+            displayAxisY += diffY * alpha
+            true
+        } else {
+            displayAxisX = targetAxisX
+            displayAxisY = targetAxisY
+            false
+        }
+
         val size = min(w, h)
         val cx = w / 2f
         val cy = h / 2f
-        val outerRadius = size * 0.45f
-        val thumbRadius = size * 0.255f
-        val maxTravel = outerRadius - thumbRadius * 0.48f
+        val outerRadius = size * 0.44f
+        val thumbRadius = size * 0.24f
+        val maxTravel = (outerRadius - thumbRadius * 0.88f).coerceAtLeast(1f)
 
-        val palette = resolvePalette(ButtonThemeManager.currentStyle)
+        val currentStyle = ButtonThemeManager.currentStyle
+        val palette = resolvePalette(currentStyle)
 
         // Recessed outer gate well
         wellPaint.color = palette.wellBg
@@ -226,15 +271,15 @@ class ModernCirclePadView @JvmOverloads constructor(
         canvas.drawLine(cx - tickOuter, cy, cx - tickInner, cy, tickPaint)
         canvas.drawLine(cx + tickOuter, cy, cx + tickInner, cy, tickPaint)
 
-        val thumbCx = cx + axisX * maxTravel
-        val thumbCy = cy + axisY * maxTravel
-        val mag = hypot(axisX, axisY).coerceIn(0f, 1f)
+        val thumbCx = cx + displayAxisX * maxTravel
+        val thumbCy = cy + displayAxisY * maxTravel
+        val mag = hypot(displayAxisX, displayAxisY).coerceIn(0f, 1f)
 
-        // Drop shadow
+        // Subtle drop shadow inside well bounds
         canvas.drawCircle(
-            thumbCx + 2f + axisX * 2f,
-            thumbCy + 4f + axisY * 2f,
-            thumbRadius * 1.03f,
+            thumbCx + 1.5f + displayAxisX * 1.5f,
+            thumbCy + 2.5f + displayAxisY * 1.5f,
+            thumbRadius * 1.02f,
             shadowPaint,
         )
 
@@ -242,18 +287,26 @@ class ModernCirclePadView @JvmOverloads constructor(
         if (isDragging || mag > 0.05f) {
             activeGlowPaint.color = palette.glow
             activeGlowPaint.alpha = (70 + (mag * 130)).toInt().coerceIn(0, 210)
-            canvas.drawCircle(thumbCx, thumbCy, thumbRadius * 1.16f, activeGlowPaint)
+            canvas.drawCircle(thumbCx, thumbCy, thumbRadius * 1.12f, activeGlowPaint)
         }
 
-        // Machined rubber cap radial gradient
-        capPaint.shader = RadialGradient(
-            thumbCx - thumbRadius * 0.28f,
-            thumbCy - thumbRadius * 0.30f,
-            thumbRadius * 1.4f,
-            palette.capTop,
-            palette.capBottom,
-            Shader.TileMode.CLAMP,
-        )
+        // Cached machined rubber cap radial gradient translated cleanly via Matrix
+        if (cachedCapShader == null || cachedShaderSize != size || cachedShaderStyle != currentStyle) {
+            cachedShaderSize = size
+            cachedShaderStyle = currentStyle
+            cachedCapShader = RadialGradient(
+                -thumbRadius * 0.28f,
+                -thumbRadius * 0.30f,
+                thumbRadius * 1.4f,
+                palette.capTop,
+                palette.capBottom,
+                Shader.TileMode.CLAMP,
+            )
+        }
+        val capShader = cachedCapShader!!
+        shaderMatrix.setTranslate(thumbCx, thumbCy)
+        capShader.setLocalMatrix(shaderMatrix)
+        capPaint.shader = capShader
         canvas.drawCircle(thumbCx, thumbCy, thumbRadius, capPaint)
         capPaint.shader = null
 
@@ -267,7 +320,7 @@ class ModernCirclePadView @JvmOverloads constructor(
         canvas.drawCircle(thumbCx, thumbCy, thumbRadius * 0.28f, centerDishPaint)
 
         // Tactile bevel rim
-        val capRect = RectF(
+        capRect.set(
             thumbCx - thumbRadius,
             thumbCy - thumbRadius,
             thumbCx + thumbRadius,
@@ -275,6 +328,10 @@ class ModernCirclePadView @JvmOverloads constructor(
         )
         canvas.drawArc(capRect, 135f, 180f, false, capBevelLightPaint)
         canvas.drawArc(capRect, -45f, 180f, false, capBevelDarkPaint)
+
+        if (needsMoreFrames) {
+            postInvalidateOnAnimation()
+        }
     }
 
     private data class PadPalette(

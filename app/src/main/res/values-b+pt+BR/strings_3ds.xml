@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">Perfil do compilador STORM</string>
     <string name="pref_3ds_low_end_preset_title">Otimizar para aparelhos antigos e fracos</string>
     <string name="pref_3ds_low_end_preset_summary">Ativa Turbo ARM11 JIT, clock de CPU 75%, resolução 1x, pular quadros duplicados, desativar olho direito, hack FMV e áudio HLE para FPS máximo</string>
-    <string name="pref_3ds_low_end_preset_applied">Perfil rápido para aparelhos fracos aplicado (Turbo JIT, CPU 75%, 1x, áudio HLE)</string>
+    <string name="pref_3ds_low_end_preset_applied">Modo para aparelhos fracos ATIVADO (1x, Hyper JIT, filtro linear)</string>
     <string name="pref_3ds_profile_nand_cat">Perfil 3DS, arquivos do sistema e rede</string>
     <string name="pref_3ds_system_profile_title">Perfil do sistema Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Nome do 3DS, aniversário, Moedas de Jogo (0-300), MAC e ID do console</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Sem fio local e StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Caixas CECD ativas: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Salvo %1$s na pasta de usuário</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ATIVADO: escala 1x, Hyper JIT (CPU 100%), filtro linear de texto, sem render do olho direito</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DESATIVADO: toque para ativar modo rapido (1x, Hyper JIT, filtro linear)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Modo para aparelhos fracos DESATIVADO, configuracoes restauradas</string>
+    <string name="layout_custom_touch_title">Ajuste manual das telas</string>
+    <string name="layout_custom_touch_summary">Mova e redimensione as duas telas 3DS livremente com o dedo</string>
+    <string name="screen_editor_top_label">TELA SUPERIOR</string>
+    <string name="screen_editor_bottom_label">TELA INFERIOR</string>
+    <string name="screen_editor_hint">Arraste para mover - puxe cantos/bordas ou use pinca com dois dedos</string>
+    <string name="screen_editor_aspect_lock">Proporcao</string>
+    <string name="screen_editor_reset">Redefinir</string>
+    <string name="screen_editor_cancel">Cancelar</string>
+    <string name="screen_editor_done">Concluir</string>
+    <string name="screen_editor_saved_toast">Layout manual das telas salvo</string>
+</resources>

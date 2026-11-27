@@ -13,8 +13,8 @@ IDI_ICON1 ICON DISCARDABLE "../../dist/storm3ds.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "../../dist/azahar.manifest"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,11,1,0
- PRODUCTVERSION 1,11,1,0
+ FILEVERSION 1,12,0,0
+ PRODUCTVERSION 1,12,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -31,12 +31,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "STORM TEAM"
             VALUE "FileDescription", "STORM 3DS - Nintendo 3DS Emulator"
-            VALUE "FileVersion", "1.11.1"
+            VALUE "FileVersion", "1.12.0"
             VALUE "InternalName", "STORM_3DS"
             VALUE "LegalCopyright", "Copyright STORM TEAM (Citra / Azahar core, GPLv2/GPLv3)"
             VALUE "OriginalFilename", "STORM_3DS.exe"
             VALUE "ProductName", "STORM 3DS"
-            VALUE "ProductVersion", "1.11.1"
+            VALUE "ProductVersion", "1.12.0"
         END
     END
     BLOCK "VarFileInfo"

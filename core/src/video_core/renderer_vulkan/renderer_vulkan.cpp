@@ -1203,7 +1203,11 @@ void RendererVulkan::SwapBuffers() {
     }
 #endif
     if (!screenRendered) {
-        scheduler.Finish();
+        if (Settings::values.use_skip_duplicate_frames.GetValue()) {
+            scheduler.Flush();
+        } else {
+            scheduler.Finish();
+        }
     }
 
     system.perf_stats->EndSwap();

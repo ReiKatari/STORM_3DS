@@ -1,21 +1,21 @@
 package com.storm3ds.emulator.ui.common.views
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.*
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.DecelerateInterpolator
 import androidx.preference.PreferenceManager
 import kotlin.math.atan2
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.min
 
 /**
- * New Nintendo 3DS compact micro C-Stick nub with isometric 3D concave top
- * and radial micro-tilt feedback.
+ * New Nintendo 3DS C-Stick nub with circular thumb travel matching Circle Pad,
+ * true round cap (no oval squashing), and smooth zero-allocation tracking.
  */
 class ModernCStickView @JvmOverloads constructor(
     context: Context,
@@ -23,19 +23,29 @@ class ModernCStickView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
+    companion object {
+        private const val DEADZONE = 0.035f
+        private const val SEND_EPSILON = 0.0015f
+    }
+
     var onAxisChanged: ((Float, Float) -> Unit)? = null
 
-    private var axisX = 0f
-    private var axisY = 0f
+    private var targetAxisX = 0f
+    private var targetAxisY = 0f
+    private var displayAxisX = 0f
+    private var displayAxisY = 0f
+    private var lastSentX = 0f
+    private var lastSentY = 0f
     private var isEngaged = false
     private var activePointerId = MotionEvent.INVALID_POINTER_ID
-    private var resetAnimator: ValueAnimator? = null
+    private var lastFrameTimeMs = 0L
 
     private val bezelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val bezelStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2.5f
     }
+    private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val tiltArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 4.5f
@@ -56,8 +66,17 @@ class ModernCStickView @JvmOverloads constructor(
         typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
     }
 
+    private val arcRect = RectF()
+    private val shaderMatrix = Matrix()
+    private var cachedNubShader: RadialGradient? = null
+    private var cachedConcaveShader: LinearGradient? = null
+    private var cachedShaderSize = -1f
+    private var cachedShaderStyle: ButtonColorStyle? = null
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "button_color_theme") {
+            cachedNubShader = null
+            cachedConcaveShader = null
             postInvalidate()
         }
     }
@@ -74,21 +93,20 @@ class ModernCStickView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        resetAnimator?.cancel()
         PreferenceManager.getDefaultSharedPreferences(context)
             .unregisterOnSharedPreferenceChangeListener(prefListener)
     }
 
     fun updateAxis(x: Float, y: Float) {
-        resetAnimator?.cancel()
         val mag = hypot(x, y)
-        if (mag > 1f) {
-            axisX = x / mag
-            axisY = y / mag
-        } else {
-            axisX = x.coerceIn(-1f, 1f)
-            axisY = y.coerceIn(-1f, 1f)
-        }
+        val clampedX = if (mag > 1f) x / mag else x.coerceIn(-1f, 1f)
+        val clampedY = if (mag > 1f) y / mag else y.coerceIn(-1f, 1f)
+        targetAxisX = clampedX
+        targetAxisY = clampedY
+        displayAxisX = clampedX
+        displayAxisY = clampedY
+        lastSentX = clampedX
+        lastSentY = clampedY
         invalidate()
     }
 
@@ -100,15 +118,29 @@ class ModernCStickView @JvmOverloads constructor(
         val size = min(w, h)
         val cx = w / 2f
         val cy = h / 2f
-        val activeRadius = (size * 0.42f).coerceAtLeast(1f)
+        val bezelRadius = size * 0.44f
+        val nubRadius = size * 0.25f
+        val maxTravel = (bezelRadius - nubRadius * 0.85f).coerceAtLeast(1f)
+        val activeRadius = (maxTravel * 1.45f).coerceAtLeast(1f)
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 parent?.requestDisallowInterceptTouchEvent(true)
-                resetAnimator?.cancel()
                 activePointerId = event.getPointerId(0)
                 isEngaged = true
+                lastFrameTimeMs = SystemClock.uptimeMillis()
                 updateFromTouch(event.x, event.y, cx, cy, activeRadius)
+                return true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                if (activePointerId == MotionEvent.INVALID_POINTER_ID) {
+                    val idx = event.actionIndex
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    activePointerId = event.getPointerId(idx)
+                    isEngaged = true
+                    lastFrameTimeMs = SystemClock.uptimeMillis()
+                    updateFromTouch(event.getX(idx), event.getY(idx), cx, cy, activeRadius)
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -119,21 +151,13 @@ class ModernCStickView @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isEngaged = false
-                activePointerId = MotionEvent.INVALID_POINTER_ID
-                parent?.requestDisallowInterceptTouchEvent(false)
-                onAxisChanged?.invoke(0f, 0f)
-                animateReturn()
+                releaseStick()
                 return true
             }
             MotionEvent.ACTION_POINTER_UP -> {
                 val pointerIndex = event.actionIndex
                 if (event.getPointerId(pointerIndex) == activePointerId) {
-                    isEngaged = false
-                    activePointerId = MotionEvent.INVALID_POINTER_ID
-                    parent?.requestDisallowInterceptTouchEvent(false)
-                    onAxisChanged?.invoke(0f, 0f)
-                    animateReturn()
+                    releaseStick()
                 }
                 return true
             }
@@ -141,42 +165,48 @@ class ModernCStickView @JvmOverloads constructor(
         return super.onTouchEvent(event)
     }
 
+    private fun releaseStick() {
+        isEngaged = false
+        activePointerId = MotionEvent.INVALID_POINTER_ID
+        parent?.requestDisallowInterceptTouchEvent(false)
+        targetAxisX = 0f
+        targetAxisY = 0f
+        lastFrameTimeMs = SystemClock.uptimeMillis()
+        emitAxisIfNeeded(0f, 0f, forceZero = true)
+        postInvalidateOnAnimation()
+    }
+
     private fun updateFromTouch(touchX: Float, touchY: Float, cx: Float, cy: Float, maxRadius: Float) {
         val dx = touchX - cx
         val dy = touchY - cy
         val dist = hypot(dx, dy)
-        val normDist = (dist / maxRadius).coerceIn(0f, 1f)
-        val newX = if (dist > 0.001f) (dx / dist) * normDist else 0f
-        val newY = if (dist > 0.001f) (dy / dist) * normDist else 0f
-
-        if (newX != axisX || newY != axisY) {
-            axisX = newX
-            axisY = newY
-            onAxisChanged?.invoke(axisX, axisY)
-            invalidate()
+        val rawNorm = (dist / maxRadius).coerceIn(0f, 1f)
+        val newX: Float
+        val newY: Float
+        if (rawNorm <= DEADZONE || dist <= 0.001f) {
+            newX = 0f
+            newY = 0f
+        } else {
+            val scaledMag = ((rawNorm - DEADZONE) / (1f - DEADZONE)).coerceIn(0f, 1f)
+            val ux = dx / dist
+            val uy = dy / dist
+            newX = ux * scaledMag
+            newY = uy * scaledMag
         }
+
+        targetAxisX = newX
+        targetAxisY = newY
+        emitAxisIfNeeded(newX, newY, forceZero = (newX == 0f && newY == 0f))
+        postInvalidateOnAnimation()
     }
 
-    private fun animateReturn() {
-        resetAnimator?.cancel()
-        val startX = axisX
-        val startY = axisY
-        if (hypot(startX, startY) < 0.005f) {
-            axisX = 0f
-            axisY = 0f
-            invalidate()
-            return
-        }
-        resetAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = 100L
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { anim ->
-                val f = anim.animatedValue as Float
-                axisX = startX * f
-                axisY = startY * f
-                invalidate()
-            }
-            start()
+    private fun emitAxisIfNeeded(newX: Float, newY: Float, forceZero: Boolean) {
+        val delta = hypot(newX - lastSentX, newY - lastSentY)
+        val zeroChanged = forceZero && (lastSentX != 0f || lastSentY != 0f)
+        if (zeroChanged || delta >= SEND_EPSILON) {
+            lastSentX = newX
+            lastSentY = newY
+            onAxisChanged?.invoke(newX, newY)
         }
     }
 
@@ -186,14 +216,35 @@ class ModernCStickView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
+        val now = SystemClock.uptimeMillis()
+        if (lastFrameTimeMs == 0L) lastFrameTimeMs = now
+        val dtSec = ((now - lastFrameTimeMs).coerceIn(1L, 50L)) / 1000f
+        lastFrameTimeMs = now
+
+        val diffX = targetAxisX - displayAxisX
+        val diffY = targetAxisY - displayAxisY
+        val diffMag = hypot(diffX, diffY)
+        val needsMoreFrames = if (diffMag > 0.002f) {
+            val speed = if (isEngaged) 48f else 24f
+            val alpha = 1f - exp(-dtSec * speed)
+            displayAxisX += diffX * alpha
+            displayAxisY += diffY * alpha
+            true
+        } else {
+            displayAxisX = targetAxisX
+            displayAxisY = targetAxisY
+            false
+        }
+
         val size = min(w, h)
         val cx = w / 2f
         val cy = h / 2f
         val bezelRadius = size * 0.44f
-        val nubRadius = size * 0.30f
-        val maxTiltShift = size * 0.085f
+        val nubRadius = size * 0.25f
+        val maxTravel = (bezelRadius - nubRadius * 0.85f).coerceAtLeast(1f)
 
-        val (bezelBg, bezelStroke, nubTop, nubBottom, accentGlow, textTint) = resolveColors(ButtonThemeManager.currentStyle)
+        val currentStyle = ButtonThemeManager.currentStyle
+        val (bezelBg, bezelStroke, nubTop, nubBottom, accentGlow, textTint) = resolveColors(currentStyle)
 
         // Compact recessed bezel ring
         bezelPaint.color = bezelBg
@@ -204,23 +255,20 @@ class ModernCStickView @JvmOverloads constructor(
         // Micro directional dots at N/E/S/W
         val dotR = size * 0.024f
         val dotDist = bezelRadius * 0.85f
-        val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-            color = bezelStroke
-        }
+        dotPaint.color = bezelStroke
         canvas.drawCircle(cx, cy - dotDist, dotR, dotPaint)
         canvas.drawCircle(cx, cy + dotDist, dotR, dotPaint)
         canvas.drawCircle(cx - dotDist, cy, dotR, dotPaint)
         canvas.drawCircle(cx + dotDist, cy, dotR, dotPaint)
 
-        val mag = hypot(axisX, axisY).coerceIn(0f, 1f)
+        val mag = hypot(displayAxisX, displayAxisY).coerceIn(0f, 1f)
 
-        // Radial micro-tilt directional glow arc
+        // Radial directional glow arc
         if (isEngaged || mag > 0.06f) {
-            val angleDeg = Math.toDegrees(atan2(axisY.toDouble(), axisX.toDouble())).toFloat()
+            val angleDeg = Math.toDegrees(atan2(displayAxisY.toDouble(), displayAxisX.toDouble())).toFloat()
             tiltArcPaint.color = accentGlow
             tiltArcPaint.alpha = (90 + mag * 165).toInt().coerceIn(0, 255)
-            val arcRect = RectF(
+            arcRect.set(
                 cx - bezelRadius * 0.90f,
                 cy - bezelRadius * 0.90f,
                 cx + bezelRadius * 0.90f,
@@ -229,43 +277,47 @@ class ModernCStickView @JvmOverloads constructor(
             canvas.drawArc(arcRect, angleDeg - 38f, 76f, false, tiltArcPaint)
         }
 
-        // Isometric micro-tilt position & perspective foreshortening
-        val nubCx = cx + axisX * maxTiltShift
-        val nubCy = cy + axisY * maxTiltShift
+        // Circular analog position matching left Circle Pad (no oval squashing)
+        val nubCx = cx + displayAxisX * maxTravel
+        val nubCy = cy + displayAxisY * maxTravel
 
-        canvas.drawCircle(nubCx + 1.5f, nubCy + 3.5f, nubRadius * 1.04f, shadowPaint)
+        canvas.drawCircle(nubCx + 1.5f, nubCy + 2.5f, nubRadius * 1.03f, shadowPaint)
 
-        canvas.save()
-        if (mag > 0.02f) {
-            val angleDeg = Math.toDegrees(atan2(axisY.toDouble(), axisX.toDouble())).toFloat()
-            canvas.rotate(angleDeg, nubCx, nubCy)
-            canvas.scale(1f - mag * 0.10f, 1f + mag * 0.03f, nubCx, nubCy)
-            canvas.rotate(-angleDeg, nubCx, nubCy)
+        val dishRadius = nubRadius * 0.72f
+        if (cachedNubShader == null || cachedConcaveShader == null ||
+            cachedShaderSize != size || cachedShaderStyle != currentStyle
+        ) {
+            cachedShaderSize = size
+            cachedShaderStyle = currentStyle
+            cachedNubShader = RadialGradient(
+                -nubRadius * 0.25f,
+                -nubRadius * 0.30f,
+                nubRadius * 1.35f,
+                nubTop,
+                nubBottom,
+                Shader.TileMode.CLAMP,
+            )
+            cachedConcaveShader = LinearGradient(
+                -dishRadius,
+                -dishRadius,
+                dishRadius,
+                dishRadius,
+                nubBottom,
+                nubTop,
+                Shader.TileMode.CLAMP,
+            )
         }
 
-        // Nub outer bevel skirt
-        nubBodyPaint.shader = RadialGradient(
-            nubCx - nubRadius * 0.25f,
-            nubCy - nubRadius * 0.30f,
-            nubRadius * 1.35f,
-            nubTop,
-            nubBottom,
-            Shader.TileMode.CLAMP,
-        )
+        shaderMatrix.setTranslate(nubCx, nubCy)
+        val nubShader = cachedNubShader!!
+        nubShader.setLocalMatrix(shaderMatrix)
+        nubBodyPaint.shader = nubShader
         canvas.drawCircle(nubCx, nubCy, nubRadius, nubBodyPaint)
         nubBodyPaint.shader = null
 
-        // Isometric 3D concave top dish (inverted gradient: darker top-left, lit bottom-right inner rim)
-        val dishRadius = nubRadius * 0.72f
-        nubConcavePaint.shader = LinearGradient(
-            nubCx - dishRadius,
-            nubCy - dishRadius,
-            nubCx + dishRadius,
-            nubCy + dishRadius,
-            nubBottom,
-            nubTop,
-            Shader.TileMode.CLAMP,
-        )
+        val concaveShader = cachedConcaveShader!!
+        concaveShader.setLocalMatrix(shaderMatrix)
+        nubConcavePaint.shader = concaveShader
         canvas.drawCircle(nubCx, nubCy, dishRadius, nubConcavePaint)
         nubConcavePaint.shader = null
 
@@ -273,14 +325,15 @@ class ModernCStickView @JvmOverloads constructor(
         canvas.drawCircle(nubCx, nubCy, dishRadius, nubRimPaint)
         canvas.drawCircle(nubCx, nubCy, nubRadius, nubRimPaint)
 
-        // Subtle C-stick micro label
         labelPaint.color = textTint
         labelPaint.alpha = 185
         labelPaint.textSize = nubRadius * 0.62f
         val textY = nubCy - (labelPaint.descent() + labelPaint.ascent()) / 2f
         canvas.drawText("C", nubCx, textY, labelPaint)
 
-        canvas.restore()
+        if (needsMoreFrames) {
+            postInvalidateOnAnimation()
+        }
     }
 
     private data class CStickColors(

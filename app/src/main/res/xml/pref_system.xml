@@ -135,10 +135,11 @@
                 android:entryValues="@array/jit_perf_mode_values"
                 android:defaultValue="3" />
 
-        <Preference
+        <SwitchPreference
                 android:key="3ds_low_end_preset"
                 android:title="@string/pref_3ds_low_end_preset_title"
-                android:summary="@string/pref_3ds_low_end_preset_summary"
+                android:summary="@string/pref_3ds_low_end_preset_summary_off"
+                android:defaultValue="false"
                 app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

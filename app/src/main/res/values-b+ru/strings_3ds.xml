@@ -269,7 +269,7 @@
     <string name="pref_3ds_jit_mode_title">Профиль STORM-компилятора</string>
     <string name="pref_3ds_low_end_preset_title">Оптимизация для слабых и старых устройств</string>
     <string name="pref_3ds_low_end_preset_summary">Включает Турбо ARM11 JIT, 75% частоты ЦП, разрешение 1x, пропуск дублей кадров, отключение 2-го глаза, FMV-хак и HLE-звук для макс. FPS</string>
-    <string name="pref_3ds_low_end_preset_applied">Профиль для слабых устройств применен (Турбо JIT, ЦП 75%, 1x, HLE-звук)</string>
+    <string name="pref_3ds_low_end_preset_applied">Режим слабых устройств ВКЛЮЧЕН (1x, Гипер JIT, линейный фильтр)</string>
     <string name="pref_3ds_profile_nand_cat">Профиль 3DS, системные файлы и сеть</string>
     <string name="pref_3ds_system_profile_title">Профиль системы Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Имя в 3DS, дата рождения, Play Coins (0-300), MAC-адрес и Console ID</string>
@@ -480,4 +480,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Локальная связь и StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Активных почтовых ящиков CECD: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Файл %1$s сохранён в папке данных</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ВКЛЮЧЕН: 1x масштаб, Гипер JIT (100% ЦП), линейный фильтр текста, пропуск 2-го глаза и тяжелых вызовов</string>
+    <string name="pref_3ds_low_end_preset_summary_off">ВЫКЛЮЧЕН: нажмите для ускорения (1x масштаб, Гипер JIT, линейный фильтр, пропуск правого глаза)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Режим слабых устройств ВЫКЛЮЧЕН, прежние настройки восстановлены</string>
+    <string name="layout_custom_touch_title">Ручная настройка экранов</string>
+    <string name="layout_custom_touch_summary">Свободно перемещайте и растягивайте оба экрана 3DS пальцем прямо на экране</string>
+    <string name="screen_editor_top_label">ВЕРХНИЙ ЭКРАН</string>
+    <string name="screen_editor_bottom_label">НИЖНИЙ ЭКРАН</string>
+    <string name="screen_editor_hint">Тяните экран для сдвига - тяните углы/края или сводите два пальца для размера</string>
+    <string name="screen_editor_aspect_lock">Пропорции</string>
+    <string name="screen_editor_reset">Сброс</string>
+    <string name="screen_editor_cancel">Отмена</string>
+    <string name="screen_editor_done">Готово</string>
+    <string name="screen_editor_saved_toast">Расположение экранов 3DS сохранено</string>
+</resources>

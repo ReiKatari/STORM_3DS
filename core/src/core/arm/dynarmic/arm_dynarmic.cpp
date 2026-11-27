@@ -453,7 +453,7 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     const u32 default_mb = (jit_mode == 3) ? 192u : ((jit_mode == 2) ? 64u : 96u);
 #else
     constexpr u32 kMaxCacheMb = 128u;
-    const u32 default_mb = (jit_mode == 3) ? 128u : ((jit_mode == 2) ? 48u : 64u);
+    const u32 default_mb = (jit_mode == 3) ? 128u : ((jit_mode == 2) ? 96u : 64u);
 #endif
     const u32 configured_mb = Settings::values.storm_jit_cache_mb;
     const u32 cache_mb = std::clamp(configured_mb > 0 ? configured_mb : default_mb, 32u, kMaxCacheMb);

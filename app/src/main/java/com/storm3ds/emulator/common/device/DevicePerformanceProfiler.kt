@@ -94,9 +94,9 @@ object DevicePerformanceProfiler {
 
         val recommendedRes = when (tier) {
             DeviceTier.LEGACY_LOW -> 1
-            DeviceTier.MID_RANGE -> 2
+            DeviceTier.MID_RANGE -> 1
             DeviceTier.HIGH_END -> 2
-            DeviceTier.FLAGSHIP -> 3
+            DeviceTier.FLAGSHIP -> 2
         }
 
         val recommendedJitMb = when (tier) {

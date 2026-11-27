@@ -2689,9 +2689,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
     private fun showVideoQuickProfileDialog() {
         val ctx = context ?: return
         val prefs = preferenceManager.sharedPreferences
-        val curRes = prefs?.getString("video_internal_resolution", "2") ?: "2"
+        val curRes = prefs?.getString("video_internal_resolution", "1") ?: "1"
         val curSkipDup = prefs?.getBoolean("3ds_skip_duplicate_frames", false) ?: false
         val curAccMul = prefs?.getBoolean("3ds_accurate_mul", false) ?: false
+        val curLowEndPreset = prefs?.getBoolean("3ds_low_end_preset", false) ?: false
         val profile = com.storm3ds.emulator.common.device.DevicePerformanceProfiler.profile(
             ctx,
             com.storm3ds.emulator.MelonDSAndroidInterface.isVulkanRendererSupported(),
@@ -2710,7 +2711,7 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
         )
         val values = listOf<CharSequence>("-1", "0", "1", "2", "3")
         val selectedValue = when {
-            curRes == "1" && curSkipDup -> "0"
+            curLowEndPreset || (curRes == "1" && curSkipDup) -> "0"
             curRes == "1" && !curSkipDup -> "1"
             curRes == "4" && curAccMul -> "3"
             curRes == "2" && !curAccMul -> "2"
@@ -2751,13 +2752,13 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             else -> "2"
         }
         val filteringValue = when {
-            isAuto -> if (profile.isLegacyOrLowEnd) VideoFiltering.NONE.name.lowercase() else VideoFiltering.QUILEZ.name.lowercase()
-            presetIndex == 0 || presetIndex == 1 -> VideoFiltering.NONE.name.lowercase()
+            isAuto -> if (profile.isLegacyOrLowEnd) VideoFiltering.LINEAR.name.lowercase() else VideoFiltering.QUILEZ.name.lowercase()
+            presetIndex == 0 || presetIndex == 1 -> VideoFiltering.LINEAR.name.lowercase()
             else -> VideoFiltering.QUILEZ.name.lowercase()
         }
         val accurateMul = if (isAuto) (profile.tier == com.storm3ds.emulator.common.device.DevicePerformanceProfiler.DeviceTier.FLAGSHIP) else (presetIndex == 3)
-        val jitMode = if (isAuto) "3" else if (isWeak) "2" else "1"
-        val cpuClock = if (isWeak) "75" else "100"
+        val jitMode = "3"
+        val cpuClock = "100"
         val autoRenderer = if (profile.recommendedRenderer == VideoRenderer.VULKAN) "vulkan" else "opengl"
 
         preferenceManager.sharedPreferences?.edit()?.apply {
@@ -2771,8 +2772,10 @@ class VideoPreferencesFragment : BasePreferenceFragment(), PreferenceFragmentTit
             putBoolean("3ds_accurate_mul", accurateMul)
             putBoolean("3ds_skip_duplicate_frames", isWeak)
             putBoolean("3ds_disable_right_eye", isWeak)
-            putBoolean("3ds_fmv_hack", true)
+            putBoolean("3ds_fmv_hack", false)
+            putBoolean("3ds_spirv_opt", false)
             putBoolean("3ds_skip_slow_draw", isWeak)
+            putBoolean("3ds_low_end_preset", isWeak)
             putString("3ds_jit_mode", jitMode)
             putString("3ds_cpu_clock_percentage", cpuClock)
             putBoolean("3ds_audio_stretch", true)

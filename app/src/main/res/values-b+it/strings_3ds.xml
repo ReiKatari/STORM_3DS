@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">Profilo compilatore STORM</string>
     <string name="pref_3ds_low_end_preset_title">Ottimizza per dispositivi vecchi e lenti</string>
     <string name="pref_3ds_low_end_preset_summary">Attiva Turbo ARM11 JIT, clock CPU 75%, risoluzione 1x, salto fotogrammi duplicati, disattiva occhio destro, hack FMV e audio HLE per FPS massimi</string>
-    <string name="pref_3ds_low_end_preset_applied">Profilo velocità per dispositivi lenti applicato (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_low_end_preset_applied">Modalita dispositivi deboli ATTIVA (1x, Hyper JIT, filtro lineare)</string>
     <string name="pref_3ds_profile_nand_cat">Profilo 3DS, file di sistema e rete</string>
     <string name="pref_3ds_system_profile_title">Profilo di sistema Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Nome 3DS, compleanno, monete di gioco (0-300), indirizzo MAC e ID console</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Wireless locale e StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Caselle CECD attive: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Salvato %1$s nella cartella utente</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ATTIVO: scala 1x, Hyper JIT (CPU 100%), filtro lineare testo, salta occhio destro e slow-draw</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DISATTIVO: tocca per attivare la modalita veloce (1x, Hyper JIT, filtro lineare)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Modalita dispositivi deboli DISATTIVA, impostazioni ripristinate</string>
+    <string name="layout_custom_touch_title">Regolazione manuale schermi</string>
+    <string name="layout_custom_touch_summary">Sposta e ridimensiona liberamente entrambi gli schermi 3DS con il dito</string>
+    <string name="screen_editor_top_label">SCHERMO SUPERIORE</string>
+    <string name="screen_editor_bottom_label">SCHERMO INFERIORE</string>
+    <string name="screen_editor_hint">Trascina per spostare - tira angoli/bordi o pizzica con due dita</string>
+    <string name="screen_editor_aspect_lock">Proporzioni</string>
+    <string name="screen_editor_reset">Ripristina</string>
+    <string name="screen_editor_cancel">Annulla</string>
+    <string name="screen_editor_done">Fatto</string>
+    <string name="screen_editor_saved_toast">Layout schermi personalizzato salvato</string>
+</resources>

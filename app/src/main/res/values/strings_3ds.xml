@@ -269,7 +269,7 @@ If the second phone shares a hotspot and the room does not appear, enter its IP 
     <string name="pref_3ds_jit_mode_title">STORM Compiler Optimization Profile</string>
     <string name="pref_3ds_low_end_preset_title">Optimize for Weak &amp; Old Devices</string>
     <string name="pref_3ds_low_end_preset_summary">Enables Turbo ARM11 JIT, 75% CPU clock, 1x resolution, frame skip, 2D right-eye skip, FMV hack &amp; HLE audio for maximum FPS</string>
-    <string name="pref_3ds_low_end_preset_applied">Low-end device speed profile applied (Turbo JIT, 75% CPU, 1x, HLE audio)</string>
+    <string name="pref_3ds_low_end_preset_applied">Weak device speed mode ENABLED (1x, Hyper JIT, linear filtering)</string>
     <string name="pref_3ds_profile_nand_cat">3DS Profile, System Files &amp; Online</string>
     <string name="pref_3ds_system_profile_title">Nintendo 3DS System Profile</string>
     <string name="pref_3ds_system_profile_summary">3DS username, birthday, Play Coins (0-300), MAC address &amp; Console ID</string>
@@ -477,4 +477,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Local Wireless &amp; StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Active CECD mailbox boxes: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Saved %1$s in user directory</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">ENABLED: 1x scale, Hyper JIT (100% CPU), linear text filtering, right-eye &amp; slow-draw skip</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DISABLED: tap to enable speed mode (1x scale, Hyper JIT, linear filtering, 2D right-eye skip)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Weak device speed mode DISABLED, previous settings restored</string>
+    <string name="layout_custom_touch_title">Manual Screen Setup (Finger)</string>
+    <string name="layout_custom_touch_summary">Move and resize both 3DS screens freely by dragging and stretching with your finger</string>
+    <string name="screen_editor_top_label">TOP SCREEN</string>
+    <string name="screen_editor_bottom_label">BOTTOM SCREEN</string>
+    <string name="screen_editor_hint">Drag screen to move - drag corners/edges or pinch with two fingers to resize</string>
+    <string name="screen_editor_aspect_lock">Aspect Ratio</string>
+    <string name="screen_editor_reset">Reset</string>
+    <string name="screen_editor_cancel">Cancel</string>
+    <string name="screen_editor_done">Done</string>
+    <string name="screen_editor_saved_toast">Custom 3DS screen layout saved</string>
+</resources>

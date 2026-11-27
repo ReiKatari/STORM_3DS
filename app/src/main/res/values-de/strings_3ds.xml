@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">STORM-Compiler-Optimierungsprofil</string>
     <string name="pref_3ds_low_end_preset_title">Für schwache &amp; ältere Geräte optimieren</string>
     <string name="pref_3ds_low_end_preset_summary">Aktiviert Turbo ARM11 JIT, 75% CPU-Takt, 1x Auflösung, Frame-Skip, Rechtes-Auge-Skip, FMV-Hack &amp; HLE-Audio für maximale FPS</string>
-    <string name="pref_3ds_low_end_preset_applied">Leistungsprofil für schwache Geräte angewendet (Turbo JIT, 75% CPU, 1x, HLE-Audio)</string>
+    <string name="pref_3ds_low_end_preset_applied">Modus fuer schwache Geraete AKTIVIERT (1x, Hyper-JIT, Linear)</string>
     <string name="pref_3ds_profile_nand_cat">3DS-Profil, Systemdateien &amp; Online</string>
     <string name="pref_3ds_system_profile_title">Nintendo 3DS-Systemprofil</string>
     <string name="pref_3ds_system_profile_summary">3DS-Nutzername, Geburtstag, Spielmünzen (0-300), MAC-Adresse &amp; Konsolen-ID</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Lokales WLAN &amp; StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Aktive CECD-Postfächer: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">%1$s im Benutzerordner gespeichert</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">AKTIVIERT: 1x Aufloesung, Hyper-JIT (100% CPU), lineare Textfilterung, Rechtes-Auge- &amp; Slow-Draw-Skip</string>
+    <string name="pref_3ds_low_end_preset_summary_off">DEAKTIVIERT: tippen fuer Leistungsmodus (1x, Hyper-JIT, linearer Filter, 2D-Optimierung)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Modus fuer schwache Geraete DEAKTIVIERT, vorherige Werte wiederhergestellt</string>
+    <string name="layout_custom_touch_title">Manuelle Bildschirmanpassung</string>
+    <string name="layout_custom_touch_summary">Beide 3DS-Bildschirme direkt per Finger verschieben und stufenlos skalieren</string>
+    <string name="screen_editor_top_label">OBERER BILDSCHIRM</string>
+    <string name="screen_editor_bottom_label">UNTERER BILDSCHIRM</string>
+    <string name="screen_editor_hint">Zum Verschieben ziehen - Ecken/Kanten ziehen oder mit zwei Fingern skalieren</string>
+    <string name="screen_editor_aspect_lock">Seitenverhaeltnis</string>
+    <string name="screen_editor_reset">Zuruecksetzen</string>
+    <string name="screen_editor_cancel">Abbrechen</string>
+    <string name="screen_editor_done">Fertig</string>
+    <string name="screen_editor_saved_toast">Benutzerdefinierte Bildschirme gespeichert</string>
+</resources>

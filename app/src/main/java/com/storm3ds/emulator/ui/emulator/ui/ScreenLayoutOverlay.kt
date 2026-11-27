@@ -67,6 +67,7 @@ enum class ScreenLayoutMode {
     PROPORTIONAL_LANDSCAPE,
     FULLSCREEN_LANDSCAPE,
     AUTO_ROTATE,
+    CUSTOM_TOUCH,
     OPEN_LAYOUT_EDITOR,
 }
 
@@ -272,6 +273,19 @@ fun ScreenLayoutOverlay(
                         icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.AUTO_ROTATE, isSel, colors.green, colors.text2) },
                         onClick = {
                             onLayoutModeSelected(ScreenLayoutMode.AUTO_ROTATE)
+                            onDismiss()
+                        },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LayoutOptionItem(
+                        title = stringResource(R.string.layout_custom_touch_title),
+                        subtitle = stringResource(R.string.layout_custom_touch_summary),
+                        isSelected = currentLayoutMode == ScreenLayoutMode.CUSTOM_TOUCH,
+                        icon = { isSel -> LayoutModeIcon(ScreenLayoutMode.CUSTOM_TOUCH, isSel, colors.green, colors.text2) },
+                        onClick = {
+                            onLayoutModeSelected(ScreenLayoutMode.CUSTOM_TOUCH)
                             onDismiss()
                         },
                     )
@@ -518,7 +532,7 @@ private fun LayoutModeIcon(mode: ScreenLayoutMode, isSelected: Boolean, activeCo
                 modifier = Modifier.size(24.dp),
             )
         }
-        ScreenLayoutMode.OPEN_LAYOUT_EDITOR -> {
+        ScreenLayoutMode.CUSTOM_TOUCH, ScreenLayoutMode.OPEN_LAYOUT_EDITOR -> {
             Icon(
                 imageVector = Icons.Filled.DashboardCustomize,
                 contentDescription = null,

@@ -902,13 +902,13 @@ void RendererOpenGL::DrawBottomScreen(const Layout::FramebufferLayout& layout,
     }
 }
 
-void RendererOpenGL::TryPresent(int timeout_ms, bool is_secondary) {
+bool RendererOpenGL::TryPresent(int timeout_ms, bool is_secondary) {
     const auto& window = is_secondary ? *secondary_window : render_window;
     const auto& layout = window.GetFramebufferLayout();
     auto frame = window.mailbox->TryGetPresentFrame(timeout_ms);
     if (!frame) {
         LOG_DEBUG(Render_OpenGL, "TryGetPresentFrame returned no frame to present");
-        return;
+        return false;
     }
 
     // Clearing before a full overwrite of a fbo can signal to drivers that they can avoid a
@@ -944,6 +944,7 @@ void RendererOpenGL::TryPresent(int timeout_ms, bool is_secondary) {
     glFlush();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    return true;
 }
 
 void RendererOpenGL::PrepareVideoDumping() {

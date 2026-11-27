@@ -268,7 +268,7 @@
     <string name="pref_3ds_jit_mode_title">Profil Kompiler STORM</string>
     <string name="pref_3ds_low_end_preset_title">Optimalkan untuk Perangkat Lama &amp; Lemah</string>
     <string name="pref_3ds_low_end_preset_summary">Mengaktifkan Turbo ARM11 JIT, clock CPU 75%, resolusi 1x, lewati frame ganda, nonaktifkan mata kanan, hack FMV &amp; audio HLE untuk FPS maksimal</string>
-    <string name="pref_3ds_low_end_preset_applied">Profil kecepatan perangkat lemah diterapkan (Turbo JIT, CPU 75%, 1x, audio HLE)</string>
+    <string name="pref_3ds_low_end_preset_applied">Mode perangkat ringan AKTIF (1x, Hyper JIT, filter linear)</string>
     <string name="pref_3ds_profile_nand_cat">Profil 3DS, Berkas Sistem &amp; Jaringan</string>
     <string name="pref_3ds_system_profile_title">Profil Sistem Nintendo 3DS</string>
     <string name="pref_3ds_system_profile_summary">Nama 3DS, tanggal lahir, Play Coins (0-300), alamat MAC &amp; ID Konsol</string>
@@ -479,4 +479,17 @@ SDMC: %7$s</string>
     <string name="netplay_3ds_streetpass_title">Nirkabel Lokal &amp; StreetPass (CECD)</string>
     <string name="netplay_3ds_streetpass_stats_fmt">Kotak surat CECD aktif: %1$d</string>
     <string name="setup_3ds_artic_saved_fmt">Tersimpan %1$s di direktori pengguna</string>
-    </resources>
+        <string name="pref_3ds_low_end_preset_summary_on">AKTIF: skala 1x, Hyper JIT (CPU 100%), filter teks linear, lewati mata kanan &amp; slow-draw</string>
+    <string name="pref_3ds_low_end_preset_summary_off">NONAKTIF: ketuk untuk mengaktifkan mode cepat (1x, Hyper JIT, filter linear)</string>
+    <string name="pref_3ds_low_end_preset_disabled">Mode perangkat ringan NONAKTIF, setelan sebelumnya dipulihkan</string>
+    <string name="layout_custom_touch_title">Atur Layar Manual (Jari)</string>
+    <string name="layout_custom_touch_summary">Geser dan ubah ukuran kedua layar 3DS secara bebas langsung dengan jari</string>
+    <string name="screen_editor_top_label">LAYAR ATAS</string>
+    <string name="screen_editor_bottom_label">LAYAR BAWAH</string>
+    <string name="screen_editor_hint">Seret untuk memindah - tarik sudut/tepi atau cubit dengan dua jari</string>
+    <string name="screen_editor_aspect_lock">Rasio Aspek</string>
+    <string name="screen_editor_reset">Atur Ulang</string>
+    <string name="screen_editor_cancel">Batal</string>
+    <string name="screen_editor_done">Selesai</string>
+    <string name="screen_editor_saved_toast">Tata letak layar khusus disimpan</string>
+</resources>

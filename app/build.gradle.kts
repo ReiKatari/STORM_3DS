@@ -137,20 +137,20 @@ android {
             externalNativeBuild {
                 cmake {
                     cFlags(
-                        "-O3", "-fomit-frame-pointer", "-finline-functions",
+                        "-O3", "-flto=thin", "-fomit-frame-pointer", "-finline-functions",
                         "-fvectorize", "-fslp-vectorize", "-funroll-loops",
                         "-fno-semantic-interposition", "-fno-math-errno", "-fno-trapping-math",
                         "-ffunction-sections", "-fdata-sections",
                     )
                     cppFlags(
-                        "-O3", "-fomit-frame-pointer", "-fvisibility-inlines-hidden",
+                        "-O3", "-flto=thin", "-fomit-frame-pointer", "-fvisibility-inlines-hidden",
                         "-finline-functions", "-fvectorize", "-fslp-vectorize", "-funroll-loops",
                         "-fno-semantic-interposition", "-fno-math-errno", "-fno-trapping-math",
                         "-ffunction-sections", "-fdata-sections",
                     )
                     arguments(
                         "-DDYNARMIC_IGNORE_ASSERTS=ON",
-                        "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-Wl,-O3,--gc-sections,--icf=safe",
+                        "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=-flto=thin -fuse-ld=lld -Wl,-O3,--lto-O3,--gc-sections,--icf=safe",
                     )
                 }
             }

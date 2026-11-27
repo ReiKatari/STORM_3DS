@@ -34,7 +34,9 @@
     <com.storm3ds.emulator.ui.emulator.RuntimeLayoutView
             android:id="@+id/view_layout_controls"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false" />
 
     <!-- Classic 1.2.0 Loading Progress and Text -->
     <ProgressBar
