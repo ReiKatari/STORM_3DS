@@ -18,6 +18,9 @@
        <property name="text">
         <string>Double-click on a binding to change it. You can use two-button chords as well.</string>
        </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>

@@ -732,6 +732,9 @@
               <property name="text">
                <string>Note: These settings affect the Single Screen and Separate Windows layouts</string>
               </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
              </widget>
             </item>
            </layout>

@@ -10,6 +10,7 @@
 #include <QtConcurrent/QtConcurrentMap>
 #include "citra_qt/configuration/configuration_shared.h"
 #include "citra_qt/configuration/configure_system.h"
+#include "citra_qt/storm_theme.h"
 #include "common/file_util.h"
 #include "common/settings.h"
 #include "core/core.h"
@@ -296,7 +297,10 @@ ConfigureSystem::ConfigureSystem(Core::System& system_, QWidget* parent)
         }
     }
     ui->label_country_invalid->setVisible(false);
-    ui->label_country_invalid->setStyleSheet(QStringLiteral("QLabel { color: #ff3333; }"));
+    ui->label_country_invalid->setStyleSheet(
+        QStringLiteral("QLabel { color: %1; font-weight: 600; }")
+            .arg(StormTheme::IsCurrentThemeDark() ? QStringLiteral("#FB7185")
+                                                  : QStringLiteral("#DC2626")));
 
     SetupPerGameUI();
     ConfigureTime();
@@ -630,12 +634,12 @@ void ConfigureSystem::UnlinkConsole() {
     ui->button_unlink_console->setEnabled(false);
     QMessageBox::StandardButton reply;
     QString warning_text =
-        tr("This action will unlink your real console from Azahar, with the following "
+        tr("This action will unlink your real console from STORM 3DS, with the following "
            "consequences:<br><ul><li>Your OTP, SecureInfo and LocalFriendCodeSeed will be removed "
-           "from Azahar.</li><li>Your friend list will reset and you will be logged out of your "
-           "NNID/PNID account.</li><li>System files and eshop titles obtained through Azahar will "
-           "become inaccessible until the same console is linked again (save data will not be "
-           "lost).</li></ul><br>Continue?");
+           "from STORM 3DS.</li><li>Your friend list will reset and you will be logged out of "
+           "your NNID/PNID account.</li><li>System files and eshop titles obtained through "
+           "STORM 3DS will become inaccessible until the same console is linked again (save data "
+           "will not be lost).</li></ul><br>Continue?");
     reply =
         QMessageBox::warning(this, tr("Warning"), warning_text, QMessageBox::No | QMessageBox::Yes);
     if (reply == QMessageBox::No) {

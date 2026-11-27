@@ -659,6 +659,10 @@ void GRenderWindow::TouchUpdateEvent(const QTouchEvent* event) {
         }
     }
 
+    if (active_points == 0) {
+        return;
+    }
+
     pos /= active_points;
 
     const auto [x, y] = ScaleTouch(pos);
@@ -783,22 +787,29 @@ void GRenderWindow::ReleaseRenderTarget() {
     main_context.reset();
 }
 
-void GRenderWindow::CaptureScreenshot(u32 res_scale, const QString& screenshot_path) {
+void GRenderWindow::CaptureScreenshot(u32 res_scale, const QString& screenshot_path,
+                                      std::function<void()> on_finished) {
     auto& renderer = system.GPU().Renderer();
     if (res_scale == 0) {
         res_scale = renderer.GetResolutionScaleFactor();
     }
 
     const auto layout{Layout::FrameLayoutFromResolutionScale(res_scale, is_secondary)};
-    screenshot_image = QImage(QSize(layout.width, layout.height), QImage::Format_RGB32);
+    auto captured_image =
+        std::make_shared<QImage>(QSize(layout.width, layout.height), QImage::Format_RGB32);
     renderer.RequestScreenshot(
-        screenshot_image.bits(),
-        [this, screenshot_path](bool invert_y) {
+        captured_image->bits(),
+        [this, captured_image, screenshot_path, on_finished = std::move(on_finished)](
+            bool invert_y) mutable {
             const std::string std_screenshot_path = screenshot_path.toStdString();
-            if (GetMirroredImage(screenshot_image, false, invert_y).save(screenshot_path)) {
+            if (GetMirroredImage(*captured_image, false, invert_y).save(screenshot_path)) {
                 LOG_INFO(Frontend, "Screenshot saved to \"{}\"", std_screenshot_path);
             } else {
                 LOG_ERROR(Frontend, "Failed to save screenshot to \"{}\"", std_screenshot_path);
+            }
+            if (on_finished) {
+                QMetaObject::invokeMethod(
+                    this, [cb = std::move(on_finished)]() { cb(); }, Qt::QueuedConnection);
             }
         },
         layout);

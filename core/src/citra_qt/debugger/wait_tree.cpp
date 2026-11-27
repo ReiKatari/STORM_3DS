@@ -4,6 +4,7 @@
 
 #include <array>
 #include "citra_qt/debugger/wait_tree.h"
+#include "citra_qt/storm_theme.h"
 #include "citra_qt/uisettings.h"
 #include "common/assert.h"
 #include "core/hle/kernel/event.h"
@@ -28,8 +29,7 @@ constexpr std::array<std::array<Qt::GlobalColor, 2>, 8> WaitTreeColors{{
 }};
 
 bool IsDarkTheme() {
-    const auto& theme = UISettings::values.theme;
-    return theme == QStringLiteral("qdarkstyle") || theme == QStringLiteral("colorful_dark");
+    return StormTheme::IsCurrentThemeDark();
 }
 
 } // namespace

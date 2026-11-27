@@ -25,9 +25,11 @@ public:
 
 private slots:
     void OnLanguageChanged(int index);
+    void OnThemeChanged(int index);
 
 signals:
     void LanguageChanged(const QString& locale);
+    void ThemeChanged(const QString& theme);
 
 private:
     std::unique_ptr<Ui::ConfigureUi> ui;

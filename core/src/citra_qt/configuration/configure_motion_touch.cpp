@@ -11,6 +11,7 @@
 #include <QVBoxLayout>
 #include "citra_qt/configuration/configure_motion_touch.h"
 #include "citra_qt/configuration/configure_touch_from_button.h"
+#include "citra_qt/storm_theme.h"
 #include "common/logging/log.h"
 #include "input_common/main.h"
 #include "ui_configure_motion_touch.h"
@@ -100,9 +101,9 @@ ConfigureMotionTouch::ConfigureMotionTouch(QWidget* parent)
 
     ui->udp_learn_more->setOpenExternalLinks(true);
     ui->udp_learn_more->setText(
-        tr("<a "
-           "href='https://wiki.cemu.info/wiki/Cemuhook'><span "
-           "style=\"text-decoration: underline; color:#039be5;\">Learn More</span></a>"));
+        tr("<a href='https://wiki.cemu.info/wiki/Cemuhook'><span "
+           "style=\"text-decoration: underline; color:%1;\">Learn More</span></a>")
+            .arg(StormTheme::AccentLinkColor().name()));
 
     timeout_timer->setSingleShot(true);
     connect(timeout_timer.get(), &QTimer::timeout, this, [this]() { SetPollingResult({}, true); });
@@ -372,7 +373,7 @@ void ConfigureMotionTouch::OnConfigureTouchFromButton() {
 
 bool ConfigureMotionTouch::CanCloseDialog() {
     if (udp_test_in_progress) {
-        QMessageBox::warning(this, QStringLiteral("Azahar"),
+        QMessageBox::warning(this, QStringLiteral("STORM 3DS"),
                              tr("UDP Test or calibration configuration is in progress.<br>Please "
                                 "wait for them to finish."));
         return false;

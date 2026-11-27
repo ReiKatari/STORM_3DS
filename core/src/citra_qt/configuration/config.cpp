@@ -864,6 +864,7 @@ void QtConfig::ReadUIValues() {
             ReadSetting(Settings::QKeys::theme, QString::fromUtf8(UISettings::themes[0].second))
                 .toString();
         UISettings::values.ui_scale = ReadSetting(QStringLiteral("ui_scale"), 0).toInt();
+        UISettings::values.show_toolbar = ReadSetting(QStringLiteral("show_toolbar"), true).toBool();
 #ifdef ENABLE_DISCORD_RPC
         ReadBasicSetting(UISettings::values.enable_discord_presence);
 #endif
@@ -1413,6 +1414,7 @@ void QtConfig::SaveUIValues() {
         WriteSetting(Settings::QKeys::theme, UISettings::values.theme,
                      QString::fromUtf8(UISettings::themes[0].second));
         WriteSetting(QStringLiteral("ui_scale"), UISettings::values.ui_scale, 0);
+        WriteSetting(QStringLiteral("show_toolbar"), UISettings::values.show_toolbar, true);
 #ifdef ENABLE_DISCORD_RPC
         WriteBasicSetting(UISettings::values.enable_discord_presence);
 #endif

@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <QThread>
@@ -161,7 +162,8 @@ public:
     /// Destroy the previous run's child_widget which should also destroy the child_window
     void ReleaseRenderTarget();
 
-    void CaptureScreenshot(u32 res_scale, const QString& screenshot_path);
+    void CaptureScreenshot(u32 res_scale, const QString& screenshot_path,
+                           std::function<void()> on_finished = {});
 
     std::pair<u32, u32> ScaleTouch(const QPointF pos) const;
 

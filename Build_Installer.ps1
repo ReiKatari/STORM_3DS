@@ -101,6 +101,7 @@ if (-not (Test-Path $winZipPath)) {
 $env:STORM_WIN_ZIP = $winZipPath
 $env:STORM_EXE = $exePath
 $env:STORM_CER = $cerInstaller
+$env:STORM_REL_DIR = $winReleaseDir
 $env:PYTHONUTF8 = "1"
 @'
 import os, zipfile, tempfile, shutil
@@ -108,6 +109,19 @@ import os, zipfile, tempfile, shutil
 zip_path = os.environ["STORM_WIN_ZIP"]
 exe_path = os.environ["STORM_EXE"]
 cer_path = os.environ["STORM_CER"]
+rel_dir = os.environ["STORM_REL_DIR"]
+
+# Sync SDL2.dll into core/build_win/bin/Release if missing (so Release/STORM_3DS.exe runs standalone)
+sdl_rel = os.path.join(rel_dir, "SDL2.dll")
+if not os.path.exists(sdl_rel) and os.path.exists(zip_path):
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for name in zf.namelist():
+            if name.lower().endswith("sdl2.dll"):
+                with open(sdl_rel, "wb") as f:
+                    f.write(zf.read(name))
+                break
+
+dead_ffmpeg = {"avcodec-61.dll", "avformat-61.dll", "avutil-59.dll", "swresample-5.dll", "swscale-8.dll"}
 
 assert os.path.exists(zip_path), f"Base zip missing: {zip_path}"
 fd, tmp_zip = tempfile.mkstemp(suffix=".zip", dir=os.path.dirname(zip_path))
@@ -116,7 +130,7 @@ try:
     with zipfile.ZipFile(zip_path, "r") as zin, zipfile.ZipFile(tmp_zip, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zout:
         for item in zin.infolist():
             fn = item.filename.lstrip("./\\")
-            if fn.lower() in ("storm_3ds.exe", "storm_certificate.cer"):
+            if fn.lower() in ("storm_3ds.exe", "storm_certificate.cer") or os.path.basename(fn).lower() in dead_ffmpeg:
                 continue
             zout.writestr(item, zin.read(item.filename))
         zout.write(exe_path, arcname="STORM_3DS.exe")

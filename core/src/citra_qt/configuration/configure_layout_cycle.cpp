@@ -60,6 +60,13 @@ void ConfigureLayoutCycle::SetConfiguration() {
 }
 
 void ConfigureLayoutCycle::ApplyConfiguration() {
+    if (!Settings::IsConfiguringGlobal()) {
+        Settings::values.layouts_to_cycle.SetGlobal(ui->globalCheck->isChecked());
+        if (ui->globalCheck->isChecked()) {
+            accept();
+            return;
+        }
+    }
     std::vector<Settings::LayoutOption> newSetting{};
     if (ui->defaultCheck->isChecked())
         newSetting.push_back(Settings::LayoutOption::Default);
@@ -86,7 +93,5 @@ void ConfigureLayoutCycle::ApplyConfiguration() {
 }
 
 void ConfigureLayoutCycle::UpdateGlobal() {
-    Settings::values.layouts_to_cycle.SetGlobal(ui->globalCheck->isChecked());
     ui->checkGroup->setDisabled(ui->globalCheck->isChecked());
-    ui->checkGroup->repaint(); // Force visual update
 }

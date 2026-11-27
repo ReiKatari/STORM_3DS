@@ -30,7 +30,7 @@ struct Shortcut {
     ContextualShortcut shortcut;
 };
 
-using Themes = std::array<std::pair<const char*, const char*>, 8>;
+using Themes = std::array<std::pair<const char*, const char*>, 15>;
 extern const Themes themes;
 
 struct GameDir {
@@ -144,6 +144,7 @@ struct Values {
 
     QString theme;
     int ui_scale = 0;
+    bool show_toolbar = true;
 
     // Shortcut name <Shortcut, context>
     std::vector<Shortcut> shortcuts;

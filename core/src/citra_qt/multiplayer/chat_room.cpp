@@ -85,8 +85,8 @@ public:
 
 private:
     static constexpr std::array<const char*, 16> player_color = {
-        {"#0000FF", "#FF0000", "#8A2BE2", "#FF69B4", "#1E90FF", "#008000", "#00FF7F", "#B22222",
-         "#DAA520", "#FF4500", "#2E8B57", "#5F9EA0", "#D2691E", "#9ACD32", "#FF7F50", "FFFF00"}};
+        {"#3B82F6", "#EF4444", "#8B5CF6", "#EC4899", "#0EA5E9", "#10B981", "#14B8A6", "#B91C1C",
+         "#D97706", "#F97316", "#059669", "#0284C7", "#C2410C", "#65A30D", "#F43F5E", "#CA8A04"}};
     static constexpr char ping_color[] = "#FFFF00";
 
     QString timestamp;

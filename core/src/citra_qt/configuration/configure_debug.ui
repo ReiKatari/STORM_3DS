@@ -51,7 +51,7 @@
           <item>
            <widget class="QSpinBox" name="gdbport_spinbox">
             <property name="maximum">
-             <number>65536</number>
+             <number>65535</number>
             </property>
            </widget>
           </item>
@@ -127,7 +127,7 @@
             <string>Flush log output on every message</string>
           </property>
           <property name="toolTip">
-            <string>&lt;html&gt;&lt;body&gt;Immediately commits the debug log to file. Use this if Azahar crashes and the log output is being cut.&lt;br&gt;Enabling this feature will decrease performance, only use it for debugging purposes.&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;body&gt;Immediately commits the debug log to file. Use this if STORM 3DS crashes and the log output is being cut.&lt;br&gt;Enabling this feature will decrease performance, only use it for debugging purposes.&lt;/body&gt;&lt;/html&gt;</string>
           </property>
         </widget>
       </item>

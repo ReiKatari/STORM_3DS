@@ -26,6 +26,7 @@
 #include <QStandardItemModel>
 #include <QStyledItemDelegate>
 #include <QThreadPool>
+#include <QTimer>
 #include <QToolButton>
 #include <QTreeView>
 #include <fmt/format.h>
@@ -34,6 +35,7 @@
 #include "citra_qt/game_list.h"
 #include "citra_qt/game_list_p.h"
 #include "citra_qt/game_list_worker.h"
+#include "citra_qt/storm_theme.h"
 #include "citra_qt/uisettings.h"
 #include "common/common_paths.h"
 #include "common/file_util.h"
@@ -216,13 +218,10 @@ GameListSearchField::GameListSearchField(GameList* parent) : QWidget{parent} {
     connect(edit_filter, &QLineEdit::textChanged, parent, &GameList::OnTextChanged);
     label_filter_result = new QLabel;
     button_filter_close = new QToolButton(this);
+    button_filter_close->setObjectName(QStringLiteral("FilterCloseButton"));
     button_filter_close->setText(QStringLiteral("X"));
     button_filter_close->setCursor(Qt::ArrowCursor);
-    button_filter_close->setStyleSheet(
-        QStringLiteral("QToolButton{ border: none; padding: 0px; color: "
-                       "#000000; font-weight: bold; background: #F0F0F0; }"
-                       "QToolButton:hover{ border: none; padding: 0px; color: "
-                       "#EEEEEE; font-weight: bold; background: #E81123}"));
+    button_filter_close->setFixedSize(26, 26);
     connect(button_filter_close, &QToolButton::clicked, parent, &GameList::OnFilterCloseClicked);
     layout_filter->setSpacing(10);
     layout_filter->addWidget(label_filter);
@@ -379,27 +378,31 @@ public:
 
         QStyle* style = opt.widget ? opt.widget->style() : QApplication::style();
 
-        // Draw the default item (background, text, selection, etc.)
-        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
+        // Draw cartridge inserted icon on the right while reserving room so title text never overlaps
+        const quint32 can_insert = index.data(GameListItemPath::CanInsertRole).value<quint32>();
+        const QString game_path = index.data(GameListItemPath::FullPathRole).value<QString>();
+        const bool is_inserted = can_insert && UISettings::values.inserted_cartridge.GetValue() ==
+                                                   game_path.toStdString();
 
-        // Draw cartridge inserted icon
-        quint32 can_insert = index.data(GameListItemPath::CanInsertRole).value<quint32>();
-        QString game_path = index.data(GameListItemPath::FullPathRole).value<QString>();
-
-        bool is_inserted = can_insert && UISettings::values.inserted_cartridge.GetValue() ==
-                                             game_path.toStdString();
+        const qreal dpr = opt.widget ? opt.widget->devicePixelRatioF() : 1.0;
+        const int icon_px = 20;
+        const int margin = 10;
 
         if (is_inserted) {
-            QPixmap pixmap = QIcon::fromTheme(QStringLiteral("cartridge")).pixmap(24);
+            style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+            QStyleOptionViewItem text_opt(opt);
+            text_opt.rect.adjust(0, 0, -(icon_px + margin + 8), 0);
+            text_opt.backgroundBrush = Qt::NoBrush;
+            style->drawControl(QStyle::CE_ItemViewItem, &text_opt, painter, opt.widget);
 
-            const int margin = 12;
-            QSize pmSize = pixmap.size() / pixmap.devicePixelRatio();
-
-            QRect pmRect(opt.rect.right() - pmSize.width() - margin,
-                         opt.rect.center().y() - pmSize.height() / 2, pmSize.width(),
-                         pmSize.height());
-
+            QPixmap pixmap = QIcon::fromTheme(QStringLiteral("cartridge")).pixmap(icon_px, dpr);
+            const QSize pmSize = pixmap.size() / pixmap.devicePixelRatio();
+            const QRect pmRect(opt.rect.right() - pmSize.width() - margin,
+                               opt.rect.center().y() - pmSize.height() / 2, pmSize.width(),
+                               pmSize.height());
             painter->drawPixmap(pmRect, pixmap);
+        } else {
+            style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
         }
     }
 };
@@ -560,7 +563,7 @@ void GameList::DonePopulating(const QStringList& watch_list) {
     constexpr int SLICE_SIZE = 25;
     const qsizetype len = std::min(watch_list.length(), LIMIT_WATCH_DIRECTORIES);
     for (qsizetype i = 0; i < len; i += SLICE_SIZE) {
-        watcher->addPaths(watch_list.mid(i, i + SLICE_SIZE));
+        watcher->addPaths(watch_list.mid(i, SLICE_SIZE));
         QCoreApplication::processEvents();
     }
     tree_view->setEnabled(true);
@@ -922,7 +925,7 @@ void GameList::AddGamePopup(QMenu& context_menu, const QString& path, const QStr
 #endif
     connect(uninstall_all, &QAction::triggered, this, [=, this] {
         QMessageBox::StandardButton answer = QMessageBox::question(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Are you sure you want to completely uninstall '%1'?\n\nThis will "
                "delete the application if installed, as well as any installed updates or DLC.")
                 .arg(name),
@@ -945,7 +948,7 @@ void GameList::AddGamePopup(QMenu& context_menu, const QString& path, const QStr
     });
     connect(uninstall_game, &QAction::triggered, this, [this, name, media_type, program_id] {
         QMessageBox::StandardButton answer =
-            QMessageBox::question(this, QStringLiteral("Azahar"),
+            QMessageBox::question(this, QStringLiteral("STORM 3DS"),
                                   tr("Are you sure you want to uninstall '%1'?").arg(name),
                                   QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) {
@@ -956,7 +959,7 @@ void GameList::AddGamePopup(QMenu& context_menu, const QString& path, const QStr
     });
     connect(uninstall_update, &QAction::triggered, this, [this, name, update_program_id] {
         QMessageBox::StandardButton answer = QMessageBox::question(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Are you sure you want to uninstall the update for '%1'?").arg(name),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) {
@@ -968,7 +971,7 @@ void GameList::AddGamePopup(QMenu& context_menu, const QString& path, const QStr
     });
     connect(uninstall_dlc, &QAction::triggered, this, [this, name, dlc_program_id] {
         QMessageBox::StandardButton answer = QMessageBox::question(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Are you sure you want to uninstall all DLC for '%1'?").arg(name),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) {
@@ -1187,9 +1190,15 @@ void GameList::LoadInterfaceLayout() {
         return;
     }
 
-    // We are using the name column to display icons and titles
-    // so make it as large as possible as default.
-    header->resizeSection(COLUMN_NAME, header->width());
+    // Reserve reasonable width for Name column so columns don't overflow viewport horizontally
+    int other_widths = 0;
+    for (int i = 1; i < COLUMN_COUNT; ++i) {
+        if (!tree_view->isColumnHidden(i)) {
+            other_widths += header->sectionSize(i);
+        }
+    }
+    const int avail_name_w = std::max(280, header->width() - other_widths - 16);
+    header->resizeSection(COLUMN_NAME, avail_name_w);
 }
 
 const QStringList GameList::supported_file_extensions = {
@@ -1206,19 +1215,22 @@ void GameList::RefreshGameDirectory() {
         return;
     }
 
-    const auto time_now = std::chrono::steady_clock::now();
-
-    // Max of 1 refresh every 1 second.
-    if (time_last_refresh + std::chrono::seconds(1) > time_now) {
-        return;
+    if (!refresh_timer) {
+        refresh_timer = new QTimer(this);
+        refresh_timer->setSingleShot(true);
+        connect(refresh_timer, &QTimer::timeout, this, [this] {
+            if (Core::System::GetInstance().IsPoweredOn()) {
+                return;
+            }
+            time_last_refresh = std::chrono::steady_clock::now();
+            if (!UISettings::values.game_dirs.isEmpty()) {
+                LOG_INFO(Frontend,
+                         "Change detected in the applications directory. Reloading game list.");
+                PopulateAsync(UISettings::values.game_dirs);
+            }
+        });
     }
-
-    time_last_refresh = time_now;
-
-    if (!UISettings::values.game_dirs.isEmpty() && current_worker != nullptr) {
-        LOG_INFO(Frontend, "Change detected in the applications directory. Reloading game list.");
-        PopulateAsync(UISettings::values.game_dirs);
-    }
+    refresh_timer->start(350);
 }
 
 void GameList::ToggleFavorite(u64 program_id) {
@@ -1299,10 +1311,10 @@ GameListPlaceholder::GameListPlaceholder(GMainWindow* parent) : QWidget{parent} 
     image = new QLabel;
     text = new QLabel;
     layout->setAlignment(Qt::AlignCenter);
-    image->setPixmap(
-        QIcon::fromTheme(QStringLiteral("plus_folder"))
-            .pixmap(112)
-            .scaled(112, 112, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    image->setPixmap(QIcon::fromTheme(QStringLiteral("plus_folder"))
+                         .pixmap(112, devicePixelRatioF())
+                         .scaled(QSize(112, 112) * devicePixelRatioF(), Qt::KeepAspectRatio,
+                                 Qt::SmoothTransformation));
 
     text->setText(tr("Double-click to add a new folder to the application list"));
     QFont font = text->font();
@@ -1319,10 +1331,10 @@ GameListPlaceholder::GameListPlaceholder(GMainWindow* parent) : QWidget{parent} 
 GameListPlaceholder::~GameListPlaceholder() = default;
 
 void GameListPlaceholder::onUpdateThemedIcons() {
-    image->setPixmap(
-        QIcon::fromTheme(QStringLiteral("plus_folder"))
-            .pixmap(112)
-            .scaled(112, 112, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    image->setPixmap(QIcon::fromTheme(QStringLiteral("plus_folder"))
+                         .pixmap(112, devicePixelRatioF())
+                         .scaled(QSize(112, 112) * devicePixelRatioF(), Qt::KeepAspectRatio,
+                                 Qt::SmoothTransformation));
 }
 
 void GameListPlaceholder::mouseDoubleClickEvent([[maybe_unused]] QMouseEvent* event) {

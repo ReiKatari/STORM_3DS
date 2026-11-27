@@ -176,6 +176,8 @@ add_library(citra_qt STATIC EXCLUDE_FROM_ALL
     qt_image_interface.cpp
     qt_image_interface.h
     setting_qkeys.h
+    storm_theme.cpp
+    storm_theme.h
     uisettings.cpp
     uisettings.h
     user_data_migration.cpp

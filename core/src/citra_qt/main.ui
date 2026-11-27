@@ -180,6 +180,7 @@
     <addaction name="menu_Screen_Layout"/>
     <addaction name="separator"/>
     <addaction name="action_Display_Dock_Widget_Headers"/>
+    <addaction name="action_Show_Toolbar"/>
     <addaction name="action_Show_Filter_Bar"/>
     <addaction name="action_Show_Status_Bar"/>
     <addaction name="separator"/>
@@ -415,6 +416,17 @@
    </property>
    <property name="text">
     <string>Show Filter Bar</string>
+   </property>
+  </action>
+  <action name="action_Show_Toolbar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Toolbar</string>
    </property>
   </action>
   <action name="action_Show_Status_Bar">

@@ -12,8 +12,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>900</width>
-    <height>0</height>
+    <width>740</width>
+    <height>480</height>
    </size>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3">

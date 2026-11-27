@@ -197,16 +197,10 @@
         <item>
          <widget class="QComboBox" name="system_camera">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>250</width>
-            <height>16777215</height>
-           </size>
           </property>
           <property name="toolTip">
            <string>Select the system camera to use</string>

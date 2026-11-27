@@ -83,7 +83,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string notr="true">&lt;html&gt;&lt;body&gt;&lt;p&gt;STORM 3DS is a free and open source Nintendo 3DS emulator (Citra / Azahar core, GPLv2/GPLv3).&lt;/p&gt;&lt;p&gt;This software should not be used to play games you have not legally obtained.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;STORM 3DS is a free and open source Nintendo 3DS emulator (Citra / Azahar core, GPLv2/GPLv3).&lt;/p&gt;&lt;p&gt;This software should not be used to play games you have not legally obtained.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -125,7 +125,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string notr="true">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:7pt;&quot;&gt;&amp;quot;3DS&amp;quot; is a trademark of Nintendo. STORM 3DS is not affiliated with Nintendo in any way.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:7pt;&quot;&gt;&amp;quot;3DS&amp;quot; is a trademark of Nintendo. STORM 3DS is not affiliated with Nintendo in any way.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>

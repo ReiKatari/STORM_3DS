@@ -32,6 +32,7 @@ class QList;
 class QModelIndex;
 class QStandardItem;
 class QStandardItemModel;
+class QTimer;
 class QTreeView;
 class QToolButton;
 class QVBoxLayout;
@@ -152,6 +153,7 @@ private:
     const PlayTime::PlayTimeManager& play_time_manager;
 
     std::chrono::time_point<std::chrono::steady_clock> time_last_refresh;
+    QTimer* refresh_timer = nullptr;
 };
 
 class GameListPlaceholder : public QWidget {

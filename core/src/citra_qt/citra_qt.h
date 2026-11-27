@@ -56,13 +56,17 @@ class MicroProfileDialog;
 #endif
 class MultiplayerState;
 class ProfilerWidget;
+class QComboBox;
 class QFileOpenEvent;
+class QFrame;
 template <typename>
 class QFutureWatcher;
 class QLabel;
 class QProgressBar;
 class QPushButton;
 class QSlider;
+class QToolBar;
+class QToolButton;
 class RegistersWidget;
 class WaitTreeWidget;
 
@@ -372,6 +376,10 @@ private:
     void UpdateVolumeUI();
     void UpdateAPIIndicator(bool update = false);
     void UpdateStatusButtons();
+    void InitializeMainToolbar();
+    void UpdateToolbarState();
+    void RetranslateToolbar();
+    std::string GetEffectiveScreenshotPath() const;
 #ifdef __unix__
     void SetGamemodeEnabled(bool state);
 #endif
@@ -397,10 +405,18 @@ private:
     QLabel* emu_frametime_label = nullptr;
     QPushButton* graphics_api_button = nullptr;
     QPushButton* volume_button = nullptr;
-    QWidget* volume_popup = nullptr;
+    QFrame* volume_popup = nullptr;
     QSlider* volume_slider = nullptr;
+    QToolBar* main_toolbar = nullptr;
+    QToolButton* toolbar_layout_button = nullptr;
+    QLabel* toolbar_3d_label = nullptr;
+    QSlider* toolbar_3d_slider = nullptr;
+    QLabel* toolbar_3d_value_label = nullptr;
+    QLabel* toolbar_theme_label = nullptr;
+    QComboBox* toolbar_theme_combobox = nullptr;
     QTimer status_bar_update_timer;
     bool message_label_used_for_movie = false;
+    bool was_maximized_before_fullscreen = false;
 
     MultiplayerState* multiplayer_state = nullptr;
 

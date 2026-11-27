@@ -6,10 +6,13 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
 #include <utility>
 #include <vector>
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScreen>
 #include <QString>
 #include <fmt/format.h>
 #include "citra_qt/configuration/config.h"
@@ -79,6 +82,11 @@ ConfigurePerGame::ConfigurePerGame(QWidget* parent, u64 title_id_, const QString
             &ConfigurePerGame::HandleAcceptedEvent);
 
     LoadConfiguration();
+
+    const QScreen* scr = parent ? parent->screen() : QGuiApplication::primaryScreen();
+    const QRect avail = scr ? scr->availableGeometry() : QRect(0, 0, 1280, 800);
+    resize(std::min(920, std::max(740, avail.width() * 86 / 100)),
+           std::min(680, std::max(500, avail.height() * 86 / 100)));
 }
 
 ConfigurePerGame::~ConfigurePerGame() = default;
@@ -86,7 +94,7 @@ ConfigurePerGame::~ConfigurePerGame() = default;
 void ConfigurePerGame::ResetDefaults() {
     const auto config_file_name = title_id == 0 ? filename : fmt::format("{:016X}", title_id);
     QMessageBox::StandardButton answer = QMessageBox::question(
-        this, QStringLiteral("Azahar"),
+        this, QStringLiteral("STORM 3DS"),
         tr("Are you sure you want to <b>reset your settings for this application</b>?"),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
@@ -101,9 +109,7 @@ void ConfigurePerGame::ResetDefaults() {
 }
 
 void ConfigurePerGame::HandleAcceptedEvent() {
-    if (ui->tabWidget->currentWidget() == cheat_tab.get()) {
-        cheat_tab->ApplyConfiguration();
-    }
+    cheat_tab->ApplyConfiguration();
     accept();
 }
 
@@ -136,9 +142,7 @@ void ConfigurePerGame::RetranslateUI() {
 
 void ConfigurePerGame::HandleApplyButtonClicked() {
     ApplyConfiguration();
-    if (ui->tabWidget->currentWidget() == cheat_tab.get()) {
-        cheat_tab->ApplyConfiguration();
-    }
+    cheat_tab->ApplyConfiguration();
 }
 
 void ConfigurePerGame::LoadConfiguration() {

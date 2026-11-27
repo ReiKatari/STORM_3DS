@@ -2,8 +2,13 @@
 // Licensed under GPLv2 or any later version
 // Refer to the misc/licenses/gplv2.txt file included.
 
+#include <algorithm>
 #include <map>
+#include <QFrame>
+#include <QGuiApplication>
 #include <QListWidgetItem>
+#include <QScreen>
+#include <QScrollArea>
 #include "citra_qt/configuration/configure_audio.h"
 #include "citra_qt/configuration/configure_camera.h"
 #include "citra_qt/configuration/configure_debug.h"
@@ -67,10 +72,15 @@ ConfigureDialog::ConfigureDialog(QWidget* parent, HotkeyRegistry& registry_, Cor
     PopulateSelectionList();
 
     connect(ui_tab.get(), &ConfigureUi::LanguageChanged, this, &ConfigureDialog::OnLanguageChanged);
+    connect(ui_tab.get(), &ConfigureUi::ThemeChanged, this, &ConfigureDialog::ThemePreviewRequested);
     connect(ui->selectorList, &QListWidget::itemSelectionChanged, this,
             &ConfigureDialog::UpdateVisibleTabs);
 
-    adjustSize();
+    setMinimumSize(720, 500);
+    const QScreen* scr = parent ? parent->screen() : QGuiApplication::primaryScreen();
+    const QRect avail = scr ? scr->availableGeometry() : QRect(0, 0, 1280, 800);
+    resize(std::min(960, std::max(720, avail.width() * 86 / 100)),
+           std::min(680, std::max(500, avail.height() * 86 / 100)));
     ui->selectorList->setCurrentRow(0);
 
     // Set up used key list synchronisation
@@ -146,10 +156,8 @@ void ConfigureDialog::PopulateSelectionList() {
 
 void ConfigureDialog::OnLanguageChanged(const QString& locale) {
     emit LanguageChanged(locale);
-    // first apply the configuration, and then restore the display
-    ApplyConfiguration();
+    // Retranslate without committing unrelated tab edits (preserves Cancel semantics)
     RetranslateUI();
-    SetConfiguration();
 }
 
 void ConfigureDialog::RetranslateUI() {
@@ -202,6 +210,22 @@ void ConfigureDialog::UpdateVisibleTabs() {
 
     const QList<QWidget*> tabs = qvariant_cast<QList<QWidget*>>(items[0]->data(Qt::UserRole));
 
-    for (const auto tab : tabs)
-        ui->tabWidget->addTab(tab, widgets.at(tab));
+    for (const auto tab : tabs) {
+        tab->show();
+        if (!tab->findChild<QScrollArea*>()) {
+            auto* wrapper = tab->property("_storm_scroll_wrapper").value<QScrollArea*>();
+            if (!wrapper) {
+                wrapper = new QScrollArea(ui->tabWidget);
+                wrapper->setFrameShape(QFrame::NoFrame);
+                wrapper->setWidgetResizable(true);
+                wrapper->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+                wrapper->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+                wrapper->setWidget(tab);
+                tab->setProperty("_storm_scroll_wrapper", QVariant::fromValue(wrapper));
+            }
+            ui->tabWidget->addTab(wrapper, widgets.at(tab));
+        } else {
+            ui->tabWidget->addTab(tab, widgets.at(tab));
+        }
+    }
 }

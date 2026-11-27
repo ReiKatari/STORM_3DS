@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <QDirIterator>
 #include "citra_qt/configuration/configure_ui.h"
+#include "citra_qt/storm_theme.h"
 #include "citra_qt/uisettings.h"
 #include "ui_configure_ui.h"
 
@@ -19,6 +20,8 @@ ConfigureUi::ConfigureUi(QWidget* parent)
     }
 
     SetConfiguration();
+    connect(ui->theme_combobox, qOverload<int>(&QComboBox::currentIndexChanged), this,
+            &ConfigureUi::OnThemeChanged);
 }
 
 ConfigureUi::~ConfigureUi() = default;
@@ -54,7 +57,8 @@ void ConfigureUi::InitializeLanguageComboBox() {
 }
 
 void ConfigureUi::SetConfiguration() {
-    ui->theme_combobox->setCurrentIndex(std::max(0, ui->theme_combobox->findData(UISettings::values.theme)));
+    ui->theme_combobox->setCurrentIndex(
+        std::max(0, ui->theme_combobox->findData(StormTheme::NormalizeThemeId(UISettings::values.theme))));
     ui->ui_scale_combobox->setCurrentIndex(std::clamp(UISettings::values.ui_scale, 0, ui->ui_scale_combobox->count() - 1));
     ui->language_combobox->setCurrentIndex(
         // findData returns -1 if nothing found; Use <System> in this case (index 0).
@@ -92,6 +96,13 @@ void ConfigureUi::OnLanguageChanged(int index) {
         return;
 
     emit LanguageChanged(ui->language_combobox->itemData(index).toString());
+}
+
+void ConfigureUi::OnThemeChanged(int index) {
+    if (index == -1)
+        return;
+
+    emit ThemeChanged(ui->theme_combobox->itemData(index).toString());
 }
 
 void ConfigureUi::RetranslateUI() {

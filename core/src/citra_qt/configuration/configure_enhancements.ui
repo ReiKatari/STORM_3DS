@@ -482,6 +482,9 @@
         <property name="text">
          <string>Note: Depth values over 100% are not possible on real hardware and may cause graphical issues</string>
         </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>

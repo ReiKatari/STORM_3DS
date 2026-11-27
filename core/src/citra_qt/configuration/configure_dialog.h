@@ -50,6 +50,7 @@ private slots:
 
 signals:
     void LanguageChanged(const QString& locale);
+    void ThemePreviewRequested(const QString& theme);
 
 private:
     void SetConfiguration();

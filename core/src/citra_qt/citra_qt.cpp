@@ -17,8 +17,12 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QPalette>
+#include <QScreen>
 #include <QSettings>
+#include <QStyleFactory>
 #include <QSysInfo>
+#include <QToolBar>
+#include <QToolButton>
 #include <QtConcurrent/QtConcurrentMap>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QtGui>
@@ -82,6 +86,7 @@
 #include "citra_qt/multiplayer/state.h"
 #include "citra_qt/qt_image_interface.h"
 #include "citra_qt/qt_swizzle.h"
+#include "citra_qt/storm_theme.h"
 #include "citra_qt/uisettings.h"
 #include "common/play_time_manager.h"
 #ifdef ENABLE_QT_UPDATE_CHECKER
@@ -160,7 +165,7 @@ const int GMainWindow::max_recent_files_item;
 // until it is addressed upstream. It works by manually
 // disabling corners through the DWM API.
 // TODO(PabloMK7): Remove once the upstream bug is solved.
-#if defined(_WIN32) && !defined(_MSC_VER)
+#ifdef _WIN32
 #define NEEDS_ROUND_CORNERS_FIX
 #endif
 
@@ -525,11 +530,7 @@ GMainWindow::GMainWindow(Core::System& system_)
     render_window->setWindowIcon(storm_icon);
     secondary_window->setWindowIcon(storm_icon);
 
-    show();
-
-    // If the theme is updated before show() it doesn't apply properly, so do it again here.
-    // We still need the earlier call to make sure that the icons are set up correctly in the
-    // game list.
+    // Apply full theme (Fusion style, QPalette, QSS, and toolbar sync) after all widgets exist
     UpdateUITheme();
 
 #ifdef __APPLE__
@@ -640,10 +641,13 @@ void GMainWindow::InitializeWidgets() {
 
     // Create status bar
     message_label = new QLabel();
-    // Configured separately for left alignment
+    // Configured separately for left alignment; Ignored policy prevents long messages from
+    // clipping permanent status bar controls
     message_label->setFrameStyle(QFrame::NoFrame);
     message_label->setContentsMargins(4, 0, 4, 0);
-    message_label->setAlignment(Qt::AlignLeft);
+    message_label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    message_label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    message_label->setMinimumWidth(60);
     statusBar()->addPermanentWidget(message_label, 1);
 
     progress_bar = new QProgressBar();
@@ -685,35 +689,53 @@ void GMainWindow::InitializeWidgets() {
 
     statusBar()->insertPermanentWidget(0, graphics_api_button);
 
-    volume_popup = new QWidget(this);
+    volume_popup = new QFrame(this);
+    volume_popup->setObjectName(QStringLiteral("VolumePopup"));
+    volume_popup->setFrameShape(QFrame::StyledPanel);
     volume_popup->setWindowFlags(Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::Popup);
-    volume_popup->setLayout(new QVBoxLayout());
-    volume_popup->setMinimumWidth(200);
+    auto* volume_popup_layout = new QVBoxLayout(volume_popup);
+    volume_popup_layout->setContentsMargins(12, 8, 12, 8);
 
     volume_slider = new QSlider(Qt::Horizontal);
     volume_slider->setObjectName(QStringLiteral("volume_slider"));
     volume_slider->setMaximum(100);
     volume_slider->setPageStep(5);
+    volume_slider->setMinimumWidth(180);
     connect(volume_slider, &QSlider::valueChanged, this, [this](int percentage) {
         Settings::values.audio_muted = false;
         const auto value = static_cast<float>(percentage) / volume_slider->maximum();
         Settings::values.volume.SetValue(value);
         UpdateVolumeUI();
     });
-    volume_popup->layout()->addWidget(volume_slider);
+    volume_popup_layout->addWidget(volume_slider);
 
     volume_button = new QPushButton();
     volume_button->setObjectName(QStringLiteral("TogglableStatusBarButton"));
     volume_button->setFocusPolicy(Qt::NoFocus);
     volume_button->setCheckable(true);
     UpdateVolumeUI();
-    connect(volume_button, &QPushButton::clicked, this, [&] {
+    connect(volume_button, &QPushButton::clicked, this, [this] {
         UpdateVolumeUI();
-        volume_popup->setVisible(!volume_popup->isVisible());
-        QRect rect = volume_button->geometry();
-        QPoint bottomLeft = statusBar()->mapToGlobal(rect.topLeft());
-        bottomLeft.setY(bottomLeft.y() - volume_popup->geometry().height());
-        volume_popup->setGeometry(QRect(bottomLeft, QSize(rect.width(), rect.height())));
+        if (volume_popup->isVisible()) {
+            volume_popup->hide();
+            return;
+        }
+        volume_popup->ensurePolished();
+        volume_popup->adjustSize();
+        const QSize popup_size = volume_popup->sizeHint().expandedTo(QSize(216, 42));
+        const QRect btn_rect = volume_button->geometry();
+        QPoint target_pos = statusBar()->mapToGlobal(btn_rect.topLeft());
+        target_pos.setY(target_pos.y() - popup_size.height() - 4);
+        if (QScreen* scr = QGuiApplication::screenAt(target_pos)) {
+            const QRect avail = scr->availableGeometry();
+            target_pos.setX(std::clamp(target_pos.x(), avail.left() + 4,
+                                       std::max(avail.left() + 4, avail.right() - popup_size.width() - 4)));
+            if (target_pos.y() < avail.top() + 4) {
+                target_pos.setY(statusBar()->mapToGlobal(btn_rect.bottomLeft()).y() + 4);
+            }
+        }
+        volume_popup->setGeometry(QRect(target_pos, popup_size));
+        volume_popup->show();
     });
     statusBar()->insertPermanentWidget(1, volume_button);
 
@@ -736,8 +758,7 @@ void GMainWindow::InitializeWidgets() {
 
     statusBar()->setVisible(true);
 
-    // Removes an ugly inner border from the status bar widgets under Linux
-    setStyleSheet(QStringLiteral("QStatusBar::item{border: none;}"));
+    InitializeMainToolbar();
 
     QActionGroup* actionGroup_ScreenLayouts = new QActionGroup(this);
     actionGroup_ScreenLayouts->addAction(ui->action_Screen_Layout_Default);
@@ -757,6 +778,142 @@ void GMainWindow::InitializeWidgets() {
     actionGroup_SmallPositions->addAction(ui->action_Small_Screen_BottomLeft);
     actionGroup_SmallPositions->addAction(ui->action_Small_Screen_Above);
     actionGroup_SmallPositions->addAction(ui->action_Small_Screen_Below);
+}
+
+void GMainWindow::InitializeMainToolbar() {
+    main_toolbar = addToolBar(tr("Quick Controls"));
+    main_toolbar->setObjectName(QStringLiteral("MainToolBar"));
+    main_toolbar->setMovable(false);
+    main_toolbar->setFloatable(false);
+    main_toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
+    main_toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+
+    main_toolbar->addAction(ui->action_Load_File);
+    main_toolbar->addAction(ui->action_Install_CIA);
+    main_toolbar->addSeparator();
+    main_toolbar->addAction(ui->action_Pause);
+    main_toolbar->addAction(ui->action_Stop);
+    main_toolbar->addAction(ui->action_Restart);
+    main_toolbar->addSeparator();
+    main_toolbar->addAction(ui->action_Quick_Save);
+    main_toolbar->addAction(ui->action_Quick_Load);
+    main_toolbar->addAction(ui->action_Capture_Screenshot);
+    main_toolbar->addSeparator();
+    main_toolbar->addAction(ui->action_Fullscreen);
+
+    toolbar_layout_button = new QToolButton(main_toolbar);
+    toolbar_layout_button->setPopupMode(QToolButton::InstantPopup);
+    toolbar_layout_button->setMenu(ui->menu_Screen_Layout);
+    main_toolbar->addWidget(toolbar_layout_button);
+
+    main_toolbar->addSeparator();
+
+    toolbar_3d_label = new QLabel(main_toolbar);
+    toolbar_3d_label->setContentsMargins(6, 0, 4, 0);
+    main_toolbar->addWidget(toolbar_3d_label);
+
+    toolbar_3d_slider = new QSlider(Qt::Horizontal, main_toolbar);
+    toolbar_3d_slider->setRange(0, 100);
+    toolbar_3d_slider->setFixedWidth(96);
+    toolbar_3d_slider->setFocusPolicy(Qt::NoFocus);
+    toolbar_3d_slider->setValue(std::clamp<int>(Settings::values.factor_3d.GetValue(), 0, 100));
+    main_toolbar->addWidget(toolbar_3d_slider);
+
+    toolbar_3d_value_label = new QLabel(main_toolbar);
+    toolbar_3d_value_label->setMinimumWidth(38);
+    toolbar_3d_value_label->setContentsMargins(4, 0, 6, 0);
+    main_toolbar->addWidget(toolbar_3d_value_label);
+
+    connect(toolbar_3d_slider, &QSlider::valueChanged, this, [this](int val) {
+        Settings::values.factor_3d = static_cast<u16>(val);
+        system.ApplySettings();
+        if (toolbar_3d_value_label) {
+            toolbar_3d_value_label->setText(QStringLiteral("%1%").arg(val));
+        }
+    });
+
+    auto* spacer = new QWidget(main_toolbar);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    main_toolbar->addWidget(spacer);
+
+    toolbar_theme_label = new QLabel(main_toolbar);
+    toolbar_theme_label->setContentsMargins(6, 0, 6, 0);
+    main_toolbar->addWidget(toolbar_theme_label);
+
+    toolbar_theme_combobox = new QComboBox(main_toolbar);
+    toolbar_theme_combobox->setFocusPolicy(Qt::NoFocus);
+    toolbar_theme_combobox->setMinimumWidth(156);
+    for (const auto& theme : UISettings::themes) {
+        toolbar_theme_combobox->addItem(QString::fromUtf8(theme.first),
+                                        QString::fromUtf8(theme.second));
+    }
+    main_toolbar->addWidget(toolbar_theme_combobox);
+
+    connect(toolbar_theme_combobox, &QComboBox::activated, this, [this](int index) {
+        if (index < 0) {
+            return;
+        }
+        const QString theme_id = toolbar_theme_combobox->itemData(index).toString();
+        if (theme_id != UISettings::values.theme) {
+            UISettings::values.theme = theme_id;
+            UpdateUITheme();
+            emit UpdateThemedIcons();
+            config->Save();
+        }
+    });
+
+    main_toolbar->addSeparator();
+    main_toolbar->addAction(ui->action_View_Lobby);
+    main_toolbar->addAction(ui->action_Configure);
+
+    RetranslateToolbar();
+    UpdateToolbarState();
+}
+
+void GMainWindow::UpdateToolbarState() {
+    if (!main_toolbar) {
+        return;
+    }
+    if (toolbar_3d_slider) {
+        const int factor = static_cast<int>(Settings::values.factor_3d.GetValue());
+        const bool old = toolbar_3d_slider->blockSignals(true);
+        toolbar_3d_slider->setValue(std::clamp(factor, 0, 100));
+        toolbar_3d_slider->blockSignals(old);
+        if (toolbar_3d_value_label) {
+            toolbar_3d_value_label->setText(QStringLiteral("%1%").arg(factor));
+        }
+    }
+    if (toolbar_theme_combobox) {
+        const QString norm_theme = StormTheme::NormalizeThemeId(UISettings::values.theme);
+        const int idx = std::max(0, toolbar_theme_combobox->findData(norm_theme));
+        const bool old = toolbar_theme_combobox->blockSignals(true);
+        toolbar_theme_combobox->setCurrentIndex(idx);
+        toolbar_theme_combobox->blockSignals(old);
+    }
+}
+
+void GMainWindow::RetranslateToolbar() {
+    if (!main_toolbar) {
+        return;
+    }
+    main_toolbar->setWindowTitle(tr("Quick Controls"));
+    if (toolbar_layout_button) {
+        toolbar_layout_button->setText(tr("Screen Layout"));
+        toolbar_layout_button->setToolTip(tr("Screen Layout"));
+    }
+    if (toolbar_3d_label) {
+        toolbar_3d_label->setText(QStringLiteral("3D"));
+        toolbar_3d_label->setToolTip(tr("Stereoscopic 3D Depth"));
+    }
+    if (toolbar_3d_slider) {
+        toolbar_3d_slider->setToolTip(tr("Stereoscopic 3D Depth"));
+    }
+    if (toolbar_theme_label) {
+        toolbar_theme_label->setText(tr("Theme"));
+    }
+    if (toolbar_theme_combobox) {
+        toolbar_theme_combobox->setToolTip(tr("Select UI Theme"));
+    }
 }
 
 void GMainWindow::InitializeDebugWidgets() {
@@ -977,13 +1134,12 @@ void GMainWindow::InitializeHotkeys() {
 
     connect_shortcut(QStringLiteral("Toggle Screen Layout"), &GMainWindow::ToggleScreenLayout);
     connect_shortcut(QStringLiteral("Exit Fullscreen"), [&] {
-        if (emulation_running) {
-            if (secondary_window->isActiveWindow()) {
-                secondary_window->showNormal();
-            } else {
-                ui->action_Fullscreen->setChecked(false);
-                ToggleFullscreen();
-            }
+        if (emulation_running && secondary_window->isVisible() && secondary_window->isActiveWindow()) {
+            secondary_window->restoreGeometry(UISettings::values.secondarywindow_geometry);
+            secondary_window->showNormal();
+        } else if (isFullScreen() || (render_window && render_window->isFullScreen())) {
+            ui->action_Fullscreen->setChecked(false);
+            HideFullscreen();
         }
     });
 
@@ -1027,6 +1183,7 @@ void GMainWindow::InitializeHotkeys() {
                 Settings::values.factor_3d = factor_3d - FACTOR_3D_STEP;
             }
             UpdateStatusBar();
+            UpdateToolbarState();
         }
     });
     connect_shortcut(QStringLiteral("Increase 3D Factor"), [this] {
@@ -1039,6 +1196,7 @@ void GMainWindow::InitializeHotkeys() {
                 Settings::values.factor_3d = factor_3d + FACTOR_3D_STEP;
             }
             UpdateStatusBar();
+            UpdateToolbarState();
         }
     });
 
@@ -1066,8 +1224,34 @@ void GMainWindow::SetDefaultUIGeometry() {
     setGeometry(x, y, w, h);
 }
 
+static void EnsureWidgetOnScreen(QWidget* widget, const std::function<void()>& fallback = {}) {
+    if (!widget) {
+        return;
+    }
+    const QRect frame = widget->frameGeometry();
+    bool visible_on_any_screen = false;
+    for (const QScreen* scr : QGuiApplication::screens()) {
+        if (scr->availableGeometry().intersects(frame)) {
+            visible_on_any_screen = true;
+            break;
+        }
+    }
+    if (!visible_on_any_screen) {
+        if (fallback) {
+            fallback();
+        } else if (QScreen* primary = QGuiApplication::primaryScreen()) {
+            const QRect avail = primary->availableGeometry();
+            const int w = std::min(widget->width(), std::max(640, avail.width() - 48));
+            const int h = std::min(widget->height(), std::max(480, avail.height() - 48));
+            widget->setGeometry(avail.x() + (avail.width() - w) / 2,
+                                avail.y() + (avail.height() - h) / 2, w, h);
+        }
+    }
+}
+
 void GMainWindow::RestoreUIState() {
     restoreGeometry(UISettings::values.geometry);
+    EnsureWidgetOnScreen(this, [this] { SetDefaultUIGeometry(); });
     restoreState(UISettings::values.state);
     render_window->restoreGeometry(UISettings::values.renderwindow_geometry);
     secondary_window->restoreGeometry(UISettings::values.secondarywindow_geometry);
@@ -1087,6 +1271,11 @@ void GMainWindow::RestoreUIState() {
     ui->action_Display_Dock_Widget_Headers->setChecked(
         UISettings::values.display_titlebar.GetValue());
     OnDisplayTitleBars(ui->action_Display_Dock_Widget_Headers->isChecked());
+
+    ui->action_Show_Toolbar->setChecked(UISettings::values.show_toolbar);
+    if (main_toolbar) {
+        main_toolbar->setVisible(UISettings::values.show_toolbar);
+    }
 
     ui->action_Show_Filter_Bar->setChecked(UISettings::values.show_filter_bar.GetValue());
     game_list->SetFilterVisible(ui->action_Show_Filter_Bar->isChecked());
@@ -1160,6 +1349,17 @@ static bool releaseBreaksSequence(const QKeyEvent* event, const QKeySequence& se
 }
 
 bool GApplicationEventFilter::eventFilter(QObject* object, QEvent* event) {
+#ifdef _WIN32
+    if (event->type() == QEvent::Show || event->type() == QEvent::WinIdChange) {
+        if (auto* widget = qobject_cast<QWidget*>(object)) {
+            if (widget->isWindow() && !widget->testAttribute(Qt::WA_DontShowOnScreen) &&
+                !(widget->windowFlags() & Qt::Popup)) {
+                StormTheme::ApplyWindowsWindowChrome(widget, StormTheme::CurrentTheme(),
+                                                     widget->isFullScreen());
+            }
+        }
+    }
+#endif
     if (event->type() == QEvent::FileOpen) {
         emit FileOpen(static_cast<QFileOpenEvent*>(event));
         return true;
@@ -1294,6 +1494,12 @@ void GMainWindow::ConnectMenuEvents() {
     // View
     connect_menu(ui->action_Single_Window_Mode, &GMainWindow::ToggleWindowMode);
     connect_menu(ui->action_Display_Dock_Widget_Headers, &GMainWindow::OnDisplayTitleBars);
+    connect_menu(ui->action_Show_Toolbar, [this](bool visible) {
+        UISettings::values.show_toolbar = visible;
+        if (main_toolbar && !isFullScreen()) {
+            main_toolbar->setVisible(visible);
+        }
+    });
     connect_menu(ui->action_Show_Filter_Bar, &GMainWindow::OnToggleFilterBar);
     connect(ui->action_Show_Status_Bar, &QAction::triggered, statusBar(), &QStatusBar::setVisible);
 
@@ -1414,6 +1620,7 @@ void GMainWindow::UpdateMenuState() {
     } else {
         ui->action_Pause->setText(tr("Pause"));
     }
+    UpdateToolbarState();
 }
 
 void GMainWindow::OnDisplayTitleBars(bool show) {
@@ -1430,7 +1637,9 @@ void GMainWindow::OnDisplayTitleBars(bool show) {
     } else {
         for (QDockWidget* widget : widgets) {
             QWidget* old = widget->titleBarWidget();
-            widget->setTitleBarWidget(new QWidget());
+            auto* empty = new QWidget();
+            empty->setFixedHeight(0);
+            widget->setTitleBarWidget(empty);
             if (old) {
                 delete old;
             }
@@ -1548,11 +1757,11 @@ bool GMainWindow::LoadROM(const QString& filename) {
             break;
 
         case Core::System::ResultStatus::ErrorLoader_ErrorEncrypted: {
-            QMessageBox::critical(this, tr("Encrypted application"),
-                                  tr("Encrypted applications are not supported.<br/>"
-                                     "<a "
-                                     "href='https://azahar-emu.org/blog/game-loading-changes/'>"
-                                     "Please check our blog for more info.</a>"));
+            QMessageBox::critical(
+                this, tr("Encrypted application"),
+                tr("Encrypted applications are not supported.<br/>"
+                   "<a href='https://stormgamesworld.ru/programs?repo=STORM_3DS'>"
+                   "Please check STORM 3DS documentation for more info.</a>"));
             break;
         }
         case Core::System::ResultStatus::ErrorLoader_ErrorInvalidFormat:
@@ -1561,7 +1770,7 @@ bool GMainWindow::LoadROM(const QString& filename) {
 
         case Core::System::ResultStatus::ErrorLoader_ErrorGbaTitle:
             QMessageBox::critical(this, tr("Unsupported application"),
-                                  tr("GBA Virtual Console is not supported by Azahar."));
+                                  tr("GBA Virtual Console is not supported by STORM 3DS."));
             break;
 
         case Core::System::ResultStatus::ErrorArticDisconnected:
@@ -1643,7 +1852,11 @@ void GMainWindow::BootGame(const QString& filename) {
                           filename.startsWith(QString::fromStdString("articinio:/")) ||
                           filename.startsWith(QString::fromStdString("articinin:/"));
 
-    if (!is_artic && filename.endsWith(QStringLiteral(".cia"))) {
+    const bool is_cia_archive = filename.endsWith(QStringLiteral(".cia"), Qt::CaseInsensitive) ||
+                                  filename.endsWith(QStringLiteral(".zcia"), Qt::CaseInsensitive) ||
+                                  filename.endsWith(QStringLiteral(".bcia"), Qt::CaseInsensitive);
+
+    if (!is_artic && is_cia_archive) {
         const auto answer = QMessageBox::question(
             this, tr("CIA must be installed before usage"),
             tr("Before using this CIA, you must install it. Do you want to install it now?"),
@@ -1657,7 +1870,7 @@ void GMainWindow::BootGame(const QString& filename) {
 
     show_artic_label = is_artic;
 
-    LOG_INFO(Frontend, "Azahar starting...");
+    LOG_INFO(Frontend, "STORM 3DS starting...");
     if (!is_artic) {
         StoreRecentFile(filename); // Put the filename on top of the list
     }
@@ -1863,8 +2076,10 @@ void GMainWindow::ShutdownGame() {
     loading_screen->Clear();
 
     if (game_list->IsEmpty()) {
+        game_list->hide();
         game_list_placeholder->show();
     } else {
+        game_list_placeholder->hide();
         game_list->show();
     }
     game_list->SetFilterFocus();
@@ -1944,14 +2159,21 @@ void GMainWindow::UpdateRecentFiles() {
 }
 
 void GMainWindow::UpdateSaveStates() {
+    ui->action_Quick_Save->setText(tr("Quick Save"));
+    ui->action_Quick_Load->setText(tr("Quick Load"));
+    ui->action_Quick_Load->setEnabled(false);
+
     if (!system.IsPoweredOn()) {
         ui->menu_Load_State->setEnabled(false);
         ui->menu_Save_State->setEnabled(false);
+        ui->action_Quick_Save->setEnabled(false);
+        ui->action_Load_from_Newest_Slot->setEnabled(false);
         return;
     }
 
     ui->menu_Load_State->setEnabled(true);
     ui->menu_Save_State->setEnabled(true);
+    ui->action_Quick_Save->setEnabled(true);
     ui->action_Load_from_Newest_Slot->setEnabled(false);
 
     oldest_slot = newest_slot = 1;
@@ -1985,6 +2207,7 @@ void GMainWindow::UpdateSaveStates() {
                                   .trimmed();
             ui->action_Quick_Save->setText(tr("Quick Save - %1").arg(text).trimmed());
             ui->action_Quick_Load->setText(tr("Quick Load - %1").arg(text).trimmed());
+            ui->action_Quick_Load->setEnabled(true);
             continue;
         }
         const auto text = tr("Slot %1 - %2")
@@ -2377,8 +2600,7 @@ void GMainWindow::OnGameListCreateShortcut(u64 program_id, const std::string& ga
 void GMainWindow::OnGameListDumpRomFS(QString game_path, u64 program_id) {
     auto* dialog = new QProgressDialog(tr("Dumping..."), tr("Cancel"), 0, 0, this);
     dialog->setWindowModality(Qt::WindowModal);
-    dialog->setWindowFlags(dialog->windowFlags() &
-                           ~(Qt::WindowCloseButtonHint | Qt::WindowContextHelpButtonHint));
+    dialog->setWindowFlags(dialog->windowFlags() & ~Qt::WindowContextHelpButtonHint);
     dialog->setCancelButton(nullptr);
     dialog->setMinimumDuration(0);
     dialog->setValue(0);
@@ -2396,7 +2618,7 @@ void GMainWindow::OnGameListDumpRomFS(QString game_path, u64 program_id) {
                 const auto& [base, update] = future_watcher->result();
                 if (base != Loader::ResultStatus::Success) {
                     QMessageBox::critical(
-                        this, QStringLiteral("Azahar"),
+                        this, QStringLiteral("STORM 3DS"),
                         tr("Could not dump base RomFS.\nRefer to the log for details."));
                     return;
                 }
@@ -2490,18 +2712,18 @@ void GMainWindow::OnMenuSetUpSystemFiles() {
     QVBoxLayout layout(&dialog);
 
     QLabel label_description(
-        tr("<p>Azahar needs console unique data and firmware files from a real console to be "
+        tr("<p>STORM 3DS needs console unique data and firmware files from a real console to be "
            "able to use some of its features.<br>Such files and data can be set up with the <a "
-           "href=https://github.com/azahar-emu/ArticSetupTool>Azahar "
-           "Artic Setup Tool</a><br>Notes:<ul><li><b>This operation will install console unique "
-           "data to Azahar, do not share your user or nand folders<br>after performing the setup "
-           "process!</b></li><li>While doing the setup process, Azahar will link to the console "
-           "running the setup tool. You can unlink the<br>console later from the System tab in the "
-           "emulator configuration menu.</li><li>Do not go online with both Azahar and your 3DS "
-           "console at the same time after setting up system files,<br>as it could cause "
-           "issues.</li><li>Old 3DS setup is needed for the New 3DS setup to work (doing both "
-           "setup modes is recommended).</li><li>Both setup modes will work regardless of the "
-           "model of the console running the setup tool.</li></ul><hr></p>"),
+           "href=https://github.com/azahar-emu/ArticSetupTool>Artic Setup Tool</a><br>Notes:<ul>"
+           "<li><b>This operation will install console unique data to STORM 3DS, do not share your "
+           "user or nand folders<br>after performing the setup process!</b></li><li>While doing the "
+           "setup process, STORM 3DS will link to the console running the setup tool. You can unlink "
+           "the<br>console later from the System tab in the emulator configuration menu.</li><li>Do "
+           "not go online with both STORM 3DS and your 3DS console at the same time after setting "
+           "up system files,<br>as it could cause issues.</li><li>Old 3DS setup is needed for the "
+           "New 3DS setup to work (doing both setup modes is recommended).</li><li>Both setup modes "
+           "will work regardless of the model of the console running the setup tool.</li></ul><hr>"
+           "</p>"),
         &dialog);
     label_description.setOpenExternalLinks(true);
     layout.addWidget(&label_description);
@@ -2509,7 +2731,7 @@ void GMainWindow::OnMenuSetUpSystemFiles() {
     QHBoxLayout layout_h(&dialog);
     layout.addLayout(&layout_h);
 
-    QLabel label_enter(tr("Enter Azahar Artic Setup Tool address:"), &dialog);
+    QLabel label_enter(tr("Enter Artic Setup Tool address:"), &dialog);
 
     layout_h.addWidget(&label_enter);
 
@@ -2660,11 +2882,11 @@ void GMainWindow::OnCIAInstallReport(Service::AM::InstallStatus status, QString 
         QMessageBox::critical(this, tr("Invalid File"), tr("%1 is not a valid CIA").arg(filename));
         break;
     case Service::AM::InstallStatus::ErrorEncrypted:
-        QMessageBox::critical(this, tr("CIA Encrypted"),
-                              tr("Your CIA file is encrypted.<br/>"
-                                 "<a "
-                                 "href='https://azahar-emu.org/blog/game-loading-changes/'>"
-                                 "Please check our blog for more info.</a>"));
+        QMessageBox::critical(
+            this, tr("CIA Encrypted"),
+            tr("Your CIA file is encrypted.<br/>"
+               "<a href='https://stormgamesworld.ru/programs?repo=STORM_3DS'>"
+               "Please check STORM 3DS documentation for more info.</a>"));
         break;
     case Service::AM::InstallStatus::ErrorFileNotFound:
         QMessageBox::critical(this, tr("Unable to find File"),
@@ -2773,10 +2995,10 @@ void GMainWindow::UninstallTitles(
     future_watcher.waitForFinished();
 
     if (failed) {
-        QMessageBox::critical(this, QStringLiteral("Azahar"),
+        QMessageBox::critical(this, QStringLiteral("STORM 3DS"),
                               tr("Failed to uninstall '%1'.").arg(failed_name));
     } else if (!future_watcher.isCanceled()) {
-        QMessageBox::information(this, QStringLiteral("Azahar"),
+        QMessageBox::information(this, QStringLiteral("STORM 3DS"),
                                  tr("Successfully uninstalled '%1'.").arg(first_name));
         emit InstalledTitlesChanged();
     }
@@ -2881,19 +3103,16 @@ void GMainWindow::OnLoadComplete() {
 }
 
 void GMainWindow::ToggleFullscreen() {
-    if (!emulation_running) {
+    if (emulation_running && secondary_window->isVisible() && secondary_window->isActiveWindow()) {
+        // undo the action and fullscreen secondary manually
+        ui->action_Fullscreen->setChecked(isFullScreen());
+        ToggleSecondaryFullscreen();
         return;
     }
-    if (secondary_window->isVisible() && secondary_window->isActiveWindow()) {
-        // undo the action and fullscreen secondary manually
-        ui->action_Fullscreen->toggle();
-        ToggleSecondaryFullscreen();
+    if (ui->action_Fullscreen->isChecked()) {
+        ShowFullscreen();
     } else {
-        if (ui->action_Fullscreen->isChecked()) {
-            ShowFullscreen();
-        } else {
-            HideFullscreen();
-        }
+        HideFullscreen();
     }
 }
 
@@ -2918,12 +3137,23 @@ void GMainWindow::ToggleSecondaryFullscreen() {
 }
 
 void GMainWindow::ShowFullscreen() {
-    if (ui->action_Single_Window_Mode->isChecked()) {
-        UISettings::values.geometry = saveGeometry();
+    if (ui->action_Single_Window_Mode->isChecked() || !emulation_running) {
+        if (!isFullScreen()) {
+            was_maximized_before_fullscreen = isMaximized();
+            if (!was_maximized_before_fullscreen) {
+                UISettings::values.geometry = saveGeometry();
+            }
+        }
+        if (main_toolbar) {
+            main_toolbar->hide();
+        }
         ui->menubar->hide();
         statusBar()->hide();
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(this, true);
+#endif
+#ifdef _WIN32
+        StormTheme::ApplyWindowsWindowChrome(this, StormTheme::CurrentTheme(), true);
 #endif
         showFullScreen();
     } else {
@@ -2931,25 +3161,41 @@ void GMainWindow::ShowFullscreen() {
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(render_window, true);
 #endif
+#ifdef _WIN32
+        StormTheme::ApplyWindowsWindowChrome(render_window, StormTheme::CurrentTheme(), true);
+#endif
         render_window->showFullScreen();
     }
 }
 
 void GMainWindow::HideFullscreen() {
-    if (ui->action_Single_Window_Mode->isChecked()) {
+    if (ui->action_Single_Window_Mode->isChecked() || !emulation_running) {
+        if (main_toolbar) {
+            main_toolbar->setVisible(ui->action_Show_Toolbar->isChecked());
+        }
         statusBar()->setVisible(ui->action_Show_Status_Bar->isChecked());
         ui->menubar->show();
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(this, false);
 #endif
         showNormal();
-        restoreGeometry(UISettings::values.geometry);
+        if (was_maximized_before_fullscreen) {
+            showMaximized();
+        } else if (!UISettings::values.geometry.isEmpty()) {
+            restoreGeometry(UISettings::values.geometry);
+        }
+#ifdef _WIN32
+        StormTheme::ApplyWindowsWindowChrome(this, StormTheme::CurrentTheme(), false);
+#endif
     } else {
 #ifdef NEEDS_ROUND_CORNERS_FIX
         WindowCornerManager::instance().blockRoundedCorners(render_window, false);
 #endif
         render_window->showNormal();
         render_window->restoreGeometry(UISettings::values.renderwindow_geometry);
+#ifdef _WIN32
+        StormTheme::ApplyWindowsWindowChrome(render_window, StormTheme::CurrentTheme(), false);
+#endif
     }
 }
 
@@ -2963,6 +3209,7 @@ void GMainWindow::ToggleWindowMode() {
             render_window->setVisible(true);
             render_window->setFocus();
             game_list->hide();
+            game_list_placeholder->hide();
         }
 
     } else {
@@ -2972,7 +3219,14 @@ void GMainWindow::ToggleWindowMode() {
         if (emulation_running) {
             render_window->setVisible(true);
             render_window->restoreGeometry(UISettings::values.renderwindow_geometry);
-            game_list->show();
+            loading_screen->hide();
+            if (game_list->IsEmpty()) {
+                game_list->hide();
+                game_list_placeholder->show();
+            } else {
+                game_list_placeholder->hide();
+                game_list->show();
+            }
         }
     }
 }
@@ -3178,7 +3432,14 @@ void GMainWindow::OnConfigure() {
                                     !multiplayer_state->IsHostingPublicRoom());
     connect(&configureDialog, &ConfigureDialog::LanguageChanged, this,
             &GMainWindow::OnLanguageChanged);
+    connect(&configureDialog, &ConfigureDialog::ThemePreviewRequested, this,
+            [this](const QString& theme) {
+                UISettings::values.theme = theme;
+                UpdateUITheme();
+                emit UpdateThemedIcons();
+            });
     auto old_theme = UISettings::values.theme;
+    const QString old_language = UISettings::values.language;
     const int old_input_profile_index = Settings::values.current_input_profile_index;
     const auto old_input_profiles = Settings::values.input_profiles;
     const auto old_touch_from_button_maps = Settings::values.touch_from_button_maps;
@@ -3193,7 +3454,8 @@ void GMainWindow::OnConfigure() {
     if (result == QDialog::Accepted) {
         configureDialog.ApplyConfiguration();
         InitializeHotkeys();
-        if (UISettings::values.theme != old_theme) {
+        if (StormTheme::NormalizeThemeId(UISettings::values.theme) !=
+            StormTheme::NormalizeThemeId(old_theme)) {
             UpdateUITheme();
         }
 #ifdef ENABLE_DISCORD_RPC
@@ -3223,7 +3485,17 @@ void GMainWindow::OnConfigure() {
         UpdateSecondaryWindowVisibility();
         UpdateBootHomeMenuState();
         UpdateStatusButtons();
+        UpdateToolbarState();
     } else {
+        if (StormTheme::NormalizeThemeId(UISettings::values.theme) !=
+            StormTheme::NormalizeThemeId(old_theme)) {
+            UISettings::values.theme = old_theme;
+            UpdateUITheme();
+            emit UpdateThemedIcons();
+        }
+        if (UISettings::values.language != old_language) {
+            OnLanguageChanged(old_language);
+        }
         Settings::values.input_profiles = old_input_profiles;
         Settings::values.touch_from_button_maps = old_touch_from_button_maps;
         Settings::LoadProfile(old_input_profile_index);
@@ -3322,11 +3594,16 @@ void GMainWindow::OnOpenLoadFolder() {
     QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(load_dir)));
 }
 
-void GMainWindow::OnOpenScreenshotsFolder() {
+std::string GMainWindow::GetEffectiveScreenshotPath() const {
     std::string path = UISettings::values.screenshot_path.GetValue();
     if (path.empty()) {
         path = FileUtil::GetUserPath(FileUtil::UserPath::UserDir) + "screenshots/";
     }
+    return path;
+}
+
+void GMainWindow::OnOpenScreenshotsFolder() {
+    const std::string path = GetEffectiveScreenshotPath();
     FileUtil::CreateFullPath(path);
     QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)));
 }
@@ -3461,21 +3738,21 @@ void GMainWindow::OnCaptureScreenshot() {
         if (was_running) {
             OnPauseGame();
         }
-        std::string path = UISettings::values.screenshot_path.GetValue();
+        std::string path = GetEffectiveScreenshotPath();
         if (!FileUtil::IsDirectory(path)) {
             if (!FileUtil::CreateFullPath(path)) {
                 QMessageBox::information(
                     this, tr("Invalid Screenshot Directory"),
                     tr("Cannot create specified screenshot directory. Screenshot "
                        "path is set back to its default value."));
-                path = FileUtil::GetUserPath(FileUtil::UserPath::UserDir);
-                path.append("screenshots/");
+                path = FileUtil::GetUserPath(FileUtil::UserPath::UserDir) + "screenshots/";
+                FileUtil::CreateFullPath(path);
                 UISettings::values.screenshot_path = path;
             };
         }
 
         static QRegularExpression expr(QStringLiteral("[\\/:?\"<>|]"));
-        const std::string filename = game_title.remove(expr).toStdString();
+        const std::string filename = QString(game_title).remove(expr).toStdString();
         const std::string timestamp = QDateTime::currentDateTime()
                                           .toString(QStringLiteral("dd.MM.yy_hh.mm.ss.z"))
                                           .toStdString();
@@ -3484,8 +3761,11 @@ void GMainWindow::OnCaptureScreenshot() {
             secondary_window->HasFocus() ? secondary_window : render_window;
         screenshot_window->CaptureScreenshot(
             UISettings::values.screenshot_resolution_factor.GetValue(),
-            QString::fromStdString(path));
-        OnResumeGame(false);
+            QString::fromStdString(path), [this]() {
+                if (emu_thread && emulation_running) {
+                    OnResumeGame(false);
+                }
+            });
     }
 }
 
@@ -3868,7 +4148,7 @@ void GMainWindow::OnExtractBundle() {
 void GMainWindow::OnStartVideoDumping() {
     if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Vulkan) {
         QMessageBox::critical(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Video dumping is not yet supported when using the Vulkan renderer.")
 #ifdef __APPLE__
                 + QStringLiteral("\n") +
@@ -3881,7 +4161,7 @@ void GMainWindow::OnStartVideoDumping() {
 
     if (Settings::values.graphics_api.GetValue() == Settings::GraphicsAPI::Software) {
         QMessageBox::critical(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Video dumping is not yet supported when using the Software renderer."));
         ui->action_Dump_Video->setChecked(false);
         return;
@@ -3910,7 +4190,7 @@ void GMainWindow::StartVideoDumping(const QString& path) {
         system.RegisterVideoDumper(dumper);
     } else {
         QMessageBox::critical(
-            this, QStringLiteral("Azahar"),
+            this, QStringLiteral("STORM 3DS"),
             tr("Could not start video dumping.<br>Please ensure that the video encoder is "
                "configured correctly.<br>Refer to the log for details."));
         ui->action_Dump_Video->setChecked(false);
@@ -4005,8 +4285,12 @@ void GMainWindow::UpdateStatusBar() {
             }
         }
 
-        static const std::array label_color = {QStringLiteral(""), QStringLiteral("#eed202"),
-                                               QStringLiteral("#ff3333")};
+        const bool dark = StormTheme::IsCurrentThemeDark();
+        const std::array label_color = {
+            QStringLiteral(""),
+            dark ? QStringLiteral("#FACC15") : QStringLiteral("#B45309"),
+            dark ? QStringLiteral("#FB7185") : QStringLiteral("#B91C1C"),
+        };
 
         int style_index;
 
@@ -4146,8 +4430,12 @@ void GMainWindow::UpdateAPIIndicator(bool update) {
     static std::array graphics_apis = {QStringLiteral("SOFTWARE"), QStringLiteral("OPENGL"),
                                        QStringLiteral("VULKAN")};
 
-    static std::array graphics_api_colors = {QStringLiteral("#3ae400"), QStringLiteral("#00ccdd"),
-                                             QStringLiteral("#91242a")};
+    const bool dark = StormTheme::IsCurrentThemeDark();
+    const std::array graphics_api_colors = {
+        dark ? QStringLiteral("#34D399") : QStringLiteral("#15803D"),
+        dark ? QStringLiteral("#38BDF8") : QStringLiteral("#0369A1"),
+        dark ? QStringLiteral("#FB7185") : QStringLiteral("#B91C1C"),
+    };
 
     u32 api_index = static_cast<u32>(Settings::values.graphics_api.GetValue());
     if (update) {
@@ -4177,11 +4465,11 @@ void GMainWindow::UpdateAPIIndicator(bool update) {
         Settings::values.graphics_api = static_cast<Settings::GraphicsAPI>(api_index);
     }
 
-    const QString style_sheet = QStringLiteral("QPushButton { font-weight: bold; color: %0; }")
-                                    .arg(graphics_api_colors[api_index]);
-
     graphics_api_button->setText(graphics_apis[api_index]);
-    graphics_api_button->setStyleSheet(style_sheet);
+    QPalette pal = graphics_api_button->palette();
+    pal.setColor(QPalette::ButtonText, QColor(graphics_api_colors[api_index]));
+    graphics_api_button->setPalette(pal);
+    graphics_api_button->setStyleSheet(QString{});
 }
 
 void GMainWindow::UpdateStatusButtons() {
@@ -4286,9 +4574,8 @@ void GMainWindow::OnCoreError(Core::System::ResultStatus result, std::string det
     bool can_continue = true;
     if (result == Core::System::ResultStatus::ErrorSystemFiles) {
         const QString common_message =
-            tr("%1 is missing. Please <a "
-               "href='https://github.com/azahar-emu/azahar/wiki/Dumping-System-Files'>dump your "
-               "system archives</a>.<br/>Continuing emulation may result in crashes and bugs.");
+            tr("%1 is missing. Please dump your system archives or use Set Up System Files.<br/>"
+               "Continuing emulation may result in crashes and bugs.");
 
         if (!details.empty()) {
             message = common_message.arg(QString::fromStdString(details));
@@ -4314,21 +4601,19 @@ void GMainWindow::OnCoreError(Core::System::ResultStatus result, std::string det
     } else if (result == Core::System::ResultStatus::ErrorShaderCacheCrash) {
         title = tr("Shader Cache Crash");
         message =
-            tr("Azahar closed unexpectedly the last time it built the Vulkan shader cache of the "
-               "current title. The graphics driver may have crashed on one of the cached shaders, "
-               "and continuing may crash it again.<br/><br/>To reset the shader cache, "
+            tr("STORM 3DS closed unexpectedly the last time it built the Vulkan shader cache of "
+               "the current title. The graphics driver may have crashed on one of the cached "
+               "shaders, and continuing may crash it again.<br/><br/>To reset the shader cache, "
                "right-click the application in the game list and select "
                "<b>Disk Shader Cache &gt; Delete Vulkan Shader Cache</b>.");
         status_message = tr("Shader cache crash");
         error_severity_icon = QMessageBox::Icon::Critical;
     } else if (result == Core::System::ResultStatus::ErrorSavestateBuildMismatch) {
         title = tr("Savestate version mismatch");
-        message = tr("Could not load savestate because it was created on a different Azahar "
+        message = tr("Could not load savestate because it was created on a different STORM 3DS "
                      "version:<br/>"
-                     "<b>Azahar %1</b>.<br/><br/>Please read our blog entry <a "
-                     "href='https://azahar-emu.org/blog/understanding-save-states/'>understanding "
-                     "savestates</a> for more information.<br/><br/>To recover your progress, "
-                     "downgrade to <b>Azahar %1</b>, load this savestate and use the application's "
+                     "<b>STORM 3DS %1</b>.<br/><br/>To recover your progress, "
+                     "load this savestate on version <b>%1</b> and use the application's "
                      "built-in save functionality.")
                       .arg(QString::fromStdString(details));
         error_severity_icon = QMessageBox::Icon::Critical;
@@ -4390,7 +4675,7 @@ bool GMainWindow::ConfirmClose() {
     }
 
     QMessageBox::StandardButton answer =
-        QMessageBox::question(this, QStringLiteral("Azahar"), tr("Would you like to exit now?"),
+        QMessageBox::question(this, QStringLiteral("STORM 3DS"), tr("Would you like to exit now?"),
                               QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     return answer != QMessageBox::No;
 }
@@ -4424,14 +4709,15 @@ static bool IsSingleFileDropEvent(const QMimeData* mime) {
     return mime->hasUrls() && mime->urls().length() == 1;
 }
 
-static const std::array<std::string, 14> AcceptedExtensions = {
-    "cci",  "cxi",  "bin",   "3dsx", "app",  "elf",  "axf",
-    "zcci", "z3ds", "zcxi",  "z3dsx", "3ds", "bcci", "bcxi"};
+static const std::array<std::string, 17> AcceptedExtensions = {
+    "cci",   "cxi",   "bin",   "3dsx", "app", "elf",  "axf",  "zcci", "z3ds",
+    "zcxi",  "z3dsx", "3ds",   "bcci", "bcxi", "cia", "zcia", "bcia"};
 
 static bool IsCorrectFileExtension(const QMimeData* mime) {
     const QString& filename = mime->urls().at(0).toLocalFile();
     return std::find(AcceptedExtensions.begin(), AcceptedExtensions.end(),
-                     QFileInfo(filename).suffix().toStdString()) != AcceptedExtensions.end();
+                     QFileInfo(filename).suffix().toLower().toStdString()) !=
+           AcceptedExtensions.end();
 }
 
 static bool IsAcceptableDropEvent(QDropEvent* event) {
@@ -4487,7 +4773,7 @@ bool GMainWindow::ConfirmChangeGame() {
     }
 
     auto answer = QMessageBox::question(
-        this, QStringLiteral("Azahar"),
+        this, QStringLiteral("STORM 3DS"),
         tr("The application is still running. Would you like to stop emulation?"),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     return answer != QMessageBox::No;
@@ -4510,83 +4796,70 @@ inline bool isDarkMode() {
 #endif
 }
 
-#ifdef _WIN32
-static void ApplyWindowsTitleBarTheme(QWidget* widget, bool dark) {
-    if (!widget || !widget->isWindow() || !widget->windowHandle()) {
-        return;
-    }
-    HWND hwnd = reinterpret_cast<HWND>(widget->winId());
-    if (!hwnd) {
-        return;
-    }
-    const BOOL value = dark ? TRUE : FALSE;
-    // DWMWA_USE_IMMERSIVE_DARK_MODE (20 on Win10 2004+/Win11, 19 on Win10 1809-1909)
-    if (FAILED(DwmSetWindowAttribute(hwnd, 20, &value, sizeof(value)))) {
-        DwmSetWindowAttribute(hwnd, 19, &value, sizeof(value));
-    }
-}
-#endif
-
 void GMainWindow::UpdateUITheme() {
     const QString icons_base_path = QStringLiteral(":/icons/");
     const QString default_system_theme = QStringLiteral("default");
     const QString light_icon_system_theme = QStringLiteral("default_with_light_icons");
     const QString colorful_icon_system_theme = QStringLiteral("colorful");
-    const QString storm_flagship_theme = QStringLiteral("storm_flagship");
-    const QString storm_light_theme = QStringLiteral("storm_light");
 
-    QString default_theme;
-    if (!isDarkMode()) {
-        default_theme = default_system_theme;
-    } else {
-        default_theme = light_icon_system_theme;
-    }
-
-    const QString default_theme_path = icons_base_path + default_theme;
-
+    UISettings::values.theme = StormTheme::NormalizeThemeId(UISettings::values.theme);
     const QString& current_theme = UISettings::values.theme;
-    const bool is_default_theme = (current_theme == default_system_theme);
+
+    const QString default_theme = isDarkMode() ? light_icon_system_theme : default_system_theme;
+    const QString default_theme_path = icons_base_path + default_theme;
     QStringList theme_paths(default_theme_paths);
 
-    if (is_default_theme || current_theme.isEmpty()) {
+    if (StormTheme::IsStormTheme(current_theme) || current_theme.isEmpty()) {
+        if (QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"))) {
+            QApplication::setStyle(fusion);
+        }
+        const auto& storm_theme =
+            StormTheme::ResolveTheme(current_theme.isEmpty() ? QStringLiteral("storm_flagship")
+                                                             : current_theme);
+        qApp->setPalette(StormTheme::BuildPalette(storm_theme));
+        qApp->setStyleSheet(StormTheme::BuildStylesheet(storm_theme));
+        setStyleSheet({});
+
+        const QString icon_theme =
+            storm_theme.is_dark ? light_icon_system_theme : default_system_theme;
+        theme_paths.append(icons_base_path + icon_theme);
+        QIcon::setThemeSearchPaths(theme_paths);
+        QIcon::setThemeName(icon_theme);
+    } else if (current_theme == default_system_theme) {
+        qApp->setPalette(qApp->style()->standardPalette());
         const QString theme_uri(QStringLiteral(":default/style.qss"));
         QFile f(theme_uri);
+        QString qss;
         if (f.open(QFile::ReadOnly | QFile::Text)) {
             QTextStream ts(&f);
-            const QString qss = ts.readAll();
-            qApp->setStyleSheet(qss);
-            setStyleSheet(qss);
+            qss = ts.readAll() + QStringLiteral("\nQStatusBar::item{border: none;}\n");
         } else {
             LOG_ERROR(Frontend,
                       "Unable to open default stylesheet, falling back to empty stylesheet");
-            qApp->setStyleSheet({});
-            setStyleSheet({});
         }
+        qApp->setStyleSheet(qss);
+        setStyleSheet({});
         theme_paths.append(default_theme_path);
+        QIcon::setThemeSearchPaths(theme_paths);
         QIcon::setThemeName(default_theme);
     } else {
+        qApp->setPalette(qApp->style()->standardPalette());
         const QString theme_uri(QLatin1Char{':'} + current_theme + QStringLiteral("/style.qss"));
         QFile f(theme_uri);
         if (f.open(QFile::ReadOnly | QFile::Text)) {
             QTextStream ts(&f);
-            const QString qss = ts.readAll();
+            const QString qss =
+                ts.readAll() + QStringLiteral("\nQStatusBar::item{border: none;}\n");
             qApp->setStyleSheet(qss);
-            setStyleSheet(qss);
         } else {
             LOG_ERROR(Frontend, "Unable to set style, stylesheet file not found");
         }
+        setStyleSheet({});
 
-        if (current_theme == storm_flagship_theme) {
-            theme_paths.append(icons_base_path + light_icon_system_theme);
-            QIcon::setThemeName(light_icon_system_theme);
-        } else if (current_theme == storm_light_theme) {
-            theme_paths.append(icons_base_path + default_system_theme);
-            QIcon::setThemeName(default_system_theme);
-        } else {
-            const QString current_theme_path = icons_base_path + current_theme;
-            theme_paths.append({default_theme_path, current_theme_path});
-            QIcon::setThemeName(current_theme);
-        }
+        const QString current_theme_path = icons_base_path + current_theme;
+        theme_paths.append({default_theme_path, current_theme_path});
+        QIcon::setThemeSearchPaths(theme_paths);
+        QIcon::setThemeName(current_theme);
     }
 
 #ifdef _WIN32
@@ -4594,23 +4867,19 @@ void GMainWindow::UpdateUITheme() {
         current_theme == colorful_icon_system_theme) {
         SetCustomWindowsScrollbar();
     }
-    const bool use_dark_titlebar =
-        (current_theme == storm_flagship_theme ||
-         current_theme.contains(QStringLiteral("dark"), Qt::CaseInsensitive) ||
-         current_theme.contains(QStringLiteral("midnight"), Qt::CaseInsensitive) ||
-         ((current_theme.isEmpty() || current_theme == default_system_theme ||
-           current_theme == colorful_icon_system_theme) &&
-          isDarkMode()));
-    ApplyWindowsTitleBarTheme(this, use_dark_titlebar);
-    if (render_window) {
-        ApplyWindowsTitleBarTheme(render_window, use_dark_titlebar);
-    }
-    if (secondary_window) {
-        ApplyWindowsTitleBarTheme(secondary_window, use_dark_titlebar);
+    const auto& chrome_theme = StormTheme::ResolveTheme(current_theme);
+    for (QWidget* top_level : QApplication::topLevelWidgets()) {
+        if (top_level && top_level->isWindow() && !(top_level->windowFlags() & Qt::Popup)) {
+            StormTheme::ApplyWindowsWindowChrome(top_level, chrome_theme,
+                                                 top_level->isFullScreen());
+        }
     }
 #endif
 
-    QIcon::setThemeSearchPaths(theme_paths);
+    if (graphics_api_button) {
+        UpdateAPIIndicator();
+    }
+    UpdateToolbarState();
 }
 
 void GMainWindow::LoadTranslation() {
@@ -4681,6 +4950,7 @@ void GMainWindow::OnLanguageChanged(const QString& locale) {
     UISettings::values.language = locale;
     LoadTranslation();
     ui->retranslateUi(this);
+    RetranslateToolbar();
     RetranslateStatusBar();
     UpdateWindowTitle();
 }
@@ -4805,6 +5075,7 @@ void GMainWindow::UpdateUISettings() {
     UISettings::values.single_window_mode = ui->action_Single_Window_Mode->isChecked();
     UISettings::values.fullscreen = ui->action_Fullscreen->isChecked();
     UISettings::values.display_titlebar = ui->action_Display_Dock_Widget_Headers->isChecked();
+    UISettings::values.show_toolbar = ui->action_Show_Toolbar->isChecked();
     UISettings::values.show_filter_bar = ui->action_Show_Filter_Bar->isChecked();
     UISettings::values.show_status_bar = ui->action_Show_Status_Bar->isChecked();
     UISettings::values.first_start = false;
@@ -5012,6 +5283,7 @@ int LaunchQtFrontend(int argc, char* argv[]) {
     Q_INIT_RESOURCE(theme_qdarkstyle_midnight_blue);
     Q_INIT_RESOURCE(theme_storm_flagship);
     Q_INIT_RESOURCE(theme_storm_light);
+    Q_INIT_RESOURCE(storm_assets);
 #ifdef ENABLE_QT_TRANSLATION
     Q_INIT_RESOURCE(languages);
 #endif
