@@ -352,6 +352,54 @@ fun RamCheatFinderTab(
             .fillMaxSize()
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
+        if (isHardcoreActive) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(colors.surface2)
+                    .border(1.dp, colors.line, RoundedCornerShape(14.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.ra_hardcore_ram_finder_locked_title),
+                    color = colors.text,
+                    fontFamily = SpaceGrotesk,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.ra_hardcore_ram_finder_locked_summary),
+                    color = colors.text2,
+                    fontFamily = SpaceGrotesk,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                )
+                if (onSwitchToSoftcore != null) {
+                    Spacer(Modifier.height(14.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.green)
+                            .clickable { onSwitchToSoftcore.invoke() }
+                            .padding(horizontal = 18.dp, vertical = 10.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ra_hardcore_switch_to_casual_action),
+                            color = Color.Black,
+                            fontFamily = SpaceGrotesk,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                        )
+                    }
+                }
+            }
+            return@Column
+        }
         // Controls Row 1: Bitness Selector
         Row(
             modifier = Modifier.fillMaxWidth(),

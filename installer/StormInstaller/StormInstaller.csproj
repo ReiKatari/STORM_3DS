@@ -13,9 +13,9 @@
     <RootNamespace>Storm3ds.Installer</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.12.0</Version>
-    <AssemblyVersion>1.12.0.0</AssemblyVersion>
-    <FileVersion>1.12.0.0</FileVersion>
+    <Version>1.12.1</Version>
+    <AssemblyVersion>1.12.1.0</AssemblyVersion>
+    <FileVersion>1.12.1.0</FileVersion>
     <Product>STORM 3DS</Product>
     <Company>STORM TEAM</Company>
     <Copyright>Copyright © 2026 STORM TEAM. All rights reserved.</Copyright>

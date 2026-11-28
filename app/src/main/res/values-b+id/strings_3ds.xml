@@ -492,4 +492,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">Batal</string>
     <string name="screen_editor_done">Selesai</string>
     <string name="screen_editor_saved_toast">Tata letak layar khusus disimpan</string>
+    <string name="ra_hardcore_netplay_blocked">NetPlay dinonaktifkan dalam mode Hardcore RetroAchievements. Beralihlah ke mode Casual untuk bermain daring.</string>
+    <string name="ra_hardcore_ram_finder_locked_title">Pencarian Memori Diblokir di Mode Hardcore</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">Membaca atau mengubah RAM dilarang oleh aturan RetroAchievements Hardcore. Alihkan sesi ke mode Casual untuk menggunakan RAM Finder.</string>
+    <string name="ra_hardcore_switch_to_casual_action">Beralih ke Mode Casual</string>
 </resources>

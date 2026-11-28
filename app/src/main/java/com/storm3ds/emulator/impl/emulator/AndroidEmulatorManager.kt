@@ -1420,6 +1420,9 @@ class AndroidEmulatorManager(
     override fun isEmulatorPaused(): Boolean = isEmulationPaused
 
     override suspend fun debugStepFrame(): Boolean = withContext(Dispatchers.Default) {
+        if (emulatorSession.isRetroAchievementsHardcoreModeEnabled) {
+            return@withContext false
+        }
         MelonEmulator.debugStepFrame()
     }
 
@@ -1428,6 +1431,10 @@ class AndroidEmulatorManager(
     }
 
     override suspend fun updateCheats(cheats: List<Cheat>) {
+        if (emulatorSession.isRetroAchievementsHardcoreModeEnabled) {
+            MelonEmulator.setupCheats(emptyArray())
+            return
+        }
         MelonEmulator.setupCheats(cheats.toTypedArray())
     }
 

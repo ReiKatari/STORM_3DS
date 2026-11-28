@@ -312,7 +312,7 @@ bool DownloadFileWinHttp(const std::wstring& url, const std::wstring& dest_path,
     }
 
     HINTERNET hSession =
-        WinHttpOpen(L"STORM-3DS-Updater/1.12.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+        WinHttpOpen(L"STORM-3DS-Updater/1.12.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                     WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession) {
         return false;

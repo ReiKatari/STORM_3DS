@@ -408,6 +408,10 @@ class InputProcessor(
 
     private fun dispatchInputPressed(input: Input, fromController: Boolean) {
         if (input == Input.TOGGLE_HARDWARE_TURBO) {
+            if (com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive) {
+                stopAllTurboPulses()
+                return
+            }
             toggleHardwareTurbo()
             return
         }
@@ -419,7 +423,9 @@ class InputProcessor(
         updateSlot2DigitalFallback(input, pressed = true, fromController = fromController)
 
         if (input.isSystemInput) {
-            if (isHardwareTurboActive && fromController && input in turboEligibleButtons) {
+            if (isHardwareTurboActive && !com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive &&
+                fromController && input in turboEligibleButtons
+            ) {
                 startTurboForButton(input)
             } else {
                 systemInputListener.onKeyPress(input)

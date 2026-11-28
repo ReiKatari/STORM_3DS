@@ -91,14 +91,18 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
         val hardcoreModePreference = findPreference<SwitchPreference>("ra_hardcore_enabled")!!
         hardcoreModePreference.summary = getString(R.string.v780_ra_hardcore_mode_detailed_summary)
         val richPresencePreference = findPreference<SwitchPreference>("ra_rich_presence")!!
+        val unofficialPreference = findPreference<SwitchPreference>("ra_unofficial_enabled")!!
         val spectatorModePreference = findPreference<SwitchPreference>("ra_spectator_mode")!!
         retroAchievementsEnabledPreference.isVisible = true
         richPresencePreference.isVisible = true
         richPresencePreference.isEnabled = !hardcoreModePreference.isChecked
+        unofficialPreference.isEnabled = !hardcoreModePreference.isChecked
         if (hardcoreModePreference.isChecked) {
             richPresencePreference.isChecked = true
+            unofficialPreference.isChecked = false
         }
         val offlineBackendPreference = findPreference<ListPreference>("ra_offline_backend")!!
+        offlineBackendPreference.isVisible = com.storm3ds.emulator.BuildConfig.DEBUG
         val builtInOfflinePreference = findPreference<SwitchPreference>("ra_offline_softcore_enabled")!!
         val notificationSoundPreference = findPreference<ListPreference>("ra_notification_sound")!!
         val syncPendingPreference = findPreference<Preference>("ra_sync_pending_submissions")!!
@@ -106,10 +110,9 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
         val integrationPreferences = listOf(
             hardcoreModePreference,
             richPresencePreference,
-            findPreference<SwitchPreference>("ra_unofficial_enabled")!!,
+            unofficialPreference,
             findPreference<SwitchPreference>("ra_encore_enabled")!!,
             spectatorModePreference,
-            offlineBackendPreference,
             builtInOfflinePreference,
             findPreference<SwitchPreference>("ra_active_challenge_indicators")!!,
             findPreference<SwitchPreference>("ra_progress_indicators")!!,
@@ -129,8 +132,10 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
 
             richPresencePreference.isVisible = true
             richPresencePreference.isEnabled = !isEnabled
+            unofficialPreference.isEnabled = !isEnabled
             if (isEnabled) {
                 richPresencePreference.isChecked = true
+                unofficialPreference.isChecked = false
             }
             true
         }
@@ -248,9 +253,11 @@ class RetroAchievementsPreferencesFragment : BasePreferenceFragment(), Preferenc
                         state.endpoint.backendEffective ==
                             com.storm3ds.emulator.domain.model.retroachievements.RetroAchievementsOfflineBackend.BUILT_IN
                     hardcoreModePreference.isVisible = integrationOptionsEnabled && builtInEffective
+                    offlineBackendPreference.isVisible = integrationOptionsEnabled && com.storm3ds.emulator.BuildConfig.DEBUG
                     builtInOfflinePreference.isVisible = integrationOptionsEnabled && builtInEffective
                     richPresencePreference.isVisible =
                         integrationOptionsEnabled && !isHardcoreEnabled && builtInEffective
+                    unofficialPreference.isEnabled = !isHardcoreEnabled
                     val selectedIdx = offlineBackendPreference.findIndexOfValue(offlineBackendPreference.value)
                     val selectedEntry = if (selectedIdx >= 0 && selectedIdx < offlineBackendPreference.entries.size) {
                         offlineBackendPreference.entries[selectedIdx].toString()

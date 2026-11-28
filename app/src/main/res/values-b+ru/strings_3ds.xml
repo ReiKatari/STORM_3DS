@@ -493,4 +493,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">Отмена</string>
     <string name="screen_editor_done">Готово</string>
     <string name="screen_editor_saved_toast">Расположение экранов 3DS сохранено</string>
+    <string name="ra_hardcore_netplay_blocked">Сетевая игра (NetPlay) запрещена в режиме RetroAchievements Hardcore. Переключитесь в обычный режим (Casual).</string>
+    <string name="ra_hardcore_ram_finder_locked_title">Поиск в памяти заблокирован в Hardcore</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">Сканирование и редактирование RAM запрещены правилами RetroAchievements Hardcore. Понизьте сессию до обычного режима (Casual) для работы с памятью.</string>
+    <string name="ra_hardcore_switch_to_casual_action">Перейти в Casual-режим</string>
 </resources>

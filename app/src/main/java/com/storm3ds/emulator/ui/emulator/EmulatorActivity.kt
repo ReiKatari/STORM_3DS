@@ -1514,6 +1514,15 @@ class EmulatorActivity : AppCompatActivity() {
                                 }
                                 if (option == com.storm3ds.emulator.ui.emulator.rom.RomPauseMenuOption.NETPLAY) {
                                     dismissPauseMenu()
+                                    if (viewModel.isRetroAchievementsHardcoreActive()) {
+                                        android.widget.Toast.makeText(
+                                            this@EmulatorActivity,
+                                            getString(R.string.ra_hardcore_netplay_blocked),
+                                            android.widget.Toast.LENGTH_LONG,
+                                        ).show()
+                                        reopenPauseMenu()
+                                        return@PauseMenuOverlay
+                                    }
                                     activeOverlays.addActiveOverlay(EmulatorOverlay.NETPLAY_DIALOG)
                                     showNetplayDialog.value = true
                                     requestOverlayHostFocus()

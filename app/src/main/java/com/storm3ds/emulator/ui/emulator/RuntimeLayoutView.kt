@@ -334,6 +334,9 @@ class RuntimeLayoutView(context: Context, attrs: AttributeSet? = null) : LayoutV
             com.storm3ds.emulator.ui.common.views.showComboKeyConfigDialog(context, slotIndex, current) { }
         }
         view.setOnTouchListener { v, event ->
+            if (com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive) {
+                return@setOnTouchListener false
+            }
             when (event.actionMasked) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     longPressed = false

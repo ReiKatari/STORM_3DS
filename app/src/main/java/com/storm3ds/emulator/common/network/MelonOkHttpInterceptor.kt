@@ -11,7 +11,15 @@ import java.nio.charset.StandardCharsets
 
 private const val MAX_LOGGED_RA_PARAMETER_VALUE_LENGTH = 200
 private val REDACTED_RA_PARAMETER_KEYS = setOf("m", "p", "t", "u", "v", "x")
-const val RETROACHIEVEMENTS_USER_AGENT = "RetroArch/1.19.1 (Android) rcheevos/11.7.0"
+const val RETROACHIEVEMENTS_USER_AGENT = "STORM_3DS/1.12.1 (Android) azahar_core/1.12.1"
+
+fun buildStorm3dsRaUserAgent(context: Context): String {
+    val rawVersion = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    }.getOrNull().orEmpty().trim().removePrefix("v").removePrefix("V").ifBlank { "1.12.1" }
+    val androidRel = android.os.Build.VERSION.RELEASE.orEmpty().trim().ifBlank { "10" }
+    return "STORM_3DS/$rawVersion (Android $androidRel) azahar_core/$rawVersion"
+}
 
 internal fun sanitizeRaRequestParameterValue(key: String, value: String): String {
     if (key in REDACTED_RA_PARAMETER_KEYS) {
@@ -43,7 +51,7 @@ class MelonOkHttpInterceptor(
     private val appVersionName = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull().orEmpty().ifBlank { UNKNOWN_VERSION }
-    private val melonUserAgent = RETROACHIEVEMENTS_USER_AGENT
+    private val melonUserAgent = buildStorm3dsRaUserAgent(context)
 
     private data class RequestParameter(
         val key: String,

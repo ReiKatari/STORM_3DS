@@ -65,7 +65,7 @@ import com.storm3ds.emulator.MelonEmulator
 import com.storm3ds.emulator.R
 import com.storm3ds.emulator.common.romprocessors.RomFileProcessorFactory
 import com.storm3ds.emulator.common.runtime.ScreenshotFrameBufferProvider
-import com.storm3ds.emulator.common.network.RETROACHIEVEMENTS_USER_AGENT
+import com.storm3ds.emulator.common.network.buildStorm3dsRaUserAgent
 import com.storm3ds.emulator.common.retroachievements.RetroAchievementsEndpointProvider
 import com.storm3ds.emulator.common.retroachievements.RetroAchievementsEndpointSnapshot
 import com.storm3ds.emulator.common.retroachievements.RetroAchievementsEndpointStorage
@@ -522,7 +522,7 @@ class EmulatorViewModel @Inject constructor(
         }.getOrNull().orEmpty().ifBlank { "unknown" }
     }
 
-    private val retroAchievementsUserAgent = RETROACHIEVEMENTS_USER_AGENT
+    private val retroAchievementsUserAgent: String by lazy { buildStorm3dsRaUserAgent(context) }
 
     private val _raIntegrationEvent = EventSharedFlow<RAIntegrationEvent>()
     val integrationEvent = _raIntegrationEvent.asSharedFlow()
@@ -1894,6 +1894,9 @@ class EmulatorViewModel @Inject constructor(
     }
 
     fun debugStepFrame() {
+        if (emulatorSession.isRetroAchievementsHardcoreModeEnabled) {
+            return
+        }
         sessionCoroutineScope.launch {
             emulatorManager.debugStepFrame()
         }
@@ -3665,6 +3668,7 @@ class EmulatorViewModel @Inject constructor(
                 "native_client_host_configured=${launchDecision.nativeClientHost.isNotBlank()} " +
                 "endpoint_generation=${launchDecision.endpointGeneration}",
         )
+        val isHardcore = launchDecision.sessionMode == RetroAchievementsSessionMode.HARDCORE
         return RARuntimeBridgeConfig(
             runtimeMode = RARuntimeBridgeMode.RC_CLIENT_ONLINE,
             userAgent = retroAchievementsUserAgent,
@@ -3673,8 +3677,8 @@ class EmulatorViewModel @Inject constructor(
             gameHash = rom.retroAchievementsHash,
             gameId = currentRetroAchievementsGameId,
             submissionSessionId = RaSubmissionSessionIdGenerator.next(),
-            hardcoreEnabled = launchDecision.sessionMode == RetroAchievementsSessionMode.HARDCORE,
-            unofficialEnabled = settingsRepository.areRetroAchievementsUnofficialAchievementsEnabled(),
+            hardcoreEnabled = isHardcore,
+            unofficialEnabled = !isHardcore && settingsRepository.areRetroAchievementsUnofficialAchievementsEnabled(),
             encoreEnabled = settingsRepository.isRetroAchievementsEncoreModeEnabled(),
             apiHost = launchDecision.nativeClientHost,
             usesProxyHost = launchDecision.usesProxyBackend,
@@ -4099,6 +4103,12 @@ class EmulatorViewModel @Inject constructor(
         achievement: me.magnum.rcheevosapi.model.RAAchievement,
         authentication: RAUserAuth.Authenticated,
     ) {
+        if (settingsRepository.isRaSpectatorModeEnabled()) {
+            _achievementsEvent.emit(RAEventUi.AchievementTriggered(achievement))
+            completeAchievementSubmissionTrace(achievement.id, "spectator_mode_local_only")
+            return
+        }
+
         if (networkStatusProvider.isLikelyOnline()) {
             drainHardcoreSubmissions()
         }
@@ -4142,6 +4152,13 @@ class EmulatorViewModel @Inject constructor(
         achievement: me.magnum.rcheevosapi.model.RAAchievement?,
         authentication: RAUserAuth.Authenticated?,
     ) {
+        if (settingsRepository.isRaSpectatorModeEnabled()) {
+            if (achievement != null) {
+                _achievementsEvent.emit(RAEventUi.AchievementTriggered(achievement))
+            }
+            return
+        }
+
         if (isHardcoreEligibleAfterOnlineStart && achievement != null) {
             if (networkStatusProvider.isLikelyOnline()) {
                 if (authentication != null) {
@@ -6964,6 +6981,9 @@ class EmulatorViewModel @Inject constructor(
                             ),
                         )
                     }
+                }
+                EmulatorSessionUpdateAction.DowngradeToSoftcore -> {
+                    switchToSoftcore()
                 }
                 EmulatorSessionUpdateAction.NotifyRetroAchievementsModeSwitch -> {
                     _toastEvent.tryEmit(ToastEvent.CannotSwitchRetroAchievementsMode)

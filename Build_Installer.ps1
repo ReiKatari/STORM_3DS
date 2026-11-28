@@ -6,7 +6,7 @@ $baseDir = $PSScriptRoot
 if (-not $baseDir) { $baseDir = "F:\STORM 3DS" }
 
 $appConfigPath = Join-Path $baseDir "buildSrc\src\main\kotlin\AppConfig.kt"
-$appVersion = "1.12.0"
+$appVersion = "1.12.1"
 if (Test-Path $appConfigPath) {
     $cfgText = Get-Content $appConfigPath -Raw
     if ($cfgText -match 'versionName\s*=\s*"([^"]+)"') {

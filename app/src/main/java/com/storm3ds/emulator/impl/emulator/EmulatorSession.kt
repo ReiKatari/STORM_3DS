@@ -19,17 +19,20 @@ class EmulatorSession {
         this.areRetroAchievementsEnabled = areRetroAchievementsEnabled
         // Hardcore mode can only be enabled if RetroAchievements are available when the session starts
         this.isRetroAchievementsHardcoreModeEnabled = areRetroAchievementsEnabled && isRetroAchievementsHardcoreModeEnabled
+        com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive = this.isRetroAchievementsHardcoreModeEnabled
         this.retroAchievementsOfflineModeEnabled = false
         this.sessionType = sessionType
     }
 
     fun switchToSoftcore() {
         isRetroAchievementsHardcoreModeEnabled = false
+        com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive = false
     }
 
     fun reset() {
         areRetroAchievementsEnabled = false
         isRetroAchievementsHardcoreModeEnabled = false
+        com.storm3ds.emulator.MelonEmulator.isRetroAchievementsHardcoreActive = false
         sessionHasAchievements = false
         retroAchievementsOfflineModeEnabled = false
         sessionType = null
@@ -43,13 +46,23 @@ class EmulatorSession {
                 updateActions.add(EmulatorSessionUpdateAction.EnableRetroAchievements)
             } else {
                 updateActions.add(EmulatorSessionUpdateAction.DisableRetroAchievements)
+                if (this.isRetroAchievementsHardcoreModeEnabled) {
+                    switchToSoftcore()
+                    updateActions.add(EmulatorSessionUpdateAction.DowngradeToSoftcore)
+                }
             }
             this.areRetroAchievementsEnabled = areRetroAchievementsEnabled
         }
 
         if (areRetroAchievementsEnabled && this.isRetroAchievementsHardcoreModeEnabled != isHardcoreModeEnabled) {
-            // It's not possible to change the hardcore mode setting while the emulator session is running
-            updateActions.add(EmulatorSessionUpdateAction.NotifyRetroAchievementsModeSwitch)
+            if (this.isRetroAchievementsHardcoreModeEnabled && !isHardcoreModeEnabled) {
+                // Downgrading from Hardcore to Casual is allowed mid-session
+                switchToSoftcore()
+                updateActions.add(EmulatorSessionUpdateAction.DowngradeToSoftcore)
+            } else {
+                // Switching from Casual to Hardcore mid-session requires a full game reset
+                updateActions.add(EmulatorSessionUpdateAction.NotifyRetroAchievementsModeSwitch)
+            }
         }
 
         return updateActions

@@ -149,10 +149,12 @@ object RetroAchievementsEndpointStorage {
     }
 
     fun snapshot(preferences: SharedPreferences): RetroAchievementsEndpointSnapshot {
-        val selected = RetroAchievementsOfflineBackend.fromPreference(
+        val selectedRaw = RetroAchievementsOfflineBackend.fromPreference(
             preferences.getString(KEY_BACKEND, RetroAchievementsOfflineBackend.BUILT_IN.preferenceValue),
         )
-        val externalActive = preferences.getBoolean(KEY_EXTERNAL_ACTIVE, false)
+        val allowProxy = com.storm3ds.emulator.BuildConfig.DEBUG
+        val selected = if (allowProxy) selectedRaw else RetroAchievementsOfflineBackend.BUILT_IN
+        val externalActive = allowProxy && preferences.getBoolean(KEY_EXTERNAL_ACTIVE, false)
         val effective = if (externalActive) {
             RetroAchievementsOfflineBackend.RA_OFFLINE_PROXY
         } else {

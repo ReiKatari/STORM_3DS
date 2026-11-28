@@ -492,4 +492,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">キャンセル</string>
     <string name="screen_editor_done">完了</string>
     <string name="screen_editor_saved_toast">カスタム画面配置を保存しました</string>
+    <string name="ra_hardcore_netplay_blocked">RetroAchievements ハードコアモードでは NetPlay が無効です。通信プレイにはカジュアルモードへ切り替えてください。</string>
+    <string name="ra_hardcore_ram_finder_locked_title">ハードコアモードではメモリ検索が禁止されています</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">RetroAchievements ハードコア規約により RAM の読み取りや編集は禁止されています。使用するにはカジュアルモードへ切り替えてください。</string>
+    <string name="ra_hardcore_switch_to_casual_action">カジュアルへ切替</string>
 </resources>

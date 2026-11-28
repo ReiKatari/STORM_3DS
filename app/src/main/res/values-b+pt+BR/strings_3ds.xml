@@ -492,4 +492,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">Cancelar</string>
     <string name="screen_editor_done">Concluir</string>
     <string name="screen_editor_saved_toast">Layout manual das telas salvo</string>
+    <string name="ra_hardcore_netplay_blocked">O NetPlay fica desativado no modo Hardcore do RetroAchievements. Mude para o modo Casual para jogar em rede.</string>
+    <string name="ra_hardcore_ram_finder_locked_title">Busca de RAM bloqueada no Hardcore</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">Ler ou editar a memoria RAM e proibido pelas regras Hardcore do RetroAchievements. Mude a sessao para Casual para usar.</string>
+    <string name="ra_hardcore_switch_to_casual_action">Mudar para Casual</string>
 </resources>

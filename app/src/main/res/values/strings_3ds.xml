@@ -490,4 +490,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">Cancel</string>
     <string name="screen_editor_done">Done</string>
     <string name="screen_editor_saved_toast">Custom 3DS screen layout saved</string>
+    <string name="ra_hardcore_netplay_blocked">NetPlay multiplayer is disabled in RetroAchievements Hardcore mode. Switch to Casual mode to play online.</string>
+    <string name="ra_hardcore_ram_finder_locked_title">Memory Search Blocked in Hardcore Mode</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">Scanning, reading, or editing RAM is prohibited under RetroAchievements Hardcore rules. Switch this session to Casual mode to use RAM Finder.</string>
+    <string name="ra_hardcore_switch_to_casual_action">Switch to Casual Mode</string>
 </resources>

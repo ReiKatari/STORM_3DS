@@ -492,4 +492,8 @@ SDMC: %7$s</string>
     <string name="screen_editor_cancel">取消</string>
     <string name="screen_editor_done">完成</string>
     <string name="screen_editor_saved_toast">已保存自定义 3DS 屏幕布局</string>
+    <string name="ra_hardcore_netplay_blocked">RetroAchievements 硬核模式下已禁用 NetPlay 联机。请切换至休闲模式后再进行联机游戏。</string>
+    <string name="ra_hardcore_ram_finder_locked_title">硬核模式下已锁定内存搜索</string>
+    <string name="ra_hardcore_ram_finder_locked_summary">RetroAchievements 硬核规则禁止读取或修改内存。请切换为休闲模式以使用内存搜索。</string>
+    <string name="ra_hardcore_switch_to_casual_action">切换至休闲模式</string>
 </resources>

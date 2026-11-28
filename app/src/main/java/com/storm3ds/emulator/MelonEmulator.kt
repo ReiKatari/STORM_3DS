@@ -125,6 +125,7 @@ object MelonEmulator {
     @Volatile private var lanDiscoveryThread: Thread? = null
     @Volatile var captureFrameBitmapCallback: (() -> Bitmap?)? = null
     @Volatile private var latestScreenshotBitmap: Bitmap? = null
+    @Volatile var isRetroAchievementsHardcoreActive: Boolean = false
     @Volatile var isLongPreparationInProgress: Boolean = false
     @Volatile var lastLoadFailureWasContainerOrFile: Boolean = false
     private val rewindScreenshots = java.util.ArrayDeque<ByteBuffer>()
@@ -203,14 +204,19 @@ object MelonEmulator {
         }
         runCatching { NativeLibrary.setStormJitOptions(jitMode, adaptiveCacheMb) }
 
+        val hardcoreActive = isRetroAchievementsHardcoreActive
         val isNew3ds = cfg.isNew3dsOverride ?: prefs.getBoolean("3ds_is_new_3ds", true)
-        val cpuClock = (cfg.cpuClockPercentageOverride ?: (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull() ?: 100).coerceIn(25, 200)
+        val rawCpuClock = (cfg.cpuClockPercentageOverride ?: (prefs.getString("3ds_cpu_clock_percentage", "100") ?: "100").toIntOrNull() ?: 100).coerceIn(25, 200)
+        val cpuClock = if (hardcoreActive) 100 else rawCpuClock
         val regionVal = (prefs.getString("3ds_region_value", "-1") ?: "-1").toIntOrNull() ?: -1
         val regionFree = prefs.getBoolean("3ds_apply_region_free", true)
         NativeLibrary.addDefaultSetting(SettingKeys.is_new_3ds(), if (isNew3ds) "1" else "0")
         NativeLibrary.addDefaultSetting(SettingKeys.cpu_clock_percentage(), cpuClock.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.region_value(), regionVal.toString())
         NativeLibrary.addDefaultSetting(SettingKeys.apply_region_free_patch(), if (regionFree) "1" else "0")
+        if (hardcoreActive) {
+            NativeLibrary.addDefaultSetting(SettingKeys.use_gdbstub(), "0")
+        }
 
         val useVulkan = cfg.rendererConfiguration.renderer == com.storm3ds.emulator.domain.model.VideoRenderer.VULKAN
         val resScale = cfg.rendererConfiguration.internalResolutionScaling.coerceIn(1, 10)
@@ -223,7 +229,8 @@ object MelonEmulator {
         val texSampling = (prefs.getString("3ds_texture_sampling", "0") ?: "0").toIntOrNull()?.coerceIn(0, 2) ?: 0
         val msaaMode = (prefs.getString("3ds_antialiasing", "0") ?: "0").toIntOrNull()?.coerceIn(0, 4) ?: 0
         val simulateGpuTimings = cfg.simulate3dsGpuTimingsOverride ?: prefs.getBoolean("3ds_simulate_gpu_timings", false)
-        val delayRenderUs = (prefs.getString("3ds_delay_render_thread_us", "0") ?: "0").toIntOrNull()?.coerceIn(0, 65000) ?: 0
+        val rawDelayRenderUs = (prefs.getString("3ds_delay_render_thread_us", "0") ?: "0").toIntOrNull()?.coerceIn(0, 65000) ?: 0
+        val delayRenderUs = if (hardcoreActive) 0 else rawDelayRenderUs
         val hdTex = prefs.getBoolean("video_hd_textures_enabled", false)
         val dumpTex = prefs.getBoolean("video_dump_textures_enabled", false)
         val preloadTex = prefs.getBoolean("video_preload_textures_enabled", false)
@@ -370,7 +377,7 @@ object MelonEmulator {
         NativeLibrary.addDefaultSetting(SettingKeys.battery_charging(), if (batteryCharging) "1" else "0")
 
         val articIp = prefs.getString("3ds_artic_ip", "").orEmpty().trim()
-        val articController = prefs.getBoolean("3ds_artic_controller", false)
+        val articController = !hardcoreActive && prefs.getBoolean("3ds_artic_controller", false)
         if (articIp.isNotEmpty()) {
             NativeLibrary.addDefaultSetting(SettingKeys.last_artic_base_addr(), articIp)
         }
@@ -464,12 +471,14 @@ object MelonEmulator {
                 for (i in existing.indices.reversed()) {
                     CheatEngine.removeCheat(i)
                 }
-                for (cheat in cheats) {
-                    val gatewayCode = formatDSOrGatewayCheat(cheat.code)
-                    if (gatewayCode.isBlank()) continue
-                    val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
-                    nc.setEnabled(cheat.enabled)
-                    CheatEngine.addCheat(nc)
+                if (!isRetroAchievementsHardcoreActive) {
+                    for (cheat in cheats) {
+                        val gatewayCode = formatDSOrGatewayCheat(cheat.code)
+                        if (gatewayCode.isBlank()) continue
+                        val nc: NativeCheat = NativeCheat.createGatewayCode(cheat.name, cheat.description.orEmpty(), gatewayCode)
+                        nc.setEnabled(cheat.enabled)
+                        CheatEngine.addCheat(nc)
+                    }
                 }
                 CheatEngine.saveCheatFile(tid)
             }
@@ -969,6 +978,9 @@ object MelonEmulator {
     fun getCurrentTitleId(): Long = currentTitleId
 
     fun loadRewindState(rewindSaveState: RewindSaveState): Boolean {
+        if (isRetroAchievementsHardcoreActive) {
+            return false
+        }
         val stepsBack = rewindSaveState.bufferContentSize.toInt().coerceAtLeast(1)
         return NativeLibrary.rewindStepsBack(stepsBack)
     }

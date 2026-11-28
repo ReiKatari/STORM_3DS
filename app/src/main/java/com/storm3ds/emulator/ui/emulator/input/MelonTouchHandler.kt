@@ -33,7 +33,7 @@ class MelonTouchHandler(
             }
             stopTurboFor(key)
             MelonEmulator.onInputDown(key)
-            if (turboMacrosEnabled && key in TURBO_ELIGIBLE_INPUTS) {
+            if (turboMacrosEnabled && !MelonEmulator.isRetroAchievementsHardcoreActive && key in TURBO_ELIGIBLE_INPUTS) {
                 val now = SystemClock.uptimeMillis()
                 val prev = lastPressTimeMs[key] ?: 0L
                 lastPressTimeMs[key] = now
